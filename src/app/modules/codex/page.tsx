@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 type CodexTab = "arena" | "materias";
 
 export default function CodexPage() {
-  const { theses, addThesis, updateThesis, deleteThesis } = useVarynthStore();
+  const { theses, notes, vaultItems, addThesis, updateThesis, deleteThesis } = useVarynthStore();
 
   const [activeTab, setActiveTab] = useState<CodexTab>("arena");
   const [selectedThesisId, setSelectedThesisId] = useState<string>(theses[0]?.id || "");
@@ -371,39 +371,43 @@ export default function CodexPage() {
 
         {/* TAB 2: Matérias & Fichamentos */}
         {activeTab === "materias" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { name: "Direito Digital & IA", prof: "Dr. Roberto Silva", count: 12, tags: ["ia", "lgpd", "marco-civil"] },
-              { name: "Direito Constitucional", prof: "Profa. Cláudia", count: 18, tags: ["controle-constitucionalidade", "direitos-fundamentais"] },
-              { name: "Direito Civil & Obrigações", prof: "Dr. Marcelo", count: 14, tags: ["contratos", "responsabilidade-civil"] },
-              { name: "Direito Processual Civil", prof: "Dr. Fernando", count: 9, tags: ["recursos", "tutela-provisoria"] },
-              { name: "Filosofia & Teoria do Direito", prof: "Dr. André", count: 11, tags: ["hermeneutica", "positivismo", "pos-positivismo"] },
-            ].map((mat) => (
-              <div
-                key={mat.name}
-                className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all space-y-3 clip-corner"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 font-bold text-xs">
-                    <BookOpen size={14} />
-                  </div>
-                  <span className="text-xs font-mono text-violet-400 font-bold">{mat.count} fichamentos</span>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-bold text-slate-100">{mat.name}</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">{mat.prof}</p>
-                </div>
-
-                <div className="flex items-center gap-1 flex-wrap pt-2 border-t border-[#1e1e30]">
-                  {mat.tags.map((t) => (
-                    <span key={t} className="text-[10px] px-1.5 py-0.2 rounded bg-[#14141f] text-slate-400">
-                      #{t}
-                    </span>
-                  ))}
-                </div>
+          <div className="space-y-4">
+            {notes.length === 0 && vaultItems.length === 0 ? (
+              <div className="py-16 text-center rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-2">
+                <BookOpen size={28} className="mx-auto text-slate-600" />
+                <h3 className="text-sm font-bold text-slate-300">Nenhuma matéria ou fichamento cadastrado</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Crie notas ou catalogação no Vault para categorizar seus fichamentos dogmáticos por disciplina.
+                </p>
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from(new Set([...notes.flatMap((n) => n.tags), ...vaultItems.flatMap((v) => v.tags)])).map((tag) => {
+                  const tagNotes = notes.filter((n) => n.tags.includes(tag));
+                  const tagVault = vaultItems.filter((v) => v.tags.includes(tag));
+                  const total = tagNotes.length + tagVault.length;
+
+                  return (
+                    <div
+                      key={tag}
+                      className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all space-y-3 clip-corner"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="w-8 h-8 rounded-lg bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 font-bold text-xs">
+                          <BookOpen size={14} />
+                        </div>
+                        <span className="text-xs font-mono text-violet-400 font-bold">{total} itens</span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-100 capitalize">#{tag}</h4>
+                        <p className="text-xs text-slate-400 mt-0.5">{tagNotes.length} notas · {tagVault.length} obras</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

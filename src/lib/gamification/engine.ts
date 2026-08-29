@@ -65,15 +65,15 @@ export function calculateGamification(ctx: {
   const xpOpps = oppsCount * 60;
   const xpForge = forgeCount * 40;
 
-  const totalXP = xpTasks + xpProjects + xpVault + xpTheses + xpEvidences + xpOpps + xpForge + 250; // 250 Base Founder XP
+  const totalXP = xpTasks + xpProjects + xpVault + xpTheses + xpEvidences + xpOpps + xpForge;
 
   // Level Curve: Level = floor(sqrt(XP / 80)) + 1
-  const level = Math.max(1, Math.floor(Math.sqrt(totalXP / 80)));
+  const level = Math.max(1, Math.floor(Math.sqrt(totalXP / 80)) + 1);
   const titleIndex = Math.min(Math.floor((level - 1) / 2), LEVEL_TITLES.length - 1);
-  const title = LEVEL_TITLES[titleIndex] || "Mestre Digital";
+  const title = LEVEL_TITLES[titleIndex] || "Iniciado Digital";
 
-  const currentLevelMinXP = Math.pow(level, 2) * 80;
-  const nextLevelXP = Math.pow(level + 1, 2) * 80;
+  const currentLevelMinXP = Math.pow(level - 1, 2) * 80;
+  const nextLevelXP = Math.pow(level, 2) * 80;
   const progressPercent = Math.min(
     100,
     Math.max(0, Math.round(((totalXP - currentLevelMinXP) / (nextLevelXP - currentLevelMinXP)) * 100))
@@ -84,9 +84,9 @@ export function calculateGamification(ctx: {
     {
       id: "badge-genesis",
       title: "Gênese do Universo",
-      description: "Inicializou o VARYNTH OS com sucesso.",
+      description: "Criou sua primeira workspace ou tarefa no VARYNTH OS.",
       icon: "🌌",
-      unlocked: true,
+      unlocked: activeProjects >= 1 || completedTasks >= 1,
       category: "sistema",
     },
     {
@@ -149,3 +149,4 @@ export function calculateGamification(ctx: {
     badges,
   };
 }
+

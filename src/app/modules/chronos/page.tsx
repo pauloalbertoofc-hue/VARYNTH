@@ -286,19 +286,27 @@ export default function ChronosPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-1">
-                <span className="text-xs text-slate-400">Total de Horas Focadas</span>
-                <p className="text-3xl font-black text-orange-400 font-mono">18.5h</p>
-                <p className="text-[10px] text-slate-500">Média de 3.2h / dia útil</p>
+                <span className="text-xs text-slate-400">Tarefas Concluídas</span>
+                <p className="text-3xl font-black text-orange-400 font-mono">
+                  {tasks.filter((t) => t.status === "concluida").length}
+                </p>
+                <p className="text-[10px] text-slate-500">Histórico de produtividade real</p>
               </div>
               <div className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-1">
-                <span className="text-xs text-slate-400">Sessões Concluídas</span>
-                <p className="text-3xl font-black text-emerald-400 font-mono">37</p>
-                <p className="text-[10px] text-slate-500">Ciclos de 25 min (Pomodoro)</p>
+                <span className="text-xs text-slate-400">Tarefas Pendentes</span>
+                <p className="text-3xl font-black text-emerald-400 font-mono">
+                  {tasks.filter((t) => t.status !== "concluida").length}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  {tasks.filter((t) => t.priority === "urgente" || t.priority === "alta").length} prioritárias
+                </p>
               </div>
               <div className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-1">
-                <span className="text-xs text-slate-400">Consistência do OS</span>
-                <p className="text-3xl font-black text-violet-400 font-mono">94%</p>
-                <p className="text-[10px] text-slate-500">Dias consecutivos ativos</p>
+                <span className="text-xs text-slate-400">Projetos com Prazos</span>
+                <p className="text-3xl font-black text-violet-400 font-mono">
+                  {projectDeadlines.length}
+                </p>
+                <p className="text-[10px] text-slate-500">Deadlines mapeados no OS</p>
               </div>
             </div>
 
@@ -307,7 +315,9 @@ export default function ChronosPage() {
                 Recomendação de Foco da Athena
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Você tem 2 tarefas de alta prioridade na pesquisa sobre Inteligência Artificial que vencem na próxima semana. Inicie uma sessão de 25 minutos no widget de produtividade no início para manter o ritmo constante.
+                {tasks.filter((t) => t.status !== "concluida" && (t.priority === "urgente" || t.priority === "alta")).length > 0
+                  ? `Você possui ${tasks.filter((t) => t.status !== "concluida" && (t.priority === "urgente" || t.priority === "alta")).length} tarefas urgentes/altas pendentes no sistema. Inicie uma sessão de foco no Pomodoro do Cockpit para avançar.`
+                  : "Nenhuma tarefa prioritária pendente no momento. Suas rotinas e prazos estão em dia!"}
               </p>
             </div>
           </div>

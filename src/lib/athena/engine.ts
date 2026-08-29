@@ -173,10 +173,12 @@ export function processAthenaQuery(
     const totalTheses = ctx.theses.length;
     const totalOpps = ctx.opportunities.length;
 
+    const urgentTasks = ctx.tasks.filter((t) => t.status !== "concluida" && (t.priority === "urgente" || t.priority === "alta"));
+
     return {
       id: "athena-" + Date.now(),
       sender: "athena",
-      text: `📊 **Diagnóstico Operacional do VARYNTH OS:**\n\n• **Projetos Ativos**: ${activeProj} workspaces em andamento\n• **Tarefas**: ${pendingTasks} pendentes / ${completedTasks} já concluídas\n• **Vault de Conhecimento**: ${totalVault} obras e jurisprudências fichadas\n• **Argument Arena**: ${totalTheses} teses dialéticas estruturadas\n• **Radar de Editais**: ${totalOpps} oportunidades e bolsas mapeadas\n\n💡 **Sugestão da Athena**: O seu projeto *"Pesquisa IA"* possui tarefas de alta prioridade sem conclusão recente. Deseja que eu liste os próximos passos?`,
+      text: `📊 **Diagnóstico Operacional do VARYNTH OS:**\n\n• **Projetos Ativos**: ${activeProj} workspaces em andamento\n• **Tarefas**: ${pendingTasks} pendentes / ${completedTasks} já concluídas\n• **Vault de Conhecimento**: ${totalVault} obras e jurisprudências fichadas\n• **Argument Arena**: ${totalTheses} teses dialéticas estruturadas\n• **Radar de Editais**: ${totalOpps} oportunidades e bolsas mapeadas\n\n💡 **Status Operacional**: ${urgentTasks.length > 0 ? `Você tem ${urgentTasks.length} tarefas prioritárias pendentes para avançar.` : "Tudo em dia no seu ecossistema!"}`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       scope,
       actionCard: {
@@ -204,7 +206,7 @@ export function processAthenaQuery(
       return {
         id: "athena-" + Date.now(),
         sender: "athena",
-        text: `⚖️ **Análise Jurídica da Athena (Codex):**\n\nNa tese **"${thesis.title}"**, a controvérsia central é:\n> *"${thesis.question}"*\n\n• **Pontos Fortes (Prós)**: ${thesis.pros.map((p) => p.statement).join("; ")}\n• **Riscos & Objeções (Contras)**: ${thesis.cons.map((c) => c.statement).join("; ")}\n• **Precedentes Mapeados**: ${thesis.precedents.join(" | ")}\n\n💡 **Recomendação Hermenêutica**: Para reforçar a sustentação, vincule um artigo do Evidence Board demonstrando a assimetria técnica do algoritmo.`,
+        text: `⚖️ **Análise Jurídica da Athena (Codex):**\n\nNa tese **"${thesis.title}"**, a controvérsia central é:\n> *"${thesis.question}"*\n\n• **Pontos Fortes (Prós)**: ${thesis.pros.length > 0 ? thesis.pros.map((p) => p.statement).join("; ") : "Nenhum cadastrado"}\n• **Riscos & Objeções (Contras)**: ${thesis.cons.length > 0 ? thesis.cons.map((c) => c.statement).join("; ") : "Nenhum cadastrado"}\n• **Precedentes Mapeados**: ${thesis.precedents.length > 0 ? thesis.precedents.join(" | ") : "Nenhum precedent cadastrado"}\n\n${thesis.conclusion ? `• **Síntese Pessoal**: ${thesis.conclusion}` : ""}`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         scope: "juridico",
         actionCard: {
@@ -213,6 +215,21 @@ export function processAthenaQuery(
           subtitle: `Área: ${thesis.area}`,
           link: "/modules/codex",
           linkLabel: "Abrir na Argument Arena",
+        },
+      };
+    } else {
+      return {
+        id: "athena-" + Date.now(),
+        sender: "athena",
+        text: "⚖️ **Modo Jurídico Ativo**: Nenhuma tese está cadastrada no momento na Argument Arena. Você pode cadastrar uma nova tese jurídica para iniciarmos a análise dialética de prós, contras e precedentes.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope: "juridico",
+        actionCard: {
+          type: "tese",
+          title: "Cadastrar Nova Tese",
+          subtitle: "Estruturar controvérsia jurídica",
+          link: "/modules/codex",
+          linkLabel: "Ir para o Codex",
         },
       };
     }
@@ -231,20 +248,37 @@ export function processAthenaQuery(
     const evCount = ctx.evidences.length;
     const strongEvs = ctx.evidences.filter((e) => e.strength === "forte");
 
-    return {
-      id: "athena-" + Date.now(),
-      sender: "athena",
-      text: `🔬 **Assistente de Pesquisa & Metodologia:**\n\nVocê tem **${evCount} evidências científicas** catalogadas no Evidence Board, sendo **${strongEvs.length} de força alta**.\n\nEvidência de maior destaque:\n> *"${strongEvs[0]?.claim || "Aguardando novas proposições"}"*\n> *(Fonte: ${strongEvs[0]?.source || "N/A"})*\n\nPosso ajudar a redigir a seção de Discussão ou formatar novas citações segundo a ABNT. O que você gostaria de estruturar agora?`,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      scope: "pesquisa",
-      actionCard: {
-        type: "evidencia",
-        title: "Evidence Board Científico",
-        subtitle: `${evCount} evidências vinculadas às seções do artigo`,
-        link: "/modules/research",
-        linkLabel: "Abrir Research",
-      },
-    };
+    if (evCount > 0) {
+      return {
+        id: "athena-" + Date.now(),
+        sender: "athena",
+        text: `🔬 **Assistente de Pesquisa & Metodologia:**\n\nVocê tem **${evCount} evidências científicas** catalogadas no Evidence Board, sendo **${strongEvs.length} de força alta**.\n\n${strongEvs.length > 0 ? `Evidência em destaque:\n> *"${strongEvs[0]?.claim}"*\n> *(Fonte: ${strongEvs[0]?.source})*` : ""}\n\nPosso ajudar a estruturar citações e argumentação científica. Como deseja prosseguir?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope: "pesquisa",
+        actionCard: {
+          type: "evidencia",
+          title: "Evidence Board Científico",
+          subtitle: `${evCount} evidências cadastradas`,
+          link: "/modules/research",
+          linkLabel: "Abrir Research",
+        },
+      };
+    } else {
+      return {
+        id: "athena-" + Date.now(),
+        sender: "athena",
+        text: "🔬 **Modo Pesquisa Acadêmica**: Nenhuma evidência bibliográfica cadastrada ainda no Evidence Board. Você pode cadastrar citações e fontes com nível de força probatória no módulo Research.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope: "pesquisa",
+        actionCard: {
+          type: "evidencia",
+          title: "Cadastrar Evidência",
+          subtitle: "Vincular fontes probatórias",
+          link: "/modules/research",
+          linkLabel: "Ir para o Research",
+        },
+      };
+    }
   }
 
   // 7. INTENT: EDITAIS / OPORTUNIDADES
@@ -255,24 +289,41 @@ export function processAthenaQuery(
     lower.includes("oportunidade") ||
     lower.includes("concurso")
   ) {
-    const oppList = ctx.opportunities.map(
-      (o) => `• **${o.title}** (${o.institution}): Prazo **${o.deadline}** ${o.prizeOrGrant ? `— *${o.prizeOrGrant}*` : ""} [Status: ${o.status.toUpperCase()}]`
-    );
+    if (ctx.opportunities.length > 0) {
+      const oppList = ctx.opportunities.map(
+        (o) => `• **${o.title}** (${o.institution}): Prazo **${o.deadline}** ${o.prizeOrGrant ? `— *${o.prizeOrGrant}*` : ""} [Status: ${o.status.toUpperCase()}]`
+      );
 
-    return {
-      id: "athena-" + Date.now(),
-      sender: "athena",
-      text: `🏆 **Radar de Oportunidades & Editais:**\n\n${oppList.join("\n")}\n\nFique atento aos prazos de submissão para não perder a data limite de envio dos documentos exigidos.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      scope,
-      actionCard: {
-        type: "edital",
-        title: "Radar de Editais & Bolsas",
-        subtitle: `${ctx.opportunities.length} chamadas mapeadas`,
-        link: "/modules/opportunities",
-        linkLabel: "Abrir Pipeline de Editais",
-      },
-    };
+      return {
+        id: "athena-" + Date.now(),
+        sender: "athena",
+        text: `🏆 **Radar de Oportunidades & Editais:**\n\n${oppList.join("\n")}\n\nAcompanhe os prazos de submissão no pipeline para não perder as datas limites.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope,
+        actionCard: {
+          type: "edital",
+          title: "Radar de Editais & Bolsas",
+          subtitle: `${ctx.opportunities.length} chamadas mapeadas`,
+          link: "/modules/opportunities",
+          linkLabel: "Abrir Pipeline de Editais",
+        },
+      };
+    } else {
+      return {
+        id: "athena-" + Date.now(),
+        sender: "athena",
+        text: "🏆 **Radar de Oportunidades**: Nenhum edital ou bolsa de fomento cadastrado no momento. Cadastre editais no radar para acompanhar o pipeline de submissão.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope,
+        actionCard: {
+          type: "edital",
+          title: "Cadastrar Edital",
+          subtitle: "Mapear chamadas acadêmicas",
+          link: "/modules/opportunities",
+          linkLabel: "Ir para Oportunidades",
+        },
+      };
+    }
   }
 
   // 8. FALLBACK / CONVERSA GERAL INTELIGENTE

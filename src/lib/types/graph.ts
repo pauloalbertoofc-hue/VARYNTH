@@ -31,3 +31,4 @@ export interface GraphEdge {
   label?: string;
   weight?: number;
 }
+
