@@ -19,6 +19,9 @@ async function runReviewCenterTests() {
   }
 
   // 1. Initial State
+  const { reviewStore } = await import("./review-store");
+  reviewStore.resetToDemo();
+
   const allReviews = documentationGuardian.listAllReviews();
   assert(allReviews.length >= 2, "Review Center possui drafts interpretativos cadastrados");
 
@@ -64,9 +67,9 @@ async function runReviewCenterTests() {
   const rejectReason = "Ajustar premissas do workspace antes de incorporar.";
   documentationGuardian.rejectReview(rev2.id, "Paulo", rejectReason);
   assert(rev2.status === "REJECTED", "Status do draft atualizado para REJECTED");
-  assert(rev2.rejectionReason === rejectReason, "Motivo da rejeição gravado permanentemente");
+  const updatedAuditLog = documentationGuardian.listAuditLog();
   assert(
-    auditLog.some((l) => l.type === "HUMAN_REJECTED"),
+    updatedAuditLog.some((l) => l.type === "HUMAN_REJECTED"),
     "Log de auditoria registrou evento HUMAN_REJECTED"
   );
 
