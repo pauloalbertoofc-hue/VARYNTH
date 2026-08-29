@@ -75,3 +75,4 @@ runBuilderTests().catch((err) => {
   console.error("Erro fatal nos testes do DocumentationBuilder:", err);
   process.exit(1);
 });
+

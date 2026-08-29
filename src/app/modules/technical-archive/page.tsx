@@ -43,8 +43,11 @@ import {
   Activity,
   RefreshCw,
   Download,
+  FileText,
 } from "lucide-react";
 import { ExportModal } from "@/components/docs/ExportModal";
+import { DocumentReviewViewer } from "@/components/docs/DocumentReviewViewer";
+import { InteractiveEvidence } from "@/lib/athena/guardian/types";
 import Link from "next/link";
 
 type TabMode = "hub" | "guardian" | "map" | "handbook" | "adrs" | "lessons" | "component";
@@ -57,6 +60,11 @@ export default function TechnicalArchivePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedHandbookChapter, setSelectedHandbookChapter] = useState(0);
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  // Review Viewer & Center State
+  const [selectedReviewItem, setSelectedReviewItem] = useState<DocumentationReviewItem | null>(null);
+  const [isReviewViewerOpen, setIsReviewViewerOpen] = useState(false);
+  const [reviewStatusFilter, setReviewStatusFilter] = useState<string>("ALL");
 
   // Guardian State
   const [healthReport, setHealthReport] = useState<DocumentationHealthReport>(() =>
@@ -75,6 +83,7 @@ export default function TechnicalArchivePage() {
     const report = documentationGuardian.assessHealth();
     setHealthReport(report);
     setReviewQueue(documentationGuardian.listPendingReviews());
+    setReviewQueue(documentationGuardian.listAllReviews());
     setAuditLog(documentationGuardian.listAuditLog());
     setActionMessage("Auditoria do Documentation Guardian recalculada com sucesso.");
     setTimeout(() => setActionMessage(null), 3000);
@@ -83,17 +92,44 @@ export default function TechnicalArchivePage() {
   const handleApproveReview = (id: string) => {
     documentationGuardian.approveReview(id, "Paulo");
     setReviewQueue(documentationGuardian.listPendingReviews());
+  const handleOpenReview = (item: DocumentationReviewItem) => {
+    setSelectedReviewItem(item);
+    setIsReviewViewerOpen(true);
+  };
+
+  const handleApproveReview = (id: string, editedContent?: string) => {
+    documentationGuardian.approveReview(id, "Paulo", editedContent);
+    setReviewQueue(documentationGuardian.listAllReviews());
     setAuditLog(documentationGuardian.listAuditLog());
     setActionMessage(`Proposta de documentação ${id} aprovada e integrada.`);
+    setActionMessage(`Proposta de documentação ${id} aprovada e publicada em /docs.`);
     setTimeout(() => setActionMessage(null), 3000);
   };
 
   const handleRejectReview = (id: string) => {
     documentationGuardian.rejectReview(id, "Paulo");
     setReviewQueue(documentationGuardian.listPendingReviews());
+  const handleRejectReview = (id: string, reason: string) => {
+    documentationGuardian.rejectReview(id, "Paulo", reason);
+    setReviewQueue(documentationGuardian.listAllReviews());
     setAuditLog(documentationGuardian.listAuditLog());
     setActionMessage(`Proposta ${id} rejeitada.`);
+    setActionMessage(`Proposta ${id} rejeitada com motivo registrado.`);
     setTimeout(() => setActionMessage(null), 3000);
+  };
+
+  const handleNavigateToEvidence = (evidence: InteractiveEvidence) => {
+    setIsReviewViewerOpen(false);
+    if (evidence.type === "ADR") {
+      setSelectedAdrId(evidence.targetId);
+      setActiveTab("adrs");
+    } else if (evidence.type === "MODULE" || evidence.type === "CODE_FILE") {
+      setSelectedDocId(evidence.targetId);
+      setActiveTab("component");
+    } else if (evidence.type === "REGRESSION_TEST") {
+      setSelectedDocId("ath-safety");
+      setActiveTab("component");
+    }
   };
 
   // Filtered documents based on search and category
@@ -392,20 +428,50 @@ export default function TechnicalArchivePage() {
             {/* REVIEW QUEUE (HUMAN IN THE LOOP) */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
               <div className="flex items-center justify-between">
+            {/* REVIEW QUEUE (DOCUMENTATION REVIEW CENTER) */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <FileCheck className="w-4 h-4 text-amber-400" />
                     Fila de Revisão Humana (Documentation Review Queue)
+                    Centro de Revisão Documental (Documentation Review Center)
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
                     Decisões e lições interpretativas geradas que exigem confirmação explícita antes da publicação oficial.
+                    Nenhuma proposta interpretativa é publicada automaticamente. Inspecione o documento completo, compare diffs e valide as evidências antes de decidir.
                   </p>
+                </div>
+
+                {/* Status Filter Buttons */}
+                <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-mono">
+                  {[
+                    { id: "ALL", label: "Todos" },
+                    { id: "PENDING_REVIEW", label: "Aguardando Revisão" },
+                    { id: "APPROVED", label: "Aprovados" },
+                    { id: "REJECTED", label: "Rejeitados" },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setReviewStatusFilter(filter.id)}
+                      className={`px-3 py-1 rounded-lg transition-all ${
+                        reviewStatusFilter === filter.id
+                          ? "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40"
+                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {reviewQueue.length === 0 ? (
+              {/* Review Cards Grid */}
+              {reviewQueue.filter((r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter).length === 0 ? (
                 <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/60 text-xs text-slate-500 font-mono">
                   Zero propostas pendentes de revisão humana. Toda a documentação oficial está sincronizada.
+                  Zero itens encontrados para o filtro selecionado.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -420,10 +486,53 @@ export default function TechnicalArchivePage() {
                             {item.type}
                           </span>
                           <span className="text-xs font-bold text-white">{item.title}</span>
+                <div className="space-y-4">
+                  {reviewQueue
+                    .filter((r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter)
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleOpenReview(item)}
+                        className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800/90 hover:border-cyan-500/40 hover:bg-slate-950 cursor-pointer transition-all space-y-3 group shadow-md"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-cyan-400">{item.id}</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">
+                              {item.type}
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                              {item.changeType === "NEW_DOCUMENT" ? "NOVO DOCUMENTO" : "ATUALIZAÇÃO"}
+                            </span>
+                          </div>
+
+                          <div>
+                            {item.status === "PENDING_REVIEW" && (
+                              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold">
+                                ⏳ AGUARDANDO REVISÃO HUMANA
+                              </span>
+                            )}
+                            {item.status === "APPROVED" && (
+                              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
+                                <Check className="w-3 h-3" /> APROVADO & PUBLICADO
+                              </span>
+                            )}
+                            {item.status === "REJECTED" && (
+                              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 font-bold flex items-center gap-1">
+                                <X className="w-3 h-3" /> REJEITADO
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs text-slate-400">{item.proposedChange}</p>
                         <div className="text-[10px] text-slate-500 font-mono">
                           Alvo: <code className="text-cyan-400">{item.targetDocument}</code> • Evidência: {item.sourceEvidence}
+
+                        <div>
+                          <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
+                            {item.title}
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1">{item.summary}</p>
                         </div>
                       </div>
 
@@ -442,9 +551,54 @@ export default function TechnicalArchivePage() {
                           <X className="w-3.5 h-3.5" />
                           Rejeitar
                         </button>
+                        {/* Interactive Evidence Badges */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <span className="text-[11px] font-mono text-slate-500">Evidências:</span>
+                          {item.interactiveEvidences.map((ev, idx) => (
+                            <span
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNavigateToEvidence(ev);
+                              }}
+                              className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-cyan-400 border border-slate-700 hover:border-cyan-500/60 hover:bg-slate-800 transition-all flex items-center gap-1 cursor-pointer"
+                              title={`Inspecionar: ${ev.description}`}
+                            >
+                              <span>{ev.label}</span>
+                              <ChevronRight className="w-2.5 h-2.5 text-slate-500" />
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Rejection Reason if Rejected */}
+                        {item.status === "REJECTED" && item.rejectionReason && (
+                          <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/40 text-xs text-red-300">
+                            <strong className="text-red-400">Motivo da Rejeição Registrado:</strong> {item.rejectionReason}
+                          </div>
+                        )}
+
+                        <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            Alvo: <code className="text-slate-300">{item.targetDocument}</code>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenReview(item);
+                              }}
+                              className="px-4 py-1.5 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/40 text-cyan-300 font-semibold flex items-center gap-1.5 transition-all text-xs cursor-pointer shadow-sm"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              Revisar Documento Completo & Diff
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
+                    ))}
                 </div>
               )}
             </div>
@@ -1045,6 +1199,16 @@ export default function TechnicalArchivePage() {
           isOpen={isExportOpen}
           onClose={() => setIsExportOpen(false)}
           currentComponentId={selectedDocId}
+        />
+
+        {/* DOCUMENT REVIEW VIEWER */}
+        <DocumentReviewViewer
+          item={selectedReviewItem}
+          isOpen={isReviewViewerOpen}
+          onClose={() => setIsReviewViewerOpen(false)}
+          onApprove={handleApproveReview}
+          onReject={handleRejectReview}
+          onNavigateToEvidence={handleNavigateToEvidence}
         />
       </div>
     </PageLayout>
