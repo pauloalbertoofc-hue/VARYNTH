@@ -25,6 +25,7 @@ export function Navbar({ title, subtitle }: NavbarProps) {
       <div className="flex items-center gap-2">
         {/* Search */}
         <button
+          onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
           className={cn(
             "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-slate-400",
             "bg-white/5 border border-[#1e1e30]",

@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
+import { CommandPalette } from "@/components/ui/CommandPalette";
 import { cn } from "@/lib/utils";
 
 interface PageLayoutProps {
@@ -19,6 +20,7 @@ export function PageLayout({ children, title, subtitle, className }: PageLayoutP
           {children}
         </main>
       </div>
+      <CommandPalette />
     </div>
   );
 }
