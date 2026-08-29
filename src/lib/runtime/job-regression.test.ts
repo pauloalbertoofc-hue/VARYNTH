@@ -1,9 +1,10 @@
 import { jobManager } from "./job-manager";
-import { sandboxRuntime } from "./sandbox-runtime";
+import { studioRoadmapManager } from "./studio-roadmap";
+import { artifactService } from "../artifacts/artifact-service";
 
 async function runJobRegressionTests() {
   console.log("\n===============================================================");
-  console.log("  VARYNTH JOB RUNTIME & SANDBOX REGRESSION (JOB-REG-001..005)  ");
+  console.log("  VARYNTH UNIVERSAL JOB REGRESSION SUITE (JOB-REG-001..015)     ");
   console.log("===============================================================\n");
 
   let passed = 0;
@@ -19,51 +20,97 @@ async function runJobRegressionTests() {
     }
   }
 
-  jobManager.resetToSeed();
-
-  // Test JOB-REG-001: Create Job enqueues with QUEUED
+  // JOB-REG-001: Create Job in QUEUED status
   const job = jobManager.createJob({
     type: "RENDER_VIDEO",
-    title: "Renderização de Vídeo Educativo #01",
-    createdBy: "ATHENA",
-    relatedArtifactId: "art-video-001",
-  });
-  assert(job.status === "QUEUED", "JOB-REG-001: Job criado com status inicial QUEUED");
-  assert(job.progress === 0, "JOB-REG-001: Progresso inicial é 0%");
-  assert(job.logs.length === 1, "JOB-REG-001: Log inicial registrado");
-
-  // Test JOB-REG-002: Update progress transitions to RUNNING
-  jobManager.updateProgress(job.id, 45, "Compilando cenas 1 a 3...");
-  const runningJob = jobManager.getById(job.id)!;
-  assert(runningJob.status === "RUNNING", "JOB-REG-002: Status transicionou para RUNNING");
-  assert(runningJob.progress === 45, "JOB-REG-002: Progresso atualizado para 45%");
-  assert(runningJob.logs.length === 2, "JOB-REG-002: Segundo log registrado");
-
-  // Test JOB-REG-003: Complete job
-  jobManager.completeJob(job.id, { durationMs: 32000, videoUrl: "/renders/scene.mp4" });
-  const completedJob = jobManager.getById(job.id)!;
-  assert(completedJob.status === "COMPLETED", "JOB-REG-003: Status finalizado como COMPLETED");
-  assert(completedJob.progress === 100, "JOB-REG-003: Progresso é 100%");
-  assert(!!completedJob.completedAt, "JOB-REG-003: Data de conclusão registrada");
-
-  // Test JOB-REG-004: Cancel job
-  const jobToCancel = jobManager.createJob({
-    type: "BUILD_GAME",
-    title: "Build de Jogo Experimental",
+    title: "Renderização do Episódio 01",
+    priority: "HIGH",
     createdBy: "USER",
   });
-  const cancelSuccess = jobManager.cancelJob(jobToCancel.id);
-  assert(cancelSuccess === true, "JOB-REG-004: cancelJob retornou true");
-  const cancelledJob = jobManager.getById(jobToCancel.id)!;
-  assert(cancelledJob.status === "CANCELLED", "JOB-REG-004: Status atualizado para CANCELLED");
+  assert(job.status === "QUEUED", "JOB-REG-001: Job criado nasce em status QUEUED");
+  assert(job.priority === "HIGH", "JOB-REG-001: Prioridade HIGH configurada");
+  assert(job.progress === 0, "JOB-REG-001: Progresso inicial é 0%");
 
-  // Test JOB-REG-005: Sandbox Core Protection Guard
-  const safeRun = await sandboxRuntime.executeCodeInSandbox("const x = 10 + 20;", "javascript", "ATHENA");
-  assert(safeRun.status === "SUCCESS", "JOB-REG-005: Código seguro executado com sucesso na sandbox");
+  // JOB-REG-002: Start job transitions to RUNNING
+  const started = jobManager.startJob(job.id);
+  assert(started === true, "JOB-REG-002: startJob retornou true");
+  const runningJob = jobManager.getById(job.id);
+  assert(runningJob?.status === "RUNNING", "JOB-REG-002: Status atualizado para RUNNING");
 
-  const unsafeRun = await sandboxRuntime.executeCodeInSandbox("localStorage.clear();", "javascript", "ATHENA");
-  assert(unsafeRun.status === "ERROR", "JOB-REG-005: Tentativa de violação do Core foi bloqueada na Sandbox");
-  assert(Boolean(unsafeRun.error?.includes("recursos restritos")), "JOB-REG-005: Mensagem de erro de violação emitida");
+  // JOB-REG-003: Update progress and logging
+  jobManager.updateProgress(job.id, 45, "Cenas 1 a 4 renderizadas");
+  const progressJob = jobManager.getById(job.id);
+  assert(progressJob?.progress === 45, "JOB-REG-003: Progresso atualizado para 45%");
+  assert(!!progressJob?.logs.some((l) => l.message.includes("Cenas 1 a 4")), "JOB-REG-003: Mensagem de log registrada");
+
+  // JOB-REG-005: Checkpoint system
+  const checkpoint = jobManager.saveCheckpoint(job.id, "Metade da Renderização", 50, { renderedScenes: 5 });
+  assert(checkpoint !== null && checkpoint.progress === 50, "JOB-REG-005: Checkpoint de segurança registrado com progresso 50%");
+  const jobWithCheckpoint = jobManager.getById(job.id);
+  assert(jobWithCheckpoint?.checkpoints.length === 1, "JOB-REG-005: Checkpoint persistido no histórico do Job");
+
+  // JOB-REG-004: Complete job transitions to COMPLETED at 100%
+  const completed = jobManager.completeJob(job.id, { outputUrl: "/assets/render.mp4" });
+  assert(completed === true, "JOB-REG-004: completeJob executado");
+  const finishedJob = jobManager.getById(job.id);
+  assert(finishedJob?.status === "COMPLETED" && finishedJob.progress === 100, "JOB-REG-004: Status COMPLETED com progresso 100%");
+
+  // JOB-REG-006: Fail job transitions to FAILED with structured error
+  const failJob = jobManager.createJob({
+    type: "BUILD_GAME",
+    title: "Compilação de Jogo WebGL",
+    createdBy: "USER",
+  });
+  jobManager.startJob(failJob.id);
+  jobManager.failJob(failJob.id, {
+    code: "BUILD_ERROR",
+    message: "Falta de memória no compilador",
+    recoverable: true,
+  });
+  const failedJobObj = jobManager.getById(failJob.id);
+  assert(failedJobObj?.status === "FAILED", "JOB-REG-006: Status atualizado para FAILED");
+  assert(failedJobObj?.error?.code === "BUILD_ERROR", "JOB-REG-006: Erro estruturado gravado");
+
+  // JOB-REG-008: Retry job reenqueues
+  const retried = jobManager.retryJob(failJob.id);
+  assert(retried !== null && retried.status === "QUEUED", "JOB-REG-008: retryJob reenfileirou a tarefa como QUEUED");
+  assert(retried?.retryCount === 1, "JOB-REG-008: Contador de retry incrementado para 1");
+
+  // JOB-REG-007: Cancel job
+  const cancelJob = jobManager.createJob({
+    type: "EXPORT_BACKUP",
+    title: "Backup Manual Completo",
+    createdBy: "USER",
+  });
+  jobManager.startJob(cancelJob.id);
+  const cancelled = jobManager.cancelJob(cancelJob.id, "Cancelamento solicitado pelo usuário");
+  assert(cancelled === true, "JOB-REG-007: cancelJob executado com sucesso");
+  const cancelledObj = jobManager.getById(cancelJob.id);
+  assert(cancelledObj?.status === "CANCELLED", "JOB-REG-007: Status atualizado para CANCELLED");
+
+  // JOB-REG-009: Interruption detection and recovery
+  const orphanJob = jobManager.createJob({
+    type: "BATCH_INDEX_VECTOR",
+    title: "Indexação Semântica do Vault",
+  });
+  jobManager.startJob(orphanJob.id);
+  // Simulating recovery upon crash / reload
+  const recoveredCount = jobManager.recoverInterruptedJobs();
+  assert(recoveredCount > 0, "JOB-REG-009: Detector de interrupção identifica jobs ativos na inicialização");
+  const recoveredJob = jobManager.getById(orphanJob.id);
+  assert(recoveredJob?.status === "INTERRUPTED", "JOB-REG-009: Job interrompido marcado como INTERRUPTED sem travar");
+
+  // JOB-REG-010: Studio Roadmap order and readiness
+  const studios = studioRoadmapManager.listStudios();
+  assert(studios.length === 6, "JOB-REG-010: Roadmap contém exatamente os 6 Studios planejados");
+  assert(studios[0].name === "Document Studio" && studios[0].order === 1, "JOB-REG-010: Document Studio é o 1º na ordem intencional");
+  assert(studios[5].name === "Game Studio" && studios[5].order === 6, "JOB-REG-010: Game Studio é o 6º na ordem intencional");
+
+  // JOB-REG-015: Studio Readiness report evaluates missing engines
+  const docReport = studioRoadmapManager.getStudioReadinessReport("document-studio");
+  assert(docReport.readyForImplementation === true, "JOB-REG-015: Document Studio possui prontidão completa para implementação");
+  const videoReport = studioRoadmapManager.getStudioReadinessReport("video-studio");
+  assert(videoReport.readyForImplementation === false, "JOB-REG-015: Video Studio reporta corretamente falta de rendering engine local");
 
   console.log("\n===============================================================");
   console.log(`  RESULTADO: ${passed} Aprovados, ${failed} Falhas`);
@@ -78,4 +125,3 @@ runJobRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte de jobs:", err);
   process.exit(1);
 });
-

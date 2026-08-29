@@ -1,0 +1,139 @@
+import { StudioDefinition, StudioReadinessReport } from "./types";
+import { creationEngineRegistry } from "../artifacts/creation-engine";
+
+export const STUDIO_ROADMAP: StudioDefinition[] = [
+  {
+    id: "document-studio",
+    name: "Document Studio",
+    order: 1,
+    status: "READY",
+    description: "Estúdio de autoria estruturada de monografias, tratados, artigos científicos, pareceres e relatórios técnicos.",
+    supportedArtifactTypes: ["DOCUMENT"],
+    availableCreationEngines: ["local-document-engine"],
+    capabilities: ["markdown-editor", "version-diff", "pdf-export", "athena-coauthor"],
+    supportsPreview: true,
+    supportsBuild: true,
+    supportsExport: true,
+  },
+  {
+    id: "web-studio",
+    name: "Web Studio",
+    order: 2,
+    status: "READY",
+    description: "Ambiente de desenvolvimento e prototipagem de aplicações web, páginas dinâmicas e portais interativos.",
+    supportedArtifactTypes: ["WEBSITE", "CODE"],
+    availableCreationEngines: ["local-code-engine"],
+    capabilities: ["code-editor", "sandbox-preview", "bundle-export", "athena-coder"],
+    supportsPreview: true,
+    supportsBuild: true,
+    supportsExport: true,
+  },
+  {
+    id: "image-studio",
+    name: "Image Studio",
+    order: 3,
+    status: "PLANNED",
+    description: "Estúdio de composição visual, storyboards, capas, diagramas e assets gráficos.",
+    supportedArtifactTypes: ["IMAGE", "DIAGRAM"],
+    availableCreationEngines: [],
+    capabilities: ["canvas-layers", "vector-draw", "crop-resize", "png-export"],
+    supportsPreview: true,
+    supportsBuild: false,
+    supportsExport: true,
+  },
+  {
+    id: "audio-studio",
+    name: "Audio Studio",
+    order: 4,
+    status: "PLANNED",
+    description: "Processamento de som, narrações locais, trilhas sonoras e sonoplastia.",
+    supportedArtifactTypes: ["AUDIO"],
+    availableCreationEngines: [],
+    capabilities: ["waveform-viewer", "audio-trimming", "local-tts", "wav-export"],
+    supportsPreview: true,
+    supportsBuild: false,
+    supportsExport: true,
+  },
+  {
+    id: "video-studio",
+    name: "Video Studio",
+    order: 5,
+    status: "PLANNED",
+    description: "Edição audiovisual em linha do tempo, integração de cenas, legendas e renderização local.",
+    supportedArtifactTypes: ["VIDEO"],
+    availableCreationEngines: [],
+    capabilities: ["timeline-editor", "scene-arranger", "subtitles-sync", "ffmpeg-render"],
+    supportsPreview: true,
+    supportsBuild: true,
+    supportsExport: true,
+  },
+  {
+    id: "game-studio",
+    name: "Game Studio",
+    order: 6,
+    status: "PLANNED",
+    description: "Criação de jogos interativos, design de fases, mecânicas, assets e compilação em sandbox.",
+    supportedArtifactTypes: ["GAME", "INTERACTIVE"],
+    availableCreationEngines: [],
+    capabilities: ["game-design-doc", "level-editor", "sandbox-playtest", "web-build"],
+    supportsPreview: true,
+    supportsBuild: true,
+    supportsExport: true,
+  },
+];
+
+export class StudioRoadmapManager {
+  public listStudios(): StudioDefinition[] {
+    return [...STUDIO_ROADMAP].sort((a, b) => a.order - b.order);
+  }
+
+  public getStudio(id: string): StudioDefinition | undefined {
+    return STUDIO_ROADMAP.find((s) => s.id === id);
+  }
+
+  public getStudioReadinessReport(studioId: string): StudioReadinessReport {
+    const studio = this.getStudio(studioId);
+    if (!studio) {
+      throw new Error(`Studio '${studioId}' não encontrado no roadmap.`);
+    }
+
+    const hasArtifactType = studio.supportedArtifactTypes.length > 0;
+    const hasEngine = studio.supportedArtifactTypes.some((type) =>
+      creationEngineRegistry.isCapabilityAvailable(type)
+    );
+
+    const components = {
+      artifacts: hasArtifactType,
+      assets: true, // AssetManager universal exists
+      versions: true, // VersionManager universal exists
+      jobs: true, // JobManager universal exists
+      sandbox: true, // SandboxRuntime universal exists
+      renderingEngine: hasEngine,
+    };
+
+    const missingRequirements: string[] = [];
+    if (!components.renderingEngine) {
+      missingRequirements.push(`Engine local para renderização/build de ${studio.supportedArtifactTypes.join(", ")} ainda não instalada.`);
+    }
+
+    const readyForImplementation =
+      components.artifacts &&
+      components.assets &&
+      components.versions &&
+      components.jobs &&
+      components.sandbox &&
+      components.renderingEngine;
+
+    return {
+      studioId: studio.id,
+      name: studio.name,
+      order: studio.order,
+      readyForImplementation,
+      components,
+      missingRequirements,
+    };
+  }
+}
+
+export const studioRoadmapManager = new StudioRoadmapManager();
+

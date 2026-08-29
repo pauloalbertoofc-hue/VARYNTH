@@ -17,6 +17,7 @@
     "test:notifications": "npx tsx src/lib/notifications/notification-regression.test.ts",
     "test:artifacts": "npx tsx src/lib/artifacts/artifact-regression.test.ts",
     "test:jobs": "npx tsx src/lib/runtime/job-regression.test.ts",
+    "test:sandbox": "npx tsx src/lib/runtime/sandbox-regression.test.ts",
     "test:backup": "npx tsx src/lib/backup/backup-regression.test.ts",
     "test:persistence": "npx tsx src/lib/persistence/persistence-regression.test.ts",
     "test:permissions": "npx tsx src/lib/permissions/permission-regression.test.ts"

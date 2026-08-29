@@ -190,6 +190,36 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Exige sincronização entre repositório conceitual de artefatos e armazenamento de assets"],
     },
   },
+  {
+    id: "ADR-010",
+    number: "ADR-010",
+    title: "Job Runtime Universal, Checkpoints e Modelo de Isolamento de Sandbox",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Processos de longa duração necessitam de State Machine transparente, checkpoints e recuperação após reinicialização. Código e scripts de IA exigem contenção rigorosa.",
+    decision: "Centralizar execuções em JobManager (com detecção de interrupção e retries) e isolamento em SandboxRuntime (com Core Sovereign Guard e barreira de rede estrita).",
+    rationale: "Garante estabilidade operacional sem risco de travamento de estado e impede que scripts arbitrários afetem o Core do VARYNTH.",
+    alternatives: ["Promises não persistidas em memória", "Execução direta no runtime principal do browser"],
+    consequences: {
+      gains: ["Tolerância a falhas", "Visibilidade do ciclo de execução", "Proteção inviolável do Core"],
+      tradeoffs: ["Necessidade de validação extra antes de promover outputs da sandbox"],
+    },
+  },
+  {
+    id: "ADR-011",
+    number: "ADR-011",
+    title: "Ordem Canônica de Implementação dos Studios Criativos",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Construir estúdios pesados (vídeo e jogos) antes de editores estruturados e pipelines de assets geraria duplicação e alto retrabalho.",
+    decision: "Fixar a ordem canônica: Document Studio -> Web Studio -> Image Studio -> Audio Studio -> Video Studio -> Game Studio. Cada estúdio valida uma camada específica da Creation Foundation.",
+    rationale: "Progressão de baixo custo computacional para mídia densa, garantindo reaproveitamento total da pilha de criação.",
+    alternatives: ["Desenvolvimento simultâneo de todos os estúdios", "Iniciar diretamente pelo Video Studio"],
+    consequences: {
+      gains: ["Reutilização total de infraestrutura", "Zero retrabalho", "Previsibilidade do roadmap"],
+      tradeoffs: ["Estúdios audiovisuais e de jogos aguardam a maturação dos estúdios fundamentais"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [
