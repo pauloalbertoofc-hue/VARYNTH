@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* ========================================
+   VARYNTH — Global Design System
+   Dark gaming / cyberpunk aesthetic
+   ======================================== */
+
+@theme {
+  /* Brand Colors */
+  --color-varynth-bg: #0a0a0f;
+  --color-varynth-surface: #0f0f1a;
+  --color-varynth-surface-2: #14141f;
+  --color-varynth-border: #1e1e30;
+  --color-varynth-border-glow: #2d2d4a;
+
+  /* Accent — Electric Violet */
+  --color-varynth-accent: #7c3aed;
+  --color-varynth-accent-light: #a855f7;
+  --color-varynth-accent-glow: rgba(124, 58, 237, 0.3);
+
+  /* Secondary — Cyan */
+  --color-varynth-cyan: #06b6d4;
+  --color-varynth-cyan-glow: rgba(6, 182, 212, 0.3);
+
+  /* Text */
+  --color-varynth-text: #e2e8f0;
+  --color-varynth-text-muted: #64748b;
+  --color-varynth-text-dim: #334155;
+
+  /* Status */
+  --color-varynth-success: #10b981;
+  --color-varynth-warning: #f59e0b;
+  --color-varynth-error: #ef4444;
+
+  /* Font */
+  --font-display: "Inter", system-ui, sans-serif;
+}
+
+/* Base */
+html, body {
+  background-color: var(--color-varynth-bg);
+  color: var(--color-varynth-text);
+  font-family: var(--font-display);
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-varynth-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-varynth-border-glow); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-varynth-accent); }
+
+/* Glow utilities */
+.glow-accent {
+  box-shadow: 0 0 20px var(--color-varynth-accent-glow),
+              0 0 40px rgba(124, 58, 237, 0.1);
+}
+.glow-cyan {
+  box-shadow: 0 0 20px var(--color-varynth-cyan-glow),
+              0 0 40px rgba(6, 182, 212, 0.1);
+}
+.text-glow-accent {
+  text-shadow: 0 0 12px var(--color-varynth-accent-glow);
+}
+.text-glow-cyan {
+  text-shadow: 0 0 12px var(--color-varynth-cyan-glow);
+}
+
+/* Grid bg pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Scanline effect */
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.05) 2px,
+    rgba(0, 0, 0, 0.05) 4px
+  );
+  pointer-events: none;
+}
+
+/* Corner cut (cyberpunk style) */
+.clip-corner {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.clip-corner-sm {
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+/* Animated gradient border */
+@keyframes borderPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.border-pulse {
+  animation: borderPulse 3s ease-in-out infinite;
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
