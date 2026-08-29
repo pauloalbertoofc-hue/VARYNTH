@@ -339,7 +339,7 @@ export default function DashboardPage() {
                         <span className="text-slate-200 font-medium">{act.entityTitle}</span>
                       </p>
                       <p className="text-[10px] text-slate-500">
-                        {new Date(act.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(act.createdAt || act.timestamp || Date.now()).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>

@@ -20,8 +20,8 @@ export interface AthenaEngineContext {
   theses: ArgumentThesis[];
   evidences: EvidenceItem[];
   opportunities: Opportunity[];
-  addTask: (taskData: Omit<Task, "id" | "createdAt">) => Task;
-  addNote: (noteData: { title: string; content: string; projectId?: string; tags: string[]; pinned?: boolean }) => unknown;
+  addTask: (taskData: Omit<Task, "id" | "createdAt">, actorType?: "user" | "athena" | "system") => Task;
+  addNote: (noteData: { title: string; content: string; projectId?: string; tags: string[]; pinned?: boolean }, actorType?: "user" | "athena" | "system") => unknown;
 }
 
 export function processAthenaQuery(
@@ -64,12 +64,15 @@ export function processAthenaQuery(
       cleanTitle = "Nova tarefa sugerida pela Athena";
     }
 
-    const createdTask = ctx.addTask({
-      title: cleanTitle,
-      projectId: matchedProject?.id,
-      priority,
-      status: "a_fazer",
-    });
+    const createdTask = ctx.addTask(
+      {
+        title: cleanTitle,
+        projectId: matchedProject?.id,
+        priority,
+        status: "a_fazer",
+      },
+      "athena"
+    );
 
     return {
       id: "athena-" + Date.now(),
@@ -98,12 +101,15 @@ export function processAthenaQuery(
       .replace(/^(crie uma nota|criar nota|anote isso|anotar)[:\s]*/i, "")
       .trim();
 
-    ctx.addNote({
-      title: `Nota Rápida — ${new Date().toLocaleDateString()}`,
-      content: cleanContent || "Anotação rápida registrada via Athena AI.",
-      tags: ["athena", "captura-rapida"],
-      pinned: false,
-    });
+    ctx.addNote(
+      {
+        title: `Nota Rápida — ${new Date().toLocaleDateString()}`,
+        content: cleanContent || "Anotação rápida registrada via Athena AI.",
+        tags: ["athena", "captura-rapida"],
+        pinned: false,
+      },
+      "athena"
+    );
 
     return {
       id: "athena-" + Date.now(),

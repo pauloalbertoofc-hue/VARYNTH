@@ -1,3 +1,5 @@
+import { ActorType } from "./activity";
+
 export type TrashEntityType =
   | "projeto"
   | "tarefa"
@@ -20,4 +22,9 @@ export interface TrashItem {
   deletedAt: string;
   expiresAt: string;
   daysRemaining: number;
+  deletedBy?: string;
+  deletedByType: ActorType;
+  source: "manual" | "athena" | "system";
+  schemaVersion: number;
+  originalPath?: string;
 }

@@ -1,10 +1,16 @@
+export type ActorType = "user" | "athena" | "system";
+
 export type ActivityAction =
   | "criou"
   | "atualizou"
   | "concluiu"
+  | "moveu_lixeira"
+  | "restaurou"
+  | "destruiu_permanentemente"
+  | "esvaziou_lixeira"
   | "arquivou"
-  | "removeu"
-  | "comentou";
+  | "promoveu"
+  | "executou_comando";
 
 export type EntityType =
   | "projeto"
@@ -14,15 +20,29 @@ export type EntityType =
   | "pesquisa"
   | "ideia"
   | "referencia"
-  | "codigo";
+  | "codigo"
+  | "vault"
+  | "tese"
+  | "evidencia"
+  | "edital"
+  | "pessoa"
+  | "evento"
+  | "lixeira";
 
-export interface Activity {
+export interface ActivityLog {
   id: string;
-  action: ActivityAction;
-  entityType: EntityType;
-  entityId: string;
-  entityTitle: string;
-  projectId?: string;
-  timestamp: string;
+  action: ActivityAction | string;
+  entityType?: EntityType | string;
+  entityId?: string;
+  entityTitle?: string;
+  actorType: ActorType;
+  actorId?: string;
   user?: string;
+  projectId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  timestamp?: string;
 }
+
+// Alias for backwards compatibility if needed
+export type Activity = ActivityLog;

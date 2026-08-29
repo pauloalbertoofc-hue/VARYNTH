@@ -20,6 +20,7 @@ import {
   Zap,
   Share2,
   Trash2,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,6 +38,7 @@ const systemNavItems: NavSectionItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Início" },
   { href: "/projects", icon: FolderKanban, label: "Projetos", badge: "Principal" },
   { href: "/modules/graph", icon: Share2, label: "Graph Rede" },
+  { href: "/modules/activity", icon: Activity, label: "Histórico" },
   { href: "/modules/vault", icon: BookOpen, label: "Vault" },
   { href: "/modules/chronos", icon: Clock, label: "Chronos" },
   { href: "/modules/people", icon: Users, label: "People" },

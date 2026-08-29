@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { TrashItem, TrashEntityType } from "@/lib/types";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
+import { StrongConfirmModal } from "@/components/ui/StrongConfirmModal";
 import {
   Trash2,
   RotateCcw,
@@ -22,6 +24,11 @@ import {
   FlaskConical,
   Calendar,
   Sparkles,
+  ExternalLink,
+  Activity,
+  User,
+  Bot,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,14 +51,14 @@ export default function TrashPage() {
 
   const [filterType, setFilterType] = useState<string>("todos");
   const [selectedItemToDelete, setSelectedItemToDelete] = useState<TrashItem | null>(null);
-  const [isEmptyTrashModalOpen, setIsEmptyTrashModalOpen] = useState(false);
+  const [isStrongEmptyModalOpen, setIsStrongEmptyModalOpen] = useState(false);
 
   const filteredItems = trashItems.filter(
     (item) => filterType === "todos" || item.entityType === filterType
   );
 
   return (
-    <PageLayout title="Lixeira Central" subtitle="Itens excluídos com retenção de 10 dias">
+    <PageLayout title="Lixeira Central" subtitle="Itens excluídos com retenção de 10 dias e rastreabilidade">
       <div className="space-y-6 max-w-5xl mx-auto animate-fade-in pb-12">
         {/* Header Banner */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-[#0f0f1a] border border-orange-500/30 clip-corner">
@@ -72,15 +79,25 @@ export default function TrashPage() {
             </div>
           </div>
 
-          {trashItems.length > 0 && (
-            <button
-              onClick={() => setIsEmptyTrashModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-red-300 bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 transition-all"
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href="/modules/activity"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-[#14141f] hover:bg-[#1c1c2b] border border-[#1e1e30] transition-all"
             >
-              <Trash2 size={13} />
-              <span>Esvaziar Lixeira</span>
-            </button>
-          )}
+              <Activity size={13} className="text-violet-400" />
+              <span>Ver Audit Trail</span>
+            </Link>
+
+            {trashItems.length > 0 && (
+              <button
+                onClick={() => setIsStrongEmptyModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-red-300 bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 transition-all"
+              >
+                <Trash2 size={13} />
+                <span>Esvaziar Lixeira</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filters */}
@@ -126,7 +143,7 @@ export default function TrashPage() {
             </div>
             <h3 className="text-sm font-bold text-slate-300">A Lixeira está vazia</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Nenhum item foi excluído recentemente. Quando você mover arquivos, notas ou tarefas para a lixeira, eles aparecerão aqui com prazo de 10 dias para restauração.
+              Nenhum item foi excluído recentemente. Quando você mover arquivos, notas ou tarefas para a lixeira, eles aparecerão aqui com prazo de 10 dias para restauração e Undo global.
             </p>
           </div>
         ) : (
@@ -135,17 +152,20 @@ export default function TrashPage() {
               const conf = TYPE_CONFIG[item.entityType] || TYPE_CONFIG.projeto;
               const Icon = conf.icon;
 
+              const actorIcon = item.deletedByType === "athena" ? Bot : item.deletedByType === "system" ? Cpu : User;
+              const ActorIconComp = actorIcon;
+
               return (
                 <div
                   key={item.id}
                   className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-orange-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 clip-corner-sm"
                 >
                   <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                    <div className={cn("p-2 rounded-lg border flex-shrink-0", conf.color)}>
-                      <Icon size={16} />
+                    <div className={cn("p-2.5 rounded-xl border flex-shrink-0", conf.color)}>
+                      <Icon size={18} />
                     </div>
 
-                    <div className="min-w-0 space-y-0.5">
+                    <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={cn("text-[10px] px-2 py-0.2 rounded border font-bold uppercase", conf.color)}>
                           {conf.label}
@@ -155,14 +175,29 @@ export default function TrashPage() {
                         </h4>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 flex items-center gap-2 font-mono">
-                        <span>Excluído em {new Date(item.deletedAt).toLocaleDateString()}</span>
+                      {/* Extended Meta */}
+                      <div className="flex items-center gap-2.5 flex-wrap text-[11px] text-slate-500 font-mono">
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <ActorIconComp size={11} className={item.deletedByType === "athena" ? "text-violet-400" : "text-cyan-400"} />
+                          <span>Por {item.deletedBy || "Paulo"} ({item.source || "manual"})</span>
+                        </span>
+
                         <span>·</span>
+
                         <span className="text-orange-400 font-semibold flex items-center gap-1">
                           <Clock size={11} />
-                          Auto-destruição em {item.daysRemaining} {item.daysRemaining === 1 ? "dia" : "dias"}
+                          Expira em {item.daysRemaining} {item.daysRemaining === 1 ? "dia" : "dias"}
                         </span>
-                      </p>
+
+                        {item.originalPath && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-400 truncate max-w-xs">
+                              Origem: {item.originalPath}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -204,17 +239,16 @@ export default function TrashPage() {
           />
         )}
 
-        {/* Modal: Esvaziar Toda a Lixeira */}
-        {isEmptyTrashModalOpen && (
-          <ConfirmDeleteModal
-            isOpen={true}
-            onClose={() => setIsEmptyTrashModalOpen(false)}
-            onConfirm={emptyTrash}
-            itemTitle="Todos os itens da Lixeira"
-            itemType="Lixeira Completa"
-            isPermanent={true}
-          />
-        )}
+        {/* Modal: Confirmação Forte para Esvaziar Toda a Lixeira */}
+        <StrongConfirmModal
+          isOpen={isStrongEmptyModalOpen}
+          onClose={() => setIsStrongEmptyModalOpen(false)}
+          onConfirm={emptyTrash}
+          title="Esvaziar Toda a Lixeira?"
+          description="Esta ação destruirá permanentemente todos os itens da Lixeira e não poderá ser desfeita."
+          expectedWord="ESVAZIAR"
+          itemCount={trashItems.length}
+        />
       </div>
     </PageLayout>
   );

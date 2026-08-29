@@ -8,7 +8,10 @@ import {
   ProjectFile,
   ProjectReference,
   ProjectTimelineEvent,
-  Activity,
+  ActivityLog,
+  ActorType,
+  ActivityAction,
+  EntityType,
   VaultItem,
   ChronosEvent,
   HistoricalMilestone,
@@ -24,6 +27,7 @@ import {
   TrashItem,
   TrashEntityType,
 } from "../types";
+import { showUndoToast } from "@/components/ui/UndoToast";
 
 const STORAGE_KEYS = {
   PROJECTS: "varynth_os_projects",
@@ -73,9 +77,84 @@ export function useVarynthStore() {
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [references, setReferences] = useState<ProjectReference[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<ProjectTimelineEvent[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // --- LOG ACTIVITY / AUDIT TRAIL SERVICE ---
+  const logActivity = useCallback(
+    (
+      action: ActivityAction | string,
+      entityType?: EntityType | string,
+      entityId?: string,
+      entityTitle?: string,
+      actorType: ActorType = "user",
+      metadata?: Record<string, unknown>,
+      projectId?: string
+    ) => {
+      const newActivity: ActivityLog = {
+        id: "act-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+        action,
+        entityType,
+        entityId,
+        entityTitle,
+        actorType,
+        user: actorType === "athena" ? "Athena AI" : actorType === "system" ? "Sistema" : "Paulo",
+        projectId,
+        metadata,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+      };
+      try {
+        const current: ActivityLog[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES) || "[]");
+        const updated = [newActivity, ...current].slice(0, 150); // Keep last 150 audit entries
+        localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
+        triggerStoreUpdate();
+      } catch {
+        // ignore
+      }
+      return newActivity;
+    },
+    []
+  );
+
+  // --- DECOUPLED AUTO-PURGE FUNCTION (SERVER / CRON READY) ---
+  const purgeExpiredTrashItems = useCallback(() => {
+    try {
+      const rawTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const now = Date.now();
+      const validTrash: TrashItem[] = [];
+      const expiredTrash: TrashItem[] = [];
+
+      rawTrash.forEach((item) => {
+        if (new Date(item.expiresAt).getTime() <= now) {
+          expiredTrash.push(item);
+        } else {
+          const diffMs = new Date(item.expiresAt).getTime() - now;
+          const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          validTrash.push({ ...item, daysRemaining: days });
+        }
+      });
+
+      if (expiredTrash.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(validTrash));
+        expiredTrash.forEach((expired) => {
+          logActivity(
+            "destruiu_permanentemente",
+            expired.entityType,
+            expired.originalId,
+            `Sistema destruiu permanentemente "${expired.title}" após expiração de 10 dias.`,
+            "system",
+            { originalExpiresAt: expired.expiresAt }
+          );
+        });
+        triggerStoreUpdate();
+      }
+      return { purgedCount: expiredTrash.length, remainingCount: validTrash.length };
+    } catch {
+      return { purgedCount: 0, remainingCount: 0 };
+    }
+  }, [logActivity]);
 
   const loadData = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -109,20 +188,8 @@ export function useVarynthStore() {
         }
       });
 
-      // 10-day Auto-Purge of expired trash
-      const rawTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
-      const now = Date.now();
-      const validTrash = rawTrash
-        .filter((item) => new Date(item.expiresAt).getTime() > now)
-        .map((item) => {
-          const diffMs = new Date(item.expiresAt).getTime() - now;
-          const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-          return { ...item, daysRemaining: days };
-        });
-
-      if (validTrash.length !== rawTrash.length) {
-        localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(validTrash));
-      }
+      // Run auto purge
+      purgeExpiredTrashItems();
 
       setProjects(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]"));
       setTasks(JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]"));
@@ -142,12 +209,12 @@ export function useVarynthStore() {
       setReferences(JSON.parse(localStorage.getItem(STORAGE_KEYS.REFERENCES) || "[]"));
       setTimelineEvents(JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMELINE) || "[]"));
       setActivities(JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES) || "[]"));
-      setTrashItems(validTrash);
+      setTrashItems(JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]"));
     } catch {
       // ignore
     }
     setIsLoaded(true);
-  }, []);
+  }, [purgeExpiredTrashItems]);
 
   useEffect(() => {
     loadData();
@@ -162,44 +229,103 @@ export function useVarynthStore() {
     };
   }, [loadData]);
 
-  const logActivity = useCallback(
-    (
-      action: Activity["action"],
-      entityType: Activity["entityType"],
-      entityId: string,
-      entityTitle: string,
-      projectId?: string
-    ) => {
-      const newActivity: Activity = {
-        id: "act-" + Date.now(),
-        action,
-        entityType,
-        entityId,
-        entityTitle,
-        projectId,
-        timestamp: new Date().toISOString(),
-        user: "Paulo",
+  // --- TRASH HUB (10-DAY RETENTION, RESILIENT RESTORE & UNDO TOAST) ---
+  const restoreFromTrash = useCallback(
+    (trashId: string, actorType: ActorType = "user") => {
+      const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const itemToRestore = currentTrash.find((t) => t.id === trashId);
+      if (!itemToRestore) return null;
+
+      const remainingTrash = currentTrash.filter((t) => t.id !== trashId);
+      localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(remainingTrash));
+
+      let entity: any = itemToRestore.data;
+      let hasConflict = false;
+
+      // Helper to check ID collision and resolve
+      const checkAndResolveCollision = (storageKey: string) => {
+        const list: any[] = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        const idExists = list.some((item) => item.id === entity.id);
+        if (idExists) {
+          hasConflict = true;
+          const oldId = entity.id;
+          const newId = `${oldId}-restored-${Date.now()}`;
+          entity = { ...entity, id: newId, originalIdBeforeConflict: oldId };
+        }
+        localStorage.setItem(storageKey, JSON.stringify([entity, ...list]));
       };
-      try {
-        const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES) || "[]");
-        const updated = [newActivity, ...current].slice(0, 60);
-        localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(updated));
-        triggerStoreUpdate();
-      } catch {
-        // ignore
+
+      switch (itemToRestore.entityType) {
+        case "projeto":
+          checkAndResolveCollision(STORAGE_KEYS.PROJECTS);
+          break;
+        case "tarefa":
+          checkAndResolveCollision(STORAGE_KEYS.TASKS);
+          break;
+        case "nota":
+          checkAndResolveCollision(STORAGE_KEYS.NOTES);
+          break;
+        case "vault":
+          checkAndResolveCollision(STORAGE_KEYS.VAULT);
+          break;
+        case "tese":
+          checkAndResolveCollision(STORAGE_KEYS.THESES);
+          break;
+        case "evidencia":
+          checkAndResolveCollision(STORAGE_KEYS.EVIDENCES);
+          break;
+        case "edital":
+          checkAndResolveCollision(STORAGE_KEYS.OPPORTUNITIES);
+          break;
+        case "codigo":
+          checkAndResolveCollision(STORAGE_KEYS.FORGE);
+          break;
+        case "pessoa":
+          checkAndResolveCollision(STORAGE_KEYS.PEOPLE);
+          break;
+        case "ideia":
+          checkAndResolveCollision(STORAGE_KEYS.LABS);
+          break;
+        case "evento":
+          checkAndResolveCollision(STORAGE_KEYS.CHRONOS);
+          break;
       }
+
+      logActivity(
+        "restaurou",
+        itemToRestore.entityType,
+        entity.id,
+        hasConflict
+          ? `Restaurou "${itemToRestore.title}" com novo identificador porque o ID original já estava em uso.`
+          : `Restaurou "${itemToRestore.title}" da Lixeira`,
+        actorType,
+        { originalPath: itemToRestore.originalPath, hasConflict }
+      );
+
+      triggerStoreUpdate();
+      return entity;
     },
-    []
+    [logActivity]
   );
 
-  // --- TRASH HUB (10-DAY RETENTION & SOFT DELETE) ---
   const moveToTrash = useCallback(
-    (entityType: TrashEntityType, originalId: string, title: string, data: unknown) => {
+    (
+      entityType: TrashEntityType,
+      originalId: string,
+      title: string,
+      data: unknown,
+      options?: {
+        deletedBy?: string;
+        deletedByType?: ActorType;
+        source?: "manual" | "athena" | "system";
+        originalPath?: string;
+      }
+    ) => {
       const now = new Date();
       const expires = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000); // 10 days
 
       const newTrashItem: TrashItem = {
-        id: "trash-" + Date.now(),
+        id: "trash-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
         originalId,
         entityType,
         title,
@@ -207,117 +333,82 @@ export function useVarynthStore() {
         deletedAt: now.toISOString(),
         expiresAt: expires.toISOString(),
         daysRemaining: 10,
+        deletedBy: options?.deletedBy || "Paulo",
+        deletedByType: options?.deletedByType || "user",
+        source: options?.source || "manual",
+        schemaVersion: 1,
+        originalPath: options?.originalPath || (typeof window !== "undefined" ? window.location.pathname : undefined),
       };
 
       const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
       const updatedTrash = [newTrashItem, ...currentTrash];
       localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(updatedTrash));
 
-      logActivity("removeu", "projeto", originalId, `Moveu "${title}" para a Lixeira (10 dias)`);
+      // Audit Log
+      logActivity(
+        "moveu_lixeira",
+        entityType,
+        originalId,
+        `Moveu "${title}" para a Lixeira (Retenção de 10 dias)`,
+        options?.deletedByType || "user",
+        { trashId: newTrashItem.id, originalPath: newTrashItem.originalPath }
+      );
+
+      // Trigger Global Undo Toast
+      showUndoToast({
+        id: newTrashItem.id,
+        message: `${entityType.toUpperCase()}: "${title}" movido para a Lixeira`,
+        actionLabel: "Desfazer",
+        onUndo: () => restoreFromTrash(newTrashItem.id),
+      });
+
       triggerStoreUpdate();
       return newTrashItem;
     },
-    [logActivity]
-  );
-
-  const restoreFromTrash = useCallback(
-    (trashId: string) => {
-      const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
-      const itemToRestore = currentTrash.find((t) => t.id === trashId);
-      if (!itemToRestore) return;
-
-      const remainingTrash = currentTrash.filter((t) => t.id !== trashId);
-      localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(remainingTrash));
-
-      // Put item back into original store array
-      const entity = itemToRestore.data;
-      switch (itemToRestore.entityType) {
-        case "projeto": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
-          localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "tarefa": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
-          localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "nota": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]");
-          localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "vault": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
-          localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "tese": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]");
-          localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "evidencia": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]");
-          localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "edital": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]");
-          localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "codigo": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
-          localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "pessoa": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]");
-          localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "ideia": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
-          localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify([entity, ...list]));
-          break;
-        }
-        case "evento": {
-          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]");
-          localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify([entity, ...list]));
-          break;
-        }
-      }
-
-      logActivity("criou", "projeto", itemToRestore.originalId, `Restaurou "${itemToRestore.title}" da Lixeira`);
-      triggerStoreUpdate();
-    },
-    [logActivity]
+    [logActivity, restoreFromTrash]
   );
 
   const permanentDeleteTrash = useCallback(
-    (trashId: string) => {
+    (trashId: string, actorType: ActorType = "user") => {
       const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
       const target = currentTrash.find((t) => t.id === trashId);
       const remainingTrash = currentTrash.filter((t) => t.id !== trashId);
       localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(remainingTrash));
       if (target) {
-        logActivity("removeu", "projeto", target.originalId, `Destruiu permanentemente "${target.title}"`);
+        logActivity(
+          "destruiu_permanentemente",
+          target.entityType,
+          target.originalId,
+          `Destruiu permanentemente "${target.title}"`,
+          actorType
+        );
       }
       triggerStoreUpdate();
     },
     [logActivity]
   );
 
-  const emptyTrash = useCallback(() => {
-    localStorage.setItem(STORAGE_KEYS.TRASH, "[]");
-    logActivity("removeu", "projeto", "trash-all", "Esvaziou a Lixeira do VARYNTH");
-    triggerStoreUpdate();
-  }, [logActivity]);
+  const emptyTrash = useCallback(
+    (actorType: ActorType = "user") => {
+      const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const count = currentTrash.length;
+      localStorage.setItem(STORAGE_KEYS.TRASH, "[]");
+      logActivity(
+        "esvaziou_lixeira",
+        "lixeira",
+        "trash-all",
+        `Esvaziou a Lixeira do VARYNTH (${count} itens destruídos permanentemente)`,
+        actorType,
+        { itemCount: count }
+      );
+      triggerStoreUpdate();
+    },
+    [logActivity]
+  );
 
   // --- PROJECTS ---
   const addProject = useCallback(
-    (projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) => {
+    (projectData: Omit<Project, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newProject: Project = {
         ...projectData,
         id: "proj-" + Date.now(),
@@ -327,7 +418,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
       const updated = [newProject, ...current];
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
-      logActivity("criou", "projeto", newProject.id, newProject.title);
+      logActivity("criou", "projeto", newProject.id, newProject.title, actorType);
       triggerStoreUpdate();
       return newProject;
     },
@@ -335,7 +426,7 @@ export function useVarynthStore() {
   );
 
   const updateProject = useCallback(
-    (id: string, updates: Partial<Project>) => {
+    (id: string, updates: Partial<Project>, actorType: ActorType = "user") => {
       const current: Project[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
       const updated = current.map((p) =>
         p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
@@ -343,7 +434,7 @@ export function useVarynthStore() {
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
       const target = updated.find((p) => p.id === id);
       if (target) {
-        logActivity("atualizou", "projeto", id, target.title);
+        logActivity("atualizou", "projeto", id, target.title, actorType);
       }
       triggerStoreUpdate();
     },
@@ -351,11 +442,14 @@ export function useVarynthStore() {
   );
 
   const deleteProject = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: Project[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
       const target = current.find((p) => p.id === id);
       if (target) {
-        moveToTrash("projeto", target.id, target.title, target);
+        moveToTrash("projeto", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: `/projects/${target.id}`,
+        });
       }
       const updated = current.filter((p) => p.id !== id);
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
@@ -366,7 +460,7 @@ export function useVarynthStore() {
 
   // --- TASKS ---
   const addTask = useCallback(
-    (taskData: Omit<Task, "id" | "createdAt">) => {
+    (taskData: Omit<Task, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newTask: Task = {
         ...taskData,
         id: "task-" + Date.now(),
@@ -375,7 +469,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
       const updated = [newTask, ...current];
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
-      logActivity("criou", "tarefa", newTask.id, newTask.title, newTask.projectId);
+      logActivity("criou", "tarefa", newTask.id, newTask.title, actorType, undefined, newTask.projectId);
       triggerStoreUpdate();
       return newTask;
     },
@@ -383,7 +477,7 @@ export function useVarynthStore() {
   );
 
   const toggleTask = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
       const updated = current.map((t) => {
         if (t.id === id) {
@@ -404,6 +498,8 @@ export function useVarynthStore() {
           "tarefa",
           id,
           target.title,
+          actorType,
+          undefined,
           target.projectId
         );
       }
@@ -412,19 +508,26 @@ export function useVarynthStore() {
     [logActivity]
   );
 
-  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
+  const updateTask = useCallback((id: string, updates: Partial<Task>, actorType: ActorType = "user") => {
     const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
     const updated = current.map((t) => (t.id === id ? { ...t, ...updates } : t));
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
+    const target = updated.find((t) => t.id === id);
+    if (target) {
+      logActivity("atualizou", "tarefa", id, target.title, actorType, undefined, target.projectId);
+    }
     triggerStoreUpdate();
-  }, []);
+  }, [logActivity]);
 
   const deleteTask = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
       const target = current.find((t) => t.id === id);
       if (target) {
-        moveToTrash("tarefa", target.id, target.title, target);
+        moveToTrash("tarefa", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: target.projectId ? `/projects/${target.projectId}` : "/dashboard",
+        });
       }
       const updated = current.filter((t) => t.id !== id);
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
@@ -435,7 +538,7 @@ export function useVarynthStore() {
 
   // --- NOTES ---
   const addNote = useCallback(
-    (noteData: Omit<Note, "id" | "createdAt" | "updatedAt">) => {
+    (noteData: Omit<Note, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newNote: Note = {
         ...noteData,
         id: "note-" + Date.now(),
@@ -445,14 +548,14 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]");
       const updated = [newNote, ...current];
       localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updated));
-      logActivity("criou", "nota", newNote.id, newNote.title, newNote.projectId);
+      logActivity("criou", "nota", newNote.id, newNote.title, actorType, undefined, newNote.projectId);
       triggerStoreUpdate();
       return newNote;
     },
     [logActivity]
   );
 
-  const updateNote = useCallback((id: string, updates: Partial<Note>) => {
+  const updateNote = useCallback((id: string, updates: Partial<Note>, actorType: ActorType = "user") => {
     const current: Note[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]");
     const updated = current.map((n) =>
       n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n
@@ -462,11 +565,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteNote = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: Note[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]");
       const target = current.find((n) => n.id === id);
       if (target) {
-        moveToTrash("nota", target.id, target.title, target);
+        moveToTrash("nota", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: target.projectId ? `/projects/${target.projectId}` : "/dashboard",
+        });
       }
       const updated = current.filter((n) => n.id !== id);
       localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updated));
@@ -477,7 +583,7 @@ export function useVarynthStore() {
 
   // --- VAULT ---
   const addVaultItem = useCallback(
-    (itemData: Omit<VaultItem, "id" | "createdAt" | "updatedAt">) => {
+    (itemData: Omit<VaultItem, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newItem: VaultItem = {
         ...itemData,
         id: "vault-" + Date.now(),
@@ -487,7 +593,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
       const updated = [newItem, ...current];
       localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
-      logActivity("criou", "referencia", newItem.id, newItem.title);
+      logActivity("criou", "vault", newItem.id, newItem.title, actorType);
       triggerStoreUpdate();
       return newItem;
     },
@@ -504,11 +610,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteVaultItem = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: VaultItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
       const target = current.find((item) => item.id === id);
       if (target) {
-        moveToTrash("vault", target.id, target.title, target);
+        moveToTrash("vault", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/vault",
+        });
       }
       const updated = current.filter((item) => item.id !== id);
       localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
@@ -519,7 +628,7 @@ export function useVarynthStore() {
 
   // --- CHRONOS ---
   const addChronosEvent = useCallback(
-    (eventData: Omit<ChronosEvent, "id" | "createdAt">) => {
+    (eventData: Omit<ChronosEvent, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newEvent: ChronosEvent = {
         ...eventData,
         id: "chronos-" + Date.now(),
@@ -528,10 +637,11 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]");
       const updated = [newEvent, ...current];
       localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify(updated));
+      logActivity("criou", "evento", newEvent.id, newEvent.title, actorType);
       triggerStoreUpdate();
       return newEvent;
     },
-    []
+    [logActivity]
   );
 
   const updateChronosEvent = useCallback((id: string, updates: Partial<ChronosEvent>) => {
@@ -542,11 +652,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteChronosEvent = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: ChronosEvent[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]");
       const target = current.find((e) => e.id === id);
       if (target) {
-        moveToTrash("evento", target.id, target.title, target);
+        moveToTrash("evento", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/chronos",
+        });
       }
       const updated = current.filter((e) => e.id !== id);
       localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify(updated));
@@ -556,7 +669,7 @@ export function useVarynthStore() {
   );
 
   const addHistoricalMilestone = useCallback(
-    (milestoneData: Omit<HistoricalMilestone, "id">) => {
+    (milestoneData: Omit<HistoricalMilestone, "id">, actorType: ActorType = "user") => {
       const newMilestone: HistoricalMilestone = {
         ...milestoneData,
         id: "hist-" + Date.now(),
@@ -564,10 +677,11 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORICAL) || "[]");
       const updated = [newMilestone, ...current];
       localStorage.setItem(STORAGE_KEYS.HISTORICAL, JSON.stringify(updated));
+      logActivity("criou", "evento", newMilestone.id, newMilestone.title, actorType);
       triggerStoreUpdate();
       return newMilestone;
     },
-    []
+    [logActivity]
   );
 
   const deleteHistoricalMilestone = useCallback((id: string) => {
@@ -579,7 +693,7 @@ export function useVarynthStore() {
 
   // --- PEOPLE ---
   const addPerson = useCallback(
-    (personData: Omit<Person, "id" | "createdAt">) => {
+    (personData: Omit<Person, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newPerson: Person = {
         ...personData,
         id: "person-" + Date.now(),
@@ -588,10 +702,11 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]");
       const updated = [newPerson, ...current];
       localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(updated));
+      logActivity("criou", "pessoa", newPerson.id, newPerson.name, actorType);
       triggerStoreUpdate();
       return newPerson;
     },
-    []
+    [logActivity]
   );
 
   const updatePerson = useCallback((id: string, updates: Partial<Person>) => {
@@ -602,11 +717,14 @@ export function useVarynthStore() {
   }, []);
 
   const deletePerson = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: Person[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]");
       const target = current.find((p) => p.id === id);
       if (target) {
-        moveToTrash("pessoa", target.id, target.name, target);
+        moveToTrash("pessoa", target.id, target.name, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/people",
+        });
       }
       const updated = current.filter((p) => p.id !== id);
       localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(updated));
@@ -617,7 +735,7 @@ export function useVarynthStore() {
 
   // --- LABS & GRAVEYARD ---
   const addLabItem = useCallback(
-    (labData: Omit<LabItem, "id" | "createdAt" | "updatedAt">) => {
+    (labData: Omit<LabItem, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newItem: LabItem = {
         ...labData,
         id: "lab-" + Date.now(),
@@ -627,7 +745,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
       const updated = [newItem, ...current];
       localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify(updated));
-      logActivity("criou", "ideia", newItem.id, newItem.title);
+      logActivity("criou", "ideia", newItem.id, newItem.title, actorType);
       triggerStoreUpdate();
       return newItem;
     },
@@ -644,11 +762,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteLabItem = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: LabItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
       const target = current.find((item) => item.id === id);
       if (target) {
-        moveToTrash("ideia", target.id, target.title, target);
+        moveToTrash("ideia", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/labs",
+        });
       }
       const updated = current.filter((item) => item.id !== id);
       localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify(updated));
@@ -658,40 +779,46 @@ export function useVarynthStore() {
   );
 
   const promoteLabToProject = useCallback(
-    (labId: string) => {
+    (labId: string, actorType: ActorType = "user") => {
       const labs: LabItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
       const target = labs.find((l) => l.id === labId);
       if (!target) return null;
 
-      const newProj = addProject({
-        title: target.title,
-        description: `${target.description}${target.hypothesis ? `\n\nHipótese Inicial: ${target.hypothesis}` : ""}`,
-        category: target.category,
-        status: "ativo",
-        priority: "alta",
-        tags: [...target.tags, "promovido-do-labs"],
-        progress: 10,
-      });
+      const newProj = addProject(
+        {
+          title: target.title,
+          description: `${target.description}${target.hypothesis ? `\n\nHipótese Inicial: ${target.hypothesis}` : ""}`,
+          category: target.category,
+          status: "ativo",
+          priority: "alta",
+          tags: [...target.tags, "promovido-do-labs"],
+          progress: 10,
+        },
+        actorType
+      );
 
       if (target.notes) {
-        addNote({
-          projectId: newProj.id,
-          title: `Notas de Incubação (Labs) — ${target.title}`,
-          content: target.notes,
-          tags: ["labs", "historico"],
-          pinned: true,
-        });
+        addNote(
+          {
+            projectId: newProj.id,
+            title: `Notas de Incubação (Labs) — ${target.title}`,
+            content: target.notes,
+            tags: ["labs", "historico"],
+            pinned: true,
+          },
+          actorType
+        );
       }
 
       updateLabItem(labId, { stage: "promovido", promotedProjectId: newProj.id });
-      logActivity("criou", "projeto", newProj.id, `Promoveu "${target.title}" para Projeto`);
+      logActivity("promoveu", "ideia", target.id, `Promoveu a ideia "${target.title}" para o Projeto "${newProj.title}"`, actorType);
       return newProj;
     },
     [addProject, addNote, updateLabItem, logActivity]
   );
 
   const addGraveyardItem = useCallback(
-    (graveData: Omit<GraveyardItem, "id" | "createdAt">) => {
+    (graveData: Omit<GraveyardItem, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newItem: GraveyardItem = {
         ...graveData,
         id: "grave-" + Date.now(),
@@ -700,7 +827,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRAVEYARD) || "[]");
       const updated = [newItem, ...current];
       localStorage.setItem(STORAGE_KEYS.GRAVEYARD, JSON.stringify(updated));
-      logActivity("arquivou", "projeto", newItem.id, newItem.title);
+      logActivity("arquivou", "projeto", newItem.id, newItem.title, actorType);
       triggerStoreUpdate();
       return newItem;
     },
@@ -716,7 +843,7 @@ export function useVarynthStore() {
 
   // --- CODEX ---
   const addThesis = useCallback(
-    (thesisData: Omit<ArgumentThesis, "id" | "createdAt" | "updatedAt">) => {
+    (thesisData: Omit<ArgumentThesis, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newThesis: ArgumentThesis = {
         ...thesisData,
         id: "thesis-" + Date.now(),
@@ -726,7 +853,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]");
       const updated = [newThesis, ...current];
       localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify(updated));
-      logActivity("criou", "referencia", newThesis.id, newThesis.title);
+      logActivity("criou", "tese", newThesis.id, newThesis.title, actorType);
       triggerStoreUpdate();
       return newThesis;
     },
@@ -743,11 +870,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteThesis = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: ArgumentThesis[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]");
       const target = current.find((t) => t.id === id);
       if (target) {
-        moveToTrash("tese", target.id, target.title, target);
+        moveToTrash("tese", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/codex",
+        });
       }
       const updated = current.filter((t) => t.id !== id);
       localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify(updated));
@@ -758,7 +888,7 @@ export function useVarynthStore() {
 
   // --- RESEARCH ---
   const addResearch = useCallback(
-    (resData: Omit<AcademicResearch, "id" | "createdAt">) => {
+    (resData: Omit<AcademicResearch, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newRes: AcademicResearch = {
         ...resData,
         id: "res-" + Date.now(),
@@ -767,7 +897,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESEARCHES) || "[]");
       const updated = [newRes, ...current];
       localStorage.setItem(STORAGE_KEYS.RESEARCHES, JSON.stringify(updated));
-      logActivity("criou", "pesquisa", newRes.id, newRes.title);
+      logActivity("criou", "pesquisa", newRes.id, newRes.title, actorType);
       triggerStoreUpdate();
       return newRes;
     },
@@ -782,11 +912,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteResearch = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: AcademicResearch[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESEARCHES) || "[]");
       const target = current.find((r) => r.id === id);
       if (target) {
-        moveToTrash("evidencia", target.id, target.title, target);
+        moveToTrash("evidencia", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/research",
+        });
       }
       const updated = current.filter((r) => r.id !== id);
       localStorage.setItem(STORAGE_KEYS.RESEARCHES, JSON.stringify(updated));
@@ -796,7 +929,7 @@ export function useVarynthStore() {
   );
 
   const addEvidence = useCallback(
-    (eviData: Omit<EvidenceItem, "id" | "createdAt">) => {
+    (eviData: Omit<EvidenceItem, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newEvi: EvidenceItem = {
         ...eviData,
         id: "evi-" + Date.now(),
@@ -805,7 +938,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]");
       const updated = [newEvi, ...current];
       localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify(updated));
-      logActivity("criou", "referencia", newEvi.id, newEvi.claim);
+      logActivity("criou", "evidencia", newEvi.id, newEvi.claim, actorType);
       triggerStoreUpdate();
       return newEvi;
     },
@@ -820,11 +953,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteEvidence = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: EvidenceItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]");
       const target = current.find((e) => e.id === id);
       if (target) {
-        moveToTrash("evidencia", target.id, target.claim, target);
+        moveToTrash("evidencia", target.id, target.claim, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/research",
+        });
       }
       const updated = current.filter((e) => e.id !== id);
       localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify(updated));
@@ -835,7 +971,7 @@ export function useVarynthStore() {
 
   // --- OPPORTUNITIES ---
   const addOpportunity = useCallback(
-    (oppData: Omit<Opportunity, "id" | "createdAt" | "updatedAt">) => {
+    (oppData: Omit<Opportunity, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newOpp: Opportunity = {
         ...oppData,
         id: "opp-" + Date.now(),
@@ -845,7 +981,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]");
       const updated = [newOpp, ...current];
       localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(updated));
-      logActivity("criou", "projeto", newOpp.id, newOpp.title);
+      logActivity("criou", "edital", newOpp.id, newOpp.title, actorType);
       triggerStoreUpdate();
       return newOpp;
     },
@@ -862,11 +998,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteOpportunity = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: Opportunity[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]");
       const target = current.find((o) => o.id === id);
       if (target) {
-        moveToTrash("edital", target.id, target.title, target);
+        moveToTrash("edital", target.id, target.title, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/opportunities",
+        });
       }
       const updated = current.filter((o) => o.id !== id);
       localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(updated));
@@ -877,7 +1016,7 @@ export function useVarynthStore() {
 
   // --- FORGE STUDIO ---
   const addForgeFile = useCallback(
-    (fileData: Omit<ForgeFile, "id" | "createdAt" | "updatedAt">) => {
+    (fileData: Omit<ForgeFile, "id" | "createdAt" | "updatedAt">, actorType: ActorType = "user") => {
       const newFile: ForgeFile = {
         ...fileData,
         id: "forge-" + Date.now(),
@@ -887,7 +1026,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
       const updated = [newFile, ...current];
       localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(updated));
-      logActivity("criou", "codigo", newFile.id, newFile.name);
+      logActivity("criou", "codigo", newFile.id, newFile.name, actorType);
       triggerStoreUpdate();
       return newFile;
     },
@@ -904,11 +1043,14 @@ export function useVarynthStore() {
   }, []);
 
   const deleteForgeFile = useCallback(
-    (id: string) => {
+    (id: string, actorType: ActorType = "user") => {
       const current: ForgeFile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
       const target = current.find((f) => f.id === id);
       if (target) {
-        moveToTrash("codigo", target.id, target.name, target);
+        moveToTrash("codigo", target.id, target.name, target, {
+          deletedByType: actorType,
+          originalPath: "/modules/forge",
+        });
       }
       const updated = current.filter((f) => f.id !== id);
       localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(updated));
@@ -919,7 +1061,7 @@ export function useVarynthStore() {
 
   // --- REFERENCES & TIMELINE ---
   const addReference = useCallback(
-    (refData: Omit<ProjectReference, "id" | "createdAt">) => {
+    (refData: Omit<ProjectReference, "id" | "createdAt">, actorType: ActorType = "user") => {
       const newRef: ProjectReference = {
         ...refData,
         id: "ref-" + Date.now(),
@@ -928,7 +1070,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.REFERENCES) || "[]");
       const updated = [newRef, ...current];
       localStorage.setItem(STORAGE_KEYS.REFERENCES, JSON.stringify(updated));
-      logActivity("criou", "referencia", newRef.id, newRef.title, newRef.projectId);
+      logActivity("criou", "referencia", newRef.id, newRef.title, actorType, undefined, newRef.projectId);
       triggerStoreUpdate();
       return newRef;
     },
@@ -942,7 +1084,7 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const addTimelineEvent = useCallback((eventData: Omit<ProjectTimelineEvent, "id">) => {
+  const addTimelineEvent = useCallback((eventData: Omit<ProjectTimelineEvent, "id">, actorType: ActorType = "user") => {
     const newEvent: ProjectTimelineEvent = {
       ...eventData,
       id: "time-" + Date.now(),
@@ -1033,6 +1175,7 @@ export function useVarynthStore() {
     restoreFromTrash,
     permanentDeleteTrash,
     emptyTrash,
+    purgeExpiredTrashItems,
     logActivity,
   };
 }
