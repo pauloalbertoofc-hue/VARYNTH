@@ -1,4 +1,5 @@
 import { StorageAdapter, AssetStorageAdapter } from "./contracts";
+import { fallbackPolicyEngine } from "./fallback-policy";
 
 const DB_NAME = "VARYNTH_SOVEREIGN_DB_V1";
 const DB_VERSION = 1;
@@ -146,6 +147,13 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
 
   public async save(item: T): Promise<T> {
     const clone = JSON.parse(JSON.stringify(item));
+
+    // 1. Fallback Policy Evaluation
+    const perm = fallbackPolicyEngine.evaluateWritePermission(this.storeName, clone);
+    if (!perm.allowed) {
+      throw new Error(perm.error || `Gravação bloqueada na coleção ${this.storeName}`);
+    }
+
     dbConnection.getMemoryStore(this.storeName).set(clone.id, clone);
 
     if (!dbConnection.isAvailable()) {
@@ -162,13 +170,21 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
         req.onsuccess = () => resolve(clone);
         req.onerror = () => reject(req.error);
       });
-    } catch {
-      return clone;
+    } catch (err) {
+      // In fail-closed, do not report false success
+      throw err;
     }
   }
 
   public async saveBatch(items: T[]): Promise<void> {
     const clones = items.map((i) => JSON.parse(JSON.stringify(i)));
+
+    // 1. Fallback Policy Evaluation
+    const perm = fallbackPolicyEngine.evaluateWritePermission(this.storeName, clones);
+    if (!perm.allowed) {
+      throw new Error(perm.error || `Gravação em lote bloqueada na coleção ${this.storeName}`);
+    }
+
     clones.forEach((clone) => {
       dbConnection.getMemoryStore(this.storeName).set(clone.id, clone);
     });
@@ -188,8 +204,8 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
-    } catch {
-      // fallback already updated in memory
+    } catch (err) {
+      throw err;
     }
   }
 

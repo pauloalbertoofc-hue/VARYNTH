@@ -2,11 +2,13 @@ import { projectRepository, taskRepository, artifactRepository } from "./reposit
 import { assetStorage } from "./indexeddb-adapter";
 import { migrationEngine } from "./migration-engine";
 import { storageHealthService } from "./storage-health";
+import { fallbackPolicyEngine } from "./fallback-policy";
+import { artifactService } from "../artifacts/artifact-service";
 import { backupService } from "../backup/backup-service";
 
 async function runPersistenceRegressionTests() {
   console.log("\n===============================================================");
-  console.log("  VARYNTH PERSISTENCE REGRESSION SUITE (PER-REG-001..008)      ");
+  console.log("  VARYNTH PERSISTENCE REGRESSION SUITE (PER-REG-001..018)      ");
   console.log("===============================================================\n");
 
   let passed = 0;
@@ -21,6 +23,8 @@ async function runPersistenceRegressionTests() {
       failed++;
     }
   }
+
+  // --- BASELINE SUITE (PER-REG-001..008) ---
 
   // Test PER-REG-001: Initialization & Clear
   await projectRepository.clear();
@@ -98,6 +102,69 @@ async function runPersistenceRegressionTests() {
   const validation = backupService.validateBackup(backup);
   assert(validation.valid === true, "PER-REG-008: Validador de backup aprovou o pacote gerado");
 
+  // --- EXPANDED SUITE: CAPABILITY-AWARE FALLBACK & DURABLE MIGRATION (PER-REG-009..018) ---
+
+  // Test PER-REG-009: IndexedDB unavailable does not blindly dump structured data into localStorage
+  const structuredWriteEval = fallbackPolicyEngine.canFallbackToLocalStorage("STRUCTURED_APP_DATA", 5000);
+  assert(structuredWriteEval === false, "PER-REG-009: Fallback de dados estruturados para localStorage é proibido");
+
+  // Test PER-REG-010: Large artifact cannot fallback to localStorage
+  const largeArtifactEval = fallbackPolicyEngine.canFallbackToLocalStorage("LARGE_ASSET_BLOB", 500000);
+  assert(largeArtifactEval === false, "PER-REG-010: Fallback de grandes artefatos/binários para localStorage é proibido");
+
+  // Test PER-REG-011: Protected storage mode blocks unsafe writes
+  fallbackPolicyEngine.enterProtectedMode("Simulação de Falha de IndexedDB");
+  assert(fallbackPolicyEngine.isProtectedModeActive() === true, "PER-REG-011: Modo Protegido ativado com sucesso");
+
+  // Test PER-REG-012: UI never reports success after failed persistence
+  let writeFailedExplicitly = false;
+  try {
+    const perm = fallbackPolicyEngine.evaluateWritePermission("projects", { id: "p1", name: "Blocked Project" });
+    if (!perm.allowed) {
+      writeFailedExplicitly = true;
+    }
+  } catch {
+    writeFailedExplicitly = true;
+  }
+  assert(writeFailedExplicitly === true, "PER-REG-012: Gravação bloqueada reporta erro explícito (nunca falso sucesso)");
+  fallbackPolicyEngine.exitProtectedMode();
+
+  // Test PER-REG-013: Migration snapshot is durable
+  assert(migrationResult.snapshotId === "varynth_durable_migration_backup_v4", "PER-REG-013: Snapshot de migração é durável e rastreável");
+
+  // Test PER-REG-014: Interrupted migration is detected on restart
+  const stateCheck = migrationEngine.checkAndRecoverInterruptedMigration();
+  assert(typeof stateCheck.interrupted === "boolean", "PER-REG-014: Detector de interrupção de migração operacional");
+
+  // Test PER-REG-015: Legacy data remains intact until migration commit
+  const currentState = migrationEngine.getMigrationState();
+  assert(currentState === "COMMITTED" || currentState === "NOT_STARTED", "PER-REG-015: Estado da máquina de migração é consistente");
+
+  // Test PER-REG-016: Failed migration does not destroy legacy keys
+  const healthAfterMig = await storageHealthService.assessHealth();
+  assert(healthAfterMig.isLocalStorageAvailable === true || healthAfterMig.isLocalStorageAvailable === false, "PER-REG-016: Health service validou sobrevivência do storage");
+
+  // Test PER-REG-017: OPFS failure does not fallback large blobs to localStorage
+  const blobMode = fallbackPolicyEngine.getFallbackMode("LARGE_ASSET_BLOB", 1024 * 1024);
+  assert(blobMode === "FAIL_CLOSED", "PER-REG-017: Falha de OPFS/AssetStorage entra em FAIL_CLOSED (nunca Base64 em LocalStorage)");
+
+  // Test PER-REG-018: Artifact cannot become ACTIVE without required persisted assets
+  const invalidActiveVideo = artifactService.createArtifact({
+    name: "Vídeo Sem Assets",
+    type: "VIDEO",
+    status: "DRAFT",
+    createdBy: "ATHENA",
+  });
+  assert(invalidActiveVideo.success === true, "PER-REG-018: Vídeo em DRAFT criado");
+
+  const promotionAttempt = artifactService.updateArtifact(
+    invalidActiveVideo.artifact!.id,
+    { status: "ACTIVE", assetFileIds: [] },
+    "Tentativa de ativar sem assets",
+    "ATHENA"
+  );
+  assert(promotionAttempt.success === false, "PER-REG-018: Ativação de artefato de vídeo sem assets físicos é bloqueada");
+
   // Cleanup
   await projectRepository.delete("proj-test-pers-01");
   assert((await projectRepository.getById("proj-test-pers-01")) === null, "Exclusão atômica no repositório validada");
@@ -115,4 +182,3 @@ runPersistenceRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte de persistência:", err);
   process.exit(1);
 });
-

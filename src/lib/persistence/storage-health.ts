@@ -1,18 +1,28 @@
-import { PersistenceHealthReport } from "./contracts";
+import { PersistenceHealthReport, StorageHealthState } from "./contracts";
 import { dbConnection, KNOWN_STORES, IndexedDbStoreAdapter } from "./indexeddb-adapter";
 import { migrationEngine } from "./migration-engine";
+import { fallbackPolicyEngine } from "./fallback-policy";
 import { notificationService } from "../notifications/notification-service";
 
 export class StorageHealthService {
   public async assessHealth(): Promise<PersistenceHealthReport> {
-    const isIndexedDBAvailable = dbConnection.isAvailable();
-    const isLocalStorageAvailable = typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+    const capabilities = fallbackPolicyEngine.detectCapabilities();
+    const isProtected = fallbackPolicyEngine.isProtectedModeActive();
 
     let activeDriver: PersistenceHealthReport["activeDriver"] = "INDEXED_DB";
-    if (!isIndexedDBAvailable && isLocalStorageAvailable) {
+    if (!capabilities.indexedDB && capabilities.localStorage) {
       activeDriver = "LOCAL_STORAGE";
-    } else if (!isIndexedDBAvailable && !isLocalStorageAvailable) {
+    } else if (!capabilities.indexedDB && !capabilities.localStorage) {
       activeDriver = "MEMORY_FALLBACK";
+    }
+
+    let storageState: StorageHealthState = "STORAGE_HEALTHY";
+    if (isProtected) {
+      storageState = "STORAGE_PROTECTED";
+    } else if (!capabilities.indexedDB && capabilities.localStorage) {
+      storageState = "STORAGE_DEGRADED";
+    } else if (!capabilities.indexedDB && !capabilities.localStorage) {
+      storageState = "STORAGE_UNAVAILABLE";
     }
 
     let estimatedUsageBytes = 0;
@@ -28,14 +38,14 @@ export class StorageHealthService {
       }
     }
 
-    const usagePercentage = estimatedQuotaBytes > 0
-      ? Math.round((estimatedUsageBytes / estimatedQuotaBytes) * 100)
-      : 0;
+    const usagePercentage =
+      estimatedQuotaBytes > 0 ? Math.round((estimatedUsageBytes / estimatedQuotaBytes) * 100) : 0;
 
+    const migrationState = migrationEngine.getMigrationState();
     const migrationCompleted = migrationEngine.isMigrationDone();
     const migrationTimestamp =
       typeof window !== "undefined" && window.localStorage
-        ? localStorage.getItem("varynth_persistence_migration_v4_timestamp") || undefined
+        ? localStorage.getItem("varynth_persistence_migration_timestamp_v4") || undefined
         : undefined;
 
     const totalEntitiesCount: Record<string, number> = {};
@@ -58,17 +68,23 @@ export class StorageHealthService {
         severity: "WARNING",
         source: "SYSTEM",
       });
-    } else if (activeDriver === "MEMORY_FALLBACK") {
+    } else if (storageState === "STORAGE_PROTECTED") {
+      status = "STORAGE_PROTECTED";
+    } else if (activeDriver === "MEMORY_FALLBACK" || storageState === "STORAGE_DEGRADED") {
       status = "DEGRADED_FALLBACK";
     }
 
     return {
-      isIndexedDBAvailable,
-      isLocalStorageAvailable,
+      isIndexedDBAvailable: capabilities.indexedDB,
+      isLocalStorageAvailable: capabilities.localStorage,
+      isOpfsAvailable: capabilities.opfs,
       activeDriver,
+      storageState,
+      capabilities,
       estimatedUsageBytes,
       estimatedQuotaBytes,
       usagePercentage,
+      migrationState,
       migrationCompleted,
       migrationTimestamp,
       totalEntitiesCount,
@@ -78,4 +94,3 @@ export class StorageHealthService {
 }
 
 export const storageHealthService = new StorageHealthService();
-

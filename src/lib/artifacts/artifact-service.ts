@@ -106,6 +106,17 @@ export class ArtifactService {
       return { success: false, error: `Permissão negada: ${perm.reason}` };
     }
 
+    // Asset Consistency Validation
+    const nextStatus = updates.status || existing.status;
+    const mediaTypes: ArtifactType[] = ["VIDEO", "GAME", "AUDIO", "IMAGE"];
+    const assetList = updates.assetFileIds || existing.assetFileIds || [];
+    if (nextStatus === "ACTIVE" && mediaTypes.includes(existing.type) && assetList.length === 0) {
+      return {
+        success: false,
+        error: `Consistência violada: Artefato de mídia (${existing.type}) não pode se tornar ACTIVE sem assets físicos vinculados.`,
+      };
+    }
+
     // Apply updates
     if (updates.name) existing.name = updates.name;
     if (updates.description !== undefined) existing.description = updates.description;

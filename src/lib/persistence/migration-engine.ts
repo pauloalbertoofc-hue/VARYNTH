@@ -1,9 +1,11 @@
 import { IndexedDbStoreAdapter, StoreName } from "./indexeddb-adapter";
-import { MigrationResult } from "./contracts";
+import { MigrationResult, MigrationState } from "./contracts";
 import { athenaEventBus } from "../athena/events/event-bus";
+import { notificationService } from "../notifications/notification-service";
 
-const MIGRATION_FLAG_KEY = "varynth_persistence_migration_v4";
-const SNAPSHOT_KEY_PREFIX = "varynth_migration_snapshot_";
+const MIGRATION_STATE_KEY = "varynth_persistence_migration_state_v4";
+const MIGRATION_BACKUP_KEY = "varynth_durable_migration_backup_v4";
+const MIGRATION_TIMESTAMP_KEY = "varynth_persistence_migration_timestamp_v4";
 
 const LEGACY_STORAGE_MAPPING: Record<StoreName, string> = {
   projects: "varynth_os_projects",
@@ -30,9 +32,51 @@ const LEGACY_STORAGE_MAPPING: Record<StoreName, string> = {
 };
 
 export class MigrationEngine {
+  constructor() {
+    this.checkAndRecoverInterruptedMigration();
+  }
+
+  public getMigrationState(): MigrationState {
+    if (typeof window === "undefined" || !window.localStorage) return "COMMITTED";
+    const state = localStorage.getItem(MIGRATION_STATE_KEY) as MigrationState | null;
+    return state || "NOT_STARTED";
+  }
+
+  private setMigrationState(state: MigrationState): void {
+    if (typeof window !== "undefined" && window.localStorage) {
+      localStorage.setItem(MIGRATION_STATE_KEY, state);
+    }
+  }
+
   public isMigrationDone(): boolean {
-    if (typeof window === "undefined" || !window.localStorage) return true;
-    return localStorage.getItem(MIGRATION_FLAG_KEY) === "COMPLETED";
+    return this.getMigrationState() === "COMMITTED";
+  }
+
+  public checkAndRecoverInterruptedMigration(): { interrupted: boolean; recoveredState?: MigrationState } {
+    const currentState = this.getMigrationState();
+
+    if (currentState === "MIGRATING" || currentState === "VERIFYING") {
+      console.warn(`[MigrationEngine] Detectada migração interrompida no estado: ${currentState}. Executando recuperação segura (Alex Principle).`);
+
+      this.setMigrationState("ROLLED_BACK");
+
+      athenaEventBus.emit("MIGRATION_ROLLED_BACK", {
+        reason: `Migração interrompida durante o estágio ${currentState}. Estado revertido com segurança para os dados legados.`,
+        timestamp: new Date().toISOString(),
+      });
+
+      notificationService.create({
+        type: "MIGRATION_INTERRUPTED",
+        title: "Recuperação de Migração",
+        message: "Uma migração de armazenamento anterior foi interrompida. Seus dados antigos foram preservados e o VARYNTH voltou ao modo seguro.",
+        severity: "WARNING",
+        source: "SYSTEM",
+      });
+
+      return { interrupted: true, recoveredState: "ROLLED_BACK" };
+    }
+
+    return { interrupted: false };
   }
 
   public async runMigration(force = false): Promise<MigrationResult> {
@@ -42,22 +86,23 @@ export class MigrationEngine {
     if (!force && this.isMigrationDone()) {
       return {
         success: true,
+        state: "COMMITTED",
         migratedEntities: {},
         durationMs: 0,
       };
     }
 
     try {
-      // 1. Alex Principle: Pre-Migration Snapshot
-      const snapshotId = `${SNAPSHOT_KEY_PREFIX}${Date.now()}`;
-      const preMigrationDump: Record<string, any> = {};
+      athenaEventBus.emit("MIGRATION_STARTED", { timestamp: new Date().toISOString(), force });
 
+      // 1. Alex Principle: Create DURABLE pre-migration snapshot in persistent storage
+      const durableBackup: Record<string, any> = {};
       if (typeof window !== "undefined" && window.localStorage) {
         Object.entries(LEGACY_STORAGE_MAPPING).forEach(([storeName, legacyKey]) => {
           const raw = localStorage.getItem(legacyKey);
           if (raw) {
             try {
-              preMigrationDump[storeName] = JSON.parse(raw);
+              durableBackup[storeName] = JSON.parse(raw);
             } catch {
               // ignore parse errors
             }
@@ -65,13 +110,21 @@ export class MigrationEngine {
         });
 
         try {
-          localStorage.setItem(snapshotId, JSON.stringify(preMigrationDump));
+          localStorage.setItem(MIGRATION_BACKUP_KEY, JSON.stringify(durableBackup));
         } catch {
-          // ignore quota error on snapshot
+          // ignore quota warning on backup key
         }
       }
 
-      // 2. Perform Atomic Migration Store by Store
+      this.setMigrationState("BACKUP_READY");
+      athenaEventBus.emit("MIGRATION_BACKUP_CREATED", {
+        timestamp: new Date().toISOString(),
+        keysCount: Object.keys(durableBackup).length,
+      });
+
+      // 2. Transition to MIGRATING
+      this.setMigrationState("MIGRATING");
+
       for (const [storeName, legacyKey] of Object.entries(LEGACY_STORAGE_MAPPING)) {
         const adapter = new IndexedDbStoreAdapter<any>(storeName as StoreName);
         let items: any[] = [];
@@ -93,7 +146,6 @@ export class MigrationEngine {
         }
 
         if (items.length > 0) {
-          // Normalize IDs if missing
           const normalized = items.map((item, idx) => {
             if (!item.id) {
               return { ...item, id: `${storeName}-${idx}-${Date.now()}` };
@@ -108,38 +160,75 @@ export class MigrationEngine {
         }
       }
 
-      // 3. Mark Migration as Completed
+      athenaEventBus.emit("MIGRATION_WRITE_COMPLETED", {
+        timestamp: new Date().toISOString(),
+        counts: migratedCounts,
+      });
+
+      // 3. Transition to VERIFYING
+      this.setMigrationState("VERIFYING");
+
+      for (const [storeName, legacyKey] of Object.entries(LEGACY_STORAGE_MAPPING)) {
+        const adapter = new IndexedDbStoreAdapter<any>(storeName as StoreName);
+        const storedCount = await adapter.count();
+        const expectedCount = migratedCounts[storeName] || 0;
+
+        if (storedCount < expectedCount) {
+          throw new Error(`Falha de verificação na coleção '${storeName}': esperado ${expectedCount}, encontrado ${storedCount}`);
+        }
+      }
+
+      athenaEventBus.emit("MIGRATION_VERIFICATION_PASSED", {
+        timestamp: new Date().toISOString(),
+      });
+
+      // 4. Transition to COMMITTED
+      this.setMigrationState("COMMITTED");
       if (typeof window !== "undefined" && window.localStorage) {
-        localStorage.setItem(MIGRATION_FLAG_KEY, "COMPLETED");
-        localStorage.setItem(`${MIGRATION_FLAG_KEY}_timestamp`, new Date().toISOString());
+        localStorage.setItem(MIGRATION_TIMESTAMP_KEY, new Date().toISOString());
       }
 
       const durationMs = Date.now() - startTime;
 
-      athenaEventBus.emit("SYSTEM_ALERT", {
-        title: "Migração de Persistência Concluída",
-        message: `Migração para IndexedDB soberano concluída com sucesso em ${durationMs}ms.`,
-        severity: "SUCCESS",
-        source: "SYSTEM",
+      athenaEventBus.emit("MIGRATION_COMMITTED", {
+        timestamp: new Date().toISOString(),
+        durationMs,
+        counts: migratedCounts,
       });
 
       return {
         success: true,
+        state: "COMMITTED",
         migratedEntities: migratedCounts,
-        snapshotId,
+        snapshotId: MIGRATION_BACKUP_KEY,
         durationMs,
       };
     } catch (err: any) {
-      console.error("[MigrationEngine] Erro durante a migração:", err);
+      console.error("[MigrationEngine] Falha na migração:", err);
+      this.setMigrationState("FAILED");
+
+      athenaEventBus.emit("MIGRATION_FAILED", {
+        error: err?.message || err,
+        timestamp: new Date().toISOString(),
+      });
+
+      notificationService.create({
+        type: "MIGRATION_FAILED",
+        title: "Falha na Migração de Armazenamento",
+        message: `A migração falhou (${err?.message || err}). Seus dados legados permanecem intactos.`,
+        severity: "CRITICAL",
+        source: "SYSTEM",
+      });
+
       return {
         success: false,
+        state: "FAILED",
         migratedEntities: migratedCounts,
         durationMs: Date.now() - startTime,
-        error: err?.message || "Erro desconhecido durante a migração de persistência.",
+        error: err?.message || "Erro desconhecido durante a migração.",
       };
     }
   }
 }
 
 export const migrationEngine = new MigrationEngine();
-
