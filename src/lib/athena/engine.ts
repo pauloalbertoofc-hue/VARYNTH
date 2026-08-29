@@ -117,7 +117,8 @@ Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
     prompt,
     convContext.mode,
     convContext.topic,
-    activeProj?.title
+    activeProj?.title,
+    ctx
   );
 
   return {
@@ -172,7 +173,8 @@ export function processAthenaQuery(
       prompt,
       convContext.mode,
       convContext.topic,
-      activeProj?.title
+      activeProj?.title,
+      ctx
     );
 
     return {
