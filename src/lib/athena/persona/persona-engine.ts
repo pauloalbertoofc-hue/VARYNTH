@@ -34,7 +34,7 @@ export class AthenaPersonaEngine {
   }
 
   /**
-   * Generates a natural, intelligent conversational response with live ecosystem awareness.
+   * Generates a natural, tactful, intelligent conversational response respecting social context.
    */
   generateDialogueResponse(
     prompt: string,
@@ -50,79 +50,94 @@ export class AthenaPersonaEngine {
       .replace(/\bathenas\b/g, "")
       .trim();
 
-    // 1. News, Ecosystem Briefing & Status ("que novidade", "o que tem de novo", "novidades", "como estao as coisas", "o que aconteceu")
-    if (
-      cleanLower.includes("novidade") ||
-      cleanLower.includes("novidades") ||
-      cleanLower.includes("o que tem de novo") ||
-      cleanLower.includes("que tem de novo") ||
-      cleanLower.includes("o que ha de novo") ||
-      cleanLower.includes("que ha de novo") ||
-      cleanLower.includes("panorama") ||
-      cleanLower.includes("resumo do dia")
-    ) {
-      if (ctx) {
-        const activeProjs = ctx.projects.filter((p) => p.status === "ativo");
-        const pendingTasks = ctx.tasks.filter((t) => t.status !== "concluida");
-        const urgentTasks = pendingTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
-        const upcomingDeadlines = ctx.projects
-          .filter((p) => p.deadline)
-          .sort((a, b) => (a.deadline || "").localeCompare(b.deadline || ""));
-        const totalVault = ctx.vaultItems.length;
-        const totalTheses = ctx.theses.length;
+    // 1. Explicit System Situation & Dashboard Queries (ONLY when explicitly requested by user)
+    const isExplicitSystemQuery =
+      cleanLower.includes("situacao no sistema") ||
+      cleanLower.includes("situação no sistema") ||
+      cleanLower.includes("minha situacao") ||
+      cleanLower.includes("minha situação") ||
+      cleanLower.includes("resumo do meu sistema") ||
+      cleanLower.includes("status do meu sistema") ||
+      cleanLower.includes("relatorio do sistema") ||
+      cleanLower.includes("relatório do sistema") ||
+      cleanLower.includes("visao geral das minhas pendencias") ||
+      cleanLower.includes("visão geral das minhas pendências");
 
-        let news = `Aqui está o panorama em tempo real do seu **VARYNTH OS**:\n\n`;
-        news += `📁 **Workspaces**: Você tem **${activeProjs.length} projetos ativos**`;
-        if (activeProjs.length > 0) {
-          news += ` (com destaque para **"${activeProjs[0].title}"**)`;
-        }
-        news += `.\n`;
+    if (isExplicitSystemQuery && ctx) {
+      const activeProjs = ctx.projects.filter((p) => p.status === "ativo");
+      const pendingTasks = ctx.tasks.filter((t) => t.status !== "concluida");
+      const urgentTasks = pendingTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
+      const upcomingDeadlines = ctx.projects
+        .filter((p) => p.deadline)
+        .sort((a, b) => (a.deadline || "").localeCompare(b.deadline || ""));
+      const totalVault = ctx.vaultItems.length;
+      const totalTheses = ctx.theses.length;
 
-        news += `⚡ **Tarefas**: **${pendingTasks.length} pendências** mapeadas`;
-        if (urgentTasks.length > 0) {
-          news += `, sendo **${urgentTasks.length} prioritárias** (ex: *"__${urgentTasks[0].title}__"*)\n`;
-        } else {
-          news += ` (todas em dia, sem tarefas urgentes acumuladas!)\n`;
-        }
+      let report = `Aqui está o panorama detalhado da sua situação no **VARYNTH OS**:\n\n`;
+      report += `📁 **Workspaces**: Você tem **${activeProjs.length} projetos ativos**`;
+      if (activeProjs.length > 0) {
+        report += ` (com destaque para **"${activeProjs[0].title}"**)`;
+      }
+      report += `.\n`;
 
-        if (upcomingDeadlines.length > 0) {
-          news += `⏳ **Próximo Prazo**: **"${upcomingDeadlines[0].title}"** previsto para **${upcomingDeadlines[0].deadline}**.\n`;
-        }
-
-        news += `📚 **Conhecimento**: **${totalVault} obras no Vault** e **${totalTheses} teses na Argument Arena**.\n\n`;
-        news += `💡 **Sugestão de Foco**: ${urgentTasks.length > 0 ? `Que tal avançarmos na tarefa prioritária *"__${urgentTasks[0].title}__"*?` : "Seu ecossistema está equilibrado. Quer iniciar uma nova pesquisa ou rascunhar um projeto no Labs?"}`;
-
-        return news;
+      report += `⚡ **Tarefas**: **${pendingTasks.length} pendências** mapeadas`;
+      if (urgentTasks.length > 0) {
+        report += `, sendo **${urgentTasks.length} prioritárias** (ex: *"__${urgentTasks[0].title}__"*)\n`;
+      } else {
+        report += ` (todas em dia, sem tarefas urgentes acumuladas!)\n`;
       }
 
-      return `Dando uma olhada rápida no seu ecossistema: tudo segue sincronizado e pronto para avançar. O que você gostaria de priorizar ou debater agora?`;
+      if (upcomingDeadlines.length > 0) {
+        report += `⏳ **Próximo Prazo**: **"${upcomingDeadlines[0].title}"** previsto para **${upcomingDeadlines[0].deadline}**.\n`;
+      }
+
+      report += `📚 **Conhecimento**: **${totalVault} obras no Vault** e **${totalTheses} teses na Argument Arena**.\n\n`;
+      report += `💡 **Sugestão de Foco**: ${urgentTasks.length > 0 ? `Podemos avançar na tarefa prioritária *"__${urgentTasks[0].title}__"*?` : "Seu ecossistema está equilibrado. O que gostaria de desenvolver agora?"}`;
+
+      return report;
     }
 
-    // 2. Action / Focus Recommendations ("o que eu devo fazer", "me dê uma sugestão", "o que priorizar")
+    // 2. Casual Social Questions ("que novidade você tem?", "o que tem de bom?", "como vai você?")
+    if (
+      cleanLower.includes("que novidade voce tem") ||
+      cleanLower.includes("que novidade você tem") ||
+      cleanLower.includes("que novidades voce tem") ||
+      cleanLower.includes("que novidades você tem") ||
+      cleanLower.includes("o que tem de bom") ||
+      cleanLower.includes("o que me conta") ||
+      cleanLower.includes("o que me diz")
+    ) {
+      if (activeProjectTitle) {
+        return `Por aqui tudo ótimo e em ordem, Paulo! 😊\n\nEstava aqui acompanhando a evolução do projeto **"${activeProjectTitle}"** e pronta para a gente continuar refinando as ideias. Por enquanto, nenhuma surpresa — tudo rodando redondo e no controle!\n\nE por aí, como estão as coisas? O que você anda aprontando de novo?`;
+      }
+      return `Por aqui tudo ótimo e em ordem, Paulo! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Por enquanto, nenhuma grande reviravolta — tudo rodando redondo, estável e pronto para a gente construir o que você quiser hoje!\n\nE com você, como foi o dia? Alguma ideia nova na mente ou quer só trocar uma ideia leve?`;
+    }
+
+    // 3. Action / Focus Recommendations ("o que eu devo fazer hoje", "me dê uma sugestão de foco")
     if (
       cleanLower.includes("o que devo fazer") ||
       cleanLower.includes("o que eu devo fazer") ||
-      cleanLower.includes("me de uma sugestao") ||
-      cleanLower.includes("me dê uma sugestão") ||
-      cleanLower.includes("por onde comecar") ||
-      cleanLower.includes("por onde começar")
+      cleanLower.includes("me de uma sugestao de foco") ||
+      cleanLower.includes("me dê uma sugestão de foco") ||
+      cleanLower.includes("por onde comecar hoje") ||
+      cleanLower.includes("por onde começar hoje")
     ) {
       if (ctx) {
         const urgent = ctx.tasks.filter((t) => t.status !== "concluida" && (t.priority === "urgente" || t.priority === "alta"));
         if (urgent.length > 0) {
-          return `Com base nos seus prazos e prioridades no VARYNTH OS, recomendo focar nestas frentes:\n\n${urgent.slice(0, 3).map((t, i) => `${i + 1}. **${t.title}** (Prioridade: ${t.priority.toUpperCase()})`).join("\n")}\n\nSe você quiser, posso detalhar o passo a passo de qualquer uma delas!`;
+          return `Se você quiser um foco prático para hoje, estas frentes são as mais estratégicas:\n\n${urgent.slice(0, 3).map((t, i) => `${i + 1}. **${t.title}** (Prioridade: ${t.priority.toUpperCase()})`).join("\n")}\n\nPodemos pegar a primeira e destrinchar juntos?`;
         }
       }
-      return `Seu fluxo de tarefas está em dia! Uma excelente pedida para hoje seria avançar na estruturação de teses no Codex ou catalogar novas referências no Vault.`;
+      return `Seu fluxo de tarefas está bem equilibrado hoje! Se quiser uma sugestão, vale a pena dar uma olhada nas teses do Codex ou arquivar referências novas no Vault.`;
     }
 
-    // 3. Concept Explanations ("o que é latim", "você sabe o que é um jogo", "o que é hermenêutica", etc.)
+    // 4. Concept Explanations ("o que é latim", "você sabe o que é um jogo", "o que é hermenêutica", etc.)
     const concept = this.findConceptExplanation(prompt);
     if (concept) {
       return concept.explanation;
     }
 
-    // 4. Questions about Athena's Identity or Capabilities
+    // 5. Questions about Athena's Identity or Capabilities
     if (
       cleanLower.includes("quem e voce") ||
       cleanLower.includes("quem é você") ||
@@ -135,7 +150,7 @@ export class AthenaPersonaEngine {
       return `Eu sou a **Athena**, a inteligência artificial cognitiva e sua copilot digital no **VARYNTH OS**! 🦉\n\nMeu papel é atuar como sua parceira intelectual transversal. Tenho visibilidade sobre seus projetos, prazos no Chronos, acervo do Vault, evidências científicas e teses jurídicas na Argument Arena.\n\nAlém disso, conto com o suporte de 7 agentes especialistas internos (como Justitia para Direito, Logos para Ciência e Critias para revisão crítica). Podemos debater qualquer ideia, analisar controvérsias ou executar comandos no sistema!`;
     }
 
-    // 5. Humor, Laughter, or Venting ("kkk", "tá foda", "muita coisa", "cansado", "difícil")
+    // 6. Humor, Laughter, or Venting ("kkk", "tá foda", "muita coisa", "cansado", "difícil")
     if (
       rawLower.includes("kkk") ||
       rawLower.includes("rsrs") ||
@@ -158,7 +173,7 @@ export class AthenaPersonaEngine {
       return `Kkkk faz parte do processo criativo e intelectual! Quando a gente começa a conectar as peças, o volume de ideias parece infinito.\n\nRespira fundo: o VARYNTH cuida da infraestrutura e eu te ajudo a priorizar. O que está pesando mais na sua cabeça agora?`;
     }
 
-    // 6. Greetings & Personal Check-ins WITHOUT embedded complex questions
+    // 7. Greetings & Personal Check-ins ("oi", "olá", "tudo bem", "como vai")
     const isGreeting =
       cleanLower === "ola" ||
       cleanLower === "olá" ||
@@ -174,7 +189,10 @@ export class AthenaPersonaEngine {
       cleanLower.startsWith("boa tarde") ||
       cleanLower.startsWith("boa noite") ||
       cleanLower.includes("tudo bem com voce") ||
-      cleanLower.includes("tudo bem com você");
+      cleanLower.includes("tudo bem com você") ||
+      cleanLower.includes("como voce esta") ||
+      cleanLower.includes("como você está") ||
+      cleanLower.includes("como vai");
 
     if (isGreeting && cleanLower.length < 40) {
       if (activeProjectTitle) {
@@ -183,7 +201,7 @@ export class AthenaPersonaEngine {
       return `Olá, Paulo! Tudo excelente por aqui! 😊\n\nEstou 100% conectada ao seu ecossistema no VARYNTH OS, pronta para trocar ideias, estruturar raciocínios ou te ajudar com seus projetos e pesquisas. Como você está hoje? O que temos na pauta?`;
     }
 
-    // 7. Brainstorming & Ideation Mode
+    // 8. Brainstorming & Ideation Mode
     if (
       mode === "brainstorm" ||
       cleanLower.includes("pensando em") ||
@@ -193,7 +211,7 @@ export class AthenaPersonaEngine {
       return `Gostei dessa reflexão! Olhando para essa ideia por alguns ângulos:\n\n1. **Oportunidade Principal:** Isso pode se conectar diretamente com o material que você já fichou no Vault e gerar uma entrega com muita autoridade.\n2. **Atenção aos Prazos:** Vale ponderar como encaixar essa nova frente sem sobrecarregar as entregas que já estão no Chronos.\n3. **Direção Prática:** Podemos rascunhar um experimento no Labs para testar a tração antes de virar um projeto oficial.\n\nO que você acha dessa abordagem?`;
     }
 
-    // 8. Open Questions & Concept Inquiries ("você sabe o que é...", "como funciona...", "o que é...", etc.)
+    // 9. Open Questions & Concept Inquiries ("você sabe o que é...", "como funciona...", "o que é...", etc.)
     let subject = prompt
       .replace(/^(você sabe o que é|voce sabe o que e|você sabe o que|voce sabe o que|você sabe|voce sabe|o que é|o que e|qual é|qual e|como funciona|quem é|quem e)[:\s]*/i, "")
       .replace(/\bathena\b/gi, "")
