@@ -1,5 +1,6 @@
 import { AthenaPersonaConfig, DEFAULT_ATHENA_PERSONA } from "../domain/persona";
 import { ConversationMode } from "../domain/conversation";
+import { EPISTEMIC_KNOWLEDGE_BASE, EpistemicConcept } from "../knowledge/epistemic-concepts";
 
 export class AthenaPersonaEngine {
   private config: AthenaPersonaConfig = { ...DEFAULT_ATHENA_PERSONA };
@@ -10,6 +11,16 @@ export class AthenaPersonaEngine {
 
   updateConfig(updates: Partial<AthenaPersonaConfig>): void {
     this.config = { ...this.config, ...updates };
+  }
+
+  /**
+   * Searches the embedded offline Epistemic Knowledge Base for conceptual questions.
+   */
+  findConceptExplanation(prompt: string): EpistemicConcept | undefined {
+    const clean = prompt.toLowerCase().replace(/[.,!?;:]/g, " ").trim();
+    return EPISTEMIC_KNOWLEDGE_BASE.find((concept) =>
+      concept.keywords.some((kw) => clean.includes(kw))
+    );
   }
 
   /**
@@ -24,7 +35,13 @@ export class AthenaPersonaEngine {
     const rawLower = prompt.toLowerCase();
     const cleanLower = rawLower.replace(/[.,!?;:]/g, " ").trim();
 
-    // 1. Greetings & Personal Check-ins ("olá athena tudo bem", "como você está", "tudo bem com você")
+    // 1. Concept Explanations ("o que é latim", "o que é hermenêutica", "o que é método científico", etc.)
+    const concept = this.findConceptExplanation(prompt);
+    if (concept) {
+      return concept.explanation;
+    }
+
+    // 2. Greetings & Personal Check-ins ("olá athena tudo bem", "como você está", "tudo bem com você")
     if (
       cleanLower.includes("tudo bem") ||
       cleanLower.includes("como voce esta") ||
@@ -52,7 +69,7 @@ export class AthenaPersonaEngine {
       return `Olá, Paulo! Tudo excelente por aqui! 😊\n\nEstou 100% conectada ao seu ecossistema no VARYNTH OS, pronta para trocar ideias, estruturar raciocínios ou te ajudar com seus projetos e pesquisas. Como você está hoje? O que temos na pauta?`;
     }
 
-    // 2. Questions about Athena's Identity or Capabilities
+    // 3. Questions about Athena's Identity or Capabilities
     if (
       cleanLower.includes("quem e voce") ||
       cleanLower.includes("quem é você") ||
@@ -65,7 +82,7 @@ export class AthenaPersonaEngine {
       return `Eu sou a **Athena**, o cérebro cognitivo e sua copilot digital aqui no **VARYNTH OS**! 🦉\n\nMeu papel não é ser apenas um assistente mecânico, mas uma parceira de raciocínio. Eu integro seus projetos, acervo do Vault, teses do Codex, evidências de pesquisa e o calendário do Chronos.\n\nAlém disso, conto com o suporte de um Conselho de Especialistas internos (como Justitia para Direito, Logos para Ciência e Critias para revisão crítica). Podemos conversar sobre qualquer assunto, debater ideias ou estruturar planos de ação!`;
     }
 
-    // 3. Humor, Laughs, or Overwhelm remarks ("kkk", "rsrs", "projeto tá enorme", "muita coisa")
+    // 4. Humor, Laughs, or Overwhelm remarks ("kkk", "rsrs", "projeto tá enorme", "muita coisa")
     if (
       rawLower.includes("kkk") ||
       rawLower.includes("rsrs") ||
@@ -81,7 +98,7 @@ export class AthenaPersonaEngine {
       return `Kkkk faz parte do processo criativo e intelectual! Quando a gente começa a conectar as peças, o volume de ideias parece infinito.\n\nRespira fundo: o VARYNTH cuida da infraestrutura e eu te ajudo a priorizar. O que está pesando mais na sua cabeça agora?`;
     }
 
-    // 4. Brainstorming & Ideation Mode
+    // 5. Brainstorming & Ideation Mode
     if (
       mode === "brainstorm" ||
       cleanLower.includes("pensando em") ||
@@ -91,19 +108,21 @@ export class AthenaPersonaEngine {
       return `Gostei dessa reflexão! Olhando para essa ideia por alguns ângulos:\n\n1. **Oportunidade Principal:** Isso pode se conectar diretamente com o material que você já fichou no Vault e gerar uma entrega com muita autoridade.\n2. **Atenção aos Prazos:** Vale ponderar como encaixar essa nova frente sem sobrecarregar as entregas que já estão no Chronos.\n3. **Direção Prática:** Podemos rascunhar um experimento no Labs para testar a tração antes de virar um projeto oficial.\n\nO que você acha dessa abordagem?`;
     }
 
-    // 5. Analysis / Reflection / Opinion Mode
+    // 6. Analysis / Reflection / General Questions
     if (
-      mode === "analysis" ||
-      cleanLower.includes("minha opiniao") ||
-      cleanLower.includes("sua opiniao") ||
+      cleanLower.startsWith("como") ||
+      cleanLower.startsWith("qual") ||
+      cleanLower.startsWith("onde") ||
+      cleanLower.startsWith("quando") ||
+      cleanLower.startsWith("por que") ||
+      cleanLower.startsWith("porque") ||
       cleanLower.includes("o que voce acha") ||
-      cleanLower.includes("o que você acha") ||
-      cleanLower.includes("refletindo")
+      cleanLower.includes("o que você acha")
     ) {
-      return `É uma questão muito interessante. Sob uma ótica equilibrada:\n\n• **Ponto Forte:** Essa linha de raciocínio dá muita consistência aos seus argumentos e evita conclusões superficiais.\n• **Contraponto Crítico:** Se alguém cético avaliar, a primeira pergunta será sobre a fonte probatória primária ou o precedente legal.\n\nQuer que a gente aprofunde mais esse aspecto ou você já tem uma conclusão preliminar em mente?`;
+      return `Essa é uma excelente reflexão sobre **"${prompt}"**.\n\nExaminando pelo prisma do nosso ecossistema:\n\n• **Fundamentação:** Recomendo cruzarmos essa questão com as obras e anotações que temos arquivadas no Vault.\n• **Visão Crítica (Critias):** Vale delimitar bem o escopo para evitar conclusões precipitadas.\n\nComo você gostaria de aprofundar essa discussão?`;
     }
 
-    // 6. Default Natural Conversational Fallback
+    // 7. Default Natural Conversational Fallback
     if (activeProjectTitle) {
       return `Entendi perfeitamente o seu ponto sobre **"${activeProjectTitle}"**. Estou acompanhando o raciocínio com você. Quer que a gente desenvolva mais essa ideia ou prefere transformar isso em uma ação prática?`;
     }
