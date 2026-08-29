@@ -21,6 +21,8 @@ import {
   Opportunity,
   OpportunityStatus,
   ForgeFile,
+  TrashItem,
+  TrashEntityType,
 } from "../types";
 
 const STORAGE_KEYS = {
@@ -42,7 +44,7 @@ const STORAGE_KEYS = {
   EVIDENCES: "varynth_os_evidences",
   OPPORTUNITIES: "varynth_os_opportunities",
   FORGE: "varynth_os_forge",
-  INITIALIZED: "varynth_os_pure_real_v1",
+  TRASH: "varynth_os_trash",
 };
 
 const STORE_UPDATE_EVENT = "varynth_store_update";
@@ -72,13 +74,13 @@ export function useVarynthStore() {
   const [references, setReferences] = useState<ProjectReference[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<ProjectTimelineEvent[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const loadData = useCallback(() => {
     if (typeof window === "undefined") return;
 
     try {
-      // Initialize only keys that are completely missing, preserving all user data permanently
       const defaultKeys = [
         STORAGE_KEYS.PROJECTS,
         STORAGE_KEYS.TASKS,
@@ -98,6 +100,7 @@ export function useVarynthStore() {
         STORAGE_KEYS.REFERENCES,
         STORAGE_KEYS.TIMELINE,
         STORAGE_KEYS.ACTIVITIES,
+        STORAGE_KEYS.TRASH,
       ];
 
       defaultKeys.forEach((key) => {
@@ -105,6 +108,21 @@ export function useVarynthStore() {
           localStorage.setItem(key, "[]");
         }
       });
+
+      // 10-day Auto-Purge of expired trash
+      const rawTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const now = Date.now();
+      const validTrash = rawTrash
+        .filter((item) => new Date(item.expiresAt).getTime() > now)
+        .map((item) => {
+          const diffMs = new Date(item.expiresAt).getTime() - now;
+          const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          return { ...item, daysRemaining: days };
+        });
+
+      if (validTrash.length !== rawTrash.length) {
+        localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(validTrash));
+      }
 
       setProjects(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]"));
       setTasks(JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]"));
@@ -124,6 +142,7 @@ export function useVarynthStore() {
       setReferences(JSON.parse(localStorage.getItem(STORAGE_KEYS.REFERENCES) || "[]"));
       setTimelineEvents(JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMELINE) || "[]"));
       setActivities(JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES) || "[]"));
+      setTrashItems(validTrash);
     } catch {
       // ignore
     }
@@ -173,6 +192,129 @@ export function useVarynthStore() {
     []
   );
 
+  // --- TRASH HUB (10-DAY RETENTION & SOFT DELETE) ---
+  const moveToTrash = useCallback(
+    (entityType: TrashEntityType, originalId: string, title: string, data: unknown) => {
+      const now = new Date();
+      const expires = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000); // 10 days
+
+      const newTrashItem: TrashItem = {
+        id: "trash-" + Date.now(),
+        originalId,
+        entityType,
+        title,
+        data,
+        deletedAt: now.toISOString(),
+        expiresAt: expires.toISOString(),
+        daysRemaining: 10,
+      };
+
+      const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const updatedTrash = [newTrashItem, ...currentTrash];
+      localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(updatedTrash));
+
+      logActivity("removeu", "projeto", originalId, `Moveu "${title}" para a Lixeira (10 dias)`);
+      triggerStoreUpdate();
+      return newTrashItem;
+    },
+    [logActivity]
+  );
+
+  const restoreFromTrash = useCallback(
+    (trashId: string) => {
+      const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const itemToRestore = currentTrash.find((t) => t.id === trashId);
+      if (!itemToRestore) return;
+
+      const remainingTrash = currentTrash.filter((t) => t.id !== trashId);
+      localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(remainingTrash));
+
+      // Put item back into original store array
+      const entity = itemToRestore.data;
+      switch (itemToRestore.entityType) {
+        case "projeto": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
+          localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "tarefa": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
+          localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "nota": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]");
+          localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "vault": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
+          localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "tese": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]");
+          localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "evidencia": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]");
+          localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "edital": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]");
+          localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "codigo": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
+          localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "pessoa": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]");
+          localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "ideia": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
+          localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify([entity, ...list]));
+          break;
+        }
+        case "evento": {
+          const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]");
+          localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify([entity, ...list]));
+          break;
+        }
+      }
+
+      logActivity("criou", "projeto", itemToRestore.originalId, `Restaurou "${itemToRestore.title}" da Lixeira`);
+      triggerStoreUpdate();
+    },
+    [logActivity]
+  );
+
+  const permanentDeleteTrash = useCallback(
+    (trashId: string) => {
+      const currentTrash: TrashItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRASH) || "[]");
+      const target = currentTrash.find((t) => t.id === trashId);
+      const remainingTrash = currentTrash.filter((t) => t.id !== trashId);
+      localStorage.setItem(STORAGE_KEYS.TRASH, JSON.stringify(remainingTrash));
+      if (target) {
+        logActivity("removeu", "projeto", target.originalId, `Destruiu permanentemente "${target.title}"`);
+      }
+      triggerStoreUpdate();
+    },
+    [logActivity]
+  );
+
+  const emptyTrash = useCallback(() => {
+    localStorage.setItem(STORAGE_KEYS.TRASH, "[]");
+    logActivity("removeu", "projeto", "trash-all", "Esvaziou a Lixeira do VARYNTH");
+    triggerStoreUpdate();
+  }, [logActivity]);
+
   // --- PROJECTS ---
   const addProject = useCallback(
     (projectData: Omit<Project, "id" | "createdAt" | "updatedAt">) => {
@@ -212,14 +354,14 @@ export function useVarynthStore() {
     (id: string) => {
       const current: Project[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
       const target = current.find((p) => p.id === id);
+      if (target) {
+        moveToTrash("projeto", target.id, target.title, target);
+      }
       const updated = current.filter((p) => p.id !== id);
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
-      if (target) {
-        logActivity("removeu", "projeto", id, target.title);
-      }
       triggerStoreUpdate();
     },
-    [logActivity]
+    [moveToTrash]
   );
 
   // --- TASKS ---
@@ -281,14 +423,14 @@ export function useVarynthStore() {
     (id: string) => {
       const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
       const target = current.find((t) => t.id === id);
+      if (target) {
+        moveToTrash("tarefa", target.id, target.title, target);
+      }
       const updated = current.filter((t) => t.id !== id);
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
-      if (target) {
-        logActivity("removeu", "tarefa", id, target.title, target.projectId);
-      }
       triggerStoreUpdate();
     },
-    [logActivity]
+    [moveToTrash]
   );
 
   // --- NOTES ---
@@ -323,14 +465,14 @@ export function useVarynthStore() {
     (id: string) => {
       const current: Note[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]");
       const target = current.find((n) => n.id === id);
+      if (target) {
+        moveToTrash("nota", target.id, target.title, target);
+      }
       const updated = current.filter((n) => n.id !== id);
       localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updated));
-      if (target) {
-        logActivity("removeu", "nota", id, target.title, target.projectId);
-      }
       triggerStoreUpdate();
     },
-    [logActivity]
+    [moveToTrash]
   );
 
   // --- VAULT ---
@@ -365,14 +507,14 @@ export function useVarynthStore() {
     (id: string) => {
       const current: VaultItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
       const target = current.find((item) => item.id === id);
+      if (target) {
+        moveToTrash("vault", target.id, target.title, target);
+      }
       const updated = current.filter((item) => item.id !== id);
       localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
-      if (target) {
-        logActivity("removeu", "referencia", id, target.title);
-      }
       triggerStoreUpdate();
     },
-    [logActivity]
+    [moveToTrash]
   );
 
   // --- CHRONOS ---
@@ -399,12 +541,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deleteChronosEvent = useCallback((id: string) => {
-    const current: ChronosEvent[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]");
-    const updated = current.filter((e) => e.id !== id);
-    localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deleteChronosEvent = useCallback(
+    (id: string) => {
+      const current: ChronosEvent[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]");
+      const target = current.find((e) => e.id === id);
+      if (target) {
+        moveToTrash("evento", target.id, target.title, target);
+      }
+      const updated = current.filter((e) => e.id !== id);
+      localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   const addHistoricalMilestone = useCallback(
     (milestoneData: Omit<HistoricalMilestone, "id">) => {
@@ -452,12 +601,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deletePerson = useCallback((id: string) => {
-    const current: Person[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]");
-    const updated = current.filter((p) => p.id !== id);
-    localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deletePerson = useCallback(
+    (id: string) => {
+      const current: Person[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]");
+      const target = current.find((p) => p.id === id);
+      if (target) {
+        moveToTrash("pessoa", target.id, target.name, target);
+      }
+      const updated = current.filter((p) => p.id !== id);
+      localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   // --- LABS & GRAVEYARD ---
   const addLabItem = useCallback(
@@ -487,12 +643,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deleteLabItem = useCallback((id: string) => {
-    const current: LabItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
-    const updated = current.filter((item) => item.id !== id);
-    localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deleteLabItem = useCallback(
+    (id: string) => {
+      const current: LabItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]");
+      const target = current.find((item) => item.id === id);
+      if (target) {
+        moveToTrash("ideia", target.id, target.title, target);
+      }
+      const updated = current.filter((item) => item.id !== id);
+      localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   const promoteLabToProject = useCallback(
     (labId: string) => {
@@ -579,12 +742,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deleteThesis = useCallback((id: string) => {
-    const current: ArgumentThesis[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]");
-    const updated = current.filter((t) => t.id !== id);
-    localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deleteThesis = useCallback(
+    (id: string) => {
+      const current: ArgumentThesis[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]");
+      const target = current.find((t) => t.id === id);
+      if (target) {
+        moveToTrash("tese", target.id, target.title, target);
+      }
+      const updated = current.filter((t) => t.id !== id);
+      localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   // --- RESEARCH ---
   const addResearch = useCallback(
@@ -611,12 +781,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deleteResearch = useCallback((id: string) => {
-    const current: AcademicResearch[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESEARCHES) || "[]");
-    const updated = current.filter((r) => r.id !== id);
-    localStorage.setItem(STORAGE_KEYS.RESEARCHES, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deleteResearch = useCallback(
+    (id: string) => {
+      const current: AcademicResearch[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESEARCHES) || "[]");
+      const target = current.find((r) => r.id === id);
+      if (target) {
+        moveToTrash("evidencia", target.id, target.title, target);
+      }
+      const updated = current.filter((r) => r.id !== id);
+      localStorage.setItem(STORAGE_KEYS.RESEARCHES, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   const addEvidence = useCallback(
     (eviData: Omit<EvidenceItem, "id" | "createdAt">) => {
@@ -642,12 +819,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deleteEvidence = useCallback((id: string) => {
-    const current: EvidenceItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]");
-    const updated = current.filter((e) => e.id !== id);
-    localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deleteEvidence = useCallback(
+    (id: string) => {
+      const current: EvidenceItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]");
+      const target = current.find((e) => e.id === id);
+      if (target) {
+        moveToTrash("evidencia", target.id, target.claim, target);
+      }
+      const updated = current.filter((e) => e.id !== id);
+      localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   // --- OPPORTUNITIES ---
   const addOpportunity = useCallback(
@@ -677,12 +861,19 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  const deleteOpportunity = useCallback((id: string) => {
-    const current: Opportunity[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]");
-    const updated = current.filter((o) => o.id !== id);
-    localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(updated));
-    triggerStoreUpdate();
-  }, []);
+  const deleteOpportunity = useCallback(
+    (id: string) => {
+      const current: Opportunity[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]");
+      const target = current.find((o) => o.id === id);
+      if (target) {
+        moveToTrash("edital", target.id, target.title, target);
+      }
+      const updated = current.filter((o) => o.id !== id);
+      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(updated));
+      triggerStoreUpdate();
+    },
+    [moveToTrash]
+  );
 
   // --- FORGE STUDIO ---
   const addForgeFile = useCallback(
@@ -716,14 +907,14 @@ export function useVarynthStore() {
     (id: string) => {
       const current: ForgeFile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
       const target = current.find((f) => f.id === id);
+      if (target) {
+        moveToTrash("codigo", target.id, target.name, target);
+      }
       const updated = current.filter((f) => f.id !== id);
       localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(updated));
-      if (target) {
-        logActivity("removeu", "codigo", id, target.name);
-      }
       triggerStoreUpdate();
     },
-    [logActivity]
+    [moveToTrash]
   );
 
   // --- REFERENCES & TIMELINE ---
@@ -790,6 +981,7 @@ export function useVarynthStore() {
     references,
     timelineEvents,
     activities,
+    trashItems,
     // Actions
     addProject,
     updateProject,
@@ -837,6 +1029,10 @@ export function useVarynthStore() {
     deleteReference,
     addTimelineEvent,
     deleteTimelineEvent,
+    moveToTrash,
+    restoreFromTrash,
+    permanentDeleteTrash,
+    emptyTrash,
     logActivity,
   };
 }

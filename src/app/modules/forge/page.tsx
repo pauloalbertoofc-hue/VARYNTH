@@ -25,6 +25,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 
 const FORGE_TEMPLATES: ForgeTemplate[] = [
   {
@@ -122,6 +123,7 @@ export default function ForgeStudioPage() {
   const [newFileName, setNewFileName] = useState("");
   const [newFileLang, setNewFileLang] = useState<ForgeLanguage>("typescript");
   const [newFileProject, setNewFileProject] = useState("");
+  const [fileToDelete, setFileToDelete] = useState<ForgeFile | null>(null);
 
   const activeFile = forgeFiles.find((f) => f.id === activeFileId) || forgeFiles[0];
 
@@ -377,10 +379,10 @@ export default function ForgeStudioPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteForgeFile(file.id);
+                        setFileToDelete(file);
                       }}
                       className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-opacity"
-                      title="Excluir arquivo"
+                      title="Mover para a Lixeira (10 dias)"
                     >
                       <Trash2 size={11} />
                     </button>
@@ -623,6 +625,17 @@ export default function ForgeStudioPage() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Modal de Confirmação de Exclusão de Arquivo */}
+        {fileToDelete && (
+          <ConfirmDeleteModal
+            isOpen={true}
+            onClose={() => setFileToDelete(null)}
+            onConfirm={() => deleteForgeFile(fileToDelete.id)}
+            itemTitle={fileToDelete.name}
+            itemType="Arquivo de Código"
+          />
         )}
       </div>
     </PageLayout>

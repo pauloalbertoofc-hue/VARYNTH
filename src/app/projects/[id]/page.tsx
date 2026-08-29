@@ -12,6 +12,7 @@ import { ProjectFilesTab } from "@/components/projects/ProjectFilesTab";
 import { ProjectReferencesTab } from "@/components/projects/ProjectReferencesTab";
 import { ProjectTimelineTab } from "@/components/projects/ProjectTimelineTab";
 import { ProjectAthenaTab } from "@/components/projects/ProjectAthenaTab";
+import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import {
   FolderKanban,
   ArrowLeft,
@@ -89,15 +90,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     updateProject(project.id, { status: newStatus });
   };
 
-  const handlePriorityChange = (newPriority: PriorityLevel) => {
-    updateProject(project.id, { priority: newPriority });
-  };
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const handleDelete = () => {
-    if (window.confirm(`Deseja realmente excluir o projeto "${project.title}"?`)) {
-      deleteProject(project.id);
-      router.push("/projects");
-    }
+  const handleConfirmDelete = () => {
+    deleteProject(project.id);
+    router.push("/projects");
   };
 
   const tabsConfig = [
@@ -169,7 +166,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   <span className="text-[11px] text-slate-400">Prioridade:</span>
                   <select
                     value={project.priority}
-                    onChange={(e) => handlePriorityChange(e.target.value as PriorityLevel)}
+                    onChange={(e) => updateProject(project.id, { priority: e.target.value as PriorityLevel })}
                     className="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer"
                   >
                     <option value="baixa">Baixa</option>
@@ -180,14 +177,23 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </div>
 
                 <button
-                  onClick={handleDelete}
+                  onClick={() => setIsDeleteModalOpen(true)}
                   className="p-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all"
-                  title="Excluir projeto"
+                  title="Mover projeto para a Lixeira (10 dias)"
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
             </div>
+
+            {/* Modal de Confirmação de Exclusão */}
+            <ConfirmDeleteModal
+              isOpen={isDeleteModalOpen}
+              onClose={() => setIsDeleteModalOpen(false)}
+              onConfirm={handleConfirmDelete}
+              itemTitle={project.title}
+              itemType="Projeto"
+            />
 
             {/* Meta bar */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#1e1e30] text-xs">

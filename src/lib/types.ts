@@ -13,3 +13,4 @@ export * from "./types/opportunity";
 export * from "./types/athena";
 export * from "./types/forge";
 export * from "./types/graph";
+export * from "./types/trash";

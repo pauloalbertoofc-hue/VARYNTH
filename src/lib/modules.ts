@@ -82,6 +82,20 @@ export const modules: VarynthModule[] = [
     tags: ["ideias", "experimentos", "retrospectiva"],
     version: "1.0.0",
   },
+  {
+    id: "trash",
+    name: "Lixeira Central",
+    description: "Gerenciamento de itens excluídos com retenção de segurança de 10 dias e auto-destruição.",
+    icon: "🗑️",
+    layer: "system",
+    category: "gestao",
+    color: "orange",
+    href: "/modules/trash",
+    status: "active",
+    tags: ["lixeira", "exclusao", "restaurar", "seguranca"],
+    version: "1.0.0",
+    badge: "10 Dias",
+  },
 
   // --- PERSONAL APPS ---
   {

@@ -24,6 +24,7 @@ import {
   FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 
 const TYPE_CONFIG: Record<VaultItemType, { label: string; icon: React.ElementType; color: string }> = {
   artigo: { label: "Artigo", icon: FileText, color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
@@ -52,6 +53,7 @@ export default function VaultPage() {
   const [selectedType, setSelectedType] = useState<string>("todos");
   const [selectedStatus, setSelectedStatus] = useState<string>("todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<VaultItem | null>(null);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -256,9 +258,9 @@ export default function VaultPage() {
                           </select>
 
                           <button
-                            onClick={() => deleteVaultItem(item.id)}
+                            onClick={() => setItemToDelete(item)}
                             className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-opacity"
-                            title="Remover item"
+                            title="Mover para a Lixeira (10 dias)"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -469,6 +471,17 @@ export default function VaultPage() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Modal de Confirmação de Exclusão */}
+        {itemToDelete && (
+          <ConfirmDeleteModal
+            isOpen={true}
+            onClose={() => setItemToDelete(null)}
+            onConfirm={() => deleteVaultItem(itemToDelete.id)}
+            itemTitle={itemToDelete.title}
+            itemType="Obra do Vault"
+          />
         )}
       </div>
     </PageLayout>

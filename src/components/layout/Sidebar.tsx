@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Zap,
   Share2,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -35,11 +36,12 @@ interface NavSectionItem {
 const systemNavItems: NavSectionItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Início" },
   { href: "/projects", icon: FolderKanban, label: "Projetos", badge: "Principal" },
-  { href: "/modules/graph", icon: Share2, label: "Graph Rede", badge: "Novo" },
+  { href: "/modules/graph", icon: Share2, label: "Graph Rede" },
   { href: "/modules/vault", icon: BookOpen, label: "Vault" },
   { href: "/modules/chronos", icon: Clock, label: "Chronos" },
   { href: "/modules/people", icon: Users, label: "People" },
   { href: "/modules/labs", icon: FlaskConical, label: "Labs" },
+  { href: "/modules/trash", icon: Trash2, label: "Lixeira", badge: "10d" },
 ];
 
 const personalNavItems: NavSectionItem[] = [

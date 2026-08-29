@@ -121,7 +121,31 @@ export function processAthenaQuery(
     };
   }
 
-  // 3. INTENT: CONSULTAR PRAZOS / DEADLINES
+  // 3. INTENT: EXCLUIR / LIXEIRA (Protocolo de 10 dias)
+  if (
+    lower.startsWith("excluir") ||
+    lower.startsWith("apagar") ||
+    lower.startsWith("remover") ||
+    lower.startsWith("deletar") ||
+    lower.includes("lixeira")
+  ) {
+    return {
+      id: "athena-" + Date.now(),
+      sender: "athena",
+      text: `🗑️ **Protocolo de Exclusão Segura (Retenção de 10 Dias):**\n\nNo VARYNTH OS, todas as exclusões exigem confirmação manual e são direcionadas para a **Lixeira Central** com prazo de **10 dias** antes da auto-destruição permanente.\n\nDurante esse período de 10 dias, você pode **restaurar** qualquer projeto, tarefa, nota ou código excluído com um único clique na Lixeira.`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scope,
+      actionCard: {
+        type: "diagnostico",
+        title: "Lixeira Central do VARYNTH OS",
+        subtitle: "Gerenciar itens excluídos e retenção de 10 dias",
+        link: "/modules/trash",
+        linkLabel: "Abrir Lixeira",
+      },
+    };
+  }
+
+  // 4. INTENT: CONSULTAR PRAZOS / DEADLINES
   if (
     lower.includes("prazo") ||
     lower.includes("deadline") ||
