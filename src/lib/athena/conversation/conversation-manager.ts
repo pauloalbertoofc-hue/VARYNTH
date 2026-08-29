@@ -51,7 +51,7 @@ export class ConversationManager {
   ): ResolvedContext {
     const state = this.getOrCreateSession(sessionId, activeProjectId);
     const prompt = rawPrompt.trim();
-    const lower = prompt.toLowerCase();
+    const lower = prompt.toLowerCase().replace(/[.,!?;:]/g, " ");
 
     state.messageCount += 1;
     state.lastInteractionAt = new Date().toISOString();
@@ -60,13 +60,15 @@ export class ConversationManager {
     let intent: ConversationIntent = "CONVERSATION_ONLY";
     let mode: ConversationMode = "casual";
 
-    // Execution Request Patterns
+    // Direct Operational Execution Commands
     const isExecutionCommand =
       lower.startsWith("crie uma tarefa") ||
       lower.startsWith("criar tarefa") ||
       lower.startsWith("nova tarefa") ||
       lower.startsWith("adicione uma tarefa") ||
+      lower.startsWith("adicionar tarefa") ||
       lower.startsWith("crie uma nota") ||
+      lower.startsWith("criar nota") ||
       lower.startsWith("anote isso") ||
       lower.startsWith("anotar") ||
       lower.startsWith("excluir") ||
@@ -74,9 +76,22 @@ export class ConversationManager {
       lower.startsWith("deletar") ||
       lower.startsWith("remover") ||
       lower.includes("mover para a lixeira") ||
+      lower.includes("esvaziar lixeira") ||
       lower.includes("gerar relatorio");
 
+    // System Status & Diagnostic Queries
+    const isSystemQuery =
+      lower.includes("diagnostico") ||
+      lower.includes("quais sao meus prazos") ||
+      lower.includes("quais meus prazos") ||
+      lower.includes("quando vence") ||
+      lower.includes("quais editais") ||
+      lower.includes("minhas tarefas");
+
     if (isExecutionCommand) {
+      intent = "EXECUTION_REQUEST";
+      mode = "command";
+    } else if (isSystemQuery) {
       intent = "EXECUTION_REQUEST";
       mode = "command";
     } else if (
@@ -85,24 +100,22 @@ export class ConversationManager {
       lower.includes("brainstorm") ||
       lower.includes("pensando em criar") ||
       lower.includes("sugira") ||
+      lower.includes("sugestao") ||
       lower.includes("sugestão")
     ) {
       intent = "BRAINSTORM";
       mode = "brainstorm";
     } else if (
-      lower.includes("analisar") ||
-      lower.includes("tese") ||
-      lower.includes("precedente") ||
-      lower.includes("metodologia") ||
-      lower.includes("evidencia") ||
-      lower.includes("artigo")
+      lower.includes("analisar tese") ||
+      lower.includes("analise juridica") ||
+      lower.includes("precedente vinculante") ||
+      lower.includes("metodologia cientifica") ||
+      lower.includes("evidence board")
     ) {
       intent = "ANALYSIS";
       mode = "analysis";
-    } else if (lower.includes("?") || lower.startsWith("como") || lower.startsWith("qual") || lower.startsWith("onde") || lower.startsWith("quando")) {
-      intent = "QUESTION";
-      mode = "casual";
     } else {
+      // Default: It is a natural conversation, greeting, thought, question or reflection
       intent = "CONVERSATION_ONLY";
       mode = "casual";
     }
@@ -167,4 +180,3 @@ export class ConversationManager {
 }
 
 export const athenaConversationManager = new ConversationManager();
-

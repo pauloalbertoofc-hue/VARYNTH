@@ -1,5 +1,5 @@
 import { AthenaPersonaConfig, DEFAULT_ATHENA_PERSONA } from "../domain/persona";
-import { ConversationMode, ConversationIntent } from "../domain/conversation";
+import { ConversationMode } from "../domain/conversation";
 
 export class AthenaPersonaEngine {
   private config: AthenaPersonaConfig = { ...DEFAULT_ATHENA_PERSONA };
@@ -13,7 +13,7 @@ export class AthenaPersonaEngine {
   }
 
   /**
-   * Generates a natural conversational response for non-command dialogical interactions.
+   * Generates a natural conversational response for dialogical interactions.
    */
   generateDialogueResponse(
     prompt: string,
@@ -21,48 +21,94 @@ export class AthenaPersonaEngine {
     currentTopic?: string,
     activeProjectTitle?: string
   ): string {
-    const lower = prompt.toLowerCase();
+    const rawLower = prompt.toLowerCase();
+    const cleanLower = rawLower.replace(/[.,!?;:]/g, " ").trim();
 
-    // 1. Casual humor or remark (e.g., "kkk", "rsrs", "projeto tá enorme", "e aí")
-    if (lower.includes("kkk") || lower.includes("rsrs") || lower.includes("haha") || lower.includes("enorme") || lower.includes("loucura")) {
-      if (activeProjectTitle) {
-        return `Kkkk realmente! O projeto **"${activeProjectTitle}"** está ganhando uma densidade incrível. Mas com o ecossistema organizado no VARYNTH, a gente consegue manter o controle de cada ponta solta.\n\nQuer que a gente faça uma rodada rápida para enxugar as prioridades ou prefere focar em algum ponto específico agora?`;
-      }
-      return `Kkkk faz parte da jornada! Quando a gente começa a aprofundar as ideias, elas realmente ganham vida própria.\n\nEstou por aqui para te ajudar a estruturar o que precisar. O que está na sua cabeça agora?`;
-    }
-
-    // 2. Greetings / Check-ins ("oi", "olá", "e aí", "tudo bem", "como você está")
+    // 1. Greetings & Personal Check-ins ("olá athena tudo bem", "como você está", "tudo bem com você")
     if (
-      lower === "oi" ||
-      lower === "ola" ||
-      lower === "olá" ||
-      lower.startsWith("e ai") ||
-      lower.startsWith("e aí") ||
-      lower.includes("tudo bem") ||
-      lower.includes("como vai")
+      cleanLower.includes("tudo bem") ||
+      cleanLower.includes("como voce esta") ||
+      cleanLower.includes("como você está") ||
+      cleanLower.includes("como vai") ||
+      cleanLower.includes("como estao as coisas") ||
+      cleanLower.includes("como estão as coisas") ||
+      cleanLower === "ola" ||
+      cleanLower === "olá" ||
+      cleanLower === "oi" ||
+      cleanLower.startsWith("ola athena") ||
+      cleanLower.startsWith("olá athena") ||
+      cleanLower.startsWith("ola athenas") ||
+      cleanLower.startsWith("olá athenas") ||
+      cleanLower.startsWith("oi athena") ||
+      cleanLower.startsWith("e ai") ||
+      cleanLower.startsWith("e aí") ||
+      cleanLower.startsWith("bom dia") ||
+      cleanLower.startsWith("boa tarde") ||
+      cleanLower.startsWith("boa noite")
     ) {
       if (activeProjectTitle) {
-        return `Tudo ótimo por aqui, Paulo! Estou focada na workspace de **"${activeProjectTitle}"** com você. Como estão as coisas por aí? Em que podemos avançar hoje?`;
+        return `Olá, Paulo! Tudo ótimo por aqui! 😊\n\nEstou com a workspace de **"${activeProjectTitle}"** aberta e acompanhando cada detalhe com você. Como foi o seu dia? Em que ponto você gostaria que a gente concentrasse as energias hoje?`;
       }
-      return `Tudo excelente por aqui, Paulo! Conectada ao núcleo do seu VARYNTH OS e pronta para acompanhar suas pesquisas, ideias e projetos. Como posso te ajudar hoje?`;
+      return `Olá, Paulo! Tudo excelente por aqui! 😊\n\nEstou 100% conectada ao seu ecossistema no VARYNTH OS, pronta para trocar ideias, estruturar raciocínios ou te ajudar com seus projetos e pesquisas. Como você está hoje? O que temos na pauta?`;
     }
 
-    // 3. Brainstorming / Ideation mode
-    if (mode === "brainstorm" || lower.includes("pensando em") || lower.includes("ideia") || lower.includes("o que acha")) {
-      return `Adorei essa linha de pensamento. Explorando esse ângulo:\n\n1. **Perspectiva Principal:** Isso abre espaço para conectarmos com os fichamentos e referências que você já tem no Vault.\n2. **Ponto Cego em Potencial:** Como isso impacta os prazos e entregas que já estão rodando no Chronos?\n3. **Próximo Passo Natural:** Podemos rascunhar um esboço preliminar no Labs ou transformar isso em uma tese na Argument Arena.\n\nPor onde você quer puxar esse fio?`;
+    // 2. Questions about Athena's Identity or Capabilities
+    if (
+      cleanLower.includes("quem e voce") ||
+      cleanLower.includes("quem é você") ||
+      cleanLower.includes("o que voce faz") ||
+      cleanLower.includes("o que você faz") ||
+      cleanLower.includes("qual seu papel") ||
+      cleanLower.includes("como voce funciona") ||
+      cleanLower.includes("como você funciona")
+    ) {
+      return `Eu sou a **Athena**, o cérebro cognitivo e sua copilot digital aqui no **VARYNTH OS**! 🦉\n\nMeu papel não é ser apenas um assistente mecânico, mas uma parceira de raciocínio. Eu integro seus projetos, acervo do Vault, teses do Codex, evidências de pesquisa e o calendário do Chronos.\n\nAlém disso, conto com o suporte de um Conselho de Especialistas internos (como Justitia para Direito, Logos para Ciência e Critias para revisão crítica). Podemos conversar sobre qualquer assunto, debater ideias ou estruturar planos de ação!`;
     }
 
-    // 4. Analysis / Reflection mode
-    if (mode === "analysis" || lower.includes("refletindo") || lower.includes("analisando")) {
-      return `Entendo perfeitamente. Esse tipo de reflexão exige rigor para não cairmos em premissas automáticas.\n\nAnalisando o histórico e o contexto disponível, o ponto chave parece ser o equilíbrio entre profundidade metodológica e viabilidade prática.\n\nQuer que o Conselho (Justitia, Logos e Critias) elabore um parecer mais estruturado sobre isso?`;
+    // 3. Humor, Laughs, or Overwhelm remarks ("kkk", "rsrs", "projeto tá enorme", "muita coisa")
+    if (
+      rawLower.includes("kkk") ||
+      rawLower.includes("rsrs") ||
+      rawLower.includes("haha") ||
+      cleanLower.includes("enorme") ||
+      cleanLower.includes("loucura") ||
+      cleanLower.includes("muita coisa") ||
+      cleanLower.includes("cansado")
+    ) {
+      if (activeProjectTitle) {
+        return `Kkkk realmente! O projeto **"${activeProjectTitle}"** está crescendo em um ritmo impressionante. Mas o bom do VARYNTH é que a gente não precisa guardar tudo na cabeça ao mesmo tempo.\n\nSe você quiser, a gente pode dar uma respirada e elencar só os 2 ou 3 pontos mais cruciais para hoje. O que acha?`;
+      }
+      return `Kkkk faz parte do processo criativo e intelectual! Quando a gente começa a conectar as peças, o volume de ideias parece infinito.\n\nRespira fundo: o VARYNTH cuida da infraestrutura e eu te ajudo a priorizar. O que está pesando mais na sua cabeça agora?`;
     }
 
-    // 5. Default natural conversational fallback
+    // 4. Brainstorming & Ideation Mode
+    if (
+      mode === "brainstorm" ||
+      cleanLower.includes("pensando em") ||
+      cleanLower.includes("o que acha de") ||
+      cleanLower.includes("ideia")
+    ) {
+      return `Gostei dessa reflexão! Olhando para essa ideia por alguns ângulos:\n\n1. **Oportunidade Principal:** Isso pode se conectar diretamente com o material que você já fichou no Vault e gerar uma entrega com muita autoridade.\n2. **Atenção aos Prazos:** Vale ponderar como encaixar essa nova frente sem sobrecarregar as entregas que já estão no Chronos.\n3. **Direção Prática:** Podemos rascunhar um experimento no Labs para testar a tração antes de virar um projeto oficial.\n\nO que você acha dessa abordagem?`;
+    }
+
+    // 5. Analysis / Reflection / Opinion Mode
+    if (
+      mode === "analysis" ||
+      cleanLower.includes("minha opiniao") ||
+      cleanLower.includes("sua opiniao") ||
+      cleanLower.includes("o que voce acha") ||
+      cleanLower.includes("o que você acha") ||
+      cleanLower.includes("refletindo")
+    ) {
+      return `É uma questão muito interessante. Sob uma ótica equilibrada:\n\n• **Ponto Forte:** Essa linha de raciocínio dá muita consistência aos seus argumentos e evita conclusões superficiais.\n• **Contraponto Crítico:** Se alguém cético avaliar, a primeira pergunta será sobre a fonte probatória primária ou o precedente legal.\n\nQuer que a gente aprofunde mais esse aspecto ou você já tem uma conclusão preliminar em mente?`;
+    }
+
+    // 6. Default Natural Conversational Fallback
     if (activeProjectTitle) {
-      return `Compreendi seu ponto sobre **"${activeProjectTitle}"**. Estou acompanhando o raciocínio com você. Quer que a gente aprofunde essa reflexão ou prefere estruturar uma ação prática para avançar?`;
+      return `Entendi perfeitamente o seu ponto sobre **"${activeProjectTitle}"**. Estou acompanhando o raciocínio com você. Quer que a gente desenvolva mais essa ideia ou prefere transformar isso em uma ação prática?`;
     }
 
-    return `Entendi perfeitamente o que você trouxe. Estou conectada ao contexto e acompanhando sua linha de raciocínio. Como você gostaria de encaminhar essa discussão?`;
+    return `Compreendi o que você trouxe, Paulo. Estou acompanhando sua linha de raciocínio no ecossistema. Como você gostaria de encaminhar essa reflexão agora?`;
   }
 
   /**
@@ -70,11 +116,10 @@ export class AthenaPersonaEngine {
    */
   generateClarificationQuestion(term: string, candidates: string[]): string {
     if (candidates.length > 0) {
-      return `Você está se referindo a **"${candidates[0]}"** ou a outra iniciativa? Me dá um toque para eu puxar o contexto exato para a nossa conversa.`;
+      return `Você está se referindo ao projeto **"${candidates[0]}"** ou a alguma outra workspace? Me avisa para eu puxar o contexto exato para a nossa conversa! 😊`;
     }
-    return `Fiquei em dúvida sobre a qual item específico você está se referindo com *"__${term}__"*. Poderia me dar uma pista rápida (como o nome do projeto, tese ou tarefa)?`;
+    return `Fiquei em dúvida sobre a qual item específico você está se referindo com *"__${term}__"*. Poderia me dar uma pista rápida (como o nome do projeto ou tese)?`;
   }
 }
 
 export const athenaPersonaEngine = new AthenaPersonaEngine();
-
