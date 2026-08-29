@@ -17,7 +17,8 @@
     "test:notifications": "npx tsx src/lib/notifications/notification-regression.test.ts",
     "test:artifacts": "npx tsx src/lib/artifacts/artifact-regression.test.ts",
     "test:jobs": "npx tsx src/lib/runtime/job-regression.test.ts",
-    "test:backup": "npx tsx src/lib/backup/backup-regression.test.ts"
+    "test:backup": "npx tsx src/lib/backup/backup-regression.test.ts",
+    "test:persistence": "npx tsx src/lib/persistence/persistence-regression.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -27,17 +28,15 @@
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "^16.3.3",
     "tailwindcss": "^4",
-    "tsx": "^4.19.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
