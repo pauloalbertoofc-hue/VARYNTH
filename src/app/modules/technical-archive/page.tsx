@@ -42,7 +42,9 @@ import {
   FileCheck,
   Activity,
   RefreshCw,
+  Download,
 } from "lucide-react";
+import { ExportModal } from "@/components/docs/ExportModal";
 import Link from "next/link";
 
 type TabMode = "hub" | "guardian" | "map" | "handbook" | "adrs" | "lessons" | "component";
@@ -54,6 +56,7 @@ export default function TechnicalArchivePage() {
   const [selectedAdrId, setSelectedAdrId] = useState<string>("ADR-001");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedHandbookChapter, setSelectedHandbookChapter] = useState(0);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Guardian State
   const [healthReport, setHealthReport] = useState<DocumentationHealthReport>(() =>
@@ -183,6 +186,14 @@ export default function TechnicalArchivePage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs">
+              <button
+                onClick={() => setIsExportOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar Manual / PDF</span>
+              </button>
+
               <button
                 onClick={handleRefreshGuardian}
                 className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 flex items-center gap-2 transition-all cursor-pointer"
@@ -1029,6 +1040,12 @@ export default function TechnicalArchivePage() {
             </div>
           </div>
         )}
+        {/* EXPORT MODAL */}
+        <ExportModal
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          currentComponentId={selectedDocId}
+        />
       </div>
     </PageLayout>
   );

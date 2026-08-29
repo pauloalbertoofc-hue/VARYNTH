@@ -60,3 +60,4 @@ runGuardianCli().catch((err) => {
   console.error("Erro fatal no Documentation Guardian:", err);
   process.exit(1);
 });
+
