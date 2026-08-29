@@ -39,6 +39,20 @@ const colorMap = {
     icon: "bg-amber-500/10",
     tag: "bg-amber-500/10 text-amber-300",
   },
+  amber: {
+    glow: "hover:shadow-[0_0_24px_rgba(245,158,11,0.35)]",
+    border: "hover:border-amber-500/50",
+    badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    icon: "bg-amber-500/10",
+    tag: "bg-amber-500/10 text-amber-300",
+  },
+  emerald: {
+    glow: "hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]",
+    border: "hover:border-emerald-500/50",
+    badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    icon: "bg-emerald-500/10",
+    tag: "bg-emerald-500/10 text-emerald-300",
+  },
   red: {
     glow: "hover:shadow-[0_0_24px_rgba(239,68,68,0.35)]",
     border: "hover:border-red-500/50",

@@ -1,126 +1,374 @@
+"use client";
+
+import Link from "next/link";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { AppCard } from "@/components/ui/AppCard";
 import { modules } from "@/lib/modules";
+import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { ClockWidget } from "@/components/widgets/ClockWidget";
 import { FocusTimerWidget } from "@/components/widgets/FocusTimerWidget";
 import { ScratchpadWidget } from "@/components/widgets/ScratchpadWidget";
-import { QuickLinksWidget } from "@/components/widgets/QuickLinksWidget";
-import { Zap, Grid3x3, Activity, LayoutGrid, Terminal } from "lucide-react";
-
-const stats = [
-  {
-    label: "Apps ativos",
-    value: String(modules.filter((m) => m.status === "active").length),
-    icon: Zap,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10 border-emerald-500/20",
-  },
-  {
-    label: "Total de módulos",
-    value: String(modules.length),
-    icon: Grid3x3,
-    color: "text-violet-400",
-    bg: "bg-violet-500/10 border-violet-500/20",
-  },
-  {
-    label: "Em desenvolvimento",
-    value: String(modules.filter((m) => m.status === "wip").length),
-    icon: Activity,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10 border-amber-500/20",
-  },
-];
+import {
+  Zap,
+  FolderKanban,
+  CheckSquare,
+  Square,
+  Calendar,
+  FileText,
+  Clock,
+  Plus,
+  ArrowRight,
+  Flame,
+  Activity as ActivityIcon,
+  Layers,
+  Sparkles,
+  Bot,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
+  const { projects, tasks, notes, activities, toggleTask, isLoaded } = useVarynthStore();
+
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  return (
-    <PageLayout title="Início" subtitle="Cockpit Operacional VARYNTH">
-      <div className="p-6 space-y-8 animate-fade-in max-w-7xl mx-auto">
-        {/* Top Hero Banner */}
-        <div className="relative rounded-xl border border-[#1e1e30] bg-gradient-to-br from-violet-950/40 via-[#0f0f1a] to-cyan-950/20 p-6 sm:p-8 overflow-hidden clip-corner">
-          {/* Decorative glow */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-32 w-40 h-40 bg-cyan-600/10 rounded-full blur-2xl pointer-events-none" />
+  const handleOpenQuickCreate = (tab?: string) => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-quick-create", { detail: { tab } }));
+    }
+  };
 
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold uppercase tracking-widest mb-3">
-                <Terminal size={12} />
-                <span>VARYNTH OS · v0.1.0</span>
+  const activeProjects = projects.filter((p) => p.status === "ativo");
+  const pendingTasks = tasks.filter((t) => t.status !== "concluida");
+  const urgentTasks = pendingTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
+  const completedTasks = tasks.filter((t) => t.status === "concluida");
+
+  const upcomingDeadlines = projects
+    .filter((p) => p.deadline && p.status !== "concluido" && p.status !== "arquivado")
+    .sort((a, b) => (a.deadline! > b.deadline! ? 1 : -1))
+    .slice(0, 4);
+
+  return (
+    <PageLayout title="Início" subtitle="Cockpit Operacional VARYNTH OS">
+      <div className="space-y-8 max-w-7xl mx-auto animate-fade-in">
+        {/* Hero Banner with Quick Actions */}
+        <div className="relative rounded-2xl border border-[#1e1e30] bg-gradient-to-br from-violet-950/40 via-[#0f0f1a] to-cyan-950/20 p-6 sm:p-8 overflow-hidden clip-corner">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-32 w-48 h-48 bg-cyan-600/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold uppercase tracking-widest">
+                <Sparkles size={12} />
+                <span>VARYNTH OS · Universo Digital Pessoal</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white text-glow-accent">
+              <h1 className="text-2xl sm:text-3xl font-black text-white text-glow-accent tracking-tight">
                 {greeting}, Paulo.
-              </h2>
-              <p className="mt-1.5 text-xs sm:text-sm text-slate-400 max-w-lg">
-                Seu centro de controle pessoal está online. Gerencie projetos, anotações e ferramentas diretamente do seu hub.
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
+                Central de controle ativa. Você tem{" "}
+                <span className="text-violet-300 font-semibold">{pendingTasks.length} tarefas pendentes</span>{" "}
+                ({urgentTasks.length} prioritárias) distribuídas em{" "}
+                <span className="text-cyan-300 font-semibold">{activeProjects.length} projetos ativos</span>.
               </p>
             </div>
 
-            {/* Quick action hint */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0a0a0f]/80 border border-[#1e1e30] text-xs text-slate-400">
-              <span>Pressione</span>
-              <kbd className="px-2 py-0.5 rounded bg-[#14141f] border border-[#2d2d4a] text-slate-200 font-mono text-[11px]">
-                Ctrl + K
-              </kbd>
-              <span>para busca rápida</span>
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                onClick={() => handleOpenQuickCreate("task")}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white glow-accent transition-all duration-200"
+              >
+                <Plus size={14} />
+                <span>+ Nova Tarefa</span>
+              </button>
+
+              <button
+                onClick={() => handleOpenQuickCreate("note")}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#14141f] hover:bg-[#1a1a2e] text-slate-200 border border-[#1e1e30] hover:border-violet-500/40 transition-all"
+              >
+                <FileText size={14} className="text-violet-400" />
+                <span>+ Nova Nota</span>
+              </button>
+
+              <button
+                onClick={() => handleOpenQuickCreate("project")}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#14141f] hover:bg-[#1a1a2e] text-slate-200 border border-[#1e1e30] hover:border-cyan-500/40 transition-all"
+              >
+                <FolderKanban size={14} className="text-cyan-400" />
+                <span>+ Novo Projeto</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {stats.map(({ label, value, icon: Icon, color, bg }) => (
-            <div
-              key={label}
-              className="flex items-center gap-4 p-4 rounded-lg bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-violet-500/30 transition-colors"
-            >
-              <div className={`w-10 h-10 rounded-lg border flex items-center justify-center flex-shrink-0 ${bg}`}>
-                <Icon size={18} className={color} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white">{value}</p>
-                <p className="text-xs text-slate-500">{label}</p>
-              </div>
+        {/* Real-time OS KPIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <Link
+            href="/projects"
+            className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-violet-500/40 transition-all group"
+          >
+            <div className="flex items-center justify-between text-slate-400 text-xs">
+              <span>Projetos Ativos</span>
+              <FolderKanban size={16} className="text-violet-400 group-hover:scale-110 transition-transform" />
             </div>
-          ))}
-        </div>
+            <p className="text-2xl font-bold text-white mt-1">{activeProjects.length}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">{projects.length} no total</p>
+          </Link>
 
-        {/* Interactive Widgets Grid */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-violet-400 tracking-[0.2em] uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-              Ferramentas & Widgets
-            </h3>
-            <span className="text-xs text-slate-500">Produtividade diária</span>
+          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-amber-500/40 transition-all">
+            <div className="flex items-center justify-between text-slate-400 text-xs">
+              <span>Tarefas Pendentes</span>
+              <CheckSquare size={16} className="text-amber-400" />
+            </div>
+            <p className="text-2xl font-bold text-amber-400 mt-1">{pendingTasks.length}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">{urgentTasks.length} urgentes / altas</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-emerald-500/40 transition-all">
+            <div className="flex items-center justify-between text-slate-400 text-xs">
+              <span>Concluídas</span>
+              <Zap size={16} className="text-emerald-400" />
+            </div>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{completedTasks.length}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Histórico registrado</p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-cyan-500/40 transition-all">
+            <div className="flex items-center justify-between text-slate-400 text-xs">
+              <span>Notas & Vault</span>
+              <FileText size={16} className="text-cyan-400" />
+            </div>
+            <p className="text-2xl font-bold text-cyan-400 mt-1">{notes.length}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Fichamentos salvos</p>
+          </div>
+        </div>
+
+        {/* Main Cockpit Layout: 2 Columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column (7 cols): Tasks, Deadlines, Active Projects */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Priority Tasks Widget */}
+            <div className="p-5 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  <Flame size={15} className="text-red-400" />
+                  <span>Tarefas Prioritárias do Dia</span>
+                </div>
+                <button
+                  onClick={() => handleOpenQuickCreate("task")}
+                  className="text-xs text-violet-400 hover:text-violet-300 font-semibold"
+                >
+                  + Adicionar
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {pendingTasks.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-6 text-center">
+                    Tudo em dia! Nenhuma tarefa pendente no momento.
+                  </p>
+                ) : (
+                  pendingTasks.slice(0, 5).map((task) => {
+                    const linkedProj = projects.find((p) => p.id === task.projectId);
+                    return (
+                      <div
+                        key={task.id}
+                        className="group flex items-center justify-between gap-3 p-3 rounded-xl bg-[#14141f] border border-[#1e1e30] hover:border-violet-500/40 transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <button
+                            onClick={() => toggleTask(task.id)}
+                            className="text-violet-400 hover:text-violet-300 transition-colors flex-shrink-0"
+                            title="Concluir tarefa"
+                          >
+                            <Square size={16} />
+                          </button>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-slate-200 truncate">
+                              {task.title}
+                            </p>
+                            {linkedProj && (
+                              <Link
+                                href={`/projects/${linkedProj.id}`}
+                                className="text-[10px] text-violet-400 hover:underline block truncate mt-0.5"
+                              >
+                                {linkedProj.title}
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded border uppercase font-medium",
+                              task.priority === "urgente" && "text-red-400 border-red-500/30 bg-red-500/10",
+                              task.priority === "alta" && "text-amber-400 border-amber-500/30 bg-amber-500/10",
+                              task.priority === "media" && "text-blue-400 border-blue-500/30 bg-blue-500/10",
+                              task.priority === "baixa" && "text-slate-400 border-slate-700 bg-slate-800/30"
+                            )}
+                          >
+                            {task.priority}
+                          </span>
+                          {task.dueDate && (
+                            <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
+                              {task.dueDate}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Upcoming Deadlines (Chronos Peek) */}
+            <div className="p-5 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  <Calendar size={15} className="text-violet-400" />
+                  <span>Prazos & Deadlines Próximos</span>
+                </div>
+                <Link href="/modules/chronos" className="text-xs text-violet-400 hover:text-violet-300">
+                  Chronos →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {upcomingDeadlines.map((proj) => (
+                  <Link
+                    key={proj.id}
+                    href={`/projects/${proj.id}`}
+                    className="p-3.5 rounded-xl bg-[#14141f] border border-[#1e1e30] hover:border-cyan-500/40 transition-all flex flex-col justify-between"
+                  >
+                    <div className="space-y-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold uppercase">
+                        {proj.category}
+                      </span>
+                      <h4 className="text-xs font-bold text-slate-200 truncate mt-1">{proj.title}</h4>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 mt-3 pt-2 border-t border-[#1e1e30]">
+                      <span className="flex items-center gap-1 font-mono text-slate-300">
+                        <Clock size={11} className="text-violet-400" />
+                        {proj.deadline}
+                      </span>
+                      <span className="text-violet-400 font-semibold">{proj.progress || 0}%</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Projects Grid */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  <FolderKanban size={15} className="text-cyan-400" />
+                  <span>Workspaces em Andamento</span>
+                </div>
+                <Link href="/projects" className="text-xs text-cyan-400 hover:text-cyan-300">
+                  Ver todos ({projects.length}) →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {activeProjects.slice(0, 2).map((proj) => {
+                  const projTasks = tasks.filter((t) => t.projectId === proj.id);
+                  const done = projTasks.filter((t) => t.status === "concluida");
+                  return (
+                    <Link
+                      key={proj.id}
+                      href={`/projects/${proj.id}`}
+                      className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all flex flex-col justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 font-semibold uppercase">
+                            {proj.category}
+                          </span>
+                          <span className="text-[10px] text-slate-500">{projTasks.length} tarefas</span>
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-100 group-hover:text-violet-300 transition-colors truncate">
+                          {proj.title}
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {proj.description}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-2 border-t border-[#1e1e30] flex items-center justify-between text-xs text-violet-400 font-medium">
+                        <span>Acessar Workspace</span>
+                        <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column (5 cols): Clock, Pomodoro, Scratchpad, Audit Log */}
+          <div className="lg:col-span-5 space-y-6">
             <ClockWidget />
             <FocusTimerWidget />
             <ScratchpadWidget />
-            <QuickLinksWidget />
-          </div>
-        </section>
 
-        {/* Apps & Modules Section */}
-        <section className="space-y-4 pt-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-cyan-400 tracking-[0.2em] uppercase flex items-center gap-2">
-              <LayoutGrid size={14} />
-              Seus Módulos & Projetos
-            </h3>
-            <span className="text-xs text-slate-500">{modules.length} módulos disponíveis</span>
+            {/* Live Activity Feed */}
+            <div className="p-5 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  <ActivityIcon size={14} className="text-violet-400" />
+                  <span>Histórico de Atividade</span>
+                </div>
+                <span className="text-[10px] text-slate-500">Tempo real</span>
+              </div>
+
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                {activities.slice(0, 6).map((act) => (
+                  <div key={act.id} className="flex items-start gap-2.5 text-xs text-slate-300">
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="truncate text-xs">
+                        <span className="text-slate-400 font-semibold">{act.user || "Paulo"}</span>{" "}
+                        <span className="text-violet-300">{act.action}</span>{" "}
+                        <span className="text-slate-200 font-medium">{act.entityTitle}</span>
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {new Date(act.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {modules.map((mod) => (
+        </div>
+
+        {/* Ecosystem Módulos & Apps Grid */}
+        <div className="space-y-4 pt-4 border-t border-[#1e1e30]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers size={16} className="text-violet-400" />
+              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                Ecossistema de Módulos VARYNTH (3 Camadas)
+              </h3>
+            </div>
+            <Link href="/modules" className="text-xs text-violet-400 hover:text-violet-300">
+              Ver catálogo completo →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {modules.slice(0, 4).map((mod) => (
               <AppCard key={mod.id} module={mod} />
             ))}
           </div>
-        </section>
+        </div>
       </div>
     </PageLayout>
   );
