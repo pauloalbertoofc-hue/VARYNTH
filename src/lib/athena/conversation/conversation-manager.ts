@@ -1,27 +1,29 @@
 import {
   ConversationState,
   ConversationIntent,
-  ConversationMode,
-  ConversationSummary,
+  CognitiveIntent,
+  InteractionType,
+  ConfidenceLevel,
+  ParsedCognitiveContext,
+  ConversationTurn,
 } from "../domain/conversation";
 import { sessionSummarizer } from "./session-summarizer";
 import { AthenaMessage } from "../domain/response";
 import { Project } from "@/lib/types";
 
-export interface ResolvedContext {
-  intent: ConversationIntent;
-  mode: ConversationMode;
-  targetProjectId?: string;
-  targetProjectTitle?: string;
-  isAmbiguousReference: boolean;
-  ambiguousTerm?: string;
-  topic?: string;
-  relevantModule?: "projects" | "tasks" | "vault" | "codex" | "chronos" | "general";
+export function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,!?;:()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export class ConversationManager {
   private sessions: Map<string, ConversationState> = new Map();
-  private sessionHistories: Map<string, Array<{ role: "user" | "athena"; text: string }>> = new Map();
+  private sessionHistories: Map<string, ConversationTurn[]> = new Map();
 
   getOrCreateSession(sessionId: string, currentProjectId?: string): ConversationState {
     if (!this.sessions.has(sessionId)) {
@@ -33,6 +35,8 @@ export class ConversationManager {
         unresolvedReferences: [],
         messageCount: 0,
         lastInteractionAt: new Date().toISOString(),
+        recentRecommendations: [],
+        recentCritiques: [],
       });
       this.sessionHistories.set(sessionId, []);
     }
@@ -44,220 +48,346 @@ export class ConversationManager {
   }
 
   /**
-   * Deep multi-layered contextual intent classifier considering conversation history, topic, and persona boundaries.
+   * Deep multi-layered contextual parser that evaluates history, entities, and ellipsis before classifying.
    */
   processMessage(
     sessionId: string,
     rawPrompt: string,
     allProjects: Project[] = [],
     activeProjectId?: string
-  ): ResolvedContext {
+  ): ParsedCognitiveContext {
     const state = this.getOrCreateSession(sessionId, activeProjectId);
     const history = this.sessionHistories.get(sessionId) || [];
     const prompt = rawPrompt.trim();
-    const lower = prompt.toLowerCase().replace(/[.,!?;:]/g, " ");
+    const clean = normalizeText(prompt);
 
     state.messageCount += 1;
     state.lastInteractionAt = new Date().toISOString();
 
-    const lastUserMsg = history.filter((h) => h.role === "user").slice(-1)[0]?.text.toLowerCase() || "";
-    const lastAthenaMsg = history.filter((h) => h.role === "athena").slice(-1)[0]?.text.toLowerCase() || "";
+    const lastUserTurn = [...history].reverse().find((h) => h.role === "user");
+    const lastAthenaTurn = [...history].reverse().find((h) => h.role === "athena");
 
-    let intent: ConversationIntent = "SOCIAL_CONVERSATION";
-    let mode: ConversationMode = state.mode || "casual";
-    let relevantModule: "projects" | "tasks" | "vault" | "codex" | "chronos" | "general" = "general";
+    // -------------------------------------------------------------
+    // 1. RESOLVE ENTITIES & ANAPHORA
+    // -------------------------------------------------------------
+    let targetProjectId = activeProjectId || state.currentProjectId;
+    let targetProjectTitle: string | undefined;
+    let referencedEntityName: string | undefined;
 
-    // 1. Direct Operational Execution Commands (Action Layer)
-    const isExecutionCommand =
-      lower.startsWith("crie uma tarefa") ||
-      lower.startsWith("criar tarefa") ||
-      lower.startsWith("nova tarefa") ||
-      lower.startsWith("adicione uma tarefa") ||
-      lower.startsWith("adicionar tarefa") ||
-      lower.startsWith("crie uma nota") ||
-      lower.startsWith("criar nota") ||
-      lower.startsWith("anote isso") ||
-      lower.startsWith("anotar") ||
-      lower.startsWith("excluir") ||
-      lower.startsWith("apagar") ||
-      lower.startsWith("deletar") ||
-      lower.startsWith("remover") ||
-      lower.includes("mover para a lixeira") ||
-      lower.includes("esvaziar lixeira");
+    // Check if any registered project title is explicitly in the prompt
+    for (const proj of allProjects) {
+      const projNorm = normalizeText(proj.title);
+      if (clean.includes(projNorm)) {
+        targetProjectId = proj.id;
+        targetProjectTitle = proj.title;
+        state.currentProjectId = proj.id;
+        if (!state.recentEntities.includes(proj.title)) {
+          state.recentEntities = [proj.title, ...state.recentEntities].slice(0, 6);
+        }
+        state.currentTopic = proj.title;
+        break;
+      }
+    }
 
-    if (isExecutionCommand) {
-      intent = "EXECUTION_REQUEST";
-      mode = "command";
-    }
-    // 2. Athena's Own Technical Health & Self-Diagnostic (ATHENA_SELF_STATUS)
-    else if (
-      lower.includes("voce esta funcionando") || lower.includes("você está funcionando") ||
-      lower.includes("como esta seu sistema") || lower.includes("como está seu sistema") ||
-      lower.includes("seus modulos estao") || lower.includes("seus módulos estão") ||
-      lower.includes("problema na sua memoria") || lower.includes("problema na sua memória") ||
-      lower.includes("seu kernel") ||
-      lower.includes("sua memoria esta") || lower.includes("sua memória está") ||
-      lower.includes("como voce esta rodando") || lower.includes("como você está rodando") ||
-      lower.includes("diagnostico da athena") || lower.includes("diagnóstico da athena")
+    // Pronoun Target Resolution
+    let pronounTarget: "ATHENA" | "USER_SYSTEM" | "SPECIFIC_PROJECT" | "GENERAL" = "GENERAL";
+    if (
+      clean.includes("como voce esta") ||
+      clean.includes("tudo bem com voce") ||
+      clean.includes("sentiu minha falta") || clean.includes("voce acha")
     ) {
-      intent = "ATHENA_SELF_STATUS";
-      mode = "casual";
-    }
-    // 3. Brainstorming & Ideation (BRAINSTORM) -> "me dê ideias", "que projeto começar", "o que criar"
-    else if (
-      lower.includes("ideia") || lower.includes("ideias") ||
-      lower.includes("que projeto") || lower.includes("qual projeto") ||
-      lower.includes("comecar projeto") || lower.includes("começar projeto") ||
-      lower.includes("iniciar projeto") || lower.includes("criar projeto") ||
-      lower.includes("o que acha de") || lower.includes("o que você acha de") ||
-      lower.includes("sugira") || lower.includes("sugestao") || lower.includes("sugestão") ||
-      lower.includes("brainstorm") || lower.includes("o que criar") ||
-      lower.includes("me recomende algo") || lower.includes("tema interessante")
+      pronounTarget = "ATHENA";
+    } else if (
+      clean.includes("meu sistema") || clean.includes("minha situacao") ||
+      clean.includes("meus projetos") || clean.includes("minhas tarefas") || clean.includes("meus prazos")
     ) {
-      intent = "BRAINSTORM";
-      mode = "brainstorm";
-    }
-    // 4. Explicit Ecosystem Briefing Request (ECOSYSTEM_BRIEFING)
-    else if (
-      lower.includes("me de um briefing") || lower.includes("me dê um briefing") ||
-      lower.includes("o que mudou no varynth") || lower.includes("o que mudou nos meus projetos") ||
-      lower.includes("o que aconteceu desde a ultima vez") || lower.includes("o que aconteceu desde a última vez") ||
-      lower.includes("me atualize sobre minhas coisas") ||
-      lower.includes("algo importante que eu deveria saber") ||
-      lower.includes("resumo executivo do dia") ||
-      ((lastUserMsg.includes("fiquei") && lastUserMsg.includes("sem abrir")) || lastAthenaMsg.includes("coisas para revisar")) &&
-      (lower.includes("como estao as coisas") || lower.includes("como estão as coisas") || lower.includes("o que temos"))
+      pronounTarget = "USER_SYSTEM";
+    } else if (
+      clean.includes("seu sistema") || clean.includes("seu kernel") || clean.includes("sua memoria")
     ) {
-      intent = "ECOSYSTEM_BRIEFING";
-      mode = "casual";
-    }
-    // 5. Ecosystem & User Data Status (ECOSYSTEM_STATUS)
-    else if (
-      lower.includes("minha situacao no sistema") || lower.includes("minha situação no sistema") ||
-      lower.includes("como estao meus projetos") || lower.includes("como estão meus projetos") ||
-      lower.includes("como estao minhas tarefas") || lower.includes("como estão minhas tarefas") ||
-      lower.includes("tenho muita coisa pendente") || lower.includes("o que tenho pendente") ||
-      lower.includes("quais sao meus prazos") || lower.includes("quais meus prazos") ||
-      lower.includes("quando vence") || lower.includes("quais editais") ||
-      lower.includes("como esta o varynth") || lower.includes("como está o varynth")
+      pronounTarget = "ATHENA";
+    } else if (
+      clean.includes("esse projeto") || clean.includes("aquele projeto") || clean.includes("este projeto")
     ) {
-      intent = "ECOSYSTEM_STATUS";
-      mode = "casual";
-      if (lower.includes("tarefa") || lower.includes("pendente")) relevantModule = "tasks";
-      else if (lower.includes("projeto")) relevantModule = "projects";
-      else if (lower.includes("prazo") || lower.includes("vence")) relevantModule = "chronos";
-      else if (lower.includes("edital")) relevantModule = "general";
+      pronounTarget = "SPECIFIC_PROJECT";
     }
-    // 6. Epistemic & Concept Inquiry (CONCEPT_INQUIRY)
-    else if (
-      lower.startsWith("o que e ") || lower.startsWith("o que é ") ||
-      lower.startsWith("qual e ") || lower.startsWith("qual é ") ||
-      lower.startsWith("o que significa ") ||
-      lower.includes("voce sabe o que e") || lower.includes("você sabe o que é") ||
-      lower.includes("voce sabe o que") || lower.includes("você sabe o que") ||
-      lower.includes("me explica ") || lower.includes("me explique ") ||
-      lower.includes("latim") || lower.includes("jogo") || lower.includes("hermeneutica") ||
-      lower.includes("metodo cientifico") || lower.includes("epistemologia")
+
+    // -------------------------------------------------------------
+    // 2. CONTEXTUAL ELLIPSIS RESOLUTION
+    // -------------------------------------------------------------
+    let isEllipsis = false;
+    let originalReferent: string | undefined;
+    let resolvedMeaning: string | undefined;
+
+    // Ellipsis Case A: "o segundo", "o primeiro", "esse", "essa"
+    if (
+      clean === "o segundo" || clean === "a segunda" || clean === "o primeiro" || clean === "a primeira" ||
+      clean === "e o segundo" || clean === "e o primeiro" || clean === "esse" || clean === "essa"
     ) {
-      intent = "CONCEPT_INQUIRY";
-      mode = "casual";
+      isEllipsis = true;
+      if (state.recentEntities.length >= 2) {
+        if (clean.includes("segund")) {
+          originalReferent = state.recentEntities[1];
+          resolvedMeaning = `Analisar ou continuar discussão sobre o segundo item recente: "${state.recentEntities[1]}"`;
+          referencedEntityName = state.recentEntities[1];
+        } else if (clean.includes("primeir")) {
+          originalReferent = state.recentEntities[0];
+          resolvedMeaning = `Analisar ou continuar discussão sobre o primeiro item recente: "${state.recentEntities[0]}"`;
+          referencedEntityName = state.recentEntities[0];
+        }
+      }
     }
-    // 7. Analysis & Review (ANALYSIS)
+
+    // Ellipsis Case B: "por que?", "porque?"
+    if (clean === "por que" || clean === "porque" || clean.startsWith("por que") || clean.startsWith("porque")) {
+      isEllipsis = true;
+      if (state.recentRecommendations && state.recentRecommendations.length > 0) {
+        originalReferent = state.recentRecommendations[0];
+        resolvedMeaning = `Explicar a justificativa e os fundamentos da recomendação anterior ("${state.recentRecommendations[0]}")`;
+      } else if (lastAthenaTurn) {
+        resolvedMeaning = `Explicar as razões e fundamentos da resposta anterior da Athena`;
+      }
+    }
+
+    // Ellipsis Case C: "continue", "prossiga", "mais", "e depois?"
+    if (clean === "continue" || clean === "prossiga" || clean === "e depois" || clean === "e o que mais") {
+      isEllipsis = true;
+      resolvedMeaning = `Continuar o aprofundamento do raciocínio anterior`;
+    }
+
+    // Ellipsis Case D: "critique essa ideia", "compare os dois"
+    if (clean.includes("critique") || clean.includes("critica")) {
+      isEllipsis = true;
+      if (state.recentEntities.length > 0) {
+        originalReferent = state.recentEntities[0];
+        resolvedMeaning = `Apresentar crítica e objeções à iniciativa recente: "${state.recentEntities[0]}"`;
+      }
+    }
+
+    if (clean.includes("compare") || clean.includes("comparar")) {
+      isEllipsis = true;
+      if (state.recentEntities.length >= 2) {
+        resolvedMeaning = `Comparar as duas iniciativas recentes: "${state.recentEntities[0]}" e "${state.recentEntities[1]}"`;
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 3. TOP-LEVEL INTERACTION CLASS & INTENT COMPOSITION
+    // -------------------------------------------------------------
+    let interactionType: InteractionType = "CONVERSATION";
+    const intents: CognitiveIntent[] = [];
+    let confidence: ConfidenceLevel = "HIGH";
+    let requiresContext = false;
+    let requiresAction = false;
+    let subject = "GENERAL";
+
+    // Check Operational Request (MUTATION)
+    const isOperational =
+      clean.startsWith("crie uma tarefa") ||
+      clean.startsWith("criar tarefa") ||
+      clean.startsWith("nova tarefa") ||
+      clean.startsWith("adicione uma tarefa") ||
+      clean.startsWith("adicionar tarefa") ||
+      clean.startsWith("crie uma nota") ||
+      clean.startsWith("criar nota") ||
+      clean.startsWith("anote isso") ||
+      clean.startsWith("anotar") ||
+      clean.startsWith("excluir") ||
+      clean.startsWith("apagar") ||
+      clean.startsWith("deletar") ||
+      clean.startsWith("remover") ||
+      clean.includes("mover para a lixeira") ||
+      clean.includes("esvaziar lixeira");
+
+    if (isOperational) {
+      interactionType = "OPERATIONAL_REQUEST";
+      intents.push("EXECUTION_REQUEST");
+      requiresAction = true;
+      requiresContext = true;
+      subject = "DATABASE_MUTATION";
+    }
+    // Check Athena Self Diagnostic
     else if (
-      lower.includes("analisar tese") ||
-      lower.includes("analise juridica") ||
-      lower.includes("precedente vinculante") ||
-      lower.includes("metodologia cientifica") ||
-      lower.includes("evidence board")
+      clean.includes("seu kernel") ||
+      clean.includes("sua memoria") ||
+      clean.includes("problema na sua memoria") ||
+      clean.includes("seus modulos") ||
+      clean.includes("como esta seu sistema") ||
+      clean.includes("voce esta funcionando") ||
+      clean.includes("diagnostico da athena")
     ) {
-      intent = "ANALYSIS";
-      mode = "analysis";
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("ATHENA_SELF_STATUS");
+      subject = "ATHENA_HEALTH";
+      requiresContext = false;
     }
-    // 8. Social Conversation directed to Athena's persona (SOCIAL_CONVERSATION)
+    // Check Ecosystem / System Status (Adversarial: "como esta o varynth", "como esta aquele projeto")
     else if (
-      lower.includes("como voce esta") || lower.includes("como você está") ||
-      lower.includes("tudo bem com voce") || lower.includes("tudo bem com você") ||
-      lower.includes("tudo bem") || lower.includes("como vai") ||
-      lower.includes("e ai athena") || lower.includes("e aí athena") ||
-      lower.includes("como anda voce") || lower.includes("como anda você") ||
-      lower.includes("sentiu minha falta") ||
-      lower.includes("que novidade voce tem") || lower.includes("que novidade você tem") ||
-      lower.includes("o que me conta") || lower.includes("o que me diz") ||
-      lower === "oi" || lower === "ola" || lower === "olá" ||
-      lower.startsWith("ola") || lower.startsWith("olá") || lower.startsWith("oi") ||
-      lower.startsWith("bom dia") || lower.startsWith("boa tarde") || lower.startsWith("boa noite") ||
-      lower.includes("kkk") || lower.includes("rsrs") || lower.includes("ta foda") || lower.includes("tá foda")
+      clean.includes("minha situacao") ||
+      clean.includes("como esta o varynth") ||
+      clean.includes("como estao meus projetos") ||
+      clean.includes("como estao minhas tarefas") ||
+      clean.includes("como esta aquele projeto") ||
+      clean.includes("como esta esse projeto") ||
+      clean.includes("meus prazos") ||
+      clean.includes("tenho muita coisa pendente") ||
+      clean.includes("o que tenho pendente")
     ) {
-      intent = "SOCIAL_CONVERSATION";
-      mode = "casual";
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("ECOSYSTEM_STATUS");
+      subject = "USER_RESOURCES";
+      requiresContext = true;
     }
-    // 9. Ambiguous or General Dialogue
+    // Check Cognitive Requests (CRITIQUE, COMPARE, IDEAS, RECOMMEND, ANALYZE, EXPLAIN, PLAN, BRIEFS)
+    else if (
+      clean.includes("critique") || clean.includes("critica") ||
+      clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
+      clean.includes("ideia") || clean.includes("ideias") ||
+      clean.includes("inventar") || clean.includes("criar") ||
+      clean.includes("pensar em") || clean.includes("projeto novo") || clean.includes("novo projeto") ||
+      clean.includes("que projeto") || clean.includes("qual projeto") ||
+      clean.includes("comecar") || clean.includes("iniciar") ||
+      clean.includes("recomende") || clean.includes("recomendacao") ||
+      clean.includes("sugira") || clean.includes("sugestao") ||
+      clean.includes("o que acha") || clean.includes("o que fazer") ||
+      clean.includes("analisar") || clean.includes("analise") ||
+      clean.includes("explique") || clean.includes("o que e") ||
+      clean.includes("voce sabe o que") ||
+      clean.includes("planeje") || clean.includes("plano") ||
+      clean.includes("briefing") || clean.includes("o que mudou") ||
+      isEllipsis
+    ) {
+      interactionType = "COGNITIVE_REQUEST";
+      requiresContext = true;
+
+      // Priority 1: Critique
+      if (clean.includes("critique") || clean.includes("critica") || clean.includes("ponto fraco") || clean.includes("ponto cego")) {
+        intents.push("CRITIQUE");
+      }
+      // Priority 2: Compare
+      else if (clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") || clean.includes("versus")) {
+        intents.push("COMPARE");
+      }
+      // Priority 3: Brainstorm & Recommend
+      else {
+        if (
+          clean.includes("ideia") || clean.includes("ideias") ||
+          clean.includes("inventar") || clean.includes("criar") ||
+          clean.includes("pensar") || clean.includes("brainstorm")
+        ) {
+          intents.push("BRAINSTORM");
+        }
+        if (
+          clean.includes("qual projeto") || clean.includes("que projeto") ||
+          clean.includes("projeto novo") || clean.includes("novo projeto") ||
+          clean.includes("recomende") || clean.includes("sugira") || clean.includes("comecar")
+        ) {
+          intents.push("RECOMMEND");
+          subject = "PROJECT";
+        }
+        if (clean.includes("analise") || clean.includes("analisar") || clean.includes("examine")) {
+          intents.push("ANALYZE");
+        }
+        if (clean.includes("o que e") || clean.includes("explique") || clean.includes("voce sabe o que")) {
+          intents.push("EXPLAIN");
+        }
+        if (clean.includes("planeje") || clean.includes("plano") || clean.includes("cronograma")) {
+          intents.push("PLAN");
+        }
+        if (clean.includes("briefing") || clean.includes("o que mudou no varynth")) {
+          intents.push("ECOSYSTEM_BRIEFING");
+          subject = "SYSTEM_ECOSYSTEM";
+        }
+      }
+
+      if (isEllipsis) {
+        if (clean.includes("por que") || clean.includes("porque")) {
+          intents.push("EXPLAIN");
+        } else if (clean.includes("continue") || clean.includes("prossiga")) {
+          intents.push("CONTINUE");
+        } else if (clean.includes("segund") || clean.includes("primeir")) {
+          intents.push("ANALYZE");
+          intents.push("RECOMMEND");
+        }
+      }
+
+      if (intents.length === 0) {
+        intents.push("EXPLORE");
+      }
+    }
+    // Check Social Conversation & Fast Chit-Chat
     else {
-      intent = "SOCIAL_CONVERSATION";
-      mode = "casual";
+      interactionType = "CONVERSATION";
+      intents.push("SOCIAL_CONVERSATION");
+      requiresContext = false;
+
+      // Handle casual humor
+      if (clean.includes("kkk") || clean.includes("rsrs") || clean.includes("haha")) {
+        subject = "CASUAL_HUMOR";
+      }
     }
 
-    state.mode = mode;
+    // Temporal Context Extraction
+    let temporalContext: ParsedCognitiveContext["temporalContext"] = "NONE";
+    if (clean.includes("hoje")) temporalContext = "TODAY";
+    else if (clean.includes("esta semana") || clean.includes("essa semana")) temporalContext = "THIS_WEEK";
+    else if (clean.includes("amanha") || clean.includes("futuro")) temporalContext = "FUTURE";
+    else if (clean.includes("ontem") || clean.includes("passado")) temporalContext = "PAST";
 
-    // Record interaction in history
-    history.push({ role: "user", text: prompt });
+    // Track user turn in history
+    history.push({
+      role: "user",
+      text: prompt,
+      timestamp: new Date().toISOString(),
+      intents,
+      entities: referencedEntityName ? [referencedEntityName] : [],
+      projectReferenced: targetProjectTitle,
+    });
     if (history.length > 20) history.shift();
     this.sessionHistories.set(sessionId, history);
 
-    // Anaphora & Reference Resolution
-    let targetProjectId = activeProjectId || state.currentProjectId;
-    let targetProjectTitle: string | undefined;
-    let isAmbiguousReference = false;
-    let ambiguousTerm: string | undefined;
-
-    const matchedProject = allProjects.find((p) =>
-      lower.includes(p.title.toLowerCase())
-    );
-
-    if (matchedProject) {
-      targetProjectId = matchedProject.id;
-      targetProjectTitle = matchedProject.title;
-      state.currentProjectId = matchedProject.id;
-      if (!state.recentEntities.includes(matchedProject.title)) {
-        state.recentEntities = [matchedProject.title, ...state.recentEntities].slice(0, 5);
-      }
-      state.currentTopic = matchedProject.title;
-    } else if (
-      lower.includes("esse projeto") ||
-      lower.includes("este projeto") ||
-      lower.includes("nesse projeto") ||
-      lower.includes("no projeto")
-    ) {
-      if (targetProjectId) {
-        const proj = allProjects.find((p) => p.id === targetProjectId);
-        targetProjectTitle = proj?.title;
-      } else if (allProjects.length === 1) {
-        targetProjectId = allProjects[0].id;
-        targetProjectTitle = allProjects[0].title;
-        state.currentProjectId = targetProjectId;
-      } else if (allProjects.length > 1) {
-        isAmbiguousReference = true;
-        ambiguousTerm = "esse projeto";
-      }
-    }
-
     return {
-      intent,
-      mode,
-      targetProjectId,
-      targetProjectTitle,
-      isAmbiguousReference,
-      ambiguousTerm,
-      topic: state.currentTopic,
-      relevantModule,
+      interactionType,
+      intents,
+      subject,
+      temporalContext,
+      confidence,
+      requiresContext,
+      requiresAction,
+      resolvedEntities: {
+        targetProjectId,
+        targetProjectTitle,
+        referencedEntityName,
+        pronounTarget,
+      },
+      ellipsisResolved: isEllipsis
+        ? {
+            isEllipsis: true,
+            originalReferent,
+            resolvedMeaning,
+          }
+        : undefined,
+      isAmbiguous: false,
     };
   }
 
-  recordAssistantResponse(sessionId: string, text: string): void {
+  recordAssistantResponse(sessionId: string, text: string, recommendations?: string[], critiques?: string[]): void {
     const history = this.sessionHistories.get(sessionId) || [];
-    history.push({ role: "athena", text });
+    history.push({
+      role: "athena",
+      text,
+      timestamp: new Date().toISOString(),
+    });
     if (history.length > 20) history.shift();
     this.sessionHistories.set(sessionId, history);
+
+    const state = this.getOrCreateSession(sessionId);
+    if (recommendations && recommendations.length > 0) {
+      state.recentRecommendations = recommendations;
+    }
+    if (critiques && critiques.length > 0) {
+      state.recentCritiques = critiques;
+    }
   }
 
   updateSessionWithHistory(sessionId: string, messages: AthenaMessage[]): void {

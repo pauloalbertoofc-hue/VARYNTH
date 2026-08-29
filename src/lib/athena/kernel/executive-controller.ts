@@ -39,25 +39,18 @@ export class ExecutiveController {
       targetProjectId
     );
 
-    const resolvedProjectId = convContext.targetProjectId || targetProjectId;
+    const resolvedProjectId = convContext.resolvedEntities.targetProjectId || targetProjectId;
 
     // 2. Handle Ambiguous Reference if detected (Never guess silently)
-    if (convContext.isAmbiguousReference && convContext.ambiguousTerm) {
-      const candidates = storeCtx.projects.map((p) => p.title);
-      const clarificationText = athenaPersonaEngine.generateClarificationQuestion(
-        convContext.ambiguousTerm,
-        candidates
-      );
-
+    if (convContext.isAmbiguous && convContext.clarificationPrompt) {
       const response: AthenaResponse = {
         id: "ath-" + Date.now(),
         sender: "athena",
-        text: clarificationText,
+        text: convContext.clarificationPrompt,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         scope,
         metadata: {
-          intent: convContext.intent,
-          mode: convContext.mode,
+          intents: convContext.intents,
         },
       };
 
@@ -65,31 +58,28 @@ export class ExecutiveController {
       return response;
     }
 
-    // 3. Handle Conversational, Self-Status, Concept, Briefing & Brainstorm Messages
-    if (convContext.intent !== "EXECUTION_REQUEST") {
+    // 3. Handle Conversational, Cognitive & Brainstorm Messages (Non-Mutations)
+    if (convContext.interactionType !== "OPERATIONAL_REQUEST") {
       const activeProj = resolvedProjectId
         ? storeCtx.projects.find((p) => p.id === resolvedProjectId)
         : undefined;
 
-      const dialogueText = athenaPersonaEngine.generateDialogueResponse(
+      const result = athenaPersonaEngine.generateDialogueResponse(
         rawPrompt,
-        convContext.mode,
-        convContext.topic,
+        convContext,
         activeProj?.title,
-        storeCtx as any,
-        convContext.intent,
-        convContext.relevantModule
+        storeCtx as any
       );
 
       const response: AthenaResponse = {
         id: "ath-" + Date.now(),
         sender: "athena",
-        text: dialogueText,
+        text: result.text,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         scope,
         metadata: {
-          intent: convContext.intent,
-          mode: convContext.mode,
+          interactionType: convContext.interactionType,
+          intents: convContext.intents,
           resolvedProjectId,
         },
       };
@@ -159,7 +149,7 @@ export class ExecutiveController {
       confidenceScore: confidence.score,
       budgetTier: budget.tier,
       provenanceCount: provenanceTracker.getRecentProvenance().length,
-      intent: convContext.intent,
+      intents: convContext.intents,
       mode: convContext.mode,
     };
 

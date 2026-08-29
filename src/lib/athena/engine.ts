@@ -17,6 +17,8 @@ import { athenaResponseBuilder } from "./kernel/response-builder";
 import { athenaConversationManager } from "./conversation/conversation-manager";
 import { athenaPersonaEngine } from "./persona/persona-engine";
 import { ollamaAdapter } from "./models/providers/ollama-adapter";
+import { responseCompletenessValidator } from "./conversation/completeness-validator";
+import { InteractionDebugInfo } from "./domain/conversation";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -31,7 +33,7 @@ export interface AthenaEngineContext {
 }
 
 /**
- * High-level async facade for Athena Cognitive Kernel with Automatic Local Model Detection.
+ * High-level async facade for Athena Cognitive Kernel with 3-Path Contextual Execution.
  */
 export async function processAthenaQueryAsync(
   rawPrompt: string,
@@ -42,36 +44,35 @@ export async function processAthenaQueryAsync(
 ): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
 
-  // 1. Conversation Manager & Anaphora Resolution
-  const convContext = athenaConversationManager.processMessage(
+  // 1. Contextual Perception & Intent Composition
+  const parsed = athenaConversationManager.processMessage(
     sessionId,
     prompt,
     ctx.projects,
     targetProjectId
   );
 
-  const resolvedProjectId = convContext.targetProjectId || targetProjectId;
+  const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
 
-  // 2. Handle Ambiguous References (e.g. "esse projeto" when none is active)
-  if (convContext.isAmbiguousReference && convContext.ambiguousTerm) {
-    const candidates = ctx.projects.map((p) => p.title);
+  // 2. Ambiguity Handling (Dangerous / Relevant Ambiguity)
+  if (parsed.isAmbiguous && parsed.clarificationPrompt) {
     return {
       id: "ath-" + Date.now(),
       sender: "athena",
-      text: athenaPersonaEngine.generateClarificationQuestion(convContext.ambiguousTerm, candidates),
+      text: parsed.clarificationPrompt,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       scope,
     };
   }
 
-  // 3. Operational Execution Commands ALWAYS execute via deterministic Action Layer
-  if (convContext.intent === "EXECUTION_REQUEST") {
+  // 3. OPERATIONAL PATH: System Mutation Commands
+  if (parsed.interactionType === "OPERATIONAL_REQUEST") {
     return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
   }
 
-  // 4. Auto-detect Local Ollama Neural Engine (127.0.0.1:11434)
+  // 4. COGNITIVE PATH via Local Neural Engine (when Ollama is active on 127.0.0.1:11434)
   const isOllamaOnline = await ollamaAdapter.isAvailable();
-  if (isOllamaOnline && ollamaAdapter.activeModel) {
+  if (isOllamaOnline && ollamaAdapter.activeModel && parsed.interactionType === "COGNITIVE_REQUEST") {
     try {
       const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
       const contextData = {
@@ -83,7 +84,7 @@ export async function processAthenaQueryAsync(
       };
 
       const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
-Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil de forma natural e engajante.
+Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
 Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
 
       const modelResponse = await ollamaAdapter.generate({
@@ -94,45 +95,72 @@ Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
       });
 
       if (modelResponse.content && modelResponse.content.trim().length > 0) {
+        const replyText = modelResponse.content.trim();
+        athenaConversationManager.recordAssistantResponse(sessionId, replyText);
+
         return {
           id: "ath-" + Date.now(),
           sender: "athena",
-          text: modelResponse.content.trim(),
+          text: replyText,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           scope,
           metadata: {
             engine: "ollama-local",
             model: ollamaAdapter.activeModel,
+            debug: {
+              interactionType: parsed.interactionType,
+              detectedIntents: parsed.intents,
+              resolvedSubject: parsed.subject,
+              contextUsed: ["Projects", "Tasks", "Vault", "Chronos"],
+              confidence: parsed.confidence,
+              selectedPath: "COGNITIVE_PATH",
+              ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
+            } as InteractionDebugInfo,
           },
         };
       }
     } catch {
-      // Fallback seamlessly to deterministic Persona if local model inference fails
+      // Fallback seamlessly to deterministic Persona
     }
   }
 
-  // 5. Fallback to Deterministic Persona Dialogue (0 ms, 100% offline)
+  // 5. DETERMINISTIC COGNITIVE / FAST CONVERSATION PATH (0 ms, 100% offline)
   const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
-  const replyText = athenaPersonaEngine.generateDialogueResponse(
+  const result = athenaPersonaEngine.generateDialogueResponse(
     prompt,
-    convContext.mode,
-    convContext.topic,
+    parsed,
     activeProj?.title,
-    ctx,
-    convContext.intent,
-    convContext.relevantModule
+    ctx
   );
 
-  athenaConversationManager.recordAssistantResponse(sessionId, replyText);
+  // Validate Completeness
+  responseCompletenessValidator.validate(parsed, result.text);
+
+  // Record in History for future turns / ellipses
+  athenaConversationManager.recordAssistantResponse(
+    sessionId,
+    result.text,
+    result.recommendations,
+    result.critiques
+  );
 
   return {
     id: "ath-" + Date.now(),
     sender: "athena",
-    text: replyText,
+    text: result.text,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     scope,
     metadata: {
       engine: "deterministic-core",
+      debug: {
+        interactionType: parsed.interactionType,
+        detectedIntents: parsed.intents,
+        resolvedSubject: parsed.subject,
+        contextUsed: parsed.requiresContext ? ["Projects", "Tasks", "Vault", "Codex"] : [],
+        confidence: parsed.confidence,
+        selectedPath: parsed.interactionType === "CONVERSATION" ? "FAST_CONVERSATION_PATH" : "COGNITIVE_PATH",
+        ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
+      } as InteractionDebugInfo,
     },
   };
 }
@@ -148,50 +176,38 @@ export function processAthenaQuery(
   sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
-  const convContext = athenaConversationManager.processMessage(
+  const parsed = athenaConversationManager.processMessage(
     sessionId,
     prompt,
     ctx.projects,
     targetProjectId
   );
 
-  const resolvedProjectId = convContext.targetProjectId || targetProjectId;
+  const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
 
-  if (convContext.isAmbiguousReference && convContext.ambiguousTerm) {
-    const candidates = ctx.projects.map((p) => p.title);
-    return {
-      id: "ath-" + Date.now(),
-      sender: "athena",
-      text: athenaPersonaEngine.generateClarificationQuestion(convContext.ambiguousTerm, candidates),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      scope,
-    };
-  }
-
-  if (convContext.intent === "EXECUTION_REQUEST") {
+  if (parsed.interactionType === "OPERATIONAL_REQUEST") {
     return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
   }
 
-  const activeProj = resolvedProjectId
-    ? ctx.projects.find((p) => p.id === resolvedProjectId)
-    : undefined;
-
-  const replyText = athenaPersonaEngine.generateDialogueResponse(
+  const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
+  const result = athenaPersonaEngine.generateDialogueResponse(
     prompt,
-    convContext.mode,
-    convContext.topic,
+    parsed,
     activeProj?.title,
-    ctx,
-    convContext.intent,
-    convContext.relevantModule
+    ctx
   );
 
-  athenaConversationManager.recordAssistantResponse(sessionId, replyText);
+  athenaConversationManager.recordAssistantResponse(
+    sessionId,
+    result.text,
+    result.recommendations,
+    result.critiques
+  );
 
   return {
     id: "ath-" + Date.now(),
     sender: "athena",
-    text: replyText,
+    text: result.text,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     scope,
   };
