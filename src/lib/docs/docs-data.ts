@@ -220,6 +220,21 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Estúdios audiovisuais e de jogos aguardam a maturação dos estúdios fundamentais"],
     },
   },
+  {
+    id: "ADR-012",
+    number: "ADR-012",
+    title: "Document Studio como Primeira Implementação de Estúdio",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Validar a Creation Foundation em um estúdio leve e determinístico antes de avançar para estúdios audiovisuais pesados.",
+    decision: "Construir o Document Studio como primeiro estúdio oficial, estabelecendo o padrão StudioShell, outline hierárquico, sugestões da Athena e exportação multiplataforma.",
+    rationale: "Permite consolidar artefatos, versionamento, persistência e IA com máxima fidelidade e baixo consumo de recursos.",
+    alternatives: ["Iniciar pelo Web Studio", "Criar um editor de texto genérico sem modelo Artifact"],
+    consequences: {
+      gains: ["Validação integral da Creation Foundation", "Componentes reutilizáveis para futuros estúdios", "Geração de roteiros para o Video Studio"],
+      tradeoffs: ["Foco inicial no padrão estruturado Markdown"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

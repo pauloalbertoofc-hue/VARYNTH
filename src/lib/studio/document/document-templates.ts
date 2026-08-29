@@ -1,0 +1,87 @@
+import { DocumentTemplate } from "./types";
+
+export const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
+  {
+    id: "blank",
+    name: "Documento em Branco",
+    type: "GENERIC",
+    description: "Inicie um documento livre a partir de uma estrutura vazia.",
+    initialContent: `# Novo Documento\n\nComece a escrever seu texto aqui...\n`,
+    outline: ["Novo Documento"],
+  },
+  {
+    id: "academic-article",
+    name: "Artigo Acadêmico / Tratado",
+    type: "ARTICLE",
+    description: "Estrutura científica rigorosa com resumo, metodologia, fundamentação e referências bibliográficas.",
+    initialContent: `# Título do Artigo Acadêmico\n\n**Resumo**\nBreve síntese do objeto de estudo, metodologia empregada e principais conclusões obtidas.\n\n**Palavras-chave:** Filosofia, Epistemologia, Direito, Inteligência Artificial.\n\n---\n\n## 1. Introdução\nDelimitação do problema e hipótese central de pesquisa.\n\n## 2. Revisão da Literatura\nEstado da arte e interlocução com os autores seminais.\n\n## 3. Metodologia\nAbordagem analítica e critérios de validação empírica/conceitual.\n\n## 4. Resultados & Discussão\nDemonstração das teses e cotejo com dados.\n\n## 5. Conclusão\nSíntese dos achados e diretrizes para investigações futuras.\n\n## 6. Referências Bibliográficas\n- Referência 1\n- Referência 2\n`,
+    outline: [
+      "Título do Artigo Acadêmico",
+      "1. Introdução",
+      "2. Revisão da Literatura",
+      "3. Metodologia",
+      "4. Resultados & Discussão",
+      "5. Conclusão",
+      "6. Referências Bibliográficas",
+    ],
+  },
+  {
+    id: "research-report",
+    name: "Relatório de Pesquisa",
+    type: "RESEARCH",
+    description: "Relatório técnico executivo focado em descobertas, métricas e recomendações práticas.",
+    initialContent: `# Relatório de Pesquisa & Descobertas\n\n## Sumário Executivo\nVisão de alto nível das conclusões e impactos operacionais.\n\n## 1. Contexto & Objetivos\nPor que esta pesquisa foi conduzida e quais perguntas visava responder.\n\n## 2. Dados & Evidências Coletadas\nIndicadores, testes e registros empíricos.\n\n## 3. Análise de Impacto & Riscos\nPontos de atenção, vulnerabilidades e potenciais ganhos.\n\n## 4. Recomendações & Próximos Passos\nPlano de ação prioritário.\n`,
+    outline: [
+      "Relatório de Pesquisa & Descobertas",
+      "Sumário Executivo",
+      "1. Contexto & Objetivos",
+      "2. Dados & Evidências Coletadas",
+      "3. Análise de Impacto & Riscos",
+      "4. Recomendações & Próximos Passos",
+    ],
+  },
+  {
+    id: "legal-analysis",
+    name: "Parecer / Análise Jurídica",
+    type: "LEGAL_DOCUMENT",
+    description: "Peça jurídica estruturada com fatos, questão controvertida, fundamentação legal e conclusão.",
+    initialContent: `# Parecer Jurídico nº 01/2026\n\n**Interessado:** VARYNTH Architecture Board  \n**Assunto:** Análise de Conformidade e Governança Epistêmica\n\n---\n\n## I. Relatório dos Fatos\nExposição cronológica e objetiva dos acontecimentos submetidos a exame.\n\n## II. Questão Jurídica Controvertida\nDelimitação precisa da controvérsia sob a ótica dogmática e legal.\n\n## III. Fundamentação & Doutrina\nAnálise hermenêutica das normas aplicáveis, jurisprudência e doutrina consolidada.\n\n## IV. Conclusão & Dispositivo\nResposta conclusiva à consulta com fixação da tese jurídica.\n`,
+    outline: [
+      "Parecer Jurídico nº 01/2026",
+      "I. Relatório dos Fatos",
+      "II. Questão Jurídica Controvertida",
+      "III. Fundamentação & Doutrina",
+      "IV. Conclusão & Dispositivo",
+    ],
+  },
+  {
+    id: "video-script",
+    name: "Roteiro Audiovisual (Video Script)",
+    type: "SCRIPT",
+    description: "Estrutura de cenas, narração, elementos visuais e marcações para futura adaptação em vídeo.",
+    initialContent: `# Roteiro: Título do Episódio\n\n**Duração Estimada:** 05:00 min  \n**Público-Alvo:** Comunidade Técnica e Pesquisadores\n\n---\n\n### Cena 1 — Abertura & Hook (00:00 - 00:45)\n- **Visual:** Logo do VARYNTH em animação geométrica.\n- **Narração:** "A arquitetura de sistemas operacionais cognitivos não pode depender de servidores externos..."\n- **Trilha Sonora:** Ambiente futurista e suave.\n\n### Cena 2 — O Problema do Acoplamento (00:45 - 02:00)\n- **Visual:** Diagrama mostrando quebra de dados em APIs proprietárias.\n- **Narração:** "Quando um modelo assume autoridade total sobre o Core, a segurança entra em colapso."\n\n### Cena 3 — A Solução Local-First (02:00 - 04:00)\n- **Visual:** Telas do Document Studio e VersionManager em ação.\n- **Narração:** "O princípio Alex garante que o passado nunca seja destruído."\n\n### Cena 4 — Conclusão & Chamada (04:00 - 05:00)\n- **Visual:** Resumo dos 6 Studios.\n- **Narração:** "Construa com soberania. Até o próximo módulo."\n`,
+    outline: [
+      "Roteiro: Título do Episódio",
+      "Cena 1 — Abertura & Hook",
+      "Cena 2 — O Problema do Acoplamento",
+      "Cena 3 — A Solução Local-First",
+      "Cena 4 — Conclusão & Chamada",
+    ],
+  },
+  {
+    id: "technical-manual",
+    name: "Manual Técnico & Arquitetura",
+    type: "MANUAL",
+    description: "Manual operacional para desenvolvedores com pré-requisitos, especificações e contratos.",
+    initialContent: `# Manual Técnico: Nome do Módulo\n\n## 1. Visão Geral da Arquitetura\nPropósito do subsistema e relações com outros componentes do VARYNTH OS.\n\n## 2. Contratos & Tipos (TypeScript)\nDefinição das interfaces e tipos fundamentais.\n\n## 3. Fluxo de Execução & Ciclo de Vida\nPasso a passo da interação entre as camadas.\n\n## 4. Guia de Integração & Exemplos\nComo utilizar a API em novos componentes.\n\n## 5. Resolução de Problemas (Troubleshooting)\nDiagnósticos comuns e recuperação de erros.\n`,
+    outline: [
+      "Manual Técnico: Nome do Módulo",
+      "1. Visão Geral da Arquitetura",
+      "2. Contratos & Tipos (TypeScript)",
+      "3. Fluxo de Execução & Ciclo de Vida",
+      "4. Guia de Integração & Exemplos",
+      "5. Resolução de Problemas (Troubleshooting)",
+    ],
+  },
+];
+

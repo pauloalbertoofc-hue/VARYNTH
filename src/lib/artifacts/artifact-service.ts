@@ -92,7 +92,8 @@ export class ArtifactService {
     id: string,
     updates: Partial<Pick<Artifact, "name" | "description" | "metadata" | "tags" | "assetFileIds">>,
     actor: ArtifactActor = "USER",
-    changeSummary = "Modificação estrutural do artefato"
+    changeSummary = "Modificação estrutural do artefato",
+    skipSnapshot = false
   ): Promise<{ success: boolean; artifact?: Artifact; requiresConfirmation?: boolean; error?: string }> {
     const artifact = artifactStore.getById(id);
     if (!artifact) {
@@ -116,7 +117,9 @@ export class ArtifactService {
     }
 
     // 2. Create version snapshot before applying changes (Safety Snapshot)
-    versionManager.createSnapshot(artifact, changeSummary, actor);
+    if (!skipSnapshot) {
+      versionManager.createSnapshot(artifact, changeSummary, actor);
+    }
 
     // 3. Apply updates
     if (updates.name) artifact.name = updates.name;
@@ -250,7 +253,7 @@ export class ArtifactService {
     return artifactStore.getById(id);
   }
 
-  public removeArtifact(id: string, actor: ArtifactActor = "USER"): { success: boolean; error?: string } {
+  public async removeArtifact(id: string, actor: ArtifactActor = "USER"): Promise<{ success: boolean; error?: string }> {
     const perm = permissionPolicyEngine.evaluate({
       actor: { type: actor },
       action: "DELETE_SOFT",
@@ -269,6 +272,26 @@ export class ArtifactService {
     artifactStore.save(artifact);
 
     return { success: true };
+  }
+
+  public async moveToTrash(id: string, actor: ArtifactActor = "USER"): Promise<{ success: boolean; error?: string }> {
+    return this.removeArtifact(id, actor);
+  }
+
+  public async restoreFromTrash(id: string, actor: ArtifactActor = "USER"): Promise<{ success: boolean; artifact?: Artifact; error?: string }> {
+    const artifact = artifactStore.getById(id);
+    if (!artifact) return { success: false, error: "Artefato não encontrado" };
+    artifact.status = "DRAFT";
+    const saved = artifactStore.save(artifact);
+    return { success: true, artifact: saved };
+  }
+
+  public async linkRelationship(
+    sourceId: string,
+    relationship: { targetArtifactId: string; type: ArtifactRelationshipType; description?: string },
+    actor: ArtifactActor = "USER"
+  ): Promise<{ success: boolean; error?: string }> {
+    return this.addRelationship(sourceId, relationship.targetArtifactId, relationship.type, relationship.description);
   }
 }
 

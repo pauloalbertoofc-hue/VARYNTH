@@ -20,7 +20,8 @@
     "test:sandbox": "npx tsx src/lib/runtime/sandbox-regression.test.ts",
     "test:backup": "npx tsx src/lib/backup/backup-regression.test.ts",
     "test:persistence": "npx tsx src/lib/persistence/persistence-regression.test.ts",
-    "test:permissions": "npx tsx src/lib/permissions/permission-regression.test.ts"
+    "test:permissions": "npx tsx src/lib/permissions/permission-regression.test.ts",
+    "test:document-studio": "npx tsx src/lib/studio/document/document-studio-regression.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

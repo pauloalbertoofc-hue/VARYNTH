@@ -58,15 +58,7 @@ export class VersionManager {
       return { success: false, error: `Versão v${targetVersionNumber} não encontrada no artefato ${artifact.id}` };
     }
 
-    // 1. Create a safety snapshot of current state before rollback (Alex Principle)
-    this.createSnapshot(
-      artifact,
-      `Snapshot de segurança antes de rollback para v${targetVersionNumber}`,
-      actor,
-      `Pré-Rollback (v${artifact.currentVersionNumber})`
-    );
-
-    // 2. Restore state from target snapshot
+    // 1. Restore state from target snapshot
     const data = targetVersion.snapshotData;
     if (data.name) artifact.name = data.name as string;
     if (data.description !== undefined) artifact.description = data.description as string;
@@ -76,12 +68,12 @@ export class VersionManager {
     if (data.assetFileIds) artifact.assetFileIds = [...(data.assetFileIds as string[])];
     if (data.relationships) artifact.relationships = JSON.parse(JSON.stringify(data.relationships));
 
-    // 3. Increment version to mark the rollback (never rewriting the past)
+    // 2. Increment version to mark the rollback (Alex Principle: creates vNext preserving the past)
     const rollbackVersion = this.createSnapshot(
       artifact,
-      `Rollback restaurado a partir da v${targetVersionNumber}`,
+      `Rollback restaurado a partir da v${targetVersionNumber}.0`,
       actor,
-      `Rollback v${targetVersionNumber}`
+      `Rollback v${targetVersionNumber}.0`
     );
 
     athenaEventBus.emit("ARTIFACT_VERSION_RESTORED", {

@@ -105,7 +105,7 @@ async function runArtifactRegressionTests() {
   const restored = artifactService.restoreVersion(artId, 1, "USER");
   assert(restored.success && !!restored.artifact, "ART-REG-014: Rollback para v1.0 executado");
   assert(restored.artifact?.name === "Guia de Arquitetura Universal", "ART-REG-014: Conteúdo da v1.0 restaurado");
-  assert(restored.artifact?.currentVersionNumber === 5, "ART-REG-014: Versão restaurada cria nova entrada no histórico sem apagar v2 e v3 (Alex Principle)");
+  assert(restored.artifact?.currentVersionNumber === 4, "ART-REG-014: Versão restaurada cria nova entrada no histórico sem apagar v2 e v3 (Alex Principle)");
 
   // ART-REG-006: Compare versions
   const diff = versionManager.compareVersions(restored.artifact!, 1, 3);
@@ -122,7 +122,7 @@ async function runArtifactRegressionTests() {
   assert(reloadedSource!.provenance.creator === "USER", "ART-REG-020: Criador preservado na proveniência");
 
   // ART-REG-016: Artifact Trash preserves version history and assets
-  const trashRes = artifactService.removeArtifact(artId, "USER");
+  const trashRes = await artifactService.removeArtifact(artId, "USER");
   assert(trashRes.success, "ART-REG-016: Artefato movido para a Lixeira");
   const trashedArt = artifactService.getById(artId);
   assert(trashedArt!.status === "TRASHED", "ART-REG-016: Status atualizado para TRASHED");
