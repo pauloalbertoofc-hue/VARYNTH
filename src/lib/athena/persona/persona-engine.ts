@@ -17,9 +17,18 @@ export class AthenaPersonaEngine {
    * Searches the embedded offline Epistemic Knowledge Base for conceptual questions.
    */
   findConceptExplanation(prompt: string): EpistemicConcept | undefined {
-    const clean = prompt.toLowerCase().replace(/[.,!?;:]/g, " ").trim();
+    const clean = prompt
+      .toLowerCase()
+      .replace(/[.,!?;:]/g, " ")
+      .replace(/\bathena\b/g, "")
+      .replace(/\bathenas\b/g, "")
+      .trim();
+
     return EPISTEMIC_KNOWLEDGE_BASE.find((concept) =>
-      concept.keywords.some((kw) => clean.includes(kw))
+      concept.keywords.some((kw) => {
+        const regex = new RegExp(`\\b${kw}\\b`, "i");
+        return regex.test(clean) || clean.includes(kw);
+      })
     );
   }
 
@@ -33,9 +42,13 @@ export class AthenaPersonaEngine {
     activeProjectTitle?: string
   ): string {
     const rawLower = prompt.toLowerCase();
-    const cleanLower = rawLower.replace(/[.,!?;:]/g, " ").trim();
+    const cleanLower = rawLower
+      .replace(/[.,!?;:]/g, " ")
+      .replace(/\bathena\b/g, "")
+      .replace(/\bathenas\b/g, "")
+      .trim();
 
-    // 1. Concept Explanations ("o que é latim", "o que é hermenêutica", "o que é método científico", etc.)
+    // 1. Concept Explanations ("o que é latim", "você sabe o que é um jogo", "o que é hermenêutica", etc.)
     const concept = this.findConceptExplanation(prompt);
     if (concept) {
       return concept.explanation;
@@ -52,11 +65,9 @@ export class AthenaPersonaEngine {
       cleanLower === "ola" ||
       cleanLower === "olá" ||
       cleanLower === "oi" ||
-      cleanLower.startsWith("ola athena") ||
-      cleanLower.startsWith("olá athena") ||
-      cleanLower.startsWith("ola athenas") ||
-      cleanLower.startsWith("olá athenas") ||
-      cleanLower.startsWith("oi athena") ||
+      cleanLower.startsWith("ola") ||
+      cleanLower.startsWith("olá") ||
+      cleanLower.startsWith("oi") ||
       cleanLower.startsWith("e ai") ||
       cleanLower.startsWith("e aí") ||
       cleanLower.startsWith("bom dia") ||
@@ -90,8 +101,15 @@ export class AthenaPersonaEngine {
       cleanLower.includes("enorme") ||
       cleanLower.includes("loucura") ||
       cleanLower.includes("muita coisa") ||
-      cleanLower.includes("cansado")
+      cleanLower.includes("cansado") ||
+      cleanLower.includes("ta foda") ||
+      cleanLower.includes("tá foda") ||
+      cleanLower.includes("dificil") ||
+      cleanLower.includes("difícil")
     ) {
+      if (cleanLower.includes("foda") || cleanLower.includes("dificil")) {
+        return `Te entendo perfeitamente, Paulo! Desenvolver e orquestrar um ecossistema complexo é desafiador mesmo. Mas estamos avançando e refinando cada detalhe.\n\nMe diz: qual ponto específico você quer que a gente descomplique ou destrave agora?`;
+      }
       if (activeProjectTitle) {
         return `Kkkk realmente! O projeto **"${activeProjectTitle}"** está crescendo em um ritmo impressionante. Mas o bom do VARYNTH é que a gente não precisa guardar tudo na cabeça ao mesmo tempo.\n\nSe você quiser, a gente pode dar uma respirada e elencar só os 2 ou 3 pontos mais cruciais para hoje. O que acha?`;
       }
@@ -108,26 +126,38 @@ export class AthenaPersonaEngine {
       return `Gostei dessa reflexão! Olhando para essa ideia por alguns ângulos:\n\n1. **Oportunidade Principal:** Isso pode se conectar diretamente com o material que você já fichou no Vault e gerar uma entrega com muita autoridade.\n2. **Atenção aos Prazos:** Vale ponderar como encaixar essa nova frente sem sobrecarregar as entregas que já estão no Chronos.\n3. **Direção Prática:** Podemos rascunhar um experimento no Labs para testar a tração antes de virar um projeto oficial.\n\nO que você acha dessa abordagem?`;
     }
 
-    // 6. Analysis / Reflection / General Questions
+    // 6. Generic Questions / Explorations ("você sabe o que é...", "como funciona...", "o que é...", etc.)
     if (
+      cleanLower.includes("voce sabe") ||
+      cleanLower.includes("você sabe") ||
       cleanLower.startsWith("como") ||
       cleanLower.startsWith("qual") ||
       cleanLower.startsWith("onde") ||
       cleanLower.startsWith("quando") ||
       cleanLower.startsWith("por que") ||
       cleanLower.startsWith("porque") ||
-      cleanLower.includes("o que voce acha") ||
-      cleanLower.includes("o que você acha")
+      cleanLower.startsWith("o que") ||
+      cleanLower.startsWith("quem")
     ) {
-      return `Essa é uma excelente reflexão sobre **"${prompt}"**.\n\nExaminando pelo prisma do nosso ecossistema:\n\n• **Fundamentação:** Recomendo cruzarmos essa questão com as obras e anotações que temos arquivadas no Vault.\n• **Visão Crítica (Critias):** Vale delimitar bem o escopo para evitar conclusões precipitadas.\n\nComo você gostaria de aprofundar essa discussão?`;
+      // Extract subject
+      let subject = prompt
+        .replace(/^(você sabe o que é|voce sabe o que e|o que é|o que e|qual é|qual e|como funciona|quem é|quem e)[:\s]*/i, "")
+        .replace(/\bathena\b/gi, "")
+        .replace(/\bathenas\b/gi, "")
+        .replace(/[?.,!]/g, "")
+        .trim();
+
+      if (!subject) subject = prompt;
+
+      return `Sobre **"${subject}"**, analisando sob uma perspectiva ampla e conceitual:\n\n1. **Definição & Contexto:** Trata-se de um conceito fundamental com múltiplos desdobramentos práticos, teóricos e metodológicos.\n2. **Conexão com o Ecossistema:** Podemos cruzar essa questão com as fontes e referências catalogadas no seu Vault ou estruturar uma discussão crítica na Argument Arena.\n3. **Visão Dialética (Conselho da Athena):** Para aprofundar, vale confrontar a teoria com evidências empíricas e casos reais.\n\nEm qual vertente de **${subject}** você gostaria de focar a nossa discussão?`;
     }
 
-    // 7. Default Natural Conversational Fallback
+    // 7. Contextual Fallback
     if (activeProjectTitle) {
-      return `Entendi perfeitamente o seu ponto sobre **"${activeProjectTitle}"**. Estou acompanhando o raciocínio com você. Quer que a gente desenvolva mais essa ideia ou prefere transformar isso em uma ação prática?`;
+      return `Entendi o seu ponto sobre **"${activeProjectTitle}"**. Estou acompanhando o raciocínio com você. Quer que a gente desenvolva mais essa ideia ou prefere transformar isso em uma ação prática?`;
     }
 
-    return `Compreendi o que você trouxe, Paulo. Estou acompanhando sua linha de raciocínio no ecossistema. Como você gostaria de encaminhar essa reflexão agora?`;
+    return `Entendi o seu ponto sobre essa questão, Paulo. Estou acompanhando sua linha de raciocínio. Como você gostaria de aprofundar essa reflexão no VARYNTH OS agora?`;
   }
 
   /**
