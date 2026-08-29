@@ -21,3 +21,4 @@ Decidiu-se que a Athena deve operar exclusivamente sob o princípio **Local-Firs
 ## Consequências
 - **Ganhos**: Segurança de ponta a ponta, auditabilidade determinística, velocidade instantânea (0 ms no baseline).
 - **Compromissos**: A inteligência depende da modelagem determinística dos agentes do Conselho ou da capacidade computacional da GPU/CPU local para rodar modelos locais leves.
+

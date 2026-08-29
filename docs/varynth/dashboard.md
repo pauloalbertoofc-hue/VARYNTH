@@ -26,3 +26,4 @@ graph TD
 ## 3. Dinâmica de Atualização
 - **Reatividade Local**: O dashboard lê os dados locais consolidados do ecossistema e recalcula agregações instantaneamente sem requisições HTTP redundantes.
 - **Minimal Disclosure**: Mostra indicadores estratégicos e destaca apenas os 3 prazos mais próximos para evitar sobrecarga cognitiva.
+

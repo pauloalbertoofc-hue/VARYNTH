@@ -14,3 +14,4 @@ Em versões preliminares, quando uma frase não encontrava uma regra pré-progra
 
 ## Consequências
 - **Ganhos**: Conversação substantiva, autoridade intelectual e eliminação de respostas frustrantes.
+

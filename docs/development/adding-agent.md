@@ -45,3 +45,4 @@ export class MeuNovoAgente implements AthenaAgent {
 
 ### Passo 2: Registrar no `AgentRegistry`
 Em `src/lib/athena/agents/registry.ts`, instancie e registre o agente na lista oficial.
+

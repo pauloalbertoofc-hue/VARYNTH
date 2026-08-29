@@ -66,3 +66,4 @@ export interface AuditRecord {
 ```
 
 Isso garante rastreabilidade total de quais tarefas foram criadas pela Athena versus quais foram adicionadas manualmente pelo usuário.
+

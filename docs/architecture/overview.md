@@ -58,3 +58,4 @@ graph TD
 - **Suíte Histórica de Regressão**: `IMPLEMENTED` (73 testes automatizados, 100% de aprovação)
 - **Inferência Neural Local (Ollama)**: `IMPLEMENTED` (Auto-detecção em `127.0.0.1:11434` com baseline determinístico)
 - **Sincronização P2P Criptografada**: `PLANNED` (Planejado para fases futuras de multi-dispositivo)
+

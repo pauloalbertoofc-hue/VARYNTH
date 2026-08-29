@@ -46,3 +46,4 @@ stateDiagram-v2
 
 ## 4. O Princípio de Confirmação em Alvos Ambíguos
 Se o usuário solicitar à Athena *"apague isso"* ou *"exclua"* sem que haja um item inequivocamente selecionado, a Athena **não adivinha** o item. Ela aplica o princípio *Fail-Closed* e solicita confirmação explícita com o nome do recurso.
+

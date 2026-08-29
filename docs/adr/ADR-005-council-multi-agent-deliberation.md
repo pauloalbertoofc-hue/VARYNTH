@@ -18,3 +18,4 @@ Implementar um **Conselho de 7 Especialistas Autônomos** com manifestos formais
 
 ## Consequências
 - **Ganhos**: Respostas balanceadas, validação crítica obrigatória por Critias e especialização de domínio.
+

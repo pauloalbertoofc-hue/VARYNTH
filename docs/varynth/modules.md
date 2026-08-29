@@ -25,3 +25,4 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 
 ## 3. Contratos de Interoperabilidade com a Athena
 Todos os módulos disponibilizam métodos de consulta (`read`) e mutação (`write`/`trash`) registrados no `ToolManager` da Athena, permitindo que o copilot consulte contexto ou realize ações operacionais autorizadas.
+

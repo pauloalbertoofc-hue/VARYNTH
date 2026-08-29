@@ -17,3 +17,4 @@ Garante a integridade do ecossistema intelectual contra erros humanos ou interpr
 ## Consequências
 - **Ganhos**: Risco zero de perda irreversível de dados por um comando mal interpretado.
 - **Compromissos**: Exige lógica adicional de ciclo de vida e purga programada após 10 dias.
+

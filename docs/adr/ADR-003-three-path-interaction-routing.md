@@ -16,3 +16,4 @@ Dividir o fluxo de processamento da Athena em 3 vias distintas antes de qualquer
 
 ## Consequências
 - **Ganhos**: Fim definitivo do despejo de dados em conversas sociais e capacidade de compor múltiplas intenções cognitivas em uma mesma frase.
+

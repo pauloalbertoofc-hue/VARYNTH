@@ -15,3 +15,4 @@ Este documento sintetiza os principais saltos arquiteturais do VARYNTH OS, os pr
 | **M4** | *Cognitive Kernel V4* | Respostas superficiais de modelo monolítico | Conselho de 7 agentes com deliberação consensual (ADR-005) | Respostas balanceadas e validação crítica por Critias |
 | **M5** | *Contextual Comprehension* | Fallback genérico em pedidos compostos de ideação | Roteamento em 3 vias, anáforas e resposta direta (ADR-003/004) | Compreensão de elipses ("o segundo", "por quê?") e propostas proativas |
 | **M6** | *Conversational Regression Suite*| Risco de regressão de bugs antigos em refatorações | Suíte permanente com 73 testes e quality gates | Bloqueio automatizado de regressões (100% aprovação) |
+

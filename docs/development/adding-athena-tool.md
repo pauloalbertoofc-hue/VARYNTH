@@ -32,3 +32,4 @@ this.registerTool({
 
 ### Passo 3: Adicionar Caso na Suíte de Regressão
 Adicione um teste em `src/lib/athena/regression/cases.ts` para garantir que comandos correspondentes acionem a nova ferramenta sem regressões.
+

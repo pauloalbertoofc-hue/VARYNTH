@@ -39,3 +39,4 @@ export interface LLMAdapter {
 ```
 
 Isso garante que futuros adaptadores (ex: llama.cpp nativo em WASM, ONNX Runtime, WebGPU) possam ser adicionados sem alterar uma única linha do `ExecutiveController`.
+

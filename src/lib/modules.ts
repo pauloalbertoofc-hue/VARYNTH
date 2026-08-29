@@ -3,6 +3,20 @@ import { VarynthModule } from "./types";
 export const modules: VarynthModule[] = [
   // --- SYSTEM APPS ---
   {
+    id: "technical-archive",
+    name: "Technical Archive",
+    description: "Documentação técnica oficial, ADRs, manuais de arquitetura e histórico de engenharia do VARYNTH OS.",
+    icon: "🏛️",
+    layer: "system",
+    category: "conhecimento",
+    color: "emerald",
+    href: "/modules/technical-archive",
+    status: "active",
+    tags: ["documentacao", "arquitetura", "adr", "manual", "engenharia"],
+    version: "1.0.0",
+    badge: "Oficial",
+  },
+  {
     id: "projects",
     name: "Projects",
     description: "Hub principal de projetos. Workspaces com tarefas, notas, arquivos, timeline e Athena integrada.",

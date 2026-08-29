@@ -27,3 +27,4 @@ Cadastre as operações de leitura e escrita no `ToolManager` (`src/lib/athena/t
 
 ### Passo 5: Suportar o Protocolo da Lixeira
 Assegure que as operações de exclusão utilizem o `TrashManager` com prazo de 10 dias e suporte a *Undo*.
+

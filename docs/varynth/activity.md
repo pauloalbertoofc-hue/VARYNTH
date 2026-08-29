@@ -37,3 +37,4 @@ Quando a Athena executa ações solicitadas pelo usuário (por exemplo, criando 
 - `details: { triggeredByPrompt: "Crie uma tarefa..." }`
 
 Isso permite filtrar com facilidade o trabalho manual do usuário versus as automações executadas pelo copilot.
+

@@ -25,3 +25,4 @@ O `ExecutiveController` opera com limites orçamentários definidos para evitar 
 - **`FAST`**: Max 1 agente, timeout 2000 ms (Fast Path conversacional).
 - **`STANDARD`**: Max 3 agentes, timeout 8000 ms (Consultas e ideação padrão).
 - **`EXHAUSTIVE`**: Max 7 agentes, timeout 15000 ms (Deliberações profundas multiagente e synthesis científica).
+

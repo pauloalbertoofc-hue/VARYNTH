@@ -28,3 +28,4 @@ export interface EvidenceItem {
 
 ## 3. Integração com a Athena
 - O especialista científico **Logos** avalia a robustez metodológica das evidências e sugere testes cruzados.
+

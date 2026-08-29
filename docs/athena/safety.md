@@ -33,3 +33,4 @@ Antes de liberar qualquer resposta de requisição cognitiva (`COGNITIVE_REQUEST
 
 ## 4. Telemetria Local de Falhas (`LocalFailureTelemetry`)
 Qualquer evento de baixa confiança (`LOW_CONFIDENCE`), necessidade de esclarecimento (`CLARIFICATION_REQUIRED`) ou resposta incompleta (`INCOMPLETE_RESPONSE`) é registrado internamente em memória para depuração técnica offline, sem envio para servidores de terceiros.
+

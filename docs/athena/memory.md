@@ -22,3 +22,4 @@ O `ContextBuilder` segue a regra de **não despejar todos os dados do usuário**
 - Se a pergunta é sobre *Direito/Teses*, extrai dados do **Codex** e **Vault**.
 - Se a pergunta é sobre *Prazos/Tarefas*, extrai dados do **Chronos** e **Projects**.
 - Se a pergunta é puramente social (*"como você está?"*), **não extrai nenhum dado pessoal**.
+

@@ -21,6 +21,7 @@ import {
   Share2,
   Trash2,
   Activity,
+  BookMarked,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,6 +38,7 @@ interface NavSectionItem {
 const systemNavItems: NavSectionItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Início" },
   { href: "/projects", icon: FolderKanban, label: "Projetos", badge: "Principal" },
+  { href: "/modules/technical-archive", icon: BookMarked, label: "Technical Docs", badge: "Oficial" },
   { href: "/modules/graph", icon: Share2, label: "Graph Rede" },
   { href: "/modules/activity", icon: Activity, label: "Histórico" },
   { href: "/modules/vault", icon: BookOpen, label: "Vault" },

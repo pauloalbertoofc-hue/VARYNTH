@@ -31,3 +31,4 @@ flowchart TD
     OperationalPath --> Tools[ToolManager, Action Layer & Lixeira 10 Dias]
     Tools --> Audit[Audit Trail com Identificação de Ator]
 ```
+

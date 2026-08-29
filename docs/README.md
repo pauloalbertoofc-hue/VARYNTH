@@ -112,3 +112,4 @@ Para acomodar diferentes necessidades de profundidade técnica sem exigir a leit
 ## 🔒 Princípio de Integridade Documental
 
 > **Regra de Engenharia**: Toda modificação relevante de contratos, arquitetura, segurança ou comportamento deve ser refletida na documentação técnica correspondente antes da conclusão da tarefa. A documentação é tratada como um cidadão de primeira classe do produto.
+

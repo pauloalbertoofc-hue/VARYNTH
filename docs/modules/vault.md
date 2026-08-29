@@ -34,3 +34,4 @@ export interface VaultItem {
 ## 3. Integração com a Athena
 - O agente **Mnemosyne** utiliza o Vault como fonte primária para recuperar citações e fichamentos anteriores.
 - O validador da Athena pode sugerir conectar novas pesquisas com obras já catalogadas no Vault.
+

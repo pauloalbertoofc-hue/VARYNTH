@@ -26,3 +26,4 @@ Este documento preserva os aprendizados de engenharia extraídos de falhas reais
 - **Problema Real**: Refatorações para consertar um diálogo corriam o risco de quebrar elipses anteriores.
 - **Lição**: Testes de frases exatas são frágeis; é necessário testar comportamento semântico e proibições categóricas com múltiplas paráfrases.
 - **Decisão**: Criação da `AthenaRegressionRunner` com 73 testes cobrindo todos os casos históricos.
+

@@ -35,3 +35,4 @@ export interface ArgumentThesis {
 
 ## 3. Integração com a Athena
 - O especialista **Justitia** e o crítico **Critias** utilizam o Codex para conduzir deliberações dialéticas automatizadas sobre teses em debate.
+

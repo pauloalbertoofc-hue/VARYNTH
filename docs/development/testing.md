@@ -38,3 +38,4 @@ flowchart TD
     
     RunBuild -- Sucesso (Exit 0) --> Deploy[Deploy Liberado para Produção / Vercel]
 ```
+

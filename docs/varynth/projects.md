@@ -41,3 +41,4 @@ Tarefas representam unidades operacionais de avanço:
 Ao abrir um projeto específico (`/projects/[id]`), a aba **Athena** ativa automaticamente o escopo do projeto:
 - A Athena recebe o título, categoria, tarefas pendentes e notas vinculadas daquele projeto como contexto primário.
 - Anáforas como *"esse projeto"* ou *"nessa pesquisa"* são resolvidas diretamente para a workspace ativa sem ambiguidades.
+

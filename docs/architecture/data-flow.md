@@ -80,3 +80,4 @@ export type AthenaEventType =
 ```
 
 A interface e os sidecars subscrevem esses tópicos para atualizar gráficos, badges de telemetria e notificações em tempo real.
+

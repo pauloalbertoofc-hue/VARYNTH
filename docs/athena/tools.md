@@ -29,3 +29,4 @@ A **`ActionLayer`** e o **`ToolManager`** (`src/lib/athena/tools/tool-manager.ts
 ## 3. Garantias de Execução
 - **Zero Mutação Espúria**: Nenhuma ferramenta é executada em diálogos classificados como `CONVERSATION`.
 - **Trilha de Auditoria Obrigatória**: Toda execução de ferramenta de escrita emite registro imutável no `AuditTrail`.
+

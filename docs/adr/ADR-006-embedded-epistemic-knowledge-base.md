@@ -16,3 +16,4 @@ Embutir diretamente no código-fonte uma **Base Epistêmica Offline** (`src/lib/
 
 ## Consequências
 - **Ganhos**: Respostas conceituais instantâneas, profundas e consistentes, mesmo sem nenhum modelo de IA ativo.
+

@@ -28,3 +28,4 @@ export interface ChronosEvent {
 
 ## 3. Integração com a Athena
 - O estrategista **Strategos** monitora o Chronos para emitir alertas precoces de sobrecarga e orientar o foco diário nas prioridades mais urgentes.
+

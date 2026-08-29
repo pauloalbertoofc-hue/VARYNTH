@@ -1,0 +1,463 @@
+export type DocCategory =
+  | "architecture"
+  | "athena"
+  | "modules"
+  | "adr"
+  | "history"
+  | "development"
+  | "handbook";
+
+export type ComponentStatus =
+  | "IMPLEMENTED"
+  | "PARTIALLY_IMPLEMENTED"
+  | "PLANNED"
+  | "EXPERIMENTAL"
+  | "DEPRECATED";
+
+export interface TechnicalDocItem {
+  id: string;
+  slug: string;
+  title: string;
+  category: DocCategory;
+  categoryLabel: string;
+  icon: string;
+  status: ComponentStatus;
+  lastVerified: string;
+  summary: string;
+  sourceFilePath: string;
+  content: string;
+  tags: string[];
+  relatedADRs?: string[];
+  relatedComponents?: string[];
+}
+
+export interface ADRItem {
+  id: string;
+  number: string;
+  title: string;
+  status: "Accepted" | "Superseded" | "Deprecated";
+  date: string;
+  context: string;
+  decision: string;
+  rationale: string;
+  alternatives: string[];
+  consequences: {
+    gains: string[];
+    tradeoffs: string[];
+  };
+}
+
+export interface LessonLearnedItem {
+  id: string;
+  number: string;
+  title: string;
+  problem: string;
+  observation: string;
+  decision: string;
+  result: string;
+  linkedRegressionTest?: string;
+}
+
+export interface HandbookChapter {
+  number: string;
+  title: string;
+  summary: string;
+  content: string;
+}
+
+// ---------------------------------------------------------------------------
+// SOURCE OF TRUTH: Structured data mapped directly from /docs
+// ---------------------------------------------------------------------------
+
+export const ADR_LIST: ADRItem[] = [
+  {
+    id: "ADR-001",
+    number: "ADR-001",
+    title: "Soberania Tecnológica Local-First & Independência de APIs Comerciais",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Trabalho intelectual de alta densidade envolve teses inéditas e dados confidenciais protegidos por sigilo. O envio de dados para APIs comerciais (OpenAI, Claude, Gemini) cria vulnerabilidades e custos contínuos.",
+    decision: "A Athena e o VARYNTH OS operam exclusivamente Local-First, sem chaves de API externas. Inferência neural é opcional via Ollama local (127.0.0.1:11434) com baseline determinístico de 0 ms.",
+    rationale: "Garante privacidade absoluta, funcionamento offline e custo zero recorrente com tokens.",
+    alternatives: ["Proxy corporativo para OpenAI/Claude", "SDK de IA em nuvem comercial"],
+    consequences: {
+      gains: ["Privacidade total", "Auditabilidade determinística", "Latência de 0 ms no baseline"],
+      tradeoffs: ["Dependência da capacidade computacional da GPU/CPU local para inferência neural densa"],
+    },
+  },
+  {
+    id: "ADR-002",
+    number: "ADR-002",
+    title: "Retenção de 10 Dias na Lixeira, Desfazer (Undo) & Alex Principle",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Exclusões acidentais ou comandos imperativos ambíguos (ex: 'apague isso') poderiam destruir semanas de pesquisa.",
+    decision: "Nenhuma exclusão é permanente no ato. Todos os recursos entram em quarentena de 10 dias no módulo Trash com suporte a Undo. Alvos ambíguos ativam bloqueio Fail-Closed (Alex Principle).",
+    rationale: "Impede perda irreversível de dados por erro humano ou interpretação equivocada de linguagem natural.",
+    alternatives: ["Exclusão física direta com diálogo de confirmação simples", "Soft delete permanente sem quarentena"],
+    consequences: {
+      gains: ["Segurança total contra perda de dados", "Reversibilidade imediata"],
+      tradeoffs: ["Exige rotina de purga periódica para itens com mais de 10 dias"],
+    },
+  },
+  {
+    id: "ADR-003",
+    number: "ADR-003",
+    title: "Roteamento em Três Vias de Interação (Fast, Cognitive & Operational)",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Tratar todas as mensagens em um funil monolítico causava despejo de banco em conversas sociais ('como você está?') e evasão em pedidos compostos de ideação.",
+    decision: "Separar a execução em 3 vias estritas: CONVERSATION (Fast Path), COGNITIVE_REQUEST (Cognitive Path) e OPERATIONAL_REQUEST (Action Path).",
+    rationale: "Capacidade não implica intenção. Diálogos sociais devem ser empáticos e leves; pedidos cognitivos devem ser densos e diretos.",
+    alternatives: ["Funil único com prompt de sistema gigante", "Agente puramente reativo"],
+    consequences: {
+      gains: ["Eliminação do despejo de dados em conversas casuais", "Composição flexível de intenções cognitivas"],
+      tradeoffs: ["Exige classificador semântico em camadas no ConversationManager"],
+    },
+  },
+  {
+    id: "ADR-004",
+    number: "ADR-004",
+    title: "Política Anti-Fallback Genérico, Resposta Direta & Validação de Completude",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Respostas como 'Entendi perfeitamente... como gostaria de encaminhar essa reflexão?' fingiam inteligência sem entregar o que o usuário pediu.",
+    decision: "Extirpação completa de frases evasivas, adoção do Princípio de Resposta Direta e checagem prévia pelo ResponseCompletenessValidator.",
+    rationale: "Athena deve demonstrar compreensão através de respostas substanciais imediatas e admitir incerteza honestamente se a confiança for baixa.",
+    alternatives: ["Manter fallbacks genéricos como segurança de último caso"],
+    consequences: {
+      gains: ["Respostas ricas e proativas", "Fim da frustração com evasões"],
+      tradeoffs: ["Exige validação semântica antes de liberar a resposta final"],
+    },
+  },
+  {
+    id: "ADR-005",
+    number: "ADR-005",
+    title: "Conselho Determinístico de 7 Especialistas Cognitivos",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Assistentes monolíticos misturam domínios de forma inconsistente, sem validação crítica de riscos.",
+    decision: "Criar um Conselho de 7 agentes com competências formais: Justitia, Logos, Sophia, Musa, Strategos, Mnemosyne e Critias.",
+    rationale: "Especialização de domínio e revisão crítica obrigatória por Critias garantem rigor acadêmico e dogmático.",
+    alternatives: ["Persona única adaptativa via prompts longos"],
+    consequences: {
+      gains: ["Deliberação dialética e pareceres balanceados", "Previsibilidade metodológica"],
+      tradeoffs: ["Maior quantidade de arquivos e interfaces de agentes para manter"],
+    },
+  },
+  {
+    id: "ADR-006",
+    number: "ADR-006",
+    title: "Base Epistêmica Embutida Offline para Filosofia, Direito e Ciência",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Consultas conceituais fundamentais (Hermenêutica, Teoria dos Jogos, Método Científico, Latim) exigiam respostas imediatas sem depender de IA externa.",
+    decision: "Embutir uma base estruturada de conhecimento epistêmico diretamente no código da Athena.",
+    rationale: "Garante respostas filosóficas e metodológicas profundas com latência de 0 ms mesmo em modo 100% offline.",
+    alternatives: ["Indexação RAG puramente dinâmica em tempo de execução"],
+    consequences: {
+      gains: ["Velocidade instantânea", "Confiabilidade conceitual inquestionável"],
+      tradeoffs: ["Base precisa ser enriquecida manualmente no código-fonte"],
+    },
+  },
+];
+
+export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [
+  {
+    id: "LESSON-001",
+    number: "01",
+    title: "Capacidade Não Implica Intenção",
+    problem: "Ao receber 'Como você está?', a Athena acionava todos os módulos e despejava um briefing completo do banco de dados.",
+    observation: "O usuário estava apenas iniciando uma conversa social cotidiana.",
+    decision: "Separar a via rápida CONVERSATION (zero leituras) da via COGNITIVE_REQUEST.",
+    result: "Respostas sociais empáticas sem sobrecarregar a tela com dados privados.",
+    linkedRegressionTest: "ATH-CONV-001",
+  },
+  {
+    id: "LESSON-002",
+    number: "02",
+    title: "O Perigo da Evasão Disfarçada de Inteligência",
+    problem: "Ao receber 'me dê ideias para hoje? que projeto começar?', a Athena respondia 'Entendi perfeitamente... como gostaria de encaminhar essa reflexão?'.",
+    observation: "A frase fingia que o assistente compreendeu, mas não entregava nenhuma ideia.",
+    decision: "Adotar o Princípio de Resposta Direta (responder primeiro ao pedido) e validar completude com ResponseCompletenessValidator.",
+    result: "Proposição proativa de 3 projetos concretos no Labs/Codex/Vault via Musa e Strategos.",
+    linkedRegressionTest: "ATH-CONV-002",
+  },
+  {
+    id: "LESSON-003",
+    number: "03",
+    title: "Fail-Closed em Ações Destrutivas (Alex Principle)",
+    problem: "Comandos vagos como 'apague isso' podiam adivinhar o alvo errado e destruir dados acidentalmente.",
+    observation: "Adivinhar intenções em mutações destrutivas é inaceitável em ambientes de pesquisa.",
+    decision: "Quarentena de 10 dias na Lixeira com Undo e parada obrigatória (Fail-Closed) em alvos ambíguos.",
+    result: "Segurança total contra perda de dados acidental.",
+    linkedRegressionTest: "ATH-CONV-003",
+  },
+  {
+    id: "LESSON-004",
+    number: "04",
+    title: "Resolução de Elipses e Continuidade Multi-Turno",
+    problem: "Usuário discutia dois projetos e perguntava 'E o segundo?'. O sistema não resolvia o pronome e pedia repetição.",
+    observation: "Linguagem natural humana é repleta de anáforas e elipses dependentes do diálogo anterior.",
+    decision: "Manter histórico de recentEntities e recentRecommendations no ConversationManager.",
+    result: "Compreensão perfeita de 'o segundo', 'por quê?', 'critique essa ideia' e 'compare os dois'.",
+    linkedRegressionTest: "ATH-CONV-004 / ATH-CONV-005",
+  },
+];
+
+export const TECHNICAL_DOCS: TechnicalDocItem[] = [
+  // --- ARCHITECTURE ---
+  {
+    id: "arch-overview",
+    slug: "architecture-overview",
+    title: "Visão Geral da Macro-Arquitetura",
+    category: "architecture",
+    categoryLabel: "Arquitetura Global",
+    icon: "🏛️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Filosofia central, pilares de soberania Local-First e divisão em 5 camadas do VARYNTH OS.",
+    sourceFilePath: "docs/architecture/overview.md",
+    tags: ["arquitetura", "local-first", "soberania", "nextjs16", "react19"],
+    relatedADRs: ["ADR-001", "ADR-003"],
+    content: `O **VARYNTH OS** é um sistema operacional cognitivo soberano, projetado para amplificar a produtividade intelectual, pesquisa acadêmica e gestão estratégica em um ambiente estritamente **Local-First**.\n\n### Pilares:\n1. **Soberania Local-First**: Zero dependência de APIs de nuvem comerciais.\n2. **Arquitetura Cognitiva em 3 Vias**: Fast Path, Cognitive Path e Operational Path.\n3. **Segurança Fail-Closed**: Lixeira de 10 dias com Undo e Alex Principle.\n4. **Módulos Especializados**: Vault, Codex, Research, Chronos, Labs, Forge e People.`,
+  },
+  {
+    id: "arch-system-map",
+    slug: "system-map",
+    title: "Mapa do Sistema & Topologia",
+    category: "architecture",
+    categoryLabel: "Arquitetura Global",
+    icon: "🗺️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Mapa topológico de subsistemas, conexões de dados e matriz de componentes implementados vs planejados.",
+    sourceFilePath: "docs/architecture/system-map.md",
+    tags: ["topologia", "grafo", "subsistemas", "componentes"],
+    content: `Mapa topológico completo conectando a interface reativa Next.js 16, o Kernel Cognitivo V4 da Athena, a Action Layer e os 9 módulos de armazenamento local.`,
+  },
+  {
+    id: "arch-data-flow",
+    slug: "data-flow",
+    title: "Fluxo de Dados & Mutações Reativas",
+    category: "architecture",
+    categoryLabel: "Arquitetura Global",
+    icon: "🔄",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Pipeline de mutações seguras, barramento de eventos (AthenaEventBus) e auditoria de autoria.",
+    sourceFilePath: "docs/architecture/data-flow.md",
+    tags: ["data-flow", "event-bus", "audit", "reatividade"],
+    relatedADRs: ["ADR-003"],
+    content: `Fluxo reativo de ponta a ponta detalhando como prompts do usuário transitam pelo ConversationManager, ExecutiveController e ToolManager com emissão de eventos assíncronos.`,
+  },
+  {
+    id: "arch-security",
+    slug: "security-model",
+    title: "Modelo de Segurança & Alex Principle",
+    category: "architecture",
+    categoryLabel: "Arquitetura Global",
+    icon: "🛡️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Diretrizes de proteção contra destruição acidental de dados, protocolo de lixeira e não-repúdio.",
+    sourceFilePath: "docs/architecture/security-model.md",
+    tags: ["seguranca", "alex-principle", "lixeira", "audit-trail"],
+    relatedADRs: ["ADR-002"],
+    content: `Detalhamento do Alex Principle: diante de qualquer comando destrutivo com alvo ambíguo, a Athena bloqueia a execução (Fail-Closed) e exige confirmação.`,
+  },
+  {
+    id: "arch-local-first",
+    slug: "local-first-sovereignty",
+    title: "Arquitetura Local-First & Soberania",
+    category: "architecture",
+    categoryLabel: "Arquitetura Global",
+    icon: "💾",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Princípios de soberania de dados, ausência de APIs pagas e inferência local adaptativa.",
+    sourceFilePath: "docs/architecture/local-first.md",
+    tags: ["local-first", "soberania", "ollama", "offline"],
+    relatedADRs: ["ADR-001", "ADR-006"],
+    content: `Privacidade inegociável, custo zero recorrente e suporte a inferência neural via servidor local Ollama (127.0.0.1:11434).`,
+  },
+
+  // --- ATHENA COGNITIVE OS ---
+  {
+    id: "ath-overview",
+    slug: "athena-overview",
+    title: "Athena: Copilot Cognitivo Soberano",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "🦉",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Visão geral da parceira intelectual do VARYNTH OS e princípios de persona e rigor.",
+    sourceFilePath: "docs/athena/overview.md",
+    tags: ["athena", "copilot", "cognitivo", "persona"],
+    relatedADRs: ["ADR-004", "ADR-005"],
+    content: `A Athena é o núcleo de inteligência do VARYNTH OS. Ela integra o Conselho de 7 Especialistas, a Action Layer e uma suíte de regressão de 73 testes.`,
+  },
+  {
+    id: "ath-kernel",
+    slug: "cognitive-kernel",
+    title: "Kernel Cognitivo V4 & ExecutiveController",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "🧠",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Ciclos de percepção, avaliação orçamentária, roteamento em DAG e agendamento de tarefas.",
+    sourceFilePath: "docs/athena/cognitive-kernel.md",
+    tags: ["kernel", "perception", "executive-controller", "dag"],
+    content: `Orquestração central de requisições com controle orçamentário (FAST, STANDARD, EXHAUSTIVE) e rastreamento de proveniência.`,
+  },
+  {
+    id: "ath-conv-mgr",
+    slug: "conversation-manager",
+    title: "ConversationManager & Anáforas",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "🗣️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Roteamento em 3 vias, resolução contextual de elipses ('o segundo', 'por quê?') e pilha de entidades.",
+    sourceFilePath: "docs/athena/conversation-manager.md",
+    tags: ["conversation", "elipses", "anaforas", "intencoes-compostas"],
+    relatedADRs: ["ADR-003", "ADR-004"],
+    content: `Substituição definitiva de regex por análise semântica em camadas com rastreamento de recentEntities e recentRecommendations.`,
+  },
+  {
+    id: "ath-agents",
+    slug: "council-of-agents",
+    title: "Conselho de 7 Especialistas Cognitivos",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "👥",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Justitia, Logos, Sophia, Musa, Strategos, Mnemosyne e Critias atuando com deliberação consensual.",
+    sourceFilePath: "docs/athena/agents.md",
+    tags: ["conselho", "multiagente", "justitia", "critias", "musa"],
+    relatedADRs: ["ADR-005"],
+    content: `Especialistas formais dedicados a cada domínio: Direito, Ciência, Filosofia, Ideação, Estratégia, Memória e Crítica de Riscos.`,
+  },
+  {
+    id: "ath-tools",
+    slug: "action-layer-tools",
+    title: "Action Layer & 14 Ferramentas Determinísticas",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "⚙️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Catálogo completo de ferramentas com carimbo de ator, quarentena de 10 dias e Audit Trail.",
+    sourceFilePath: "docs/athena/tools.md",
+    tags: ["tools", "action-layer", "audit-trail", "mutacao"],
+    relatedADRs: ["ADR-002"],
+    content: `Execução segura de mutações (tarefas, notas, prazos, lixeira) com garantias de atomicidade e reversibilidade.`,
+  },
+  {
+    id: "ath-safety",
+    slug: "safety-and-regressions",
+    title: "Segurança, Anti-Evasão & Suíte de Regressão",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "🔒",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Validação de completude, telemetria local de falhas e suíte permanente com 73 testes aprovados (100%).",
+    sourceFilePath: "docs/athena/safety.md",
+    tags: ["safety", "anti-evasion", "quality-gates", "regression"],
+    relatedADRs: ["ADR-004"],
+    content: `Qualquer alteração na Athena deve passar por 73 testes históricos cobrindo 15 classes reais de erro antes do deploy.`,
+  },
+
+  // --- MODULES ---
+  {
+    id: "mod-vault",
+    slug: "module-vault",
+    title: "Vault: Acervo Universal de Conhecimento",
+    category: "modules",
+    categoryLabel: "Módulos Especializados",
+    icon: "📚",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Segundo cérebro para artigos, livros, jurisprudência, links e controle de status de leitura.",
+    sourceFilePath: "docs/modules/vault.md",
+    tags: ["vault", "biblioteca", "livros", "artigos"],
+    content: `Gestão taxonômica de referências bibliográficas com integração ao agente Mnemosyne para recuperação contextual.`,
+  },
+  {
+    id: "mod-codex",
+    slug: "module-codex",
+    title: "Codex: Argument Arena & Precedentes",
+    category: "modules",
+    categoryLabel: "Módulos Especializados",
+    icon: "⚖️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Matriz dialética de controvérsias jurídicas, argumentos pró/contra e teses do STF/STJ.",
+    sourceFilePath: "docs/modules/codex.md",
+    tags: ["codex", "argument-arena", "direito", "precedentes"],
+    content: `Estruturação de debates jurídicos com deliberação entre Justitia (fundamentação) e Critias (riscos de admissibilidade).`,
+  },
+  {
+    id: "mod-research",
+    slug: "module-research",
+    title: "Research: Evidence Board & Rigor Científico",
+    category: "modules",
+    categoryLabel: "Módulos Especializados",
+    icon: "🔬",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Catalogação de evidências científicas com avaliação de força probatória e fontes primárias.",
+    sourceFilePath: "docs/modules/research.md",
+    tags: ["research", "evidence-board", "ciencia", "metodologia"],
+    content: `Validação empírica de alegações científicas coordenada pelo especialista Logos.`,
+  },
+  {
+    id: "mod-chronos",
+    slug: "module-chronos",
+    title: "Chronos: Motor Temporal & Prazos",
+    category: "modules",
+    categoryLabel: "Módulos Especializados",
+    icon: "⏳",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Sincronização de prazos processuais fatais, datas de submissão e marcos de projetos.",
+    sourceFilePath: "docs/modules/chronos.md",
+    tags: ["chronos", "tempo", "calendario", "prazos"],
+    content: `Linha do tempo interativa monitorada pelo estrategista Strategos para prevenção de sobrecargas de entrega.`,
+  },
+  {
+    id: "mod-labs",
+    slug: "module-labs",
+    title: "Labs: Incubadora de Ideias & Experimentos",
+    category: "modules",
+    categoryLabel: "Módulos Especializados",
+    icon: "🧪",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Espaço de experimentação rápida e validação de hipóteses antes da criação de workspaces oficiais.",
+    sourceFilePath: "docs/modules/labs.md",
+    tags: ["labs", "experimentos", "hipoteses", "musa"],
+    content: `Incubadora de projetos embrionários sugerida pela Musa para testar tração antes de formalizar compromissos.`,
+  },
+  {
+    id: "mod-trash",
+    slug: "module-trash",
+    title: "Lixeira: Retenção de 10 Dias com Desfazer",
+    category: "modules",
+    categoryLabel: "Módulos Especializados",
+    icon: "🗑️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Ambiente de quarentena segura com restauração em 1 clique e purga automática programada.",
+    sourceFilePath: "docs/varynth/trash.md",
+    tags: ["lixeira", "trash", "undo", "quarentena"],
+    relatedADRs: ["ADR-002"],
+    content: `Garantia de que nenhum recurso é excluído permanentemente no ato, permitindo restauração completa em 10 dias.`,
+  },
+];
+

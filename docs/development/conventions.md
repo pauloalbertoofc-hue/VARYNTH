@@ -12,3 +12,4 @@
 - **Anti-Generic-Fallback**: Nunca emitir frases evasivas de fingimento de compreensão.
 - **Fail-Closed**: Bloquear mutações destrutivas em casos de ambiguidade.
 - **Preservação de Testes de Regressão**: Todo bug descoberto em produção deve gerar um caso de teste na suíte de regressão antes do encerramento da tarefa.
+

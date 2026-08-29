@@ -37,3 +37,4 @@ Se qualquer passo do DAG falhar durante uma execução encadeada:
 - Os passos dependentes subsequentes são pausados imediatamente.
 - O usuário recebe um relatório claro do passo exato onde ocorreu a falha.
 - Mutações que criaram itens na lixeira podem ser desfeitas via *Undo*.
+

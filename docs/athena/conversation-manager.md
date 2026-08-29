@@ -64,3 +64,4 @@ O sistema distingue automaticamente quem é o sujeito da pergunta:
 - *"Como está meu sistema?"* ➔ Alvo: **`USER_SYSTEM`** (Consulta focada a tarefas e projetos).
 - *"Como está seu Kernel?"* ➔ Alvo: **`ATHENA`** (Diagnóstico técnico dos subsistemas cognitivos).
 - *"Como está aquele projeto?"* ➔ Alvo: **`SPECIFIC_PROJECT`** (Status da workspace referenciada).
+

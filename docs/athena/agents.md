@@ -31,3 +31,4 @@ graph TD
 | **Strategos** | `council/strategos.ts` | Viabilidade operacional, priorização e prazos no Chronos | Pedidos de `RECOMMEND`, planejamento de projetos |
 | **Mnemosyne** | `council/mnemosyne.ts` | Recuperação de conhecimento, acervo do Vault e conexões | Buscas no Vault e recuperação de contexto antigo |
 | **Critias** | `council/critias.ts` | Identificação de pontos cegos, riscos metodológicos e mitigação | Tarefas `CRITIQUE`, revisões de consistência |
+

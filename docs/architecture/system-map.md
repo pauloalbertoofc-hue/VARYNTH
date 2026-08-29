@@ -90,3 +90,4 @@ flowchart TD
 | **VARYNTH** | `Activity / Audit` | `src/app/modules/activity/page.tsx` | `IMPLEMENTED` | Linha do tempo de mutações com identificação de ator |
 | **VARYNTH** | `P2P Sync Criptografado`| - | `PLANNED` | Sincronização multi-dispositivo sem nuvem central |
 | **VARYNTH** | `Vector Store Nativo` | - | `PLANNED` | Embeddings em WASM/Rust para busca semântica offline |
+

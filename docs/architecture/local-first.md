@@ -45,3 +45,4 @@ Quando nenhum servidor Ollama local está ativo, a Athena **não falha nem exibe
 O adaptador `OllamaAdapter` (`src/lib/athena/models/providers/ollama-adapter.ts`) realiza varredura automática em background na porta local padrão `http://127.0.0.1:11434/api/tags`:
 - Se o Ollama for iniciado pelo usuário com qualquer modelo local (ex: `llama3`, `mistral`, `deepseek-r1`, `phi3`), a Athena detecta imediatamente e eleva a fluidez conversacional.
 - Se o serviço for fechado, o sistema retorna instantaneamente ao baseline determinístico sem interrupção de serviço.
+

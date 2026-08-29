@@ -32,3 +32,4 @@ npm run build
 
 ## 3. Variáveis de Ambiente
 O VARYNTH OS **não requer nenhuma chave de API comercial** (`OPENAI_API_KEY`, etc.). Todas as configurações operam em modo Local-First por padrão.
+

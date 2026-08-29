@@ -19,3 +19,4 @@ O **Motor de Deliberação** (`src/lib/athena/deliberation/deliberation-engine.t
 ### C. Deliberação Estratégica: Musa + Strategos
 - **Musa**: Gera 3 propostas de novos projetos interdisciplinares.
 - **Strategos**: Avalia o impacto no cronograma do Chronos e emite recomendação da melhor frente de largada.
+

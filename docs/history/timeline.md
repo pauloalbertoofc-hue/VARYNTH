@@ -26,3 +26,4 @@ timeline
 3. **Fase 3 (Soberania & Segurança)**: Definição da arquitetura Local-First (ADR-001) e proteção contra exclusão acidental via Lixeira de 10 dias (ADR-002).
 4. **Fase 4 (Kernel Cognitivo V4)**: Implementação do Conselho de 7 especialistas (Justitia, Logos, Sophia, Musa, Strategos, Mnemosyne, Critias), Base Epistêmica e Auto-detecção do Ollama local.
 5. **Fase 5 (Maturidade & Quality Gates)**: Roteamento em 3 vias, eliminação de frases evasivas, criação da suíte permanente de regressão (73 testes) e manual arquitetural oficial.
+

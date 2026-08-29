@@ -32,3 +32,4 @@ O **VARYNTH OS** é o cockpit central que integra workspaces de projetos, acervo
 - **Tema Dark Soberano**: Fundo escuro profundo com contrastes sutis em cinza e acentos ciano/âmbar/esmeralda.
 - **Tipografia Escalar**: Hierarquia tipográfica rígida para leitura densa e escaneamento visual rápido.
 - **Microinterações Reativas**: Feedback imediato para transições de estado, badges de status e carimbos temporais.
+
