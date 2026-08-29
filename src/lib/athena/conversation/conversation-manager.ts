@@ -16,10 +16,12 @@ export interface ResolvedContext {
   isAmbiguousReference: boolean;
   ambiguousTerm?: string;
   topic?: string;
+  relevantModule?: "projects" | "tasks" | "vault" | "codex" | "chronos" | "general";
 }
 
 export class ConversationManager {
   private sessions: Map<string, ConversationState> = new Map();
+  private sessionHistories: Map<string, Array<{ role: "user" | "athena"; text: string }>> = new Map();
 
   getOrCreateSession(sessionId: string, currentProjectId?: string): ConversationState {
     if (!this.sessions.has(sessionId)) {
@@ -32,6 +34,7 @@ export class ConversationManager {
         messageCount: 0,
         lastInteractionAt: new Date().toISOString(),
       });
+      this.sessionHistories.set(sessionId, []);
     }
     const state = this.sessions.get(sessionId)!;
     if (currentProjectId && !state.currentProjectId) {
@@ -41,7 +44,7 @@ export class ConversationManager {
   }
 
   /**
-   * Classifies the conversational intent vs execution intent and resolves anaphora references.
+   * Deep multi-layered contextual intent classifier considering conversation history, topic, and persona boundaries.
    */
   processMessage(
     sessionId: string,
@@ -50,17 +53,21 @@ export class ConversationManager {
     activeProjectId?: string
   ): ResolvedContext {
     const state = this.getOrCreateSession(sessionId, activeProjectId);
+    const history = this.sessionHistories.get(sessionId) || [];
     const prompt = rawPrompt.trim();
     const lower = prompt.toLowerCase().replace(/[.,!?;:]/g, " ");
 
     state.messageCount += 1;
     state.lastInteractionAt = new Date().toISOString();
 
-    // 1. Determine Intent
-    let intent: ConversationIntent = "CONVERSATION_ONLY";
-    let mode: ConversationMode = "casual";
+    const lastUserMsg = history.filter((h) => h.role === "user").slice(-1)[0]?.text.toLowerCase() || "";
+    const lastAthenaMsg = history.filter((h) => h.role === "athena").slice(-1)[0]?.text.toLowerCase() || "";
 
-    // Direct Operational Execution Commands
+    let intent: ConversationIntent = "SOCIAL_CONVERSATION";
+    let mode: ConversationMode = state.mode || "casual";
+    let relevantModule: "projects" | "tasks" | "vault" | "codex" | "chronos" | "general" = "general";
+
+    // 1. Direct Operational Execution Commands (Action Layer)
     const isExecutionCommand =
       lower.startsWith("crie uma tarefa") ||
       lower.startsWith("criar tarefa") ||
@@ -76,36 +83,87 @@ export class ConversationManager {
       lower.startsWith("deletar") ||
       lower.startsWith("remover") ||
       lower.includes("mover para a lixeira") ||
-      lower.includes("esvaziar lixeira") ||
-      lower.includes("gerar relatorio");
-
-    // System Status & Diagnostic Queries
-    const isSystemQuery =
-      lower.includes("diagnostico") ||
-      lower.includes("quais sao meus prazos") ||
-      lower.includes("quais meus prazos") ||
-      lower.includes("quando vence") ||
-      lower.includes("quais editais") ||
-      lower.includes("minhas tarefas");
+      lower.includes("esvaziar lixeira");
 
     if (isExecutionCommand) {
       intent = "EXECUTION_REQUEST";
       mode = "command";
-    } else if (isSystemQuery) {
-      intent = "EXECUTION_REQUEST";
-      mode = "command";
-    } else if (
+    }
+    // 2. Athena's Own Technical Health & Self-Diagnostic (ATHENA_SELF_STATUS)
+    else if (
+      (lower.includes("voce esta funcionando") || lower.includes("você está funcionando")) ||
+      (lower.includes("como esta seu sistema") || lower.includes("como está seu sistema")) ||
+      lower.includes("seus modulos estao") || lower.includes("seus módulos estão") ||
+      lower.includes("problema na sua memoria") || lower.includes("problema na sua memória") ||
+      lower.includes("seu kernel") ||
+      lower.includes("sua memoria esta") || lower.includes("sua memória está") ||
+      (lower.includes("como voce esta rodando") || lower.includes("como você está rodando")) ||
+      lower.includes("diagnostico da athena") || lower.includes("diagnóstico da athena")
+    ) {
+      intent = "ATHENA_SELF_STATUS";
+      mode = "casual";
+    }
+    // 3. Explicit Ecosystem Briefing Request (ECOSYSTEM_BRIEFING)
+    else if (
+      lower.includes("me de um briefing") || lower.includes("me dê um briefing") ||
+      lower.includes("o que mudou no varynth") || lower.includes("o que mudou nos meus projetos") ||
+      lower.includes("o que aconteceu desde a ultima vez") || lower.includes("o que aconteceu desde a última vez") ||
+      lower.includes("me atualize sobre minhas coisas") ||
+      lower.includes("algo importante que eu deveria saber") ||
+      lower.includes("resumo executivo do dia") ||
+      // Contextual Briefing: If previous context discussed being away or needing a review
+      ((lastUserMsg.includes("fiquei") && lastUserMsg.includes("sem abrir")) || lastAthenaMsg.includes("coisas para revisar")) &&
+      (lower.includes("como estao as coisas") || lower.includes("como estão as coisas") || lower.includes("o que temos"))
+    ) {
+      intent = "ECOSYSTEM_BRIEFING";
+      mode = "casual";
+    }
+    // 4. Ecosystem & User Data Status (ECOSYSTEM_STATUS)
+    else if (
+      lower.includes("minha situacao no sistema") || lower.includes("minha situação no sistema") ||
+      lower.includes("como estao meus projetos") || lower.includes("como estão meus projetos") ||
+      lower.includes("como estao minhas tarefas") || lower.includes("como estão minhas tarefas") ||
+      lower.includes("tenho muita coisa pendente") || lower.includes("o que tenho pendente") ||
+      lower.includes("quais sao meus prazos") || lower.includes("quais meus prazos") ||
+      lower.includes("quando vence") || lower.includes("quais editais") ||
+      lower.includes("como esta o varynth") || lower.includes("como está o varynth")
+    ) {
+      intent = "ECOSYSTEM_STATUS";
+      mode = "casual";
+      if (lower.includes("tarefa") || lower.includes("pendente")) relevantModule = "tasks";
+      else if (lower.includes("projeto")) relevantModule = "projects";
+      else if (lower.includes("prazo") || lower.includes("vence")) relevantModule = "chronos";
+      else if (lower.includes("edital")) relevantModule = "general";
+    }
+    // 5. Epistemic & Concept Inquiry (CONCEPT_INQUIRY)
+    else if (
+      lower.startsWith("o que e ") || lower.startsWith("o que é ") ||
+      lower.startsWith("qual e ") || lower.startsWith("qual é ") ||
+      lower.startsWith("o que significa ") ||
+      lower.includes("voce sabe o que e") || lower.includes("você sabe o que é") ||
+      lower.includes("voce sabe o que") || lower.includes("você sabe o que") ||
+      lower.includes("me explica ") || lower.includes("me explique ") ||
+      lower.includes("latim") || lower.includes("jogo") || lower.includes("hermeneutica") ||
+      lower.includes("metodo cientifico") || lower.includes("epistemologia")
+    ) {
+      intent = "CONCEPT_INQUIRY";
+      mode = "casual";
+    }
+    // 6. Brainstorming & Ideation (BRAINSTORM)
+    else if (
       lower.includes("o que acha de") ||
-      lower.includes("ideia") ||
-      lower.includes("brainstorm") ||
+      lower.includes("estou com uma ideia") ||
       lower.includes("pensando em criar") ||
-      lower.includes("sugira") ||
-      lower.includes("sugestao") ||
-      lower.includes("sugestão")
+      lower.includes("brainstorm") ||
+      lower.includes("sugira uma ideia") ||
+      lower.includes("sugestao de projeto") ||
+      lower.includes("sugestão de projeto")
     ) {
       intent = "BRAINSTORM";
       mode = "brainstorm";
-    } else if (
+    }
+    // 7. Analysis & Review (ANALYSIS)
+    else if (
       lower.includes("analisar tese") ||
       lower.includes("analise juridica") ||
       lower.includes("precedente vinculante") ||
@@ -114,21 +172,44 @@ export class ConversationManager {
     ) {
       intent = "ANALYSIS";
       mode = "analysis";
-    } else {
-      // Default: It is a natural conversation, greeting, thought, question or reflection
-      intent = "CONVERSATION_ONLY";
+    }
+    // 8. Social Conversation directed to Athena's persona (SOCIAL_CONVERSATION)
+    else if (
+      lower.includes("como voce esta") || lower.includes("como você está") ||
+      lower.includes("tudo bem com voce") || lower.includes("tudo bem com você") ||
+      lower.includes("tudo bem") || lower.includes("como vai") ||
+      lower.includes("e ai athena") || lower.includes("e aí athena") ||
+      lower.includes("como anda voce") || lower.includes("como anda você") ||
+      lower.includes("sentiu minha falta") ||
+      lower.includes("que novidade voce tem") || lower.includes("que novidade você tem") ||
+      lower.includes("o que me conta") || lower.includes("o que me diz") ||
+      lower === "oi" || lower === "ola" || lower === "olá" ||
+      lower.startsWith("ola") || lower.startsWith("olá") || lower.startsWith("oi") ||
+      lower.startsWith("bom dia") || lower.startsWith("boa tarde") || lower.startsWith("boa noite") ||
+      lower.includes("kkk") || lower.includes("rsrs") || lower.includes("ta foda") || lower.includes("tá foda")
+    ) {
+      intent = "SOCIAL_CONVERSATION";
+      mode = "casual";
+    }
+    // 9. Ambiguous or General Dialogue
+    else {
+      intent = "SOCIAL_CONVERSATION";
       mode = "casual";
     }
 
     state.mode = mode;
 
-    // 2. Anaphora & Reference Resolution ("esse projeto", "essa ideia", "aquela pesquisa", "isso")
+    // Record interaction in history
+    history.push({ role: "user", text: prompt });
+    if (history.length > 20) history.shift();
+    this.sessionHistories.set(sessionId, history);
+
+    // Anaphora & Reference Resolution
     let targetProjectId = activeProjectId || state.currentProjectId;
     let targetProjectTitle: string | undefined;
     let isAmbiguousReference = false;
     let ambiguousTerm: string | undefined;
 
-    // Check if an explicit project is named in the prompt
     const matchedProject = allProjects.find((p) =>
       lower.includes(p.title.toLowerCase())
     );
@@ -168,7 +249,15 @@ export class ConversationManager {
       isAmbiguousReference,
       ambiguousTerm,
       topic: state.currentTopic,
+      relevantModule,
     };
+  }
+
+  recordAssistantResponse(sessionId: string, text: string): void {
+    const history = this.sessionHistories.get(sessionId) || [];
+    history.push({ role: "athena", text });
+    if (history.length > 20) history.shift();
+    this.sessionHistories.set(sessionId, history);
   }
 
   updateSessionWithHistory(sessionId: string, messages: AthenaMessage[]): void {

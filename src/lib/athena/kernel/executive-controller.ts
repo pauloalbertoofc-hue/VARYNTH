@@ -65,8 +65,8 @@ export class ExecutiveController {
       return response;
     }
 
-    // 3. Handle Purely Conversational & Brainstorm Messages (0 spurious actions/tasks created)
-    if (convContext.intent === "CONVERSATION_ONLY" || convContext.intent === "BRAINSTORM") {
+    // 3. Handle Conversational, Self-Status, Concept, Briefing & Brainstorm Messages
+    if (convContext.intent !== "EXECUTION_REQUEST") {
       const activeProj = resolvedProjectId
         ? storeCtx.projects.find((p) => p.id === resolvedProjectId)
         : undefined;
@@ -75,7 +75,10 @@ export class ExecutiveController {
         rawPrompt,
         convContext.mode,
         convContext.topic,
-        activeProj?.title
+        activeProj?.title,
+        storeCtx as any,
+        convContext.intent,
+        convContext.relevantModule
       );
 
       const response: AthenaResponse = {

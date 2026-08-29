@@ -118,8 +118,12 @@ Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
     convContext.mode,
     convContext.topic,
     activeProj?.title,
-    ctx
+    ctx,
+    convContext.intent,
+    convContext.relevantModule
   );
+
+  athenaConversationManager.recordAssistantResponse(sessionId, replyText);
 
   return {
     id: "ath-" + Date.now(),
@@ -164,29 +168,33 @@ export function processAthenaQuery(
     };
   }
 
-  if (convContext.intent === "CONVERSATION_ONLY" || convContext.intent === "BRAINSTORM") {
-    const activeProj = resolvedProjectId
-      ? ctx.projects.find((p) => p.id === resolvedProjectId)
-      : undefined;
-
-    const replyText = athenaPersonaEngine.generateDialogueResponse(
-      prompt,
-      convContext.mode,
-      convContext.topic,
-      activeProj?.title,
-      ctx
-    );
-
-    return {
-      id: "ath-" + Date.now(),
-      sender: "athena",
-      text: replyText,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      scope,
-    };
+  if (convContext.intent === "EXECUTION_REQUEST") {
+    return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
   }
 
-  return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
+  const activeProj = resolvedProjectId
+    ? ctx.projects.find((p) => p.id === resolvedProjectId)
+    : undefined;
+
+  const replyText = athenaPersonaEngine.generateDialogueResponse(
+    prompt,
+    convContext.mode,
+    convContext.topic,
+    activeProj?.title,
+    ctx,
+    convContext.intent,
+    convContext.relevantModule
+  );
+
+  athenaConversationManager.recordAssistantResponse(sessionId, replyText);
+
+  return {
+    id: "ath-" + Date.now(),
+    sender: "athena",
+    text: replyText,
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    scope,
+  };
 }
 
 function processDeterministicWorkflow(
