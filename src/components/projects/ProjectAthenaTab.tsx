@@ -6,6 +6,8 @@ import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { Bot, Send, Sparkles, CheckCircle2, AlertCircle, ArrowRight, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { processAthenaQuery } from "@/lib/athena";
+
 interface ProjectAthenaTabProps {
   project: Project;
 }
@@ -18,7 +20,8 @@ interface Message {
 }
 
 export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
-  const { tasks, notes, references } = useVarynthStore();
+  const store = useVarynthStore();
+  const { tasks, notes, references } = store;
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const projectNotes = notes.filter((n) => n.projectId === project.id);
 
@@ -55,31 +58,20 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     setInput("");
     setIsTyping(true);
 
-    // Contextual AI simulation response
     setTimeout(() => {
-      let reply = "";
-      const lower = query.toLowerCase();
-
-      if (lower.includes("resumir") || lower.includes("pendências") || lower.includes("prazo")) {
-        const pending = projectTasks.filter((t) => t.status !== "concluida");
-        reply = `### 📊 Diagnóstico do Projeto: ${project.title}\n\n- **Status Atual:** ${project.status.toUpperCase()}\n- **Prioridade:** ${project.priority.toUpperCase()}\n- **Prazo Estimado:** ${project.deadline || "Não definido"}\n- **Tarefas Pendentes (${pending.length}):**\n${pending.map((p) => `  - [ ] **${p.title}** (Prioridade: ${p.priority})`).join("\n") || "  - Nenhuma tarefa pendente! Tudo em dia."}\n\nRecomendo focar primeiro nas tarefas de prioridade Alta/Urgente.`;
-      } else if (lower.includes("sugerir") || lower.includes("tarefa") || lower.includes("passo")) {
-        reply = `### 💡 Sugestões de Ação para ${project.title}:\n\n1. **Revisão de Metodologia & Escopo:** Consolidar os critérios de entrega e definir milestones na timeline.\n2. **Organização de Evidências:** Criar fichamentos no Vault sobre os tópicos centrais.\n3. **Checkpoint Semanal:** Marcar uma rodada de alinhamento com os colaboradores (${project.collaborators?.join(", ") || "Equipe"}).`;
-      } else {
-        reply = `Analisei o contexto de **${project.title}**. Com base na categoria *${project.category}* e nos arquivos e notas registrados, posso ajudar a estruturar o fluxo de trabalho, rascunhar documentos ou automatizar etapas. Quer que eu crie uma tarefa com base nisso?`;
-      }
+      const response = processAthenaQuery(query, "geral", store, project.id);
 
       setMessages((prev) => [
         ...prev,
         {
-          id: "ath-" + Date.now(),
+          id: response.id || "ath-" + Date.now(),
           sender: "athena",
-          text: reply,
-          timestamp: "Agora",
+          text: response.text,
+          timestamp: response.timestamp || "Agora",
         },
       ]);
       setIsTyping(false);
-    }, 600);
+    }, 400);
   };
 
   return (
