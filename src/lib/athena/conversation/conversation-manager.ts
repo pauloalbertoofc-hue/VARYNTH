@@ -91,19 +91,33 @@ export class ConversationManager {
     }
     // 2. Athena's Own Technical Health & Self-Diagnostic (ATHENA_SELF_STATUS)
     else if (
-      (lower.includes("voce esta funcionando") || lower.includes("você está funcionando")) ||
-      (lower.includes("como esta seu sistema") || lower.includes("como está seu sistema")) ||
+      lower.includes("voce esta funcionando") || lower.includes("você está funcionando") ||
+      lower.includes("como esta seu sistema") || lower.includes("como está seu sistema") ||
       lower.includes("seus modulos estao") || lower.includes("seus módulos estão") ||
       lower.includes("problema na sua memoria") || lower.includes("problema na sua memória") ||
       lower.includes("seu kernel") ||
       lower.includes("sua memoria esta") || lower.includes("sua memória está") ||
-      (lower.includes("como voce esta rodando") || lower.includes("como você está rodando")) ||
+      lower.includes("como voce esta rodando") || lower.includes("como você está rodando") ||
       lower.includes("diagnostico da athena") || lower.includes("diagnóstico da athena")
     ) {
       intent = "ATHENA_SELF_STATUS";
       mode = "casual";
     }
-    // 3. Explicit Ecosystem Briefing Request (ECOSYSTEM_BRIEFING)
+    // 3. Brainstorming & Ideation (BRAINSTORM) -> "me dê ideias", "que projeto começar", "o que criar"
+    else if (
+      lower.includes("ideia") || lower.includes("ideias") ||
+      lower.includes("que projeto") || lower.includes("qual projeto") ||
+      lower.includes("comecar projeto") || lower.includes("começar projeto") ||
+      lower.includes("iniciar projeto") || lower.includes("criar projeto") ||
+      lower.includes("o que acha de") || lower.includes("o que você acha de") ||
+      lower.includes("sugira") || lower.includes("sugestao") || lower.includes("sugestão") ||
+      lower.includes("brainstorm") || lower.includes("o que criar") ||
+      lower.includes("me recomende algo") || lower.includes("tema interessante")
+    ) {
+      intent = "BRAINSTORM";
+      mode = "brainstorm";
+    }
+    // 4. Explicit Ecosystem Briefing Request (ECOSYSTEM_BRIEFING)
     else if (
       lower.includes("me de um briefing") || lower.includes("me dê um briefing") ||
       lower.includes("o que mudou no varynth") || lower.includes("o que mudou nos meus projetos") ||
@@ -111,14 +125,13 @@ export class ConversationManager {
       lower.includes("me atualize sobre minhas coisas") ||
       lower.includes("algo importante que eu deveria saber") ||
       lower.includes("resumo executivo do dia") ||
-      // Contextual Briefing: If previous context discussed being away or needing a review
       ((lastUserMsg.includes("fiquei") && lastUserMsg.includes("sem abrir")) || lastAthenaMsg.includes("coisas para revisar")) &&
       (lower.includes("como estao as coisas") || lower.includes("como estão as coisas") || lower.includes("o que temos"))
     ) {
       intent = "ECOSYSTEM_BRIEFING";
       mode = "casual";
     }
-    // 4. Ecosystem & User Data Status (ECOSYSTEM_STATUS)
+    // 5. Ecosystem & User Data Status (ECOSYSTEM_STATUS)
     else if (
       lower.includes("minha situacao no sistema") || lower.includes("minha situação no sistema") ||
       lower.includes("como estao meus projetos") || lower.includes("como estão meus projetos") ||
@@ -135,7 +148,7 @@ export class ConversationManager {
       else if (lower.includes("prazo") || lower.includes("vence")) relevantModule = "chronos";
       else if (lower.includes("edital")) relevantModule = "general";
     }
-    // 5. Epistemic & Concept Inquiry (CONCEPT_INQUIRY)
+    // 6. Epistemic & Concept Inquiry (CONCEPT_INQUIRY)
     else if (
       lower.startsWith("o que e ") || lower.startsWith("o que é ") ||
       lower.startsWith("qual e ") || lower.startsWith("qual é ") ||
@@ -148,19 +161,6 @@ export class ConversationManager {
     ) {
       intent = "CONCEPT_INQUIRY";
       mode = "casual";
-    }
-    // 6. Brainstorming & Ideation (BRAINSTORM)
-    else if (
-      lower.includes("o que acha de") ||
-      lower.includes("estou com uma ideia") ||
-      lower.includes("pensando em criar") ||
-      lower.includes("brainstorm") ||
-      lower.includes("sugira uma ideia") ||
-      lower.includes("sugestao de projeto") ||
-      lower.includes("sugestão de projeto")
-    ) {
-      intent = "BRAINSTORM";
-      mode = "brainstorm";
     }
     // 7. Analysis & Review (ANALYSIS)
     else if (

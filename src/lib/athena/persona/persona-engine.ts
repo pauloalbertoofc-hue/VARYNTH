@@ -35,7 +35,6 @@ export class AthenaPersonaEngine {
 
   /**
    * Generates Athena's technical self-diagnostic (ATHENA_SELF_STATUS).
-   * Note: This inspects Athena's own health, NOT the user's projects or personal data.
    */
   generateAthenaSelfStatus(): string {
     return `Diagnóstico técnico da **Athena**:\n\n` +
@@ -119,6 +118,39 @@ export class AthenaPersonaEngine {
   }
 
   /**
+   * Generates proactive brainstorming ideas and project proposals (Musa + Strategos).
+   */
+  generateBrainstormingResponse(prompt: string, activeProjectTitle?: string): string {
+    const lower = prompt.toLowerCase();
+
+    if (
+      lower.includes("que projeto") ||
+      lower.includes("qual projeto") ||
+      lower.includes("comecar") ||
+      lower.includes("começar") ||
+      lower.includes("iniciar") ||
+      lower.includes("ideias para hoje") ||
+      lower.includes("ideia para hoje") ||
+      lower.includes("o que criar")
+    ) {
+      return `Separei **3 ideias de projetos estratégicos e estimulantes** para você começar hoje no VARYNTH OS:\n\n` +
+        `🚀 **1. Observatório de Regulação de IA & Responsabilidade Civil (Direito & Inovação)**\n` +
+        `> Estruturar uma matriz de teses no **Codex (Argument Arena)** comparando as correntes jurisprudenciais sobre danos causados por inteligência artificial e decisões autônomas.\n\n` +
+        `🔬 **2. Framework de Pesquisa Empírica & Síntese Bibliográfica (Pesquisa & Ciência)**\n` +
+        `> Criar um projeto focado no **Evidence Board** para fichar artigos científicos de alto impacto do Vault, triangulando dados e identificando lacunas metodológicas.\n\n` +
+        `⚡ **3. Laboratório de Automação & Ferramentas Cognitivas (Labs & Forge)**\n` +
+        `> Incubar um novo produto ou workflow operacional no **Labs** para automatizar fluxos repetitivos e acelerar sua produção intelectual.\n\n` +
+        `Qual dessas três frentes mais te atrai hoje para a gente rascunhar o primeiro esboço?`;
+    }
+
+    if (activeProjectTitle) {
+      return `Adorei essa reflexão para o projeto **"${activeProjectTitle}"**! 💡\n\n1. **Perspectiva da Musa (Criatividade):** Podemos expandir essa ideia cruzando com os conceitos arquivados no Vault.\n2. **Perspectiva do Strategos (Viabilidade):** Como isso se encaixa no cronograma para não atrasar as entregas em andamento?\n3. **Próximo Passo:** Recomendo rascunhar um teste rápido no Labs antes de consolidar.\n\nPor onde você quer puxar esse fio?`;
+    }
+
+    return `Essa é uma linha de raciocínio muito fértil! 💡\n\nPodemos explorar esse tema por três ângulos:\n• **Fundamentação:** Cruzar com o acervo do Vault;\n• **Dialética:** Montar uma controvérsia na Argument Arena;\n• **Execução:** Incubar um experimento inicial no Labs.\n\nQual desses caminhos você prefere trilhar primeiro?`;
+  }
+
+  /**
    * Generates a natural, tactful, intelligent conversational response respecting social context.
    */
   generateDialogueResponse(
@@ -142,17 +174,22 @@ export class AthenaPersonaEngine {
       return this.generateAthenaSelfStatus();
     }
 
-    // 2. ECOSYSTEM_BRIEFING (Explicit request for full briefing)
+    // 2. BRAINSTORM (Ideation, Project Suggestions, Musa proposals)
+    if (intent === "BRAINSTORM" || mode === "brainstorm" || cleanLower.includes("ideia") || cleanLower.includes("ideias")) {
+      return this.generateBrainstormingResponse(prompt, activeProjectTitle);
+    }
+
+    // 3. ECOSYSTEM_BRIEFING (Explicit request for full briefing)
     if (intent === "ECOSYSTEM_BRIEFING" && ctx) {
       return this.generateEcosystemBriefing(ctx);
     }
 
-    // 3. ECOSYSTEM_STATUS (Focused query about user tasks, projects, deadlines)
+    // 4. ECOSYSTEM_STATUS (Focused query about user tasks, projects, deadlines)
     if (intent === "ECOSYSTEM_STATUS" && ctx) {
       return this.generateEcosystemStatus(prompt, ctx, relevantModule);
     }
 
-    // 4. CONCEPT_INQUIRY (Questions like "o que é latim", "você sabe o que é um jogo", "o que é hermenêutica")
+    // 5. CONCEPT_INQUIRY (Questions like "o que é latim", "você sabe o que é um jogo", "o que é hermenêutica")
     if (intent === "CONCEPT_INQUIRY") {
       const concept = this.findConceptExplanation(prompt);
       if (concept) {
@@ -170,7 +207,7 @@ export class AthenaPersonaEngine {
       return `Sobre **"${subject}"**, examinando sob uma ótica ampla e conceitual:\n\n1. **Definição & Fundamentos:** Trata-se de um conceito importante com dimensões práticas e teóricas relevantes.\n2. **Aplicação no VARYNTH OS:** Podemos conectar essa reflexão com teses no Codex ou fontes no Vault para enriquecer seu acervo.\n3. **Perspectiva Crítica:** Vale delimitar bem o escopo para extrair o melhor direcionamento prático.\n\nEm qual ângulo de **${subject}** você gostaria de aprofundar nossa conversa?`;
     }
 
-    // 5. Humor, Laughter, or Venting ("kkk", "tá foda", "muita coisa", "cansado", "difícil")
+    // 6. Humor, Laughter, or Venting ("kkk", "tá foda", "muita coisa", "cansado", "difícil")
     if (
       rawLower.includes("kkk") ||
       rawLower.includes("rsrs") ||
@@ -193,7 +230,7 @@ export class AthenaPersonaEngine {
       return `Kkkk faz parte do processo criativo e intelectual! Quando a gente começa a conectar as peças, o volume de ideias parece infinito.\n\nRespira fundo: o VARYNTH cuida da infraestrutura e eu te ajudo a priorizar. O que está pesando mais na sua cabeça agora?`;
     }
 
-    // 6. Social Conversation with Athena's persona (SOCIAL_CONVERSATION)
+    // 7. Social Conversation with Athena's persona (SOCIAL_CONVERSATION)
     if (
       cleanLower.includes("como voce esta") || cleanLower.includes("como você está") ||
       cleanLower.includes("tudo bem com voce") || cleanLower.includes("tudo bem com você") ||
@@ -208,7 +245,7 @@ export class AthenaPersonaEngine {
       return `Por aqui tudo ótimo e em ordem, Paulo! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Por enquanto, nenhuma grande reviravolta — tudo rodando redondo e pronto para o que você quiser criar hoje!\n\nE com você, como foi o seu dia? Alguma ideia nova ou quer só bater um papo leve?`;
     }
 
-    // 7. Greetings ("oi", "olá", "bom dia", "boa tarde", "e aí athena")
+    // 8. Greetings ("oi", "olá", "bom dia", "boa tarde", "e aí athena")
     if (
       cleanLower === "ola" || cleanLower === "olá" || cleanLower === "oi" ||
       cleanLower.startsWith("ola") || cleanLower.startsWith("olá") || cleanLower.startsWith("oi") ||
@@ -221,17 +258,12 @@ export class AthenaPersonaEngine {
       return `Olá, Paulo! Tudo excelente por aqui! 😊 Conectada ao seu ecossistema e pronta para acompanhar suas ideias e pesquisas. O que temos na pauta hoje?`;
     }
 
-    // 8. Brainstorming Mode
-    if (mode === "brainstorm" || cleanLower.includes("pensando em") || cleanLower.includes("o que acha de")) {
-      return `Gostei dessa reflexão! Olhando para essa ideia por alguns ângulos:\n\n1. **Oportunidade:** Isso pode se conectar diretamente com referências do Vault e gerar autoridade.\n2. **Equilíbrio:** Vale ponderar como encaixar isso no Chronos sem sobrecarregar as outras frentes.\n3. **Prática:** Podemos rascunhar um experimento no Labs para testar a tração.\n\nO que você acha dessa direção?`;
-    }
-
-    // 9. Default Tactful Conversation
+    // 9. Default Intellectual Dialogue
     if (activeProjectTitle) {
-      return `Entendi o seu ponto sobre **"${activeProjectTitle}"**. Estou acompanhando o raciocínio com você. Quer que a gente desenvolva mais essa ideia ou prefere transformar isso em uma ação prática?`;
+      return `Sobre **"${prompt}"** no projeto **"${activeProjectTitle}"**: temos uma boa oportunidade para conectar com os fichamentos existentes e avançar na entrega prática. Em qual detalhe você quer aprofundar agora?`;
     }
 
-    return `Entendi perfeitamente, Paulo. Estou acompanhando sua linha de raciocínio. Como você gostaria de encaminhar essa reflexão agora?`;
+    return `Essa é uma questão muito interessante! Podemos explorar sob o viés metodológico com Logos ou avaliar as implicações estratégicas com Strategos. O que você gostaria de construir a partir desse ponto?`;
   }
 
   /**
