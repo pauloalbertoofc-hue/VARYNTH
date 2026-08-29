@@ -16,6 +16,7 @@ import { athenaWorkflowBuilder } from "./runtime/workflow-builder";
 import { athenaResponseBuilder } from "./kernel/response-builder";
 import { athenaConversationManager } from "./conversation/conversation-manager";
 import { athenaPersonaEngine } from "./persona/persona-engine";
+import { ollamaAdapter } from "./models/providers/ollama-adapter";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -30,15 +31,15 @@ export interface AthenaEngineContext {
 }
 
 /**
- * High-level facade for Athena Cognitive Kernel with Conversational & Execution Awareness.
+ * High-level async facade for Athena Cognitive Kernel with Automatic Local Model Detection.
  */
-export function processAthenaQuery(
+export async function processAthenaQueryAsync(
   rawPrompt: string,
   scope: AthenaScope,
   ctx: AthenaEngineContext,
   targetProjectId?: string,
   sessionId = "default-session"
-): AthenaMessage {
+): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
 
   // 1. Conversation Manager & Anaphora Resolution
@@ -63,7 +64,105 @@ export function processAthenaQuery(
     };
   }
 
-  // 3. Handle Purely Conversational / Casual / Brainstorming Messages (0 spurious actions/tasks created)
+  // 3. Operational Execution Commands ALWAYS execute via deterministic Action Layer
+  if (convContext.intent === "EXECUTION_REQUEST") {
+    return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
+  }
+
+  // 4. Auto-detect Local Ollama Neural Engine (127.0.0.1:11434)
+  const isOllamaOnline = await ollamaAdapter.isAvailable();
+  if (isOllamaOnline && ollamaAdapter.activeModel) {
+    try {
+      const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
+      const contextData = {
+        activeProject: activeProj ? { title: activeProj.title, category: activeProj.category, status: activeProj.status } : null,
+        recentTasks: ctx.tasks.slice(0, 5).map((t) => ({ title: t.title, priority: t.priority })),
+        upcomingDeadlines: ctx.projects.filter((p) => p.deadline).slice(0, 3).map((p) => ({ title: p.title, deadline: p.deadline })),
+        vaultItemsCount: ctx.vaultItems.length,
+        thesesCount: ctx.theses.length,
+      };
+
+      const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
+Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil de forma natural e engajante.
+Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
+
+      const modelResponse = await ollamaAdapter.generate({
+        systemPrompt,
+        userPrompt: prompt,
+        contextData,
+        temperature: 0.7,
+      });
+
+      if (modelResponse.content && modelResponse.content.trim().length > 0) {
+        return {
+          id: "ath-" + Date.now(),
+          sender: "athena",
+          text: modelResponse.content.trim(),
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          scope,
+          metadata: {
+            engine: "ollama-local",
+            model: ollamaAdapter.activeModel,
+          },
+        };
+      }
+    } catch {
+      // Fallback seamlessly to deterministic Persona if local model inference fails
+    }
+  }
+
+  // 5. Fallback to Deterministic Persona Dialogue (0 ms, 100% offline)
+  const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
+  const replyText = athenaPersonaEngine.generateDialogueResponse(
+    prompt,
+    convContext.mode,
+    convContext.topic,
+    activeProj?.title
+  );
+
+  return {
+    id: "ath-" + Date.now(),
+    sender: "athena",
+    text: replyText,
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    scope,
+    metadata: {
+      engine: "deterministic-core",
+    },
+  };
+}
+
+/**
+ * Synchronous backward-compatible entry point
+ */
+export function processAthenaQuery(
+  rawPrompt: string,
+  scope: AthenaScope,
+  ctx: AthenaEngineContext,
+  targetProjectId?: string,
+  sessionId = "default-session"
+): AthenaMessage {
+  const prompt = rawPrompt.trim();
+  const convContext = athenaConversationManager.processMessage(
+    sessionId,
+    prompt,
+    ctx.projects,
+    targetProjectId
+  );
+
+  const resolvedProjectId = convContext.targetProjectId || targetProjectId;
+
+  if (convContext.isAmbiguousReference && convContext.ambiguousTerm) {
+    const candidates = ctx.projects.map((p) => p.title);
+    return {
+      id: "ath-" + Date.now(),
+      sender: "athena",
+      text: athenaPersonaEngine.generateClarificationQuestion(convContext.ambiguousTerm, candidates),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scope,
+    };
+  }
+
   if (convContext.intent === "CONVERSATION_ONLY" || convContext.intent === "BRAINSTORM") {
     const activeProj = resolvedProjectId
       ? ctx.projects.find((p) => p.id === resolvedProjectId)
@@ -85,7 +184,15 @@ export function processAthenaQuery(
     };
   }
 
-  // 4. Execution & Deep Analysis Path
+  return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
+}
+
+function processDeterministicWorkflow(
+  prompt: string,
+  scope: AthenaScope,
+  ctx: AthenaEngineContext,
+  resolvedProjectId?: string
+): AthenaMessage {
   const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
   const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
   const workflow = athenaWorkflowBuilder.build(task);
@@ -158,7 +265,6 @@ export function processAthenaQuery(
     // ignore
   }
 
-  // 5. Deliberation check for Cognitive Path
   let deliberationResult: any = undefined;
   if (task.type === "LEGAL_ANALYSIS") {
     const thesis = ctx.theses[0];
@@ -180,7 +286,6 @@ export function processAthenaQuery(
     };
   }
 
-  // 6. Build Final Response
   return athenaResponseBuilder.buildResponse(
     task,
     context,

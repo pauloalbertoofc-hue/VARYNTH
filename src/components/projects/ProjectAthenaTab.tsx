@@ -6,7 +6,8 @@ import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { Bot, Send, Sparkles, CheckCircle2, AlertCircle, ArrowRight, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { processAthenaQuery } from "@/lib/athena";
+import { processAthenaQueryAsync } from "@/lib/athena";
+import { useAthenaEngineStatus } from "@/lib/athena/hooks/useAthenaEngineStatus";
 
 interface ProjectAthenaTabProps {
   project: Project;
@@ -21,6 +22,7 @@ interface Message {
 
 export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
   const store = useVarynthStore();
+  const engineStatus = useAthenaEngineStatus();
   const { tasks, notes, references } = store;
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const projectNotes = notes.filter((n) => n.projectId === project.id);
@@ -43,7 +45,7 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     "Elaborar rascunho de apresentação",
   ];
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
     if (!query) return;
 
@@ -58,8 +60,14 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = processAthenaQuery(query, "geral", store, project.id, `project-${project.id}-session`);
+    try {
+      const response = await processAthenaQueryAsync(
+        query,
+        "geral",
+        store,
+        project.id,
+        `project-${project.id}-session`
+      );
 
       setMessages((prev) => [
         ...prev,
@@ -70,8 +78,11 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
           timestamp: response.timestamp || "Agora",
         },
       ]);
+    } catch {
+      // fallback
+    } finally {
       setIsTyping(false);
-    }, 400);
+    }
   };
 
   return (
@@ -85,8 +96,17 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-slate-100">Athena Copilot</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-semibold">
-                Contextual
+              <span
+                className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded font-semibold",
+                  engineStatus.isLocalNeuralActive
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                )}
+              >
+                {engineStatus.isLocalNeuralActive
+                  ? `Local: ${engineStatus.activeModel}`
+                  : "Offline Core"}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate max-w-xs">

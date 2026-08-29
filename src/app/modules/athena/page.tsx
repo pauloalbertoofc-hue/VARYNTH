@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
-import { processAthenaQuery } from "@/lib/athena/engine";
+import { processAthenaQueryAsync } from "@/lib/athena/engine";
+import { useAthenaEngineStatus } from "@/lib/athena/hooks/useAthenaEngineStatus";
 import { AthenaMessage, AthenaScope } from "@/lib/types";
 import {
   Bot,
@@ -21,6 +22,8 @@ import {
   Zap,
   Terminal,
   Layers,
+  Cpu,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,15 +70,16 @@ const INITIAL_MESSAGES: AthenaMessage[] = [
 
 export default function AthenaHubPage() {
   const store = useVarynthStore();
+  const engineStatus = useAthenaEngineStatus();
   const [messages, setMessages] = useState<AthenaMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [scope, setScope] = useState<AthenaScope>("geral");
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("varynth_athena_chat");
+      const saved = localStorage.getItem("varynth_athena_messages");
       if (saved) {
         setMessages(JSON.parse(saved));
       }
@@ -84,20 +88,20 @@ export default function AthenaHubPage() {
     }
   }, []);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
-
-  const saveMessages = (newMessages: AthenaMessage[]) => {
-    setMessages(newMessages);
+  const saveMessages = (msgs: AthenaMessage[]) => {
+    setMessages(msgs);
     try {
-      localStorage.setItem("varynth_athena_chat", JSON.stringify(newMessages));
+      localStorage.setItem("varynth_athena_messages", JSON.stringify(msgs));
     } catch {
       // ignore
     }
   };
 
-  const handleSend = (textToSend?: string) => {
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
+
+  const handleSend = async (textToSend?: string) => {
     const raw = textToSend || input;
     if (!raw.trim()) return;
 
@@ -114,11 +118,14 @@ export default function AthenaHubPage() {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = processAthenaQuery(raw, scope, store, undefined, "global-athena-session");
+    try {
+      const response = await processAthenaQueryAsync(raw, scope, store, undefined, "global-athena-session");
       saveMessages([...updated, response]);
+    } catch {
+      // fallback
+    } finally {
       setIsTyping(false);
-    }, 450);
+    }
   };
 
   const handleClearHistory = () => {
@@ -145,14 +152,54 @@ export default function AthenaHubPage() {
             </p>
           </div>
 
-          <button
-            onClick={handleClearHistory}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors p-1.5"
-            title="Limpar histórico de conversa"
-          >
-            <Trash2 size={13} />
-            <span>Limpar Chat</span>
-          </button>
+          {/* Engine Status Badge with Auto-detection */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div
+              className={cn(
+                "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition-all",
+                engineStatus.isLocalNeuralActive
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-slate-800/80 border-slate-700 text-slate-300"
+              )}
+              title={engineStatus.engineDescription}
+            >
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  engineStatus.isLocalNeuralActive
+                    ? "bg-emerald-400 animate-pulse"
+                    : "bg-amber-400"
+                )}
+              />
+              <Cpu size={13} className="opacity-70" />
+              <span>
+                {engineStatus.isLocalNeuralActive
+                  ? `Local: ${engineStatus.activeModel}`
+                  : "Núcleo Determinístico Offline"}
+              </span>
+
+              <button
+                onClick={() => engineStatus.checkStatus()}
+                disabled={engineStatus.isChecking}
+                className="hover:text-white transition-colors ml-1"
+                title="Escanear porta local (127.0.0.1:11434)"
+              >
+                <RefreshCw
+                  size={12}
+                  className={cn(engineStatus.isChecking && "animate-spin text-violet-400")}
+                />
+              </button>
+            </div>
+
+            <button
+              onClick={handleClearHistory}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors p-1.5"
+              title="Limpar histórico de conversa"
+            >
+              <Trash2 size={13} />
+              <span>Limpar</span>
+            </button>
+          </div>
         </div>
 
         {/* Scope Selector */}
@@ -280,7 +327,7 @@ export default function AthenaHubPage() {
               </div>
             )}
 
-            <div ref={messagesEndRef} />
+            <div ref={chatEndRef} />
           </div>
 
           {/* Quick Prompt Chips */}

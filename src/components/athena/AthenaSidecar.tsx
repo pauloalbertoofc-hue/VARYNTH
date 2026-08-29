@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
-import { processAthenaQuery } from "@/lib/athena/engine";
+import { processAthenaQueryAsync } from "@/lib/athena/engine";
+import { useAthenaEngineStatus } from "@/lib/athena/hooks/useAthenaEngineStatus";
 import { AthenaMessage, AthenaScope } from "@/lib/types";
 import {
   Bot,
@@ -65,7 +66,9 @@ export function AthenaSidecar() {
   if (pathname.includes("/research")) currentScope = "pesquisa";
   if (pathname.includes("/chronos") || pathname.includes("/projects")) currentScope = "produtividade";
 
-  const handleSend = (textToSend?: string) => {
+  const engineStatus = useAthenaEngineStatus();
+
+  const handleSend = async (textToSend?: string) => {
     const raw = textToSend || input;
     if (!raw.trim()) return;
 
@@ -82,11 +85,14 @@ export function AthenaSidecar() {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = processAthenaQuery(raw, currentScope, store, undefined, "global-athena-session");
+    try {
+      const response = await processAthenaQueryAsync(raw, currentScope, store, undefined, "global-athena-session");
       setMessages([...updated, response]);
+    } catch {
+      // fallback
+    } finally {
       setIsTyping(false);
-    }, 400);
+    }
   };
 
   return (
@@ -120,10 +126,22 @@ export function AthenaSidecar() {
                 <Bot size={15} />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                  Athena Sidecar
-                  <Sparkles size={12} className="text-violet-400" />
-                </h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                    Athena Sidecar
+                    <Sparkles size={12} className="text-violet-400" />
+                  </h3>
+                  <span
+                    className={cn(
+                      "text-[9px] px-1.5 py-0.2 rounded font-semibold",
+                      engineStatus.isLocalNeuralActive
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-slate-800 text-slate-400"
+                    )}
+                  >
+                    {engineStatus.isLocalNeuralActive ? `Local: ${engineStatus.activeModel}` : "Offline Core"}
+                  </span>
+                </div>
                 <span className="text-[10px] text-slate-400 font-mono">
                   Contexto: {pathname}
                 </span>

@@ -16,5 +16,6 @@ export interface AthenaMessage {
   timestamp: string;
   scope?: AthenaScope;
   actionCard?: AthenaActionCard;
+  metadata?: Record<string, unknown>;
 }
 
