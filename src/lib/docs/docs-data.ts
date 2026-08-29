@@ -265,6 +265,36 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Necessidade de script cliente injetado no preview"],
     },
   },
+  {
+    id: "ADR-015",
+    number: "ADR-015",
+    title: "Modelo de Edição Não-Destrutiva de Imagens e Imutabilidade de Source Assets",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "A edição visual não pode sobrescrever o asset original importado sob o Princípio Alex.",
+    decision: "Manter o source asset como imutável e expressar transformações no ImageDocumentState, gerando Derived Assets no render.",
+    rationale: "Permite reversibilidade absoluta, histórico de versões íntegro e compartilhamento seguro do asset original.",
+    alternatives: ["Sobrescrita direta do arquivo no disco", "Achatamento síncrono da imagem"],
+    consequences: {
+      gains: ["Preservação perpétua da fonte", "Rollback não-destrutivo", "Flexibilidade de reedição"],
+      tradeoffs: ["Composição sob demanda na etapa de exportação"],
+    },
+  },
+  {
+    id: "ADR-016",
+    number: "ADR-016",
+    title: "Arquitetura de Camadas de Imagem e Pipeline de Renderização Local",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Necessidade de manipular camadas compostas com segurança de memória e rastreabilidade local.",
+    decision: "Implementar ImageRenderEngine determinístico com suporte a camadas, validação de ciclos em grupos, limites de canvas e formatos raster.",
+    rationale: "Garante alta performance, prevenção de crash por memória e operação 100% Local-First.",
+    alternatives: ["Serviço em nuvem de renderização", "Editor vetorial complexo"],
+    consequences: {
+      gains: ["Processamento local rápido", "Proteção contra exaustão de memória", "Rastreabilidade via JobManager"],
+      tradeoffs: ["Exportação vetorial SVG postergada"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

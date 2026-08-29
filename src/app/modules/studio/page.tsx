@@ -11,7 +11,6 @@ import { DocumentSuggestionPanel } from "@/components/studio/document/DocumentSu
 import { DocumentExportModal } from "@/components/studio/document/DocumentExportModal";
 import { DocumentTemplatesModal } from "@/components/studio/document/DocumentTemplatesModal";
 import { documentService } from "@/lib/studio/document/document-service";
-import { athenaDocumentActions } from "@/lib/studio/document/athena-document-actions";
 import { DocumentItem, DocumentSaveState, DocumentTemplate } from "@/lib/studio/document/types";
 
 // Web Studio Imports
@@ -24,26 +23,35 @@ import { WebExportModal } from "@/components/studio/web/WebExportModal";
 import { WebTemplatesModal } from "@/components/studio/web/WebTemplatesModal";
 import { webService } from "@/lib/studio/web/web-service";
 import { webBuildEngine } from "@/lib/studio/web/web-build-engine";
-import { athenaWebActions } from "@/lib/studio/web/athena-web-actions";
 import { WebsiteItem, WebFileItem } from "@/lib/studio/web/types";
 import { WebTemplate } from "@/lib/studio/web/web-templates";
+
+// Image Studio Imports
+import { ImageCanvas } from "@/components/studio/image/ImageCanvas";
+import { ImageLayerPanel } from "@/components/studio/image/ImageLayerPanel";
+import { ImagePropertiesPanel } from "@/components/studio/image/ImagePropertiesPanel";
+import { ImageToolbar } from "@/components/studio/image/ImageToolbar";
+import { ImageExportModal } from "@/components/studio/image/ImageExportModal";
+import { ImageTemplatesModal } from "@/components/studio/image/ImageTemplatesModal";
+import { ImageChangeSetModal } from "@/components/studio/image/ImageChangeSetModal";
+import { imageService } from "@/lib/studio/image/image-service";
+import { athenaImageActions } from "@/lib/studio/image/athena-image-actions";
+import { ImageItem, ImageLayer } from "@/lib/studio/image/types";
 
 import {
   FileText,
   Globe,
+  Image as ImageIcon,
   Plus,
-  Upload,
   BookOpen,
   Sparkles,
-  Layers,
   ArrowRight,
   Play,
   RotateCw,
-  Code2,
 } from "lucide-react";
 
 export default function StudioPage() {
-  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB">("DOCUMENT");
+  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE">("DOCUMENT");
 
   // Document Studio State
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
@@ -68,14 +76,17 @@ export default function StudioPage() {
   const [webBuildErrors, setWebBuildErrors] = useState<string[]>([]);
   const [isBuilding, setIsBuilding] = useState(false);
 
-  // Athena interaction in studio
-  const [athenaPrompt, setAthenaPrompt] = useState("");
-  const [athenaHistory, setAthenaHistory] = useState<Array<{ sender: "USER" | "ATHENA"; text: string }>>([
-    { sender: "ATHENA", text: "Olá! Sou a Athena. Posso sugerir melhorias de código, reescritas e analisar builds." },
-  ]);
+  // Image Studio State
+  const [activeImage, setActiveImage] = useState<ImageItem | null>(null);
+  const [allImages, setAllImages] = useState<ImageItem[]>([]);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | undefined>(undefined);
+  const [imageViewMode, setImageViewMode] = useState<"EDIT" | "PREVIEW" | "SPLIT">("EDIT");
+  const [imageSidebarTab, setImageSidebarTab] = useState<"OUTLINE" | "VERSIONS" | "ASSETS" | "RELATIONS" | "ATHENA">("OUTLINE");
+  const [imageSaveState, setImageSaveState] = useState<DocumentSaveState>("SAVED");
+  const [isImageExportOpen, setIsImageExportOpen] = useState(false);
+  const [isImageTemplateOpen, setIsImageTemplateOpen] = useState(false);
+  const [isImageChangeSetOpen, setIsImageChangeSetOpen] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const webImportInputRef = useRef<HTMLInputElement>(null);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -85,6 +96,7 @@ export default function StudioPage() {
   const loadData = () => {
     setAllDocs(documentService.listDocuments());
     setAllWebsites(webService.listWebsites());
+    setAllImages(imageService.listImages());
   };
 
   // --- Document Studio Handlers ---
@@ -183,10 +195,74 @@ export default function StudioPage() {
     loadData();
   };
 
+  // --- Image Studio Handlers ---
+  const handleSelectImage = (img: ImageItem) => {
+    setActiveImage(img);
+    if (img.documentState.layers.length > 0) {
+      setSelectedLayerId(img.documentState.layers[0].id);
+    } else {
+      setSelectedLayerId(undefined);
+    }
+  };
+
+  const handleUpdateImageDocumentState = (updated: ImageItem["documentState"]) => {
+    if (!activeImage) return;
+    imageService.pushUndoState(activeImage.documentState);
+    setActiveImage({ ...activeImage, documentState: updated });
+    setImageSaveState("SAVING");
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(async () => {
+      const res = await imageService.saveDocumentState(activeImage.artifact.id, updated, "USER");
+      if (res.success) {
+        setImageSaveState("SAVED");
+        loadData();
+      } else {
+        setImageSaveState("SAVE_FAILED");
+      }
+    }, 800);
+  };
+
+  const handleCreateNewImage = async (
+    templateId?: string,
+    name?: string,
+    customCanvas?: { width: number; height: number; background: string }
+  ) => {
+    const res = await imageService.createImage({
+      name: name || "Nova Imagem",
+      templateId,
+      customCanvas,
+      actor: "USER",
+    });
+
+    if (res.success && res.image) {
+      handleSelectImage(res.image);
+      loadData();
+    }
+  };
+
+  const handleUndoImage = () => {
+    if (!activeImage) return;
+    const prev = imageService.undo(activeImage.artifact.id);
+    if (prev) {
+      setActiveImage({ ...activeImage, documentState: prev });
+      loadData();
+    }
+  };
+
+  const handleRedoImage = () => {
+    if (!activeImage) return;
+    const next = imageService.redo(activeImage.artifact.id);
+    if (next) {
+      setActiveImage({ ...activeImage, documentState: next });
+      loadData();
+    }
+  };
+
   // -------------------------------------------------------------
   // HUB VIEW (When no workspace is active)
   // -------------------------------------------------------------
-  if (!activeDoc && !activeWebsite) {
+  if (!activeDoc && !activeWebsite && !activeImage) {
     return (
       <PageLayout
         title="VARYNTH Studios"
@@ -217,6 +293,18 @@ export default function StudioPage() {
             >
               <Globe size={16} />
               Web Studio (Studio 2)
+            </button>
+
+            <button
+              onClick={() => setActiveStudio("IMAGE")}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+                activeStudio === "IMAGE"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
+              }`}
+            >
+              <ImageIcon size={16} />
+              Image Studio (Studio 3)
             </button>
           </div>
 
@@ -375,6 +463,86 @@ export default function StudioPage() {
               </div>
             </>
           )}
+
+          {/* IMAGE STUDIO HUB */}
+          {activeStudio === "IMAGE" && (
+            <>
+              <div className="p-6 bg-gradient-to-r from-purple-950/40 via-[#1a1028] to-[#0c0d18] border border-purple-500/20 rounded-2xl flex items-center justify-between shadow-xl">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <ImageIcon className="text-purple-400" size={22} />
+                    Image Studio
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-1 max-w-xl">
+                    Componha cards, capas, thumbnails e artes visuais com edição não-destrutiva de camadas, filtros determinísticos e exportação de alta fidelidade.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsImageTemplateOpen(true)}
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-purple-500/20 transition"
+                >
+                  <Plus size={16} />
+                  Nova Imagem
+                </button>
+              </div>
+
+              {/* Recent Images Grid */}
+              <div className="flex flex-col gap-3">
+                <h3 className="font-semibold text-base text-white flex items-center gap-2">
+                  <ImageIcon size={18} className="text-purple-400" />
+                  Composições no Ecossistema ({allImages.length})
+                </h3>
+
+                {allImages.length === 0 ? (
+                  <div className="p-12 text-center bg-[#0d0d16] border border-[#1e1e30] rounded-xl flex flex-col items-center gap-3">
+                    <ImageIcon size={36} className="text-slate-600" />
+                    <p className="text-sm text-slate-400">Nenhuma imagem criada ainda.</p>
+                    <button
+                      onClick={() => setIsImageTemplateOpen(true)}
+                      className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium"
+                    >
+                      Criar Primeira Imagem
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {allImages.map((img) => (
+                      <div
+                        key={img.artifact.id}
+                        onClick={() => handleSelectImage(img)}
+                        className="p-5 bg-[#0e0e18] hover:bg-[#151022] border border-[#1e1e30] hover:border-purple-500/40 rounded-xl cursor-pointer transition flex flex-col justify-between gap-4 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                              {img.metadata.documentMode || "COMPOSITE"}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono">
+                              v{img.artifact.versions?.length || 1}.0
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-white mt-3 group-hover:text-purple-300 transition line-clamp-1">
+                            {img.artifact.name}
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                            {img.artifact.description || `${img.documentState.layers.length} camadas`}
+                          </p>
+                        </div>
+                        <div className="pt-3 border-t border-[#1a1a2a] flex items-center justify-between text-xs text-slate-500">
+                          <span className="font-mono">
+                            {img.documentState.canvas.width} × {img.documentState.canvas.height}
+                          </span>
+                          <span className="flex items-center gap-1 text-purple-400 group-hover:translate-x-1 transition">
+                            Abrir Image Studio <ArrowRight size={13} />
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DocumentTemplatesModal
@@ -387,6 +555,12 @@ export default function StudioPage() {
           isOpen={isWebTemplateOpen}
           onClose={() => setIsWebTemplateOpen(false)}
           onSelectTemplate={handleCreateNewWebsite}
+        />
+
+        <ImageTemplatesModal
+          isOpen={isImageTemplateOpen}
+          onClose={() => setIsImageTemplateOpen(false)}
+          onSelectTemplate={handleCreateNewImage}
         />
       </PageLayout>
     );
@@ -497,157 +671,409 @@ export default function StudioPage() {
   // -------------------------------------------------------------
   // ACTIVE WEB STUDIO WORKSPACE
   // -------------------------------------------------------------
+  if (activeWebsite) {
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <StudioShell
+          title={activeWebsite.artifact.name}
+          subtitle={`Web Studio (${activeWebsite.metadata.framework})`}
+          saveState={webSaveState}
+          viewMode={webViewMode}
+          onViewModeChange={setWebViewMode}
+          activeSidebarTab={webSidebarTab}
+          onSidebarTabChange={setWebSidebarTab}
+          onCreateVersion={async () => {
+            const label = prompt("Descrição da nova versão do website:", `Versão manual v${(activeWebsite.artifact.versions?.length || 0) + 1}`) || "Versão manual";
+            const res = await webService.createManualVersion(activeWebsite.artifact.id, label, "USER");
+            if (res.success) {
+              const ref = webService.getWebsite(activeWebsite.artifact.id);
+              if (ref) setActiveWebsite(ref);
+            }
+          }}
+          onExport={() => setIsWebExportOpen(true)}
+          onDelete={() => {
+            if (confirm("Mover este website para a Lixeira de 10 dias?")) {
+              webService.saveFiles(activeWebsite.artifact.id, activeWebsite.files, "USER");
+              setActiveWebsite(null);
+              loadData();
+            }
+          }}
+          extraAction={
+            <button
+              onClick={handleRunBuild}
+              disabled={isBuilding}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
+            >
+              {isBuilding ? <RotateCw size={13} className="animate-spin" /> : <Play size={13} />}
+              {isBuilding ? "Buildando..." : "Executar Build"}
+            </button>
+          }
+          sidebarContent={
+            webSidebarTab === "OUTLINE" ? (
+              <WebFileExplorer
+                files={activeWebsite.files}
+                activeFilePath={activeWebFile?.path}
+                onSelectFile={setActiveWebFile}
+                onCreateFile={async (path) => {
+                  const res = await webService.createFile(activeWebsite.artifact.id, path, "", "USER");
+                  if (res.success && res.file) {
+                    const ref = webService.getWebsite(activeWebsite.artifact.id);
+                    if (ref) {
+                      setActiveWebsite(ref);
+                      setActiveWebFile(res.file);
+                    }
+                  }
+                }}
+                onDeleteFile={async (path) => {
+                  await webService.deleteFile(activeWebsite.artifact.id, path, "USER");
+                  const ref = webService.getWebsite(activeWebsite.artifact.id);
+                  if (ref) setActiveWebsite(ref);
+                }}
+                onRenameFile={async (oldP, newP) => {
+                  await webService.renameFile(activeWebsite.artifact.id, oldP, newP, "USER");
+                  const ref = webService.getWebsite(activeWebsite.artifact.id);
+                  if (ref) setActiveWebsite(ref);
+                }}
+              />
+            ) : webSidebarTab === "VERSIONS" ? (
+              <DocumentVersionHistory
+                versions={activeWebsite.artifact.versions || []}
+                currentVersionNumber={`v${activeWebsite.artifact.versions?.length || 1}.0`}
+                onRestoreVersion={async (vNum) => {
+                  const res = await webService.restoreVersion(activeWebsite.artifact.id, vNum, "USER");
+                  if (res.success && res.website) {
+                    setActiveWebsite(res.website);
+                  }
+                }}
+              />
+            ) : webSidebarTab === "ATHENA" ? (
+              <div className="p-4 flex flex-col h-full text-xs text-slate-300">
+                <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30] mb-3">
+                  <Sparkles size={14} className="text-amber-400" />
+                  Athena Web Assistant
+                </div>
+                <p className="text-slate-400 text-[11px] mb-3">
+                  Proponha mudanças em múltiplos arquivos ou analise erros de build.
+                </p>
+                {webService.getPendingChangeSets(activeWebsite.artifact.id).length > 0 && (
+                  <button
+                    onClick={() => setIsWebChangeSetOpen(true)}
+                    className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold mb-3 transition"
+                  >
+                    Ver Proposta Multi-Arquivo
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset ou relação vinculado.</div>
+            )
+          }
+          mainContent={
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              <div className="flex-1 flex h-full overflow-hidden">
+                {(webViewMode === "EDIT" || webViewMode === "SPLIT") && (
+                  <div className="flex-1 h-full border-r border-[#1c1c2e]">
+                    <WebCodeEditor
+                      files={activeWebsite.files}
+                      activeFile={activeWebFile}
+                      onContentChange={handleWebFileContentChange}
+                      onAskAthenaAboutSelection={(sel, p) => {
+                        setWebSidebarTab("ATHENA");
+                      }}
+                    />
+                  </div>
+                )}
+                {(webViewMode === "PREVIEW" || webViewMode === "SPLIT") && (
+                  <div className="flex-1 h-full overflow-hidden">
+                    <WebPreviewFrame
+                      websiteId={activeWebsite.artifact.id}
+                      files={activeWebsite.files}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Console Panel */}
+              <WebConsolePanel
+                previewSessionId={`prev-sess-${activeWebsite.artifact.id}`}
+                buildLogs={webBuildLogs}
+                buildErrors={webBuildErrors}
+              />
+            </div>
+          }
+        />
+
+        <WebExportModal
+          isOpen={isWebExportOpen}
+          websiteId={activeWebsite.artifact.id}
+          onClose={() => setIsWebExportOpen(false)}
+        />
+
+        <WebMultiFileSuggestionModal
+          isOpen={isWebChangeSetOpen}
+          changeSets={webService.getPendingChangeSets(activeWebsite.artifact.id)}
+          onAccept={async (csId) => {
+            await webService.acceptChangeSet(activeWebsite.artifact.id, csId);
+            setIsWebChangeSetOpen(false);
+            const ref = webService.getWebsite(activeWebsite.artifact.id);
+            if (ref) setActiveWebsite(ref);
+          }}
+          onReject={(csId) => {
+            webService.rejectChangeSet(activeWebsite.artifact.id, csId);
+            setIsWebChangeSetOpen(false);
+          }}
+          onClose={() => setIsWebChangeSetOpen(false)}
+        />
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // ACTIVE IMAGE STUDIO WORKSPACE
+  // -------------------------------------------------------------
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <StudioShell
-        title={activeWebsite!.artifact.name}
-        subtitle={`Web Studio (${activeWebsite!.metadata.framework})`}
-        saveState={webSaveState}
-        viewMode={webViewMode}
-        onViewModeChange={setWebViewMode}
-        activeSidebarTab={webSidebarTab}
-        onSidebarTabChange={setWebSidebarTab}
+        title={activeImage!.artifact.name}
+        subtitle={`Image Studio (${activeImage!.documentState.canvas.width}x${activeImage!.documentState.canvas.height})`}
+        saveState={imageSaveState}
+        viewMode={imageViewMode}
+        onViewModeChange={setImageViewMode}
+        activeSidebarTab={imageSidebarTab}
+        onSidebarTabChange={setImageSidebarTab}
         onCreateVersion={async () => {
-          const label = prompt("Descrição da nova versão do website:", `Versão manual v${(activeWebsite!.artifact.versions?.length || 0) + 1}`) || "Versão manual";
-          const res = await webService.createManualVersion(activeWebsite!.artifact.id, label, "USER");
+          const label =
+            prompt(
+              "Descrição da nova versão da imagem:",
+              `Versão manual v${(activeImage!.artifact.versions?.length || 0) + 1}`
+            ) || "Versão manual";
+          const res = await imageService.createManualVersion(activeImage!.artifact.id, label, "USER");
           if (res.success) {
-            const ref = webService.getWebsite(activeWebsite!.artifact.id);
-            if (ref) setActiveWebsite(ref);
+            const ref = imageService.getImage(activeImage!.artifact.id);
+            if (ref) setActiveImage(ref);
           }
         }}
-        onExport={() => setIsWebExportOpen(true)}
+        onExport={() => setIsImageExportOpen(true)}
         onDelete={() => {
-          if (confirm("Mover este website para a Lixeira de 10 dias?")) {
-            webService.saveFiles(activeWebsite!.artifact.id, activeWebsite!.files, "USER");
-            setActiveWebsite(null);
+          if (confirm("Mover esta imagem para a Lixeira de 10 dias?")) {
+            imageService.saveDocumentState(activeImage!.artifact.id, activeImage!.documentState, "USER");
+            setActiveImage(null);
             loadData();
           }
         }}
-        extraAction={
-          <button
-            onClick={handleRunBuild}
-            disabled={isBuilding}
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
-          >
-            {isBuilding ? <RotateCw size={13} className="animate-spin" /> : <Play size={13} />}
-            {isBuilding ? "Buildando..." : "Executar Build"}
-          </button>
-        }
         sidebarContent={
-          webSidebarTab === "OUTLINE" ? (
-            <WebFileExplorer
-              files={activeWebsite!.files}
-              activeFilePath={activeWebFile?.path}
-              onSelectFile={setActiveWebFile}
-              onCreateFile={async (path) => {
-                const res = await webService.createFile(activeWebsite!.artifact.id, path, "", "USER");
-                if (res.success && res.file) {
-                  const ref = webService.getWebsite(activeWebsite!.artifact.id);
-                  if (ref) {
-                    setActiveWebsite(ref);
-                    setActiveWebFile(res.file);
-                  }
+          imageSidebarTab === "OUTLINE" ? (
+            <ImageLayerPanel
+              layers={activeImage!.documentState.layers}
+              selectedLayerId={selectedLayerId}
+              onSelectLayer={setSelectedLayerId}
+              onToggleVisibility={(layerId) => {
+                const updated = activeImage!.documentState.layers.map((l) =>
+                  l.id === layerId ? { ...l, visible: !l.visible } : l
+                );
+                handleUpdateImageDocumentState({ ...activeImage!.documentState, layers: updated });
+              }}
+              onToggleLock={(layerId) => {
+                const updated = activeImage!.documentState.layers.map((l) =>
+                  l.id === layerId ? { ...l, locked: !l.locked } : l
+                );
+                handleUpdateImageDocumentState({ ...activeImage!.documentState, layers: updated });
+              }}
+              onDeleteLayer={(layerId) => {
+                const updated = activeImage!.documentState.layers.filter((l) => l.id !== layerId);
+                handleUpdateImageDocumentState({ ...activeImage!.documentState, layers: updated });
+                if (selectedLayerId === layerId) setSelectedLayerId(undefined);
+              }}
+              onDuplicateLayer={(layerId) => {
+                const target = activeImage!.documentState.layers.find((l) => l.id === layerId);
+                if (target) {
+                  const dup: ImageLayer = {
+                    ...JSON.parse(JSON.stringify(target)),
+                    id: `layer-${Date.now()}`,
+                    name: `${target.name} (Cópia)`,
+                    transform: {
+                      ...target.transform,
+                      x: target.transform.x + 30,
+                      y: target.transform.y + 30,
+                    },
+                  };
+                  handleUpdateImageDocumentState({
+                    ...activeImage!.documentState,
+                    layers: [...activeImage!.documentState.layers, dup],
+                  });
+                  setSelectedLayerId(dup.id);
                 }
               }}
-              onDeleteFile={async (path) => {
-                await webService.deleteFile(activeWebsite!.artifact.id, path, "USER");
-                const ref = webService.getWebsite(activeWebsite!.artifact.id);
-                if (ref) setActiveWebsite(ref);
+              onReorderLayer={(layerId, direction) => {
+                const layers = [...activeImage!.documentState.layers];
+                const index = layers.findIndex((l) => l.id === layerId);
+                if (index < 0) return;
+                const newIndex = direction === "UP" ? index + 1 : index - 1;
+                if (newIndex >= 0 && newIndex < layers.length) {
+                  const temp = layers[index];
+                  layers[index] = layers[newIndex];
+                  layers[newIndex] = temp;
+                  handleUpdateImageDocumentState({ ...activeImage!.documentState, layers });
+                }
               }}
-              onRenameFile={async (oldP, newP) => {
-                await webService.renameFile(activeWebsite!.artifact.id, oldP, newP, "USER");
-                const ref = webService.getWebsite(activeWebsite!.artifact.id);
-                if (ref) setActiveWebsite(ref);
+              onRenameLayer={(layerId, newName) => {
+                const updated = activeImage!.documentState.layers.map((l) =>
+                  l.id === layerId ? { ...l, name: newName } : l
+                );
+                handleUpdateImageDocumentState({ ...activeImage!.documentState, layers: updated });
               }}
             />
-          ) : webSidebarTab === "VERSIONS" ? (
+          ) : imageSidebarTab === "VERSIONS" ? (
             <DocumentVersionHistory
-              versions={activeWebsite!.artifact.versions || []}
-              currentVersionNumber={`v${activeWebsite!.artifact.versions?.length || 1}.0`}
+              versions={activeImage!.artifact.versions || []}
+              currentVersionNumber={`v${activeImage!.artifact.versions?.length || 1}.0`}
               onRestoreVersion={async (vNum) => {
-                const res = await webService.restoreVersion(activeWebsite!.artifact.id, vNum, "USER");
-                if (res.success && res.website) {
-                  setActiveWebsite(res.website);
+                const res = await imageService.restoreVersion(activeImage!.artifact.id, parseInt(vNum) || 1, "USER");
+                if (res.success && res.image) {
+                  setActiveImage(res.image);
                 }
               }}
             />
-          ) : webSidebarTab === "ATHENA" ? (
-            <div className="p-4 flex flex-col h-full text-xs text-slate-300">
-              <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30] mb-3">
+          ) : imageSidebarTab === "ATHENA" ? (
+            <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
+              <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
                 <Sparkles size={14} className="text-amber-400" />
-                Athena Web Assistant
+                Athena Visual Assistant
               </div>
-              <p className="text-slate-400 text-[11px] mb-3">
-                Proponha mudanças em múltiplos arquivos ou analise erros de build.
+              <p className="text-slate-400 text-[11px]">
+                Athena analisa a hierarquia de camadas e propõe alinhamentos ou composições automáticas.
               </p>
-              {webService.getPendingChangeSets(activeWebsite!.artifact.id).length > 0 && (
+              {imageService.getPendingChangeSets(activeImage!.artifact.id).length > 0 && (
                 <button
-                  onClick={() => setIsWebChangeSetOpen(true)}
-                  className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold mb-3 transition"
+                  onClick={() => setIsImageChangeSetOpen(true)}
+                  className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold transition"
                 >
-                  Ver Proposta Multi-Arquivo
+                  Ver Proposta Visual
                 </button>
               )}
             </div>
           ) : (
-            <div className="p-4 text-xs text-slate-500 italic">Nenhum asset ou relação vinculado.</div>
+            <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
           )
         }
         mainContent={
           <div className="flex-1 flex flex-col h-full overflow-hidden">
-            <div className="flex-1 flex h-full overflow-hidden">
-              {(webViewMode === "EDIT" || webViewMode === "SPLIT") && (
-                <div className="flex-1 h-full border-r border-[#1c1c2e]">
-                  <WebCodeEditor
-                    files={activeWebsite!.files}
-                    activeFile={activeWebFile}
-                    onContentChange={handleWebFileContentChange}
-                    onAskAthenaAboutSelection={(sel, p) => {
-                      setWebSidebarTab("ATHENA");
-                    }}
-                  />
-                </div>
-              )}
-              {(webViewMode === "PREVIEW" || webViewMode === "SPLIT") && (
-                <div className="flex-1 h-full overflow-hidden">
-                  <WebPreviewFrame
-                    websiteId={activeWebsite!.artifact.id}
-                    files={activeWebsite!.files}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Console Panel */}
-            <WebConsolePanel
-              previewSessionId={`prev-sess-${activeWebsite!.artifact.id}`}
-              buildLogs={webBuildLogs}
-              buildErrors={webBuildErrors}
+            {/* Top Toolbar */}
+            <ImageToolbar
+              canUndo={true}
+              canRedo={true}
+              onUndo={handleUndoImage}
+              onRedo={handleRedoImage}
+              onAddText={() => {
+                const textLayer = athenaImageActions.createTextLayer("Novo Texto", 200, 200);
+                handleUpdateImageDocumentState({
+                  ...activeImage!.documentState,
+                  layers: [...activeImage!.documentState.layers, textLayer],
+                });
+                setSelectedLayerId(textLayer.id);
+              }}
+              onAddRectangle={() => {
+                const rectLayer = athenaImageActions.createShapeLayer("rectangle", 200, 200, 400, 300);
+                handleUpdateImageDocumentState({
+                  ...activeImage!.documentState,
+                  layers: [...activeImage!.documentState.layers, rectLayer],
+                });
+                setSelectedLayerId(rectLayer.id);
+              }}
+              onAddEllipse={() => {
+                const ellipseLayer = athenaImageActions.createShapeLayer("ellipse", 200, 200, 300, 300);
+                handleUpdateImageDocumentState({
+                  ...activeImage!.documentState,
+                  layers: [...activeImage!.documentState.layers, ellipseLayer],
+                });
+                setSelectedLayerId(ellipseLayer.id);
+              }}
+              onImportImageLayer={async (file) => {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                  const raw = reader.result as string;
+                  const newLayer: ImageLayer = {
+                    id: `layer-${Date.now()}`,
+                    type: "IMAGE",
+                    name: file.name,
+                    visible: true,
+                    locked: false,
+                    opacity: 1,
+                    transform: {
+                      x: 100,
+                      y: 100,
+                      width: 800,
+                      height: 600,
+                      scaleX: 1,
+                      scaleY: 1,
+                      rotation: 0,
+                    },
+                  };
+                  handleUpdateImageDocumentState({
+                    ...activeImage!.documentState,
+                    layers: [...activeImage!.documentState.layers, newLayer],
+                  });
+                  setSelectedLayerId(newLayer.id);
+                };
+                reader.readAsDataURL(file);
+              }}
+              onAskAthena={() => setImageSidebarTab("ATHENA")}
             />
+
+            {/* Central Canvas + Right Properties Panel */}
+            <div className="flex-1 flex h-full overflow-hidden">
+              <div className="flex-1 h-full overflow-hidden">
+                <ImageCanvas
+                  documentState={activeImage!.documentState}
+                  selectedLayerId={selectedLayerId}
+                  onSelectLayer={setSelectedLayerId}
+                  onUpdateLayerTransform={(lId, t) => {
+                    const updated = activeImage!.documentState.layers.map((l) =>
+                      l.id === lId ? { ...l, transform: { ...l.transform, ...t } } : l
+                    );
+                    handleUpdateImageDocumentState({ ...activeImage!.documentState, layers: updated });
+                  }}
+                />
+              </div>
+
+              {/* Right Properties Column */}
+              <div className="w-72 h-full border-l border-[#1c1d32] overflow-hidden">
+                <ImagePropertiesPanel
+                  layer={activeImage!.documentState.layers.find((l) => l.id === selectedLayerId)}
+                  onUpdateLayer={(lId, up) => {
+                    const updated = activeImage!.documentState.layers.map((l) =>
+                      l.id === lId ? { ...l, ...up } : l
+                    );
+                    handleUpdateImageDocumentState({ ...activeImage!.documentState, layers: updated });
+                  }}
+                />
+              </div>
+            </div>
           </div>
         }
       />
 
-      <WebExportModal
-        isOpen={isWebExportOpen}
-        websiteId={activeWebsite!.artifact.id}
-        onClose={() => setIsWebExportOpen(false)}
+      <ImageExportModal
+        isOpen={isImageExportOpen}
+        artifactId={activeImage!.artifact.id}
+        imageTitle={activeImage!.artifact.name}
+        onClose={() => setIsImageExportOpen(false)}
       />
 
-      <WebMultiFileSuggestionModal
-        isOpen={isWebChangeSetOpen}
-        changeSets={webService.getPendingChangeSets(activeWebsite!.artifact.id)}
+      <ImageChangeSetModal
+        isOpen={isImageChangeSetOpen}
+        changeSets={imageService.getPendingChangeSets(activeImage!.artifact.id)}
         onAccept={async (csId) => {
-          await webService.acceptChangeSet(activeWebsite!.artifact.id, csId);
-          setIsWebChangeSetOpen(false);
-          const ref = webService.getWebsite(activeWebsite!.artifact.id);
-          if (ref) setActiveWebsite(ref);
+          await imageService.acceptChangeSet(activeImage!.artifact.id, csId);
+          setIsImageChangeSetOpen(false);
+          const ref = imageService.getImage(activeImage!.artifact.id);
+          if (ref) setActiveImage(ref);
         }}
         onReject={(csId) => {
-          webService.rejectChangeSet(activeWebsite!.artifact.id, csId);
-          setIsWebChangeSetOpen(false);
+          imageService.rejectChangeSet(activeImage!.artifact.id, csId);
+          setIsImageChangeSetOpen(false);
         }}
-        onClose={() => setIsWebChangeSetOpen(false)}
+        onClose={() => setIsImageChangeSetOpen(false)}
       />
     </div>
   );

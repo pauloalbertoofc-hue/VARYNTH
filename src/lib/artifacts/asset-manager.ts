@@ -1,6 +1,7 @@
 import { AssetFile, Artifact, ArtifactActor, StorageType } from "./types";
 import { assetStorage } from "../persistence/indexeddb-adapter";
 import { athenaEventBus } from "../athena/events/event-bus";
+import { artifactStore } from "./artifact-store";
 
 const ASSET_REGISTRY_KEY = "varynth_assets_registry_v4";
 
@@ -88,9 +89,27 @@ export class AssetManager {
     return await assetStorage.getBlob(asset.storageKey);
   }
 
-  public async deleteAsset(id: string): Promise<boolean> {
+  public async linkAssetToArtifact(assetId: string, artifactId: string): Promise<boolean> {
+    const asset = this.assets.get(assetId);
+    if (!asset) return false;
+    if (!asset.artifactIds.includes(artifactId)) {
+      asset.artifactIds.push(artifactId);
+      this.saveRegistry();
+    }
+    return true;
+  }
+
+  public async deleteAsset(id: string, fromArtifactId?: string): Promise<boolean> {
     const asset = this.assets.get(id);
     if (!asset) return false;
+
+    if (fromArtifactId) {
+      asset.artifactIds = asset.artifactIds.filter((aId) => aId !== fromArtifactId);
+      if (asset.artifactIds.length > 0) {
+        this.saveRegistry();
+        return true;
+      }
+    }
 
     await assetStorage.deleteBlob(asset.storageKey);
     this.assets.delete(id);
@@ -98,6 +117,20 @@ export class AssetManager {
 
     athenaEventBus.emit("ASSET_DELETED", { assetId: id });
     return true;
+  }
+
+  public validateArtifactAssets(artifactId: string): { valid: boolean; missingAssetIds: string[] } {
+    const missing: string[] = [];
+    const art = artifactStore.getById(artifactId);
+    if (art && art.assetFileIds) {
+      for (const id of art.assetFileIds) {
+        if (!this.assets.has(id)) {
+          missing.push(id);
+          athenaEventBus.emit("ASSET_MISSING", { assetId: id, artifactId });
+        }
+      }
+    }
+    return { valid: missing.length === 0, missingAssetIds: missing };
   }
 
   public listAssetsForArtifact(artifactId: string): AssetFile[] {

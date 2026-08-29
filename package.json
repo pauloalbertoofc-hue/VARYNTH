@@ -23,7 +23,8 @@
     "test:permissions": "npx tsx src/lib/permissions/permission-regression.test.ts",
     "test:document-studio": "npx tsx src/lib/studio/document/document-studio-regression.test.ts",
     "test:web-studio": "npx tsx src/lib/studio/web/web-studio-regression.test.ts",
-    "test:sandbox:web": "npx tsx src/lib/runtime/sandbox-web-regression.test.ts"
+    "test:sandbox:web": "npx tsx src/lib/runtime/sandbox-web-regression.test.ts",
+    "test:image-studio": "npx tsx src/lib/studio/image/image-studio-regression.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

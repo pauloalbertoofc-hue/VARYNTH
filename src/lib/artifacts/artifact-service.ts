@@ -88,6 +88,22 @@ export class ArtifactService {
     return { success: true, artifact: saved };
   }
 
+  public async create(
+    params: {
+      type: ArtifactType;
+      name: string;
+      description?: string;
+      projectId?: string;
+      tags?: string[];
+      metadata?: Record<string, unknown>;
+      provenance?: Partial<ArtifactProvenance>;
+      assetFileIds?: string[];
+    },
+    actor: ArtifactActor = "USER"
+  ) {
+    return this.createArtifact(params, actor);
+  }
+
   public async updateArtifact(
     id: string,
     updates: Partial<Pick<Artifact, "name" | "description" | "metadata" | "tags" | "assetFileIds">>,
@@ -138,6 +154,16 @@ export class ArtifactService {
     });
 
     return { success: true, artifact: saved };
+  }
+
+  public async update(
+    id: string,
+    updates: Partial<Pick<Artifact, "name" | "description" | "metadata" | "tags" | "assetFileIds">>,
+    actor: ArtifactActor = "USER",
+    changeSummary = "Modificação estrutural do artefato",
+    skipSnapshot = false
+  ) {
+    return this.updateArtifact(id, updates, actor, changeSummary, skipSnapshot);
   }
 
   public async transitionStatus(

@@ -109,12 +109,65 @@ class CodeCreationEngine implements CreationEngine {
   }
 }
 
+class ImageCreationEngine implements CreationEngine {
+  engineId = "local-image-engine";
+  name = "VARYNTH Local Image Engine";
+  supportedArtifactTypes: ArtifactType[] = ["IMAGE"];
+
+  async canExecute(request: CreationRequest): Promise<boolean> {
+    return request.artifactType === "IMAGE";
+  }
+
+  async create(request: CreationRequest): Promise<CreationResult> {
+    const id = `art-img-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const artifact: Artifact = {
+      id,
+      type: "IMAGE",
+      name: request.name,
+      description: request.description || "Composição de imagem local",
+      projectId: request.projectId,
+      status: "DRAFT",
+      createdBy: request.actor,
+      createdAt: now,
+      updatedAt: now,
+      currentVersionNumber: 0,
+      versions: [],
+      relationships: [],
+      provenance: {
+        creator: request.actor,
+        generationPrompt: request.prompt,
+        engineUsed: this.engineId,
+      },
+      assetFileIds: [],
+      metadata: {
+        width: request.options?.width || 1920,
+        height: request.options?.height || 1080,
+        format: request.options?.format || "PNG",
+        documentMode: "COMPOSITE",
+      },
+      tags: ["image", "studio", "draft"],
+    };
+
+    versionManager.createSnapshot(artifact, "Criação inicial da composição de imagem em DRAFT (v1.0)", request.actor);
+    artifactStore.save(artifact);
+
+    return {
+      success: true,
+      artifact,
+      capabilityStatus: "AVAILABLE",
+    };
+  }
+}
+
 export class CreationEngineRegistry {
   private engines: Map<string, CreationEngine> = new Map();
 
   constructor() {
     this.registerEngine(new DocumentCreationEngine());
     this.registerEngine(new CodeCreationEngine());
+    this.registerEngine(new ImageCreationEngine());
   }
 
   public registerEngine(engine: CreationEngine): void {
