@@ -155,3 +155,4 @@ npm run test:athena
 ## 🔒 Regra de Bloqueio de Regressão
 
 Nenhuma refatoração ou nova funcionalidade na Athena pode ser enviada para produção se quebrar qualquer um dos casos históricos acima. A qualidade conversacional da Athena acumula robustez a cada versão.
+

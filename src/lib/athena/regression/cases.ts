@@ -472,3 +472,4 @@ export const HISTORICAL_REGRESSION_CASES: ConversationalRegressionCase[] = [
     notes: "Continuidade de 4+ turnos sem perda de referencial de tópico e subtema.",
   },
 ];
+

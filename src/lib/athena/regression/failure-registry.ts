@@ -127,3 +127,4 @@ export class AthenaFailureRegistry {
 }
 
 export const athenaFailureRegistry = new AthenaFailureRegistry();
+

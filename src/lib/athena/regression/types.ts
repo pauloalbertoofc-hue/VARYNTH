@@ -94,3 +94,4 @@ export interface QualityGateReport {
   qualityScore: number;
   results: RegressionAssertionResult[];
 }
+
