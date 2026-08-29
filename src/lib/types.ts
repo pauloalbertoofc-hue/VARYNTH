@@ -7,3 +7,6 @@ export * from "./types/vault";
 export * from "./types/chronos";
 export * from "./types/person";
 export * from "./types/lab";
+export * from "./types/codex";
+export * from "./types/research";
+export * from "./types/opportunity";

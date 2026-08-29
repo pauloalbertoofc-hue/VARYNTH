@@ -19,6 +19,11 @@ import {
   Clock,
   Users,
   FlaskConical,
+  Scale,
+  GraduationCap,
+  Trophy,
+  Swords,
+  Layers,
 } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { modules } from "@/lib/modules";
@@ -29,7 +34,18 @@ interface CommandItem {
   title: string;
   description: string;
   icon: React.ElementType | string;
-  category: "Ações Globais" | "Projetos" | "Tarefas" | "Vault & Conhecimento" | "Colaboradores" | "Labs & Ideias" | "Módulos & Apps" | "Navegação";
+  category:
+    | "Ações Globais"
+    | "Projetos"
+    | "Tarefas"
+    | "Vault & Conhecimento"
+    | "Codex & Teses"
+    | "Research & Evidências"
+    | "Editais & Oportunidades"
+    | "Colaboradores"
+    | "Labs & Ideias"
+    | "Módulos & Apps"
+    | "Navegação";
   action: () => void;
   keywords?: string[];
   external?: boolean;
@@ -42,7 +58,17 @@ export function CommandPalette() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { projects, tasks, notes, vaultItems, people, labItems, toggleTask } = useVarynthStore();
+  const {
+    projects,
+    tasks,
+    vaultItems,
+    theses,
+    evidences,
+    opportunities,
+    people,
+    labItems,
+    toggleTask,
+  } = useVarynthStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -75,7 +101,6 @@ export function CommandPalette() {
     }
   }, [isOpen]);
 
-  // Build command list dynamically from store
   const commands: CommandItem[] = useMemo(() => {
     const list: CommandItem[] = [];
 
@@ -93,6 +118,33 @@ export function CommandPalette() {
         keywords: ["nova tarefa", "task", "todo", "+"],
       },
       {
+        id: "action-new-thesis",
+        title: "Estruturar Tese na Argument Arena",
+        description: "Criar controvérsia dialética com prós e contras",
+        icon: Swords,
+        category: "Ações Globais",
+        action: () => router.push("/modules/codex"),
+        keywords: ["tese", "arena", "direito", "argumento", "+"],
+      },
+      {
+        id: "action-new-evidence",
+        title: "Cadastrar Evidência Científica",
+        description: "Adicionar quote bibliográfico com força probatória",
+        icon: GraduationCap,
+        category: "Ações Globais",
+        action: () => router.push("/modules/research"),
+        keywords: ["evidencia", "pesquisa", "quote", "artigo", "+"],
+      },
+      {
+        id: "action-new-opp",
+        title: "Cadastrar Edital no Radar",
+        description: "Registrar chamada PIBIC, bolsa ou prêmio",
+        icon: Trophy,
+        category: "Ações Globais",
+        action: () => router.push("/modules/opportunities"),
+        keywords: ["edital", "bolsa", "premio", "concurso", "+"],
+      },
+      {
         id: "action-new-vault",
         title: "Adicionar Obra ao Vault",
         description: "Salvar artigo, livro, jurisprudência ou lei",
@@ -100,26 +152,6 @@ export function CommandPalette() {
         category: "Ações Globais",
         action: () => router.push("/modules/vault"),
         keywords: ["vault", "livro", "artigo", "lei", "jurisprudencia", "+"],
-      },
-      {
-        id: "action-new-project",
-        title: "Criar Novo Projeto",
-        description: "Abrir uma nova workspace dedicada",
-        icon: FolderKanban,
-        category: "Ações Globais",
-        action: () => {
-          window.dispatchEvent(new CustomEvent("open-quick-create", { detail: { tab: "project" } }));
-        },
-        keywords: ["novo projeto", "workspace", "projeto", "+"],
-      },
-      {
-        id: "action-new-idea",
-        title: "Incubar Nova Ideia no Labs",
-        description: "Registrar hipótese ou experimento no pipeline",
-        icon: FlaskConical,
-        category: "Ações Globais",
-        action: () => router.push("/modules/labs"),
-        keywords: ["labs", "ideia", "experimento", "prototipo", "+"],
       }
     );
 
@@ -133,6 +165,45 @@ export function CommandPalette() {
         category: "Projetos",
         action: () => router.push(`/projects/${proj.id}`),
         keywords: [proj.title.toLowerCase(), proj.category, ...proj.tags],
+      });
+    });
+
+    // Codex Theses
+    theses.forEach((t) => {
+      list.push({
+        id: `thesis-${t.id}`,
+        title: t.title,
+        description: `Tese Arena [${t.area}] · ${t.pros.length} Prós / ${t.cons.length} Contras`,
+        icon: Scale,
+        category: "Codex & Teses",
+        action: () => router.push("/modules/codex"),
+        keywords: [t.title.toLowerCase(), t.area.toLowerCase(), t.question.toLowerCase(), ...t.tags],
+      });
+    });
+
+    // Research Evidences
+    evidences.forEach((e) => {
+      list.push({
+        id: `evi-${e.id}`,
+        title: e.claim,
+        description: `Evidência [${e.strength.toUpperCase()}] · ${e.source}`,
+        icon: GraduationCap,
+        category: "Research & Evidências",
+        action: () => router.push("/modules/research"),
+        keywords: [e.claim.toLowerCase(), e.source.toLowerCase(), e.quote.toLowerCase(), ...e.tags],
+      });
+    });
+
+    // Opportunities
+    opportunities.forEach((o) => {
+      list.push({
+        id: `opp-${o.id}`,
+        title: o.title,
+        description: `Edital [${o.status.toUpperCase()}] · ${o.institution} · Prazo: ${o.deadline}`,
+        icon: Trophy,
+        category: "Editais & Oportunidades",
+        action: () => router.push("/modules/opportunities"),
+        keywords: [o.title.toLowerCase(), o.institution.toLowerCase(), o.status],
       });
     });
 
@@ -169,130 +240,39 @@ export function CommandPalette() {
       });
     });
 
-    // People
-    people.forEach((p) => {
-      list.push({
-        id: `person-${p.id}`,
-        title: p.name,
-        description: `Colaborador · ${p.role}${p.organization ? ` (${p.organization})` : ""}`,
-        icon: Users,
-        category: "Colaboradores",
-        action: () => router.push("/modules/people"),
-        keywords: [p.name.toLowerCase(), p.role.toLowerCase(), ...(p.organization ? [p.organization.toLowerCase()] : []), ...p.tags],
-      });
-    });
-
-    // Labs
-    labItems.forEach((l) => {
-      list.push({
-        id: `lab-${l.id}`,
-        title: l.title,
-        description: `Labs [${l.stage.toUpperCase()}] · ${l.category}`,
-        icon: FlaskConical,
-        category: "Labs & Ideias",
-        action: () => router.push("/modules/labs"),
-        keywords: [l.title.toLowerCase(), l.stage, ...l.tags],
-      });
-    });
-
     // Navigation
     list.push(
       {
-        id: "nav-dashboard",
-        title: "Ir para Início / Cockpit",
-        description: "Painel de controle central do VARYNTH OS",
-        icon: LayoutDashboard,
+        id: "nav-codex",
+        title: "Ir para Codex (Argument Arena)",
+        description: "Ambiente jurídico e teses dialéticas",
+        icon: Scale,
         category: "Navegação",
-        action: () => router.push("/dashboard"),
-        keywords: ["home", "inicio", "cockpit", "dashboard"],
+        action: () => router.push("/modules/codex"),
+        keywords: ["codex", "direito", "arena", "jurisprudencia"],
       },
       {
-        id: "nav-projects",
-        title: "Ir para Projetos",
-        description: "Listagem e gestão de workspaces",
-        icon: FolderKanban,
+        id: "nav-research",
+        title: "Ir para Research (Evidence Board)",
+        description: "Pesquisa acadêmica e artigos",
+        icon: GraduationCap,
         category: "Navegação",
-        action: () => router.push("/projects"),
-        keywords: ["projetos", "workspaces"],
+        action: () => router.push("/modules/research"),
+        keywords: ["research", "pesquisa", "evidence", "artigos"],
       },
       {
-        id: "nav-vault",
-        title: "Ir para Vault (Segundo Cérebro)",
-        description: "Biblioteca pessoal e artigos",
-        icon: BookOpen,
+        id: "nav-opps",
+        title: "Ir para Opportunities (Radar)",
+        description: "Editais de fomento e premiações",
+        icon: Trophy,
         category: "Navegação",
-        action: () => router.push("/modules/vault"),
-        keywords: ["vault", "biblioteca", "leis", "artigos"],
-      },
-      {
-        id: "nav-chronos",
-        title: "Ir para Chronos (Prazos & Timeline)",
-        description: "Gestão de tempo e linha do tempo histórica",
-        icon: Clock,
-        category: "Navegação",
-        action: () => router.push("/modules/chronos"),
-        keywords: ["chronos", "tempo", "prazos", "timeline", "calendario"],
-      },
-      {
-        id: "nav-people",
-        title: "Ir para People (Colaboradores)",
-        description: "Diretório de contatos e permissões",
-        icon: Users,
-        category: "Navegação",
-        action: () => router.push("/modules/people"),
-        keywords: ["people", "colaboradores", "equipe", "permissoes"],
-      },
-      {
-        id: "nav-labs",
-        title: "Ir para Labs & Graveyard",
-        description: "Incubadora de ideias e retrospectivas",
-        icon: FlaskConical,
-        category: "Navegação",
-        action: () => router.push("/modules/labs"),
-        keywords: ["labs", "ideias", "graveyard", "experimentos"],
-      },
-      {
-        id: "nav-athena",
-        title: "Ir para Athena AI",
-        description: "Conversar com sua inteligência artificial",
-        icon: Bot,
-        category: "Navegação",
-        action: () => router.push("/modules/athena"),
-        keywords: ["athena", "ia", "chat"],
-      },
-      {
-        id: "nav-profile",
-        title: "Ir para Perfil",
-        description: "Cartão de usuário e conquistas",
-        icon: User,
-        category: "Navegação",
-        action: () => router.push("/profile"),
-        keywords: ["perfil", "dono", "stats"],
+        action: () => router.push("/modules/opportunities"),
+        keywords: ["oportunidades", "editais", "bolsas", "radar"],
       }
     );
 
-    // Modules
-    modules.forEach((mod) => {
-      list.push({
-        id: `mod-${mod.id}`,
-        title: mod.name,
-        description: `${mod.description} [${mod.layer.toUpperCase()}]`,
-        icon: Sparkles,
-        category: "Módulos & Apps",
-        action: () => {
-          if (mod.href.startsWith("http")) {
-            window.open(mod.href, "_blank", "noopener,noreferrer");
-          } else {
-            router.push(mod.href);
-          }
-        },
-        keywords: [mod.name.toLowerCase(), ...mod.tags, mod.category],
-        external: mod.href.startsWith("http"),
-      });
-    });
-
     return list;
-  }, [projects, tasks, vaultItems, people, labItems, router, toggleTask]);
+  }, [projects, theses, evidences, opportunities, vaultItems, tasks, router, toggleTask]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands.slice(0, 16);
@@ -344,7 +324,7 @@ export function CommandPalette() {
               setSelectedIndex(0);
             }}
             onKeyDown={handleListKeyDown}
-            placeholder="Buscar projetos, vault, tarefas, colaboradores, ideias ou ações..."
+            placeholder="Buscar projetos, teses na Arena, evidências, editais, tarefas..."
             className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
           />
           {query ? (
@@ -403,11 +383,7 @@ export function CommandPalette() {
                     <span className="text-[10px] px-2 py-0.5 rounded bg-[#14141f] text-slate-400 border border-[#1e1e30]">
                       {cmd.category}
                     </span>
-                    {cmd.external ? (
-                      <ExternalLink size={12} className="text-slate-500" />
-                    ) : (
-                      isSelected && <ArrowRight size={12} className="text-violet-400" />
-                    )}
+                    {isSelected && <ArrowRight size={12} className="text-violet-400" />}
                   </div>
                 </button>
               );
@@ -415,7 +391,7 @@ export function CommandPalette() {
           )}
         </div>
 
-        {/* Footer info */}
+        {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[#0a0a0f]/80 border-t border-[#1e1e30] text-[10px] text-slate-500">
           <div className="flex items-center gap-3">
             <span>
@@ -426,7 +402,7 @@ export function CommandPalette() {
               <kbd className="bg-[#14141f] px-1 py-0.5 rounded border border-[#1e1e30]">↵</kbd> Selecionar
             </span>
           </div>
-          <span className="text-slate-400 font-medium">VARYNTH Universal Search</span>
+          <span className="text-slate-400 font-medium">VARYNTH Universal Search v3</span>
         </div>
       </div>
 

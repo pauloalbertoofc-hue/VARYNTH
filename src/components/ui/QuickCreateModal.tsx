@@ -12,19 +12,48 @@ import {
   X,
   Sparkles,
   Plus,
+  Scale,
+  GraduationCap,
+  Trophy,
 } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
-import { ProjectCategory, PriorityLevel, VaultItemType, ReadingStatus } from "@/lib/types";
+import {
+  ProjectCategory,
+  PriorityLevel,
+  VaultItemType,
+  EvidenceStrength,
+  PaperSection,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type QuickCreateTab = "task" | "note" | "project" | "vault" | "idea" | "person";
+type QuickCreateTab =
+  | "task"
+  | "note"
+  | "project"
+  | "thesis"
+  | "evidence"
+  | "opportunity"
+  | "vault"
+  | "idea"
+  | "person";
 
 export function QuickCreateModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<QuickCreateTab>("task");
   const router = useRouter();
 
-  const { projects, addTask, addNote, addProject, addVaultItem, addLabItem, addPerson } = useVarynthStore();
+  const {
+    projects,
+    addTask,
+    addNote,
+    addProject,
+    addThesis,
+    addEvidence,
+    addOpportunity,
+    addVaultItem,
+    addLabItem,
+    addPerson,
+  } = useVarynthStore();
 
   // Task
   const [taskTitle, setTaskTitle] = useState("");
@@ -37,35 +66,37 @@ export function QuickCreateModal() {
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [noteProject, setNoteProject] = useState("");
-  const [noteTags, setNoteTags] = useState("");
 
   // Project
   const [projTitle, setProjTitle] = useState("");
   const [projDesc, setProjDesc] = useState("");
   const [projCategory, setProjCategory] = useState<ProjectCategory>("software");
-  const [projPriority, setProjPriority] = useState<PriorityLevel>("media");
-  const [projDeadline, setProjDeadline] = useState("");
-  const [projTags, setProjTags] = useState("");
+
+  // Thesis
+  const [thesisTitle, setThesisTitle] = useState("");
+  const [thesisArea, setThesisArea] = useState("Direito Digital");
+  const [thesisQuestion, setThesisQuestion] = useState("");
+
+  // Evidence
+  const [eviClaim, setEviClaim] = useState("");
+  const [eviSource, setEviSource] = useState("");
+  const [eviQuote, setEviQuote] = useState("");
+  const [eviStrength, setEviStrength] = useState<EvidenceStrength>("forte");
+  const [eviSection, setEviSection] = useState<PaperSection>("discussao");
+
+  // Opportunity
+  const [oppTitle, setOppTitle] = useState("");
+  const [oppInst, setOppInst] = useState("");
+  const [oppDeadline, setOppDeadline] = useState("");
+  const [oppPrize, setOppPrize] = useState("");
 
   // Vault
   const [vaultTitle, setVaultTitle] = useState("");
-  const [vaultAuthor, setVaultAuthor] = useState("");
   const [vaultType, setVaultType] = useState<VaultItemType>("artigo");
-  const [vaultUrl, setVaultUrl] = useState("");
-  const [vaultProject, setVaultProject] = useState("");
-  const [vaultNotes, setVaultNotes] = useState("");
 
   // Lab Idea
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaDesc, setIdeaDesc] = useState("");
-  const [ideaHypothesis, setIdeaHypothesis] = useState("");
-  const [ideaCategory, setIdeaCategory] = useState<ProjectCategory>("software");
-
-  // Person
-  const [personName, setPersonName] = useState("");
-  const [personRole, setPersonRole] = useState("");
-  const [personOrg, setPersonOrg] = useState("");
-  const [personEmail, setPersonEmail] = useState("");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -111,119 +142,70 @@ export function QuickCreateModal() {
     setIsOpen(false);
   };
 
-  const handleSubmitNote = (e: React.FormEvent) => {
+  const handleSubmitThesis = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noteTitle.trim()) return;
+    if (!thesisTitle.trim() || !thesisQuestion.trim()) return;
 
-    const tagsArray = noteTags
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-
-    addNote({
-      title: noteTitle.trim(),
-      content: noteContent.trim(),
-      projectId: noteProject || undefined,
-      tags: tagsArray.length ? tagsArray : ["geral"],
-      pinned: false,
+    addThesis({
+      title: thesisTitle.trim(),
+      area: thesisArea.trim(),
+      question: thesisQuestion.trim(),
+      pros: [],
+      cons: [],
+      precedents: [],
+      doctrine: [],
+      counterArguments: [],
+      conclusion: "Síntese inicial em elaboração...",
+      tags: ["quick-thesis"],
+      status: "em_elaboracao",
     });
 
-    setNoteTitle("");
-    setNoteContent("");
-    setNoteTags("");
+    setThesisTitle("");
+    setThesisQuestion("");
     setIsOpen(false);
+    router.push("/modules/codex");
   };
 
-  const handleSubmitProject = (e: React.FormEvent) => {
+  const handleSubmitEvidence = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projTitle.trim()) return;
+    if (!eviClaim.trim() || !eviSource.trim() || !eviQuote.trim()) return;
 
-    const tagsArray = projTags
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-
-    const newProj = addProject({
-      title: projTitle.trim(),
-      description: projDesc.trim(),
-      category: projCategory,
-      priority: projPriority,
-      status: "ativo",
-      deadline: projDeadline || undefined,
-      tags: tagsArray.length ? tagsArray : ["novo"],
-      progress: 0,
+    addEvidence({
+      claim: eviClaim.trim(),
+      source: eviSource.trim(),
+      quote: eviQuote.trim(),
+      strength: eviStrength,
+      section: eviSection,
+      tags: ["quick-evidence"],
     });
 
-    setProjTitle("");
-    setProjDesc("");
-    setProjTags("");
+    setEviClaim("");
+    setEviSource("");
+    setEviQuote("");
     setIsOpen(false);
-    router.push(`/projects/${newProj.id}`);
+    router.push("/modules/research");
   };
 
-  const handleSubmitVault = (e: React.FormEvent) => {
+  const handleSubmitOpportunity = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vaultTitle.trim()) return;
+    if (!oppTitle.trim() || !oppInst.trim() || !oppDeadline) return;
 
-    addVaultItem({
-      title: vaultTitle.trim(),
-      author: vaultAuthor.trim() || undefined,
-      type: vaultType,
-      url: vaultUrl.trim() || undefined,
-      category: "Geral",
-      readingStatus: "para_ler",
-      notes: vaultNotes.trim() || undefined,
-      tags: ["quick-capture"],
-      relatedProjectIds: vaultProject ? [vaultProject] : undefined,
+    addOpportunity({
+      title: oppTitle.trim(),
+      institution: oppInst.trim(),
+      deadline: oppDeadline,
+      prizeOrGrant: oppPrize.trim() || undefined,
+      requirements: ["Verificar edital"],
+      requiredDocs: ["Documentação padrão"],
+      status: "interessado",
     });
 
-    setVaultTitle("");
-    setVaultAuthor("");
-    setVaultUrl("");
-    setVaultNotes("");
+    setOppTitle("");
+    setOppInst("");
+    setOppDeadline("");
+    setOppPrize("");
     setIsOpen(false);
-    router.push("/modules/vault");
-  };
-
-  const handleSubmitIdea = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ideaTitle.trim()) return;
-
-    addLabItem({
-      title: ideaTitle.trim(),
-      description: ideaDesc.trim(),
-      hypothesis: ideaHypothesis.trim() || undefined,
-      category: ideaCategory,
-      stage: "ideia",
-      tags: ["incubacao"],
-    });
-
-    setIdeaTitle("");
-    setIdeaDesc("");
-    setIdeaHypothesis("");
-    setIsOpen(false);
-    router.push("/modules/labs");
-  };
-
-  const handleSubmitPerson = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!personName.trim() || !personRole.trim()) return;
-
-    addPerson({
-      name: personName.trim(),
-      role: personRole.trim(),
-      organization: personOrg.trim() || undefined,
-      email: personEmail.trim() || undefined,
-      tags: ["colaborador"],
-      projectPermissions: [],
-    });
-
-    setPersonName("");
-    setPersonRole("");
-    setPersonOrg("");
-    setPersonEmail("");
-    setIsOpen(false);
-    router.push("/modules/people");
+    router.push("/modules/opportunities");
   };
 
   if (!isOpen) return null;
@@ -260,11 +242,11 @@ export function QuickCreateModal() {
         <div className="flex items-center gap-1 px-4 py-2 bg-[#0a0a0f]/40 border-b border-[#1e1e30] overflow-x-auto">
           {[
             { id: "task", label: "Tarefa", icon: CheckSquare },
-            { id: "note", label: "Nota", icon: FileText },
-            { id: "project", label: "Projeto", icon: FolderPlus },
+            { id: "thesis", label: "Tese (Codex)", icon: Scale },
+            { id: "evidence", label: "Evidência", icon: GraduationCap },
+            { id: "opportunity", label: "Edital", icon: Trophy },
             { id: "vault", label: "Vault", icon: BookOpen },
             { id: "idea", label: "Labs", icon: Lightbulb },
-            { id: "person", label: "Colaborador", icon: Users },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -301,25 +283,12 @@ export function QuickCreateModal() {
                   placeholder="Ex: Fichar capítulo 3 sobre IA generativa"
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   autoFocus
                 />
               </div>
 
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Descrição (Opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Critérios de conclusão..."
-                  value={taskDesc}
-                  onChange={(e) => setTaskDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
                     Projeto
@@ -351,18 +320,6 @@ export function QuickCreateModal() {
                     <option value="urgente">Urgente 🔥</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Prazo
-                  </label>
-                  <input
-                    type="date"
-                    value={taskDueDate}
-                    onChange={(e) => setTaskDueDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
-                  />
-                </div>
               </div>
 
               <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
@@ -383,19 +340,19 @@ export function QuickCreateModal() {
             </form>
           )}
 
-          {/* NOTA */}
-          {activeTab === "note" && (
-            <form onSubmit={handleSubmitNote} className="space-y-3">
+          {/* TESE CODEX */}
+          {activeTab === "thesis" && (
+            <form onSubmit={handleSubmitThesis} className="space-y-3">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Título da Nota *
+                  Título da Tese / Matéria *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Resumo de reunião ou ideia rápida"
-                  value={noteTitle}
-                  onChange={(e) => setNoteTitle(e.target.value)}
+                  placeholder="Ex: Responsabilidade por Algoritmos Opacos"
+                  value={thesisTitle}
+                  onChange={(e) => setThesisTitle(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   autoFocus
                 />
@@ -403,13 +360,78 @@ export function QuickCreateModal() {
 
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Conteúdo
+                  Questão Controvertida *
                 </label>
                 <textarea
-                  rows={4}
-                  placeholder="Escreva livremente aqui..."
-                  value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
+                  rows={2}
+                  required
+                  placeholder="Qual a pergunta jurídica central?"
+                  value={thesisQuestion}
+                  onChange={(e) => setThesisQuestion(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white glow-accent"
+                >
+                  Entrar na Arena
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* EVIDÊNCIA */}
+          {activeTab === "evidence" && (
+            <form onSubmit={handleSubmitEvidence} className="space-y-3">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Afirmação Científica *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: O aumento de parâmetros melhora o raciocínio dedutivo..."
+                  value={eviClaim}
+                  onChange={(e) => setEviClaim(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Fonte / Autor *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Vaswani et al. (2017)"
+                  value={eviSource}
+                  onChange={(e) => setEviSource(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Trecho Citado (Quote) *
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="Citação textual..."
+                  value={eviQuote}
+                  onChange={(e) => setEviQuote(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none font-sans"
                 />
               </div>
@@ -426,111 +448,25 @@ export function QuickCreateModal() {
                   type="submit"
                   className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
                 >
-                  Salvar Nota
+                  Salvar no Board
                 </button>
               </div>
             </form>
           )}
 
-          {/* PROJETO */}
-          {activeTab === "project" && (
-            <form onSubmit={handleSubmitProject} className="space-y-3">
+          {/* EDITAL */}
+          {activeTab === "opportunity" && (
+            <form onSubmit={handleSubmitOpportunity} className="space-y-3">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Nome do Projeto *
+                  Título da Chamada / Prêmio *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Artigo sobre Hermenêutica Jurídica"
-                  value={projTitle}
-                  onChange={(e) => setProjTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Descrição e Escopo
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Qual o objetivo principal deste projeto?"
-                  value={projDesc}
-                  onChange={(e) => setProjDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Categoria
-                  </label>
-                  <select
-                    value={projCategory}
-                    onChange={(e) => setProjCategory(e.target.value as ProjectCategory)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
-                  >
-                    <option value="software">Software</option>
-                    <option value="pesquisa">Pesquisa</option>
-                    <option value="estudo">Estudo</option>
-                    <option value="academico">Acadêmico</option>
-                    <option value="negocio">Negócio</option>
-                    <option value="pessoal">Pessoal</option>
-                    <option value="experimento">Experimento</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Prioridade
-                  </label>
-                  <select
-                    value={projPriority}
-                    onChange={(e) => setProjPriority(e.target.value as PriorityLevel)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
-                  >
-                    <option value="baixa">Baixa</option>
-                    <option value="media">Média</option>
-                    <option value="alta">Alta</option>
-                    <option value="urgente">Urgente 🔥</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
-                >
-                  Criar Workspace
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* VAULT */}
-          {activeTab === "vault" && (
-            <form onSubmit={handleSubmitVault} className="space-y-3">
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Título da Obra / Lei / Artigo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Teoria dos Agentes Autônomos"
-                  value={vaultTitle}
-                  onChange={(e) => setVaultTitle(e.target.value)}
+                  placeholder="Ex: Edital PIBIC 2026"
+                  value={oppTitle}
+                  onChange={(e) => setOppTitle(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   autoFocus
                 />
@@ -539,172 +475,28 @@ export function QuickCreateModal() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Tipo
-                  </label>
-                  <select
-                    value={vaultType}
-                    onChange={(e) => setVaultType(e.target.value as VaultItemType)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
-                  >
-                    <option value="artigo">Artigo</option>
-                    <option value="livro">Livro / Doutrina</option>
-                    <option value="jurisprudencia">Jurisprudência</option>
-                    <option value="lei">Legislação</option>
-                    <option value="pdf">PDF / Documento</option>
-                    <option value="link">Link Web</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Autor
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: STF, Russell & Norvig"
-                    value={vaultAuthor}
-                    onChange={(e) => setVaultAuthor(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Link / URL de Acesso
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={vaultUrl}
-                  onChange={(e) => setVaultUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
-                >
-                  Salvar no Vault
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* LABS */}
-          {activeTab === "idea" && (
-            <form onSubmit={handleSubmitIdea} className="space-y-3">
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Título da Ideia / Hipótese *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Automação de Ementas via API"
-                  value={ideaTitle}
-                  onChange={(e) => setIdeaTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Descrição
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="O que você deseja experimentar?"
-                  value={ideaDesc}
-                  onChange={(e) => setIdeaDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Hipótese
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Se fizermos X, economizamos 5 horas de fichamento..."
-                  value={ideaHypothesis}
-                  onChange={(e) => setIdeaHypothesis(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white"
-                >
-                  Incubar no Labs
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* COLABORADOR */}
-          {activeTab === "person" && (
-            <form onSubmit={handleSubmitPerson} className="space-y-3">
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Nome Completo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Mariana Costa"
-                  value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
-                  autoFocus
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Cargo / Função *
+                    Instituição *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Diretora de Pesquisa"
-                    value={personRole}
-                    onChange={(e) => setPersonRole(e.target.value)}
+                    placeholder="Ex: CNPq"
+                    value={oppInst}
+                    onChange={(e) => setOppInst(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Organização
+                    Prazo Final *
                   </label>
                   <input
-                    type="text"
-                    placeholder="Ex: Universidade X"
-                    value={personOrg}
-                    onChange={(e) => setPersonOrg(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                    type="date"
+                    required
+                    value={oppDeadline}
+                    onChange={(e) => setOppDeadline(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
                   />
                 </div>
               </div>
@@ -719,9 +511,9 @@ export function QuickCreateModal() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-yellow-600 hover:bg-yellow-500 text-white"
                 >
-                  Cadastrar Colaborador
+                  Cadastrar Edital
                 </button>
               </div>
             </form>
