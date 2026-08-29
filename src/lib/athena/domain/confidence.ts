@@ -11,3 +11,4 @@ export interface ConfidenceAssessment {
   };
   rationale: string;
 }
+

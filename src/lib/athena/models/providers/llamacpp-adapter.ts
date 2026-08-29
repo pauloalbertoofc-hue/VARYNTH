@@ -61,3 +61,4 @@ export class LlamaCppAdapter implements LocalInferenceEngine {
 }
 
 export const llamaCppAdapter = new LlamaCppAdapter();
+

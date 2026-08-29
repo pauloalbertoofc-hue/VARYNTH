@@ -18,3 +18,4 @@ export interface ProvenanceRecord {
   excerpt?: string;
   timestamp: string;
 }
+

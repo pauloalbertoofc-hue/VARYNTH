@@ -10,13 +10,12 @@ import {
   EvidenceItem,
   Opportunity,
 } from "../types";
-import { athenaKernel } from "./kernel/executive-controller";
 import { athenaPerceptionEngine } from "./kernel/perception";
 import { athenaContextBuilder } from "./memory/context-builder";
 import { athenaWorkflowBuilder } from "./runtime/workflow-builder";
-import { athenaWorkflowExecutor } from "./runtime/workflow-executor";
-import { athenaDeliberationEngine } from "./deliberation/deliberation-engine";
 import { athenaResponseBuilder } from "./kernel/response-builder";
+import { athenaConversationManager } from "./conversation/conversation-manager";
+import { athenaPersonaEngine } from "./persona/persona-engine";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -31,30 +30,68 @@ export interface AthenaEngineContext {
 }
 
 /**
- * High-level facade for Athena Cognitive Kernel.
- * Executes the complete cognitive perception, workflow planning, Council deliberation, and response pipeline.
+ * High-level facade for Athena Cognitive Kernel with Conversational & Execution Awareness.
  */
 export function processAthenaQuery(
   rawPrompt: string,
   scope: AthenaScope,
   ctx: AthenaEngineContext,
-  targetProjectId?: string
+  targetProjectId?: string,
+  sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
 
-  // 1. Perception
-  const task = athenaPerceptionEngine.perceive(prompt, scope, targetProjectId);
+  // 1. Conversation Manager & Anaphora Resolution
+  const convContext = athenaConversationManager.processMessage(
+    sessionId,
+    prompt,
+    ctx.projects,
+    targetProjectId
+  );
 
-  // 2. Context Building (Surgical Context)
-  const context = athenaContextBuilder.buildContext(task, scope, ctx, targetProjectId);
+  const resolvedProjectId = convContext.targetProjectId || targetProjectId;
 
-  // 3. Workflow Planning
+  // 2. Handle Ambiguous References (e.g. "esse projeto" when none is active)
+  if (convContext.isAmbiguousReference && convContext.ambiguousTerm) {
+    const candidates = ctx.projects.map((p) => p.title);
+    return {
+      id: "ath-" + Date.now(),
+      sender: "athena",
+      text: athenaPersonaEngine.generateClarificationQuestion(convContext.ambiguousTerm, candidates),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scope,
+    };
+  }
+
+  // 3. Handle Purely Conversational / Casual / Brainstorming Messages (0 spurious actions/tasks created)
+  if (convContext.intent === "CONVERSATION_ONLY" || convContext.intent === "BRAINSTORM") {
+    const activeProj = resolvedProjectId
+      ? ctx.projects.find((p) => p.id === resolvedProjectId)
+      : undefined;
+
+    const replyText = athenaPersonaEngine.generateDialogueResponse(
+      prompt,
+      convContext.mode,
+      convContext.topic,
+      activeProj?.title
+    );
+
+    return {
+      id: "ath-" + Date.now(),
+      sender: "athena",
+      text: replyText,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scope,
+    };
+  }
+
+  // 4. Execution & Deep Analysis Path
+  const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
+  const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
   const workflow = athenaWorkflowBuilder.build(task);
 
-  // 4. Workflow Execution
   let workflowResult: any = undefined;
   try {
-    // Synchronous tool & planner execution
     const stepResults: Record<string, unknown> = {};
     const agentResults: any[] = [];
     const toolOutputs: Record<string, unknown> = {};
@@ -144,12 +181,10 @@ export function processAthenaQuery(
   }
 
   // 6. Build Final Response
-  const response = athenaResponseBuilder.buildResponse(
+  return athenaResponseBuilder.buildResponse(
     task,
     context,
     workflowResult,
     deliberationResult
   );
-
-  return response;
 }

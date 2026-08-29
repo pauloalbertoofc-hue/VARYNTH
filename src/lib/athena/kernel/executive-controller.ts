@@ -16,6 +16,8 @@ import { athenaConfidenceEngine } from "./confidence-engine";
 import { provenanceTracker } from "./provenance";
 import { memoryGate } from "../memory/memory-gate";
 import { cognitiveCheckpointManager } from "../runtime/checkpoint";
+import { athenaConversationManager } from "../conversation/conversation-manager";
+import { athenaPersonaEngine } from "../persona/persona-engine";
 
 export class ExecutiveController {
   async process(
@@ -29,30 +31,96 @@ export class ExecutiveController {
     const startTime = Date.now();
     const budget = BUDGET_CONFIGS[budgetTier] || BUDGET_CONFIGS.STANDARD;
 
-    // 1. Perception: normalize prompt into a Task
-    let task = athenaPerceptionEngine.perceive(rawPrompt, scope, targetProjectId);
+    // 1. Conversation Manager: evaluate intent & resolve anaphora references
+    const convContext = athenaConversationManager.processMessage(
+      sessionId,
+      rawPrompt,
+      storeCtx.projects,
+      targetProjectId
+    );
+
+    const resolvedProjectId = convContext.targetProjectId || targetProjectId;
+
+    // 2. Handle Ambiguous Reference if detected (Never guess silently)
+    if (convContext.isAmbiguousReference && convContext.ambiguousTerm) {
+      const candidates = storeCtx.projects.map((p) => p.title);
+      const clarificationText = athenaPersonaEngine.generateClarificationQuestion(
+        convContext.ambiguousTerm,
+        candidates
+      );
+
+      const response: AthenaResponse = {
+        id: "ath-" + Date.now(),
+        sender: "athena",
+        text: clarificationText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope,
+        metadata: {
+          intent: convContext.intent,
+          mode: convContext.mode,
+        },
+      };
+
+      athenaMemoryManager.appendMessage(sessionId, response);
+      return response;
+    }
+
+    // 3. Handle Purely Conversational & Brainstorm Messages (0 spurious actions/tasks created)
+    if (convContext.intent === "CONVERSATION_ONLY" || convContext.intent === "BRAINSTORM") {
+      const activeProj = resolvedProjectId
+        ? storeCtx.projects.find((p) => p.id === resolvedProjectId)
+        : undefined;
+
+      const dialogueText = athenaPersonaEngine.generateDialogueResponse(
+        rawPrompt,
+        convContext.mode,
+        convContext.topic,
+        activeProj?.title
+      );
+
+      const response: AthenaResponse = {
+        id: "ath-" + Date.now(),
+        sender: "athena",
+        text: dialogueText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope,
+        metadata: {
+          intent: convContext.intent,
+          mode: convContext.mode,
+          resolvedProjectId,
+        },
+      };
+
+      athenaMemoryManager.appendMessage(sessionId, response);
+      athenaMemoryManager.recordEpisode(rawPrompt.slice(0, 60), scope);
+      athenaEventBus.emit("RESPONSE_READY", response);
+      return response;
+    }
+
+    // 4. Execution & Analysis Path: normalize prompt into a Task
+    let task = athenaPerceptionEngine.perceive(rawPrompt, scope, resolvedProjectId);
     provenanceTracker.record("USER", task.title, task.id);
 
-    // 2. Memory & Context: build surgical workspace context
-    const context = athenaContextBuilder.buildContext(task, scope, storeCtx, targetProjectId);
+    // 5. Memory & Context: build surgical workspace context
+    const context = athenaContextBuilder.buildContext(task, scope, storeCtx, resolvedProjectId);
     if (context.activeProject) {
       provenanceTracker.record("VAULT", `Projeto: ${context.activeProject.title}`, context.activeProject.id);
     }
 
-    // 3. State Transition: PLANNED
+    // 6. State Transition: PLANNED
     task = taskStateMachine.transition(task, "PLANNED");
 
-    // 4. Build Workflow
+    // 7. Build Workflow
     const workflow = athenaWorkflowBuilder.build(task);
 
-    // 5. State Transition: RUNNING
+    // 8. State Transition: RUNNING
     task = taskStateMachine.transition(task, "RUNNING");
 
-    // 6. Execute Workflow with Checkpoints
+    // 9. Execute Workflow with Checkpoints
     const workflowResult = await athenaWorkflowExecutor.execute(workflow, task, context, storeCtx);
     cognitiveCheckpointManager.saveCheckpoint(workflow, workflow.steps.length - 1, workflowResult.stepResults);
 
-    // 7. Deliberation & Reflection (governed by Budget)
+    // 10. Deliberation & Reflection (governed by Budget)
     let deliberationResult = undefined;
     if (budget.allowCouncilDeliberation && workflowResult.agentResults && workflowResult.agentResults.length > 0) {
       task = taskStateMachine.transition(task, "REVIEWING");
@@ -66,7 +134,7 @@ export class ExecutiveController {
       }
     }
 
-    // 8. Confidence Assessment
+    // 11. Confidence Assessment
     const confidence = athenaConfidenceEngine.assess(
       task,
       context,
@@ -74,7 +142,7 @@ export class ExecutiveController {
       workflowResult.success
     );
 
-    // 9. Build Response
+    // 12. Build Response
     task = taskStateMachine.transition(task, "FINISHED");
     const response = athenaResponseBuilder.buildResponse(
       task,
@@ -88,14 +156,16 @@ export class ExecutiveController {
       confidenceScore: confidence.score,
       budgetTier: budget.tier,
       provenanceCount: provenanceTracker.getRecentProvenance().length,
+      intent: convContext.intent,
+      mode: convContext.mode,
     };
 
-    // 10. Memory Gate Evaluation before permanent storage
+    // 13. Memory Gate Evaluation before permanent storage
     const memoryCandidate = {
       title: task.title,
       content: response.text,
       scope,
-      projectId: targetProjectId,
+      projectId: resolvedProjectId,
       confidence: confidence.level,
       sourceType: "MODEL_INFERENCE",
     };

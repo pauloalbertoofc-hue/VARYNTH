@@ -31,3 +31,4 @@ export const BUDGET_CONFIGS: Record<ExecutionBudgetTier, ExecutionBudget> = {
     requiresStrictValidation: true,
   },
 };
+

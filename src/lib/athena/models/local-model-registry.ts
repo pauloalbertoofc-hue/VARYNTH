@@ -26,3 +26,4 @@ export class LocalModelRegistry {
 }
 
 export const localModelRegistry = new LocalModelRegistry();
+

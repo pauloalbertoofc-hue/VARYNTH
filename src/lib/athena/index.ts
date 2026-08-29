@@ -9,6 +9,8 @@ export * from "./domain/capabilities";
 export * from "./domain/budget";
 export * from "./domain/provenance";
 export * from "./domain/confidence";
+export * from "./domain/conversation";
+export * from "./domain/persona";
 
 export * from "./kernel/executive-controller";
 export * from "./kernel/perception";
@@ -20,6 +22,10 @@ export * from "./kernel/capabilities";
 export * from "./kernel/structured-output";
 export * from "./kernel/confidence-engine";
 export * from "./kernel/provenance";
+
+export * from "./conversation/conversation-manager";
+export * from "./conversation/session-summarizer";
+export * from "./persona/persona-engine";
 
 export * from "./agents/base-agent";
 export * from "./agents/registry";

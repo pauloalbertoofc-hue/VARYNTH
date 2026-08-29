@@ -61,3 +61,4 @@ export class OllamaAdapter implements LocalInferenceEngine {
 }
 
 export const ollamaAdapter = new OllamaAdapter();
+

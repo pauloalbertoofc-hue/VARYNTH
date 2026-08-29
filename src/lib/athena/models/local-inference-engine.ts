@@ -15,3 +15,4 @@ export interface LocalInferenceEngine {
   generate(request: ModelRequest): Promise<ModelResponse>;
   capabilities(): Promise<ModelCapabilities>;
 }
+

@@ -62,3 +62,4 @@ export class LocalSemanticRetriever {
 }
 
 export const localSemanticRetriever = new LocalSemanticRetriever();
+

@@ -41,3 +41,4 @@ export class MemoryGate {
 }
 
 export const memoryGate = new MemoryGate();
+
