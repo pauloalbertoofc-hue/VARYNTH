@@ -115,7 +115,7 @@ export default function AthenaHubPage() {
     setIsTyping(true);
 
     setTimeout(() => {
-      const response = processAthenaQuery(raw, scope, store);
+      const response = processAthenaQuery(raw, scope, store, undefined, "global-athena-session");
       saveMessages([...updated, response]);
       setIsTyping(false);
     }, 450);

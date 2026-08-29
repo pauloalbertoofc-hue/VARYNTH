@@ -27,3 +27,4 @@ export interface ConversationState {
   messageCount: number;
   lastInteractionAt: string;
 }
+

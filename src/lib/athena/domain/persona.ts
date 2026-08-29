@@ -28,3 +28,4 @@ export const DEFAULT_ATHENA_PERSONA: AthenaPersonaConfig = {
     "Orientada à clareza e ação pragmática",
   ],
 };
+

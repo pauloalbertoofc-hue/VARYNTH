@@ -83,7 +83,7 @@ export function AthenaSidecar() {
     setIsTyping(true);
 
     setTimeout(() => {
-      const response = processAthenaQuery(raw, currentScope, store);
+      const response = processAthenaQuery(raw, currentScope, store, undefined, "global-athena-session");
       setMessages([...updated, response]);
       setIsTyping(false);
     }, 400);

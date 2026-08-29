@@ -59,7 +59,7 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     setIsTyping(true);
 
     setTimeout(() => {
-      const response = processAthenaQuery(query, "geral", store, project.id);
+      const response = processAthenaQuery(query, "geral", store, project.id, `project-${project.id}-session`);
 
       setMessages((prev) => [
         ...prev,
