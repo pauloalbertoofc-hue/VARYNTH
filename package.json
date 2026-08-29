@@ -8,7 +8,9 @@
     "lint": "next lint",
     "test:athena": "npx tsx src/lib/athena/regression/regression-runner.ts",
     "test:athena:conversation": "npx tsx src/lib/athena/tests/run-tests.ts",
-    "test:athena:regression": "npx tsx src/lib/athena/regression/regression-runner.ts"
+    "test:athena:regression": "npx tsx src/lib/athena/regression/regression-runner.ts",
+    "docs:guardian": "npx tsx src/lib/athena/guardian/cli-guardian.ts",
+    "docs:check": "npx tsx src/lib/athena/guardian/cli-guardian.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

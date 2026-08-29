@@ -7,9 +7,14 @@ import {
   ADR_LIST,
   LESSONS_LEARNED_LIST,
   TechnicalDocItem,
-  ADRItem,
   ComponentStatus,
 } from "@/lib/docs/docs-data";
+import { documentationGuardian } from "@/lib/athena/guardian/documentation-guardian";
+import {
+  DocumentationHealthReport,
+  DocumentationReviewItem,
+  DocumentationAuditRecord,
+} from "@/lib/athena/guardian/types";
 import {
   Search,
   BookOpen,
@@ -31,10 +36,16 @@ import {
   Clock,
   Compass,
   ArrowUpRight,
+  ShieldAlert,
+  Check,
+  X,
+  FileCheck,
+  Activity,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
-type TabMode = "hub" | "map" | "handbook" | "adrs" | "lessons" | "component";
+type TabMode = "hub" | "guardian" | "map" | "handbook" | "adrs" | "lessons" | "component";
 
 export default function TechnicalArchivePage() {
   const [activeTab, setActiveTab] = useState<TabMode>("hub");
@@ -43,6 +54,44 @@ export default function TechnicalArchivePage() {
   const [selectedAdrId, setSelectedAdrId] = useState<string>("ADR-001");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedHandbookChapter, setSelectedHandbookChapter] = useState(0);
+
+  // Guardian State
+  const [healthReport, setHealthReport] = useState<DocumentationHealthReport>(() =>
+    documentationGuardian.assessHealth()
+  );
+  const [reviewQueue, setReviewQueue] = useState<DocumentationReviewItem[]>(() =>
+    documentationGuardian.listPendingReviews()
+  );
+  const [auditLog, setAuditLog] = useState<DocumentationAuditRecord[]>(() =>
+    documentationGuardian.listAuditLog()
+  );
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Refresh Guardian Health
+  const handleRefreshGuardian = () => {
+    const report = documentationGuardian.assessHealth();
+    setHealthReport(report);
+    setReviewQueue(documentationGuardian.listPendingReviews());
+    setAuditLog(documentationGuardian.listAuditLog());
+    setActionMessage("Auditoria do Documentation Guardian recalculada com sucesso.");
+    setTimeout(() => setActionMessage(null), 3000);
+  };
+
+  const handleApproveReview = (id: string) => {
+    documentationGuardian.approveReview(id, "Paulo");
+    setReviewQueue(documentationGuardian.listPendingReviews());
+    setAuditLog(documentationGuardian.listAuditLog());
+    setActionMessage(`Proposta de documentação ${id} aprovada e integrada.`);
+    setTimeout(() => setActionMessage(null), 3000);
+  };
+
+  const handleRejectReview = (id: string) => {
+    documentationGuardian.rejectReview(id, "Paulo");
+    setReviewQueue(documentationGuardian.listPendingReviews());
+    setAuditLog(documentationGuardian.listAuditLog());
+    setActionMessage(`Proposta ${id} rejeitada.`);
+    setTimeout(() => setActionMessage(null), 3000);
+  };
 
   // Filtered documents based on search and category
   const filteredDocs = useMemo(() => {
@@ -100,6 +149,16 @@ export default function TechnicalArchivePage() {
       subtitle="Manual Arquitetural Oficial, ADRs e Memória de Engenharia do VARYNTH OS"
     >
       <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in text-slate-200">
+        {/* ACTION FEEDBACK TOAST */}
+        {actionMessage && (
+          <div className="p-4 rounded-xl bg-emerald-950/90 border border-emerald-800 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-2xl animate-fade-in">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              {actionMessage}
+            </span>
+          </div>
+        )}
+
         {/* TOP STATUS BANNER */}
         <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -124,13 +183,28 @@ export default function TechnicalArchivePage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs">
+              <button
+                onClick={handleRefreshGuardian}
+                className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 flex items-center gap-2 transition-all cursor-pointer"
+                title="Executar auditoria em tempo real do Documentation Guardian"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="font-mono text-[11px]">Audit Guardian</span>
+              </button>
+
               <div className="px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Quality Gates: <strong className="text-emerald-300">73/73 Aprovados (100%)</strong></span>
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>
+                  Documentation Health:{" "}
+                  <strong className="text-emerald-300">{healthReport.score}% (SYNCED)</strong>
+                </span>
               </div>
+
               <div className="px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <span>Soberania: <strong className="text-cyan-300">100% Local-First</strong></span>
+                <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+                <span>
+                  Quality Gates: <strong className="text-cyan-300">73/73 Aprovados (100%)</strong>
+                </span>
               </div>
             </div>
           </div>
@@ -160,6 +234,23 @@ export default function TechnicalArchivePage() {
           >
             <Layers className="w-4 h-4" />
             Hub de Engenharia
+          </button>
+
+          <button
+            onClick={() => setActiveTab("guardian")}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+              activeTab === "guardian"
+                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" />
+            Documentation Guardian
+            {reviewQueue.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-400 font-mono text-[10px] border border-amber-500/30">
+                {reviewQueue.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -222,6 +313,159 @@ export default function TechnicalArchivePage() {
             Ficha Técnica por Componente
           </button>
         </div>
+
+        {/* TAB: DOCUMENTATION GUARDIAN TELEMETRY & REVIEW QUEUE */}
+        {activeTab === "guardian" && (
+          <div className="space-y-8">
+            {/* Top Guardian Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 space-y-2 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono uppercase text-slate-400 font-bold">Health Score</span>
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">{healthReport.score}%</div>
+                <p className="text-xs text-emerald-400 font-medium">Status: {healthReport.status} (Zero Drift)</p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900/80 border border-cyan-500/30 space-y-2 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono uppercase text-slate-400 font-bold">Contratos Runtime</span>
+                  <Cpu className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">
+                  {healthReport.runtimeAudits.totalRoutes + healthReport.runtimeAudits.totalTools + healthReport.runtimeAudits.totalAgents}
+                </div>
+                <p className="text-xs text-slate-400">
+                  {healthReport.runtimeAudits.totalRoutes} Rotas • {healthReport.runtimeAudits.totalTools} Tools • {healthReport.runtimeAudits.totalAgents} Agentes
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 space-y-2 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono uppercase text-slate-400 font-bold">Fila de Revisão Humana</span>
+                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="text-3xl font-extrabold text-white">{reviewQueue.length}</div>
+                <p className="text-xs text-amber-300 font-medium">Propostas interpretativas em análise</p>
+              </div>
+            </div>
+
+            {/* Subsystems Health Grid */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                Auditoria de Sincronia por Subsistema
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Object.entries(healthReport.subsystems).map(([key, sub]) => (
+                  <div
+                    key={key}
+                    className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="text-xs font-bold text-white">{sub.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        {sub.totalDocumented}/{sub.totalActual} contratos verificados
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {sub.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* REVIEW QUEUE (HUMAN IN THE LOOP) */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-amber-400" />
+                    Fila de Revisão Humana (Documentation Review Queue)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Decisões e lições interpretativas geradas que exigem confirmação explícita antes da publicação oficial.
+                  </p>
+                </div>
+              </div>
+
+              {reviewQueue.length === 0 ? (
+                <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/60 text-xs text-slate-500 font-mono">
+                  Zero propostas pendentes de revisão humana. Toda a documentação oficial está sincronizada.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviewQueue.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                            {item.type}
+                          </span>
+                          <span className="text-xs font-bold text-white">{item.title}</span>
+                        </div>
+                        <p className="text-xs text-slate-400">{item.proposedChange}</p>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          Alvo: <code className="text-cyan-400">{item.targetDocument}</code> • Evidência: {item.sourceEvidence}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleApproveReview(item.id)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Aprovar
+                        </button>
+                        <button
+                          onClick={() => handleRejectReview(item.id)}
+                          className="px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 border border-red-500/40 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Rejeitar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* AUDIT LOG */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-cyan-400" />
+                Histórico Auditado de Atualizações Documentais
+              </h3>
+
+              <div className="space-y-2">
+                {auditLog.map((log) => (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 flex items-center justify-between text-xs"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="font-semibold text-slate-200">{log.description}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        Evidência: {log.sourceEvidence} • Arquivos: {log.affectedDocuments.join(", ")}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-cyan-400 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40 shrink-0">
+                      {log.type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TAB 1: HUB & DOCUMENTATION DIRECTORY */}
         {activeTab === "hub" && (
@@ -386,7 +630,7 @@ export default function TechnicalArchivePage() {
                     className="p-3.5 rounded-xl bg-slate-950 border border-cyan-500/20 hover:border-cyan-500/50 cursor-pointer transition-all space-y-1"
                   >
                     <div className="text-xs font-bold text-white">Next.js 16 + React 19</div>
-                    <p className="text-[11px] text-slate-400">Turbopack, App Router e 20 Rotas</p>
+                    <p className="text-[11px] text-slate-400">Turbopack, App Router e 21 Rotas</p>
                   </div>
                   <div
                     onClick={() => {
@@ -432,7 +676,7 @@ export default function TechnicalArchivePage() {
                     }}
                     className="p-3.5 rounded-xl bg-slate-950 border border-emerald-500/20 hover:border-emerald-500/50 cursor-pointer transition-all space-y-1"
                   >
-                    <div className="text-xs font-bold text-white">Conselho de 7 Agentes</div>
+                    <div className="text-xs font-bold text-white">Conselho de Agentes (Archivist)</div>
                     <p className="text-[11px] text-slate-400">Justitia, Logos, Sophia, Musa, Critias...</p>
                   </div>
                 </div>
@@ -789,4 +1033,3 @@ export default function TechnicalArchivePage() {
     </PageLayout>
   );
 }
-

@@ -8,6 +8,7 @@ import { musaAgent } from "./council/musa";
 import { strategosAgent } from "./council/strategos";
 import { mnemosyneAgent } from "./council/mnemosyne";
 import { critiasAgent } from "./council/critias";
+import { archivistAgent } from "./council/archivist";
 
 export class AgentRegistry {
   private agents: Map<string, AthenaAgent> = new Map();
@@ -20,6 +21,7 @@ export class AgentRegistry {
     this.register(strategosAgent);
     this.register(mnemosyneAgent);
     this.register(critiasAgent);
+    this.register(archivistAgent);
   }
 
   register(agent: AthenaAgent): void {
