@@ -333,4 +333,5 @@ export class AssetBlobStorageAdapter implements AssetStorageAdapter {
 }
 
 export const assetStorage = new AssetBlobStorageAdapter();
+export const assetStore = assetStorage;
 

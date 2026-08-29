@@ -1,7 +1,3 @@
-import { artifactStore } from "./artifact-store";
-import { versionManager } from "./version-manager";
-import { permissionPolicyEngine } from "../permissions/permission-policy";
-import { athenaEventBus } from "../athena/events/event-bus";
 import {
   Artifact,
   ArtifactType,
@@ -11,49 +7,58 @@ import {
   ArtifactFilter,
   ArtifactProvenance,
 } from "./types";
+import { artifactStore } from "./artifact-store";
+import { versionManager } from "./version-manager";
+import { assetManager } from "./asset-manager";
+import { permissionPolicyEngine } from "../permissions/permission-policy";
+import { athenaEventBus } from "../athena/events/event-bus";
 
 export class ArtifactService {
-  public createArtifact(params: {
-    name: string;
-    type: ArtifactType;
-    description?: string;
-    projectId?: string;
-    status?: ArtifactStatus;
-    createdBy?: ArtifactActor;
-    provenance?: Partial<ArtifactProvenance>;
-    tags?: string[];
-    metadata?: Record<string, unknown>;
-    assetFileIds?: string[];
-  }): { success: boolean; error?: string; artifact?: Artifact } {
-    const actor = params.createdBy || "USER";
-    const status = params.status || "DRAFT";
+  public async createArtifact(
+    params: {
+      type: ArtifactType;
+      name: string;
+      description?: string;
+      projectId?: string;
+      tags?: string[];
+      metadata?: Record<string, unknown>;
+      provenance?: Partial<ArtifactProvenance>;
+      assetFileIds?: string[];
+    },
+    actor: ArtifactActor = "USER"
+  ): Promise<{ success: boolean; artifact?: Artifact; error?: string }> {
+    // 1. Permission Policy Check
+    const perm = permissionPolicyEngine.evaluate({
+      actor: { type: actor },
+      action: "CREATE",
+      targetDomain: "ARTIFACT_DRAFT",
+      resourceStatus: "DRAFT",
+    });
 
-    // 1. Permission Evaluation
-    const targetDomain = status === "DRAFT" ? "ARTIFACT_DRAFT" : "ARTIFACT_ACTIVE";
-    const perm = permissionPolicyEngine.evaluate(actor, "CREATE", targetDomain);
     if (!perm.allowed) {
-      return { success: false, error: `Permissão negada: ${perm.reason}` };
+      return { success: false, error: `[PERMISSÃO NEGADA] ${perm.reason}` };
     }
 
     const now = new Date().toISOString();
-    const id = `art-${params.type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const id = `art-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    const newArtifact: Artifact = {
+    const artifact: Artifact = {
       id,
-      name: params.name,
       type: params.type,
+      name: params.name,
       description: params.description,
       projectId: params.projectId,
-      status,
+      status: "DRAFT", // Always created in DRAFT initially
+
       createdBy: actor,
       createdAt: now,
       updatedAt: now,
+
       currentVersionNumber: 0,
       versions: [],
       relationships: [],
       provenance: {
         creator: actor,
-        creatorDetails: params.provenance?.creatorDetails,
         requestedBy: params.provenance?.requestedBy,
         sourceContext: params.provenance?.sourceContext,
         derivedFromArtifactIds: params.provenance?.derivedFromArtifactIds || [],
@@ -61,86 +66,129 @@ export class ArtifactService {
         engineUsed: params.provenance?.engineUsed,
         sandboxRunId: params.provenance?.sandboxRunId,
       },
+
       assetFileIds: params.assetFileIds || [],
       metadata: params.metadata || {},
       tags: params.tags || [],
     };
 
-    // 2. Create Initial Version Snapshot (v1.0)
-    versionManager.createSnapshot(
-      newArtifact,
-      "Criação inicial do artefato no VARYNTH Universe",
-      actor,
-      "v1.0 - Criação Inicial"
-    );
+    // 2. Initial v1.0 Snapshot (Alex Principle)
+    versionManager.createSnapshot(artifact, "Criação inicial do artefato em status DRAFT (v1.0)", actor);
 
-    // 3. Save to Persistent Store
-    const saved = artifactStore.save(newArtifact);
+    // 3. Persistence
+    const saved = artifactStore.save(artifact);
 
-    // 4. Emit Domain Event
     athenaEventBus.emit("ARTIFACT_CREATED", {
       artifactId: saved.id,
-      name: saved.name,
       type: saved.type,
-      actor,
+      name: saved.name,
+      createdBy: actor,
     });
 
     return { success: true, artifact: saved };
   }
 
-  public updateArtifact(
+  public async updateArtifact(
     id: string,
-    updates: Partial<Pick<Artifact, "name" | "description" | "status" | "tags" | "metadata" | "assetFileIds">>,
-    changeSummary: string,
-    actor: ArtifactActor = "USER"
-  ): { success: boolean; error?: string; artifact?: Artifact } {
-    const existing = artifactStore.getById(id);
-    if (!existing) {
-      return { success: false, error: `Artefato com ID ${id} não encontrado` };
+    updates: Partial<Pick<Artifact, "name" | "description" | "metadata" | "tags" | "assetFileIds">>,
+    actor: ArtifactActor = "USER",
+    changeSummary = "Modificação estrutural do artefato"
+  ): Promise<{ success: boolean; artifact?: Artifact; requiresConfirmation?: boolean; error?: string }> {
+    const artifact = artifactStore.getById(id);
+    if (!artifact) {
+      return { success: false, error: `Artefato com ID ${id} não encontrado.` };
     }
 
-    // Permission Check
-    const targetDomain = existing.status === "DRAFT" ? "ARTIFACT_DRAFT" : "ARTIFACT_ACTIVE";
-    const perm = permissionPolicyEngine.evaluate(actor, "MODIFY", targetDomain);
-    if (!perm.allowed) {
-      return { success: false, error: `Permissão negada: ${perm.reason}` };
+    // 1. Permission Check
+    const perm = permissionPolicyEngine.evaluate({
+      actor: { type: actor },
+      action: "MODIFY",
+      targetDomain: artifact.status === "ACTIVE" ? "ARTIFACT_ACTIVE" : artifact.status === "PUBLISHED" ? "ARTIFACT_PUBLISHED" : "ARTIFACT_DRAFT",
+      resourceStatus: artifact.status,
+    });
+
+    if (!perm.allowed && perm.policy === "DENY") {
+      return { success: false, error: `[PERMISSÃO NEGADA] ${perm.reason}` };
     }
 
-    // Asset Consistency Validation
-    const nextStatus = updates.status || existing.status;
-    const mediaTypes: ArtifactType[] = ["VIDEO", "GAME", "AUDIO", "IMAGE"];
-    const assetList = updates.assetFileIds || existing.assetFileIds || [];
-    if (nextStatus === "ACTIVE" && mediaTypes.includes(existing.type) && assetList.length === 0) {
-      return {
-        success: false,
-        error: `Consistência violada: Artefato de mídia (${existing.type}) não pode se tornar ACTIVE sem assets físicos vinculados.`,
-      };
+    if (perm.requiresConfirmation) {
+      return { success: false, requiresConfirmation: true, error: `[CONFIRMAÇÃO NECESSÁRIA] ${perm.reason}` };
     }
 
-    // Apply updates
-    if (updates.name) existing.name = updates.name;
-    if (updates.description !== undefined) existing.description = updates.description;
-    if (updates.status) existing.status = updates.status;
-    if (updates.tags) existing.tags = updates.tags;
-    if (updates.metadata) existing.metadata = { ...existing.metadata, ...updates.metadata };
-    if (updates.assetFileIds) existing.assetFileIds = updates.assetFileIds;
+    // 2. Create version snapshot before applying changes (Safety Snapshot)
+    versionManager.createSnapshot(artifact, changeSummary, actor);
 
-    // Create new Version Snapshot
-    versionManager.createSnapshot(existing, changeSummary, actor);
+    // 3. Apply updates
+    if (updates.name) artifact.name = updates.name;
+    if (updates.description !== undefined) artifact.description = updates.description;
+    if (updates.metadata) artifact.metadata = { ...artifact.metadata, ...updates.metadata };
+    if (updates.tags) artifact.tags = updates.tags;
+    if (updates.assetFileIds) artifact.assetFileIds = updates.assetFileIds;
+    artifact.updatedAt = new Date().toISOString();
 
-    // Save and Emit
-    const saved = artifactStore.save(existing);
+    const saved = artifactStore.save(artifact);
+
     athenaEventBus.emit("ARTIFACT_UPDATED", {
       artifactId: saved.id,
-      version: saved.currentVersionNumber,
-      summary: changeSummary,
-      actor,
+      versionNumber: saved.currentVersionNumber,
+      updatedBy: actor,
     });
 
     return { success: true, artifact: saved };
   }
 
-  public linkRelationship(
+  public async transitionStatus(
+    id: string,
+    newStatus: ArtifactStatus,
+    actor: ArtifactActor = "USER"
+  ): Promise<{ success: boolean; artifact?: Artifact; error?: string }> {
+    const artifact = artifactStore.getById(id);
+    if (!artifact) {
+      return { success: false, error: `Artefato com ID ${id} não encontrado.` };
+    }
+
+    // 1. Validate status transition
+    if (newStatus === "ACTIVE") {
+      const assetCheck = await assetManager.validateRequiredAssets(artifact);
+      if (!assetCheck.valid) {
+        return {
+          success: false,
+          error: `[CONSISTÊNCIA DE ASSETS] Artefato ${artifact.type} não pode se tornar ACTIVE sem assets físicos vinculados: ${assetCheck.missingAssets.join(", ")}`,
+        };
+      }
+    }
+
+    if (newStatus === "PUBLISHED") {
+      const perm = permissionPolicyEngine.evaluate({
+        actor: { type: actor },
+        action: "PUBLISH",
+        targetDomain: "ARTIFACT_PUBLISHED",
+        resourceStatus: "ACTIVE",
+      });
+
+      if (!perm.allowed && perm.policy === "DENY") {
+        return { success: false, error: `[PERMISSÃO NEGADA] ${perm.reason}` };
+      }
+    }
+
+    // 2. Version snapshot on transition
+    versionManager.createSnapshot(artifact, `Transição de status: ${artifact.status} ──► ${newStatus}`, actor);
+
+    artifact.status = newStatus;
+    artifact.updatedAt = new Date().toISOString();
+
+    const saved = artifactStore.save(artifact);
+
+    athenaEventBus.emit("ARTIFACT_UPDATED", {
+      artifactId: saved.id,
+      newStatus,
+      updatedBy: actor,
+    });
+
+    return { success: true, artifact: saved };
+  }
+
+  public addRelationship(
     sourceArtifactId: string,
     targetArtifactId: string,
     type: ArtifactRelationshipType,
@@ -150,56 +198,44 @@ export class ArtifactService {
     const target = artifactStore.getById(targetArtifactId);
 
     if (!source || !target) {
-      return { success: false, error: "Artefato de origem ou destino inexistente" };
+      return { success: false, error: "Um ou ambos os artefatos da relação não existem." };
     }
 
-    // Avoid duplicate relations
-    if (!source.relationships) source.relationships = [];
-    const exists = source.relationships.some(
-      (r) => r.targetArtifactId === targetArtifactId && r.type === type
-    );
+    const relationship = {
+      targetArtifactId,
+      type,
+      description,
+      createdAt: new Date().toISOString(),
+    };
 
-    if (!exists) {
-      source.relationships.push({
-        targetArtifactId,
-        type,
-        description,
-        createdAt: new Date().toISOString(),
-      });
-      artifactStore.save(source);
+    source.relationships = [...(source.relationships || []), relationship];
+    artifactStore.save(source);
 
-      athenaEventBus.emit("ARTIFACT_RELATIONSHIP_LINKED", {
-        sourceId: sourceArtifactId,
-        targetId: targetArtifactId,
-        type,
-      });
-    }
+    athenaEventBus.emit("ARTIFACT_RELATIONSHIP_LINKED", {
+      sourceId: sourceArtifactId,
+      targetId: targetArtifactId,
+      relationshipType: type,
+    });
 
     return { success: true };
   }
 
-  public rollbackArtifactVersion(
-    id: string,
-    targetVersionNumber: number,
+  public restoreVersion(
+    artifactId: string,
+    versionNumber: number,
     actor: ArtifactActor = "USER"
-  ): { success: boolean; error?: string; artifact?: Artifact } {
-    const existing = artifactStore.getById(id);
-    if (!existing) {
-      return { success: false, error: "Artefato não encontrado" };
+  ): { success: boolean; artifact?: Artifact; error?: string } {
+    const artifact = artifactStore.getById(artifactId);
+    if (!artifact) {
+      return { success: false, error: `Artefato com ID ${artifactId} não encontrado.` };
     }
 
-    const result = versionManager.rollbackToVersion(existing, targetVersionNumber, actor);
-    if (!result.success || !result.rolledBackArtifact) {
-      return { success: false, error: result.error };
+    const res = versionManager.rollbackToVersion(artifact, versionNumber, actor);
+    if (!res.success || !res.rolledBackArtifact) {
+      return { success: false, error: res.error };
     }
 
-    const saved = artifactStore.save(result.rolledBackArtifact);
-    athenaEventBus.emit("ARTIFACT_VERSION_SNAPSHOTTED", {
-      artifactId: saved.id,
-      rolledBackToVersion: targetVersionNumber,
-      currentVersion: saved.currentVersionNumber,
-    });
-
+    const saved = artifactStore.save(res.rolledBackArtifact);
     return { success: true, artifact: saved };
   }
 
@@ -215,15 +251,25 @@ export class ArtifactService {
   }
 
   public removeArtifact(id: string, actor: ArtifactActor = "USER"): { success: boolean; error?: string } {
-    const perm = permissionPolicyEngine.evaluate(actor, "DELETE_SOFT", "ARTIFACT_ACTIVE");
-    if (!perm.allowed) {
-      return { success: false, error: `Permissão negada: ${perm.reason}` };
+    const perm = permissionPolicyEngine.evaluate({
+      actor: { type: actor },
+      action: "DELETE_SOFT",
+      targetDomain: "ARTIFACT_ACTIVE",
+    });
+
+    if (!perm.allowed && perm.policy === "DENY") {
+      return { success: false, error: `[PERMISSÃO NEGADA] ${perm.reason}` };
     }
 
-    const removed = artifactStore.remove(id);
-    return { success: removed };
+    const artifact = artifactStore.getById(id);
+    if (!artifact) return { success: false, error: "Artefato não encontrado" };
+
+    // Soft delete preserving versions and assets
+    artifact.status = "TRASHED";
+    artifactStore.save(artifact);
+
+    return { success: true };
   }
 }
 
 export const artifactService = new ArtifactService();
-

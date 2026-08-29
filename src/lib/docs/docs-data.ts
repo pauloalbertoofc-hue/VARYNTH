@@ -175,6 +175,21 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Operações de alta criticidade exigem confirmação explícita do usuário"],
     },
   },
+  {
+    id: "ADR-009",
+    number: "ADR-009",
+    title: "Modelo Universal de Artefatos, VersionManager e AssetManager (File != Artifact)",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Tratar documentos, vídeos, código, jogos e áudios como estruturas desconectadas causaria fragmentação de persistência e perda de rastreabilidade epistêmica.",
+    decision: "Formalizar o Universal Artifact System separando Project, Artifact, AssetFile, Version e Job. VersionManager adota Alex Principle; AssetManager gerencia OPFS/IndexedDB Blob sem Base64 em LocalStorage.",
+    rationale: "Permite que todos os tipos de criação compartilhem o mesmo ciclo de vida, permissões, auditoria e proveniência.",
+    alternatives: ["Sistemas isolados por estúdio", "Persistência em arquivos planos sem metadados"],
+    consequences: {
+      gains: ["Arquitetura unificada para futuros studios", "Consistência de assets obrigatórios", "Transparência de capacidade"],
+      tradeoffs: ["Exige sincronização entre repositório conceitual de artefatos e armazenamento de assets"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

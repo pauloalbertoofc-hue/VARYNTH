@@ -47,7 +47,13 @@ export type AthenaEventType =
   | "ACTION_CONFIRMATION_CONSUMED"
   | "ACTION_DENIED"
   | "ACTION_ALLOWED"
-  | "ACTION_EXECUTED";
+  | "ACTION_EXECUTED"
+  | "ASSET_CREATED"
+  | "ASSET_DELETED"
+  | "ASSET_MISSING"
+  | "ARTIFACT_VALIDATION_FAILED"
+  | "ARTIFACT_VERSION_CREATED"
+  | "ARTIFACT_VERSION_RESTORED";
 
 export interface AthenaEvent<T = unknown> {
   type: AthenaEventType;

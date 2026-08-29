@@ -11,16 +11,25 @@ export type ArtifactType =
   | "INTERACTIVE"
   | "OTHER";
 
-export type ArtifactStatus = "DRAFT" | "ACTIVE" | "ARCHIVED" | "FAILED";
-export type ArtifactActor = "USER" | "ATHENA" | "SYSTEM";
+export type ArtifactStatus =
+  | "DRAFT"
+  | "ACTIVE"
+  | "PUBLISHED"
+  | "ARCHIVED"
+  | "FAILED"
+  | "TRASHED";
+
+export type ArtifactActor = "USER" | "ATHENA" | "SYSTEM" | "AUTOMATION" | "COLLABORATOR";
 
 export type ArtifactRelationshipType =
   | "SOURCE_OF"
+  | "DERIVED_FROM"
   | "ADAPTED_TO"
   | "PUBLISHED_IN"
   | "DEPENDS_ON"
-  | "DERIVED_FROM"
-  | "ASSET_OF";
+  | "ASSET_OF"
+  | "REFERENCES"
+  | "RELATED_TO";
 
 export interface ArtifactRelationship {
   targetArtifactId: string;
@@ -49,6 +58,23 @@ export interface ArtifactVersion {
   changeSummary: string;
   snapshotData: Record<string, unknown>;
   fileAssetIds: string[];
+  parentVersionId?: string;
+}
+
+export type StorageType = "OPFS" | "INDEXEDDB_BLOB" | "FILE_REFERENCE" | "MEMORY";
+
+export interface AssetFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageType: StorageType;
+  storageKey: string;
+  checksum?: string;
+  createdAt: string;
+  createdBy: ArtifactActor;
+  artifactIds: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface Artifact {
@@ -72,13 +98,41 @@ export interface Artifact {
   relationships: ArtifactRelationship[];
   provenance: ArtifactProvenance;
 
-  // Files & Assets vinculados (File != Artifact)
+  // Files & Physical Assets (File != Artifact)
   assetFileIds: string[];
 
-  // Metadados especializados por tipo
+  // Specialized metadata per type
   metadata: Record<string, unknown>;
   tags: string[];
+  activeJobId?: string;
 }
 
 export type ArtifactFilter = "ALL" | ArtifactType | ArtifactStatus;
 
+export interface CreationRequest {
+  artifactType: ArtifactType;
+  name: string;
+  description?: string;
+  projectId?: string;
+  prompt?: string;
+  inputAssets?: string[];
+  options?: Record<string, unknown>;
+  actor: ArtifactActor;
+}
+
+export interface CreationResult {
+  success: boolean;
+  artifact?: Artifact;
+  createdAssets?: AssetFile[];
+  jobId?: string;
+  error?: string;
+  capabilityStatus?: "AVAILABLE" | "CAPABILITY_UNAVAILABLE";
+}
+
+export interface CreationEngine {
+  engineId: string;
+  name: string;
+  supportedArtifactTypes: ArtifactType[];
+  canExecute(request: CreationRequest): Promise<boolean>;
+  create(request: CreationRequest): Promise<CreationResult>;
+}

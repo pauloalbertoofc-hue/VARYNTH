@@ -149,18 +149,18 @@ async function runPersistenceRegressionTests() {
   assert(blobMode === "FAIL_CLOSED", "PER-REG-017: Falha de OPFS/AssetStorage entra em FAIL_CLOSED (nunca Base64 em LocalStorage)");
 
   // Test PER-REG-018: Artifact cannot become ACTIVE without required persisted assets
-  const invalidActiveVideo = artifactService.createArtifact({
-    name: "Vídeo Sem Assets",
-    type: "VIDEO",
-    status: "DRAFT",
-    createdBy: "ATHENA",
-  });
+  const invalidActiveVideo = await artifactService.createArtifact(
+    {
+      name: "Vídeo Sem Assets",
+      type: "VIDEO",
+    },
+    "ATHENA"
+  );
   assert(invalidActiveVideo.success === true, "PER-REG-018: Vídeo em DRAFT criado");
 
-  const promotionAttempt = artifactService.updateArtifact(
+  const promotionAttempt = await artifactService.transitionStatus(
     invalidActiveVideo.artifact!.id,
-    { status: "ACTIVE", assetFileIds: [] },
-    "Tentativa de ativar sem assets",
+    "ACTIVE",
     "ATHENA"
   );
   assert(promotionAttempt.success === false, "PER-REG-018: Ativação de artefato de vídeo sem assets físicos é bloqueada");

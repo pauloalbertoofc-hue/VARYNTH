@@ -1,4 +1,5 @@
 import { Artifact, ArtifactVersion, ArtifactActor } from "./types";
+import { athenaEventBus } from "../athena/events/event-bus";
 
 export class VersionManager {
   public createSnapshot(
@@ -29,12 +30,20 @@ export class VersionManager {
       changeSummary,
       snapshotData,
       fileAssetIds: [...artifact.assetFileIds],
+      parentVersionId: artifact.currentVersionId,
     };
 
     artifact.versions = [...(artifact.versions || []), newVersion];
     artifact.currentVersionId = versionId;
     artifact.currentVersionNumber = nextVersionNumber;
     artifact.updatedAt = new Date().toISOString();
+
+    athenaEventBus.emit("ARTIFACT_VERSION_CREATED", {
+      artifactId: artifact.id,
+      versionNumber: nextVersionNumber,
+      changeSummary,
+      createdBy,
+    });
 
     return JSON.parse(JSON.stringify(newVersion));
   }
@@ -49,7 +58,7 @@ export class VersionManager {
       return { success: false, error: `Versão v${targetVersionNumber} não encontrada no artefato ${artifact.id}` };
     }
 
-    // 1. Create a safety snapshot of current state before rollback
+    // 1. Create a safety snapshot of current state before rollback (Alex Principle)
     this.createSnapshot(
       artifact,
       `Snapshot de segurança antes de rollback para v${targetVersionNumber}`,
@@ -67,13 +76,20 @@ export class VersionManager {
     if (data.assetFileIds) artifact.assetFileIds = [...(data.assetFileIds as string[])];
     if (data.relationships) artifact.relationships = JSON.parse(JSON.stringify(data.relationships));
 
-    // 3. Increment version to mark the rollback
+    // 3. Increment version to mark the rollback (never rewriting the past)
     const rollbackVersion = this.createSnapshot(
       artifact,
       `Rollback restaurado a partir da v${targetVersionNumber}`,
       actor,
       `Rollback v${targetVersionNumber}`
     );
+
+    athenaEventBus.emit("ARTIFACT_VERSION_RESTORED", {
+      artifactId: artifact.id,
+      targetVersionNumber,
+      newVersionNumber: rollbackVersion.versionNumber,
+      actor,
+    });
 
     return {
       success: true,
@@ -89,31 +105,43 @@ export class VersionManager {
     v1?: ArtifactVersion;
     v2?: ArtifactVersion;
     differences: Record<string, { before: unknown; after: unknown }>;
+    assetsDiff: { added: string[]; removed: string[] };
   } {
     const v1 = artifact.versions?.find((v) => v.versionNumber === v1Number);
     const v2 = artifact.versions?.find((v) => v.versionNumber === v2Number);
 
     const differences: Record<string, { before: unknown; after: unknown }> = {};
+    const assetsDiff: { added: string[]; removed: string[] } = { added: [], removed: [] };
 
     if (!v1 || !v2) {
-      return { v1, v2, differences };
+      return { v1, v2, differences, assetsDiff };
     }
 
     const d1 = v1.snapshotData;
     const d2 = v2.snapshotData;
 
-    const allKeys = Array.from(new Set([...Object.keys(d1), ...Object.keys(d2)]));
-    allKeys.forEach((key) => {
-      const s1 = JSON.stringify(d1[key]);
-      const s2 = JSON.stringify(d2[key]);
-      if (s1 !== s2) {
-        differences[key] = { before: d1[key], after: d2[key] };
+    const allKeys = new Set([...Object.keys(d1), ...Object.keys(d2)]);
+    allKeys.forEach((k) => {
+      const val1 = JSON.stringify(d1[k]);
+      const val2 = JSON.stringify(d2[k]);
+      if (val1 !== val2) {
+        differences[k] = { before: d1[k], after: d2[k] };
       }
     });
 
-    return { v1, v2, differences };
+    const a1 = new Set(v1.fileAssetIds || []);
+    const a2 = new Set(v2.fileAssetIds || []);
+
+    (v2.fileAssetIds || []).forEach((id) => {
+      if (!a1.has(id)) assetsDiff.added.push(id);
+    });
+
+    (v1.fileAssetIds || []).forEach((id) => {
+      if (!a2.has(id)) assetsDiff.removed.push(id);
+    });
+
+    return { v1, v2, differences, assetsDiff };
   }
 }
 
 export const versionManager = new VersionManager();
-

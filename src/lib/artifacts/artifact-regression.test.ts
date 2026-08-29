@@ -1,10 +1,12 @@
-import { artifactStore } from "./artifact-store";
 import { artifactService } from "./artifact-service";
 import { versionManager } from "./version-manager";
+import { assetManager } from "./asset-manager";
+import { creationEngineRegistry } from "./creation-engine";
+import { permissionPolicyEngine } from "../permissions/permission-policy";
 
 async function runArtifactRegressionTests() {
   console.log("\n===============================================================");
-  console.log("  VARYNTH UNIVERSAL ARTIFACT REGRESSION SUITE (ART-REG-001..008)");
+  console.log("  VARYNTH UNIVERSAL ARTIFACT REGRESSION SUITE (ART-REG-001..022)");
   console.log("===============================================================\n");
 
   let passed = 0;
@@ -20,83 +22,145 @@ async function runArtifactRegressionTests() {
     }
   }
 
-  // Setup
-  artifactStore.resetToSeed();
+  // ART-REG-001: List initial artifacts
+  const initialList = artifactService.listAll();
+  assert(initialList.length > 0, "ART-REG-001: listAll retorna lista de artefatos existentes");
 
-  // Test ART-REG-001: Create artifact generates v1.0 snapshot
-  const created = artifactService.createArtifact({
-    name: "Artigo sobre Soberania em IA",
-    type: "DOCUMENT",
-    description: "Pesquisa avançada sobre hermenêutica digital.",
-    projectId: "proj-1",
-    status: "DRAFT",
-    createdBy: "ATHENA",
-    tags: ["soberania", "ia"],
-  });
+  // ART-REG-002: Filter artifacts by status
+  const drafts = artifactService.listAll("DRAFT");
+  assert(Array.isArray(drafts), "ART-REG-002: Filtro por status DRAFT retorna array");
 
-  assert(created.success === true, "ART-REG-001: Artefato criado com sucesso");
-  const art = created.artifact!;
-  assert(art.currentVersionNumber === 1, "ART-REG-001: Versão inicial é v1.0");
-  assert(art.versions.length === 1, "ART-REG-001: Snapshot inicial registrado na lista de versões");
-
-  // Test ART-REG-008: File != Artifact separation
-  art.assetFileIds = ["file-draft.md", "references.pdf"];
-  artifactStore.save(art);
-  assert(art.assetFileIds.length === 2, "ART-REG-008: Artefato vincula arquivos como recursos (File != Artifact)");
-
-  // Test ART-REG-003: Update artifact generates immutable v2.0 snapshot
-  const updated = artifactService.updateArtifact(
-    art.id,
-    { name: "Tratado Expandido sobre Soberania em IA", status: "ACTIVE" },
-    "Expansão com citações de precedentes",
+  // ART-REG-003 & 009: Create Artifact creates initial version v1.0
+  const created = await artifactService.createArtifact(
+    {
+      type: "DOCUMENT",
+      name: "Guia de Arquitetura Universal",
+      description: "Documentação base do sistema",
+      tags: ["arquitetura", "docs"],
+      metadata: { chapters: 4 },
+      provenance: { requestedBy: "Paulo", generationPrompt: "Crie o guia" },
+    },
     "USER"
   );
-  assert(updated.success === true, "ART-REG-003: Atualização de artefato executada");
-  const updatedArt = updated.artifact!;
-  assert(updatedArt.currentVersionNumber === 2, "ART-REG-003: Versão incrementada para v2.0");
-  assert(updatedArt.versions.length === 2, "ART-REG-003: Lista de versões contém 2 snapshots históricos");
+  assert(created.success && !!created.artifact, "ART-REG-003: Artefato criado com sucesso");
+  assert(created.artifact?.status === "DRAFT", "ART-REG-003: Artefato nasce com status DRAFT");
+  assert(created.artifact?.currentVersionNumber === 1, "ART-REG-009: Criação inicial gera versão v1.0");
+  assert(created.artifact?.versions.length === 1, "ART-REG-009: Histórico contém 1 versão inicial");
 
-  // Test ART-REG-004: Relationship linking
-  const linkResult = artifactService.linkRelationship(
-    art.id,
-    "art-code-001",
-    "DEPENDS_ON",
-    "Depende do motor vetorial WASM para busca"
+  const artId = created.artifact!.id;
+
+  // ART-REG-011: Athena creates Artifact as DRAFT
+  const athenaDraft = await artifactService.createArtifact(
+    {
+      type: "VIDEO",
+      name: "Roteiro Criminologia Aula 1",
+      description: "Estrutura do vídeo",
+    },
+    "ATHENA"
   );
-  assert(linkResult.success === true, "ART-REG-004: Relacionamento DEPENDS_ON vinculado com sucesso");
-  const reloadedArt = artifactStore.getById(art.id)!;
-  assert(
-    reloadedArt.relationships.some((r) => r.targetArtifactId === "art-code-001"),
-    "ART-REG-004: Relacionamento persistido no artefato"
+  assert(athenaDraft.success && athenaDraft.artifact?.status === "DRAFT", "ART-REG-011: Athena cria artefatos em status DRAFT com sucesso");
+
+  // ART-REG-010 & 015: Artifact cannot be ACTIVE without required physical assets
+  const transitionWithoutAsset = await artifactService.transitionStatus(athenaDraft.artifact!.id, "ACTIVE", "USER");
+  assert(transitionWithoutAsset.success === false, "ART-REG-010: Promoção de vídeo sem asset físico para ACTIVE é bloqueada");
+  assert(transitionWithoutAsset.error !== undefined && transitionWithoutAsset.error.includes("CONSISTÊNCIA DE ASSETS"), "ART-REG-015: Diagnóstico de asset faltante emitido");
+
+  // Register physical asset and link
+  const sampleAsset = await assetManager.registerAsset(
+    {
+      name: "aula-01-criminologia.mp4",
+      mimeType: "video/mp4",
+      sizeBytes: 1024 * 1024 * 50, // 50 MB
+      artifactIds: [athenaDraft.artifact!.id],
+    },
+    "mock-binary-data-stream"
   );
+  assert(sampleAsset.id.startsWith("asset-"), "ART-REG-010: Asset físico registrado com sucesso no AssetManager");
 
-  // Test ART-REG-006: Version comparison
-  const diff = versionManager.compareVersions(reloadedArt, 1, 2);
-  assert(!!diff.v1 && !!diff.v2, "ART-REG-006: Ambas as versões 1 e 2 encontradas para comparação");
-  assert("name" in diff.differences, "ART-REG-006: Diferença de nome detectada na comparação");
-  assert("status" in diff.differences, "ART-REG-006: Diferença de status detectada na comparação");
+  await artifactService.updateArtifact(athenaDraft.artifact!.id, { assetFileIds: [sampleAsset.id] }, "USER");
+  const transitionWithAsset = await artifactService.transitionStatus(athenaDraft.artifact!.id, "ACTIVE", "USER");
+  assert(transitionWithAsset.success === true, "ART-REG-010: Promoção para ACTIVE aprovada após vinculação de asset físico");
 
-  // Test ART-REG-005: Version rollback
-  const rollbackResult = artifactService.rollbackArtifactVersion(art.id, 1, "USER");
-  assert(rollbackResult.success === true, "ART-REG-005: Rollback para v1 executado com sucesso");
-  const rolledBack = artifactStore.getById(art.id)!;
-  assert(rolledBack.name === "Artigo sobre Soberania em IA", "ART-REG-005: Nome original restaurado do snapshot");
-
-  // Test ART-REG-007: Artifacts survive simulated reload
-  const dump = JSON.stringify(artifactStore.getAll());
-  const parsed = JSON.parse(dump);
-  assert(parsed.length >= 6, "ART-REG-007: Todos os artefatos preservados na serialização");
-  assert(
-    parsed.some((a: any) => a.id === art.id),
-    "ART-REG-007: Artefato recém-criado sobrevive ao reload"
+  // ART-REG-012: Published Artifact modification requires confirmation
+  await artifactService.transitionStatus(transitionWithAsset.artifact!.id, "PUBLISHED", "USER");
+  const athenaModPublished = await artifactService.updateArtifact(
+    transitionWithAsset.artifact!.id,
+    { name: "Tentativa de alteração sem autorização" },
+    "ATHENA"
   );
+  assert(athenaModPublished.success === false && athenaModPublished.requiresConfirmation === true, "ART-REG-012: Modificação de artefato publicado pela Athena exige confirmação");
 
-  // Test ART-REG-002: Permission check respects DENY policy on Core
-  const coreDeleteAttempt = artifactService.removeArtifact(art.id, "ATHENA");
-  assert(
-    coreDeleteAttempt.success === true || coreDeleteAttempt.error !== undefined,
-    "ART-REG-002: Motor de políticas avaliou a operação de segurança"
+  // ART-REG-013: Version snapshot occurs before modification
+  const preModVersions = created.artifact!.versions.length;
+  await artifactService.updateArtifact(artId, { name: "Guia de Arquitetura V2" }, "USER", "Atualização do título");
+  const updatedArt = artifactService.getById(artId);
+  assert(updatedArt!.versions.length === preModVersions + 1, "ART-REG-013: Snapshot de versão gerado antes da mutação");
+  assert(updatedArt!.currentVersionNumber === 2, "ART-REG-013: Versão incrementada para v2.0");
+
+  // ART-REG-005 & 014: Restore old version preserves newer history (Alex Principle)
+  await artifactService.updateArtifact(artId, { name: "Guia de Arquitetura V3" }, "USER", "Terceira versão");
+  const postV3Art = artifactService.getById(artId);
+  assert(postV3Art!.currentVersionNumber === 3, "ART-REG-005: Versão atualizada para v3.0");
+
+  const restored = artifactService.restoreVersion(artId, 1, "USER");
+  assert(restored.success && !!restored.artifact, "ART-REG-014: Rollback para v1.0 executado");
+  assert(restored.artifact?.name === "Guia de Arquitetura Universal", "ART-REG-014: Conteúdo da v1.0 restaurado");
+  assert(restored.artifact?.currentVersionNumber === 5, "ART-REG-014: Versão restaurada cria nova entrada no histórico sem apagar v2 e v3 (Alex Principle)");
+
+  // ART-REG-006: Compare versions
+  const diff = versionManager.compareVersions(restored.artifact!, 1, 3);
+  assert(diff.differences.name !== undefined, "ART-REG-006: Comparação detectou diferença de nome entre v1 e v3");
+
+  // ART-REG-007 & 019: Link relationship between artifacts
+  const relRes = artifactService.addRelationship(artId, athenaDraft.artifact!.id, "ADAPTED_TO", "Artigo adaptado para vídeo");
+  assert(relRes.success, "ART-REG-007: Relação entre artefatos registrada com sucesso");
+  const reloadedSource = artifactService.getById(artId);
+  assert(reloadedSource!.relationships.length > 0, "ART-REG-019: Relação persistida no artefato");
+
+  // ART-REG-008 & 020: Provenance tracking
+  assert(reloadedSource!.provenance.requestedBy === "Paulo", "ART-REG-008: Proveniência preservada");
+  assert(reloadedSource!.provenance.creator === "USER", "ART-REG-020: Criador preservado na proveniência");
+
+  // ART-REG-016: Artifact Trash preserves version history and assets
+  const trashRes = artifactService.removeArtifact(artId, "USER");
+  assert(trashRes.success, "ART-REG-016: Artefato movido para a Lixeira");
+  const trashedArt = artifactService.getById(artId);
+  assert(trashedArt!.status === "TRASHED", "ART-REG-016: Status atualizado para TRASHED");
+  assert(trashedArt!.versions.length > 0, "ART-REG-016: Histórico de versões preservado integralmente na lixeira");
+
+  // ART-REG-017: Shared asset is not deleted while still referenced
+  const assetInUse = assetManager.listAssetsForArtifact(athenaDraft.artifact!.id);
+  assert(assetInUse.length > 0, "ART-REG-017: Asset físico compartilhado permanece ativo");
+
+  // ART-REG-018: Orphan asset is detected
+  const unlinkedAsset = await assetManager.registerAsset(
+    {
+      name: "orphan-audio.wav",
+      mimeType: "audio/wav",
+      sizeBytes: 1024 * 1024 * 5,
+      artifactIds: [],
+    },
+    "mock-audio-data"
   );
+  const orphans = assetManager.detectOrphanAssets(artifactService.listAll());
+  assert(orphans.some((o) => o.id === unlinkedAsset.id), "ART-REG-018: Asset órfão detectado pelo AssetManager");
+
+  // ART-REG-021: Capability unavailable does not fake Artifact completion
+  const gameCreation = await creationEngineRegistry.executeCreation({
+    artifactType: "GAME",
+    name: "RPG Epistêmico",
+    actor: "ATHENA",
+  });
+  assert(gameCreation.success === false, "ART-REG-021: Geração de jogo sem engine local não finge sucesso");
+  assert(gameCreation.capabilityStatus === "CAPABILITY_UNAVAILABLE", "ART-REG-021: Retorna explicitamente CAPABILITY_UNAVAILABLE");
+
+  // ART-REG-022: Hard delete remains denied to Athena
+  const athenaHardDelete = permissionPolicyEngine.evaluate({
+    actor: { type: "ATHENA" },
+    action: "DELETE_HARD",
+    targetDomain: "ARTIFACT_ACTIVE",
+  });
+  assert(athenaHardDelete.allowed === false && athenaHardDelete.policy === "DENY", "ART-REG-022: Hard delete permanece terminantemente negado para Athena");
 
   console.log("\n===============================================================");
   console.log(`  RESULTADO: ${passed} Aprovados, ${failed} Falhas`);
@@ -111,4 +175,3 @@ runArtifactRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte de artefatos:", err);
   process.exit(1);
 });
-

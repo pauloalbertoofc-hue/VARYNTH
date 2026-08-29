@@ -78,7 +78,7 @@ export interface PermissionRequest {
   action: VarynthAction;
   targetDomain: SecurityTargetDomain;
   resourceId?: string;
-  resourceStatus?: "DRAFT" | "ACTIVE" | "PUBLISHED" | "ARCHIVED" | "TRASHED";
+  resourceStatus?: "DRAFT" | "ACTIVE" | "PUBLISHED" | "ARCHIVED" | "FAILED" | "TRASHED";
   isBatch?: boolean;
   batchCount?: number;
   context?: Record<string, unknown>;
