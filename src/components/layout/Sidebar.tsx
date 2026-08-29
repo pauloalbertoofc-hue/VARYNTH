@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Início" },
   { href: "/modules", icon: Grid3x3, label: "Apps" },
   { href: "/modules/athena", icon: Bot, label: "Athena" },
   { href: "/modules/studio", icon: Code2, label: "Studio" },

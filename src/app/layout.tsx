@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "VARYNTH",
-  description: "Your personal OS on the web",
+  description: "Seu OS pessoal na web — hub de apps e projetos",
   icons: { icon: "/favicon.ico" },
 };
 

@@ -33,7 +33,7 @@ export default function DashboardPage() {
     hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <PageLayout title="Dashboard" subtitle="Visão geral do VARYNTH">
+    <PageLayout title="Início" subtitle="Visão geral do VARYNTH">
       <div className="p-6 space-y-8 animate-fade-in">
         {/* Hero greeting */}
         <div className="relative rounded-xl border border-[#1e1e30] bg-gradient-to-br from-violet-900/20 via-[#0f0f1a] to-cyan-900/10 p-8 overflow-hidden clip-corner">

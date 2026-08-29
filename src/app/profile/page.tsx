@@ -4,8 +4,8 @@ import { modules } from "@/lib/modules";
 
 const badges = [
   { icon: Star, label: "Fundador", desc: "Criou o VARYNTH", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  { icon: Zap, label: "Builder", desc: "Primeiro app publicado", color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
-  { icon: Shield, label: "Owner", desc: "Dono da plataforma", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
+  { icon: Zap, label: "Construtor", desc: "Primeiro app publicado", color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
+  { icon: Shield, label: "Dono", desc: "Dono da plataforma", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
 ];
 
 export default function ProfilePage() {
@@ -25,7 +25,7 @@ export default function ProfilePage() {
             {/* Info */}
             <div className="flex-1">
               <h2 className="text-lg font-bold text-white">Paulo</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Owner · VARYNTH OS</p>
+              <p className="text-xs text-slate-400 mt-0.5">Dono · VARYNTH OS</p>
               <div className="flex items-center gap-4 mt-3">
                 <div className="text-center">
                   <p className="text-lg font-bold text-white">{modules.length}</p>
