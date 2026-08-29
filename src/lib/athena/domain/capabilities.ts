@@ -25,3 +25,4 @@ export type StandardCapabilityId =
   | "LOCAL_MODEL_INFERENCE"
   | "EXTERNAL_MODEL_INFERENCE"
   | "WEB_LIVE_SEARCH";
+

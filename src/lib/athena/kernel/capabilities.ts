@@ -162,3 +162,4 @@ export class CapabilityRegistry {
 }
 
 export const capabilityRegistry = new CapabilityRegistry();
+
