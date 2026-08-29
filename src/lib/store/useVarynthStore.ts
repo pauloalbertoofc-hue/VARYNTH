@@ -78,29 +78,33 @@ export function useVarynthStore() {
     if (typeof window === "undefined") return;
 
     try {
-      const initialized = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
-      if (!initialized) {
-        // Clear any old mock data from previous sessions and initialize 100% clean
-        localStorage.setItem(STORAGE_KEYS.PROJECTS, "[]");
-        localStorage.setItem(STORAGE_KEYS.TASKS, "[]");
-        localStorage.setItem(STORAGE_KEYS.NOTES, "[]");
-        localStorage.setItem(STORAGE_KEYS.VAULT, "[]");
-        localStorage.setItem(STORAGE_KEYS.CHRONOS, "[]");
-        localStorage.setItem(STORAGE_KEYS.HISTORICAL, "[]");
-        localStorage.setItem(STORAGE_KEYS.PEOPLE, "[]");
-        localStorage.setItem(STORAGE_KEYS.LABS, "[]");
-        localStorage.setItem(STORAGE_KEYS.GRAVEYARD, "[]");
-        localStorage.setItem(STORAGE_KEYS.THESES, "[]");
-        localStorage.setItem(STORAGE_KEYS.RESEARCHES, "[]");
-        localStorage.setItem(STORAGE_KEYS.EVIDENCES, "[]");
-        localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, "[]");
-        localStorage.setItem(STORAGE_KEYS.FORGE, "[]");
-        localStorage.setItem(STORAGE_KEYS.FILES, "[]");
-        localStorage.setItem(STORAGE_KEYS.REFERENCES, "[]");
-        localStorage.setItem(STORAGE_KEYS.TIMELINE, "[]");
-        localStorage.setItem(STORAGE_KEYS.ACTIVITIES, "[]");
-        localStorage.setItem(STORAGE_KEYS.INITIALIZED, "true");
-      }
+      // Initialize only keys that are completely missing, preserving all user data permanently
+      const defaultKeys = [
+        STORAGE_KEYS.PROJECTS,
+        STORAGE_KEYS.TASKS,
+        STORAGE_KEYS.NOTES,
+        STORAGE_KEYS.VAULT,
+        STORAGE_KEYS.CHRONOS,
+        STORAGE_KEYS.HISTORICAL,
+        STORAGE_KEYS.PEOPLE,
+        STORAGE_KEYS.LABS,
+        STORAGE_KEYS.GRAVEYARD,
+        STORAGE_KEYS.THESES,
+        STORAGE_KEYS.RESEARCHES,
+        STORAGE_KEYS.EVIDENCES,
+        STORAGE_KEYS.OPPORTUNITIES,
+        STORAGE_KEYS.FORGE,
+        STORAGE_KEYS.FILES,
+        STORAGE_KEYS.REFERENCES,
+        STORAGE_KEYS.TIMELINE,
+        STORAGE_KEYS.ACTIVITIES,
+      ];
+
+      defaultKeys.forEach((key) => {
+        if (localStorage.getItem(key) === null) {
+          localStorage.setItem(key, "[]");
+        }
+      });
 
       setProjects(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]"));
       setTasks(JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]"));
