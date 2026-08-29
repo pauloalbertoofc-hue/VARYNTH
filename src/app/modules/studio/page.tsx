@@ -38,10 +38,22 @@ import { imageService } from "@/lib/studio/image/image-service";
 import { athenaImageActions } from "@/lib/studio/image/athena-image-actions";
 import { ImageItem, ImageLayer } from "@/lib/studio/image/types";
 
+// Audio Studio Imports
+import { AudioTimeline } from "@/components/studio/audio/AudioTimeline";
+import { AudioTransportControls } from "@/components/studio/audio/AudioTransportControls";
+import { AudioPropertiesPanel } from "@/components/studio/audio/AudioPropertiesPanel";
+import { AudioExportModal } from "@/components/studio/audio/AudioExportModal";
+import { AudioTemplatesModal } from "@/components/studio/audio/AudioTemplatesModal";
+import { AudioChangeSetModal } from "@/components/studio/audio/AudioChangeSetModal";
+import { audioService } from "@/lib/studio/audio/audio-service";
+import { athenaAudioActions } from "@/lib/studio/audio/athena-audio-actions";
+import { AudioItem, AudioClip, AudioTrack, AudioPlaybackState } from "@/lib/studio/audio/types";
+
 import {
   FileText,
   Globe,
   Image as ImageIcon,
+  Music,
   Plus,
   BookOpen,
   Sparkles,
@@ -51,7 +63,7 @@ import {
 } from "lucide-react";
 
 export default function StudioPage() {
-  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE">("DOCUMENT");
+  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE" | "AUDIO">("DOCUMENT");
 
   // Document Studio State
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
@@ -87,16 +99,34 @@ export default function StudioPage() {
   const [isImageTemplateOpen, setIsImageTemplateOpen] = useState(false);
   const [isImageChangeSetOpen, setIsImageChangeSetOpen] = useState(false);
 
+  // Audio Studio State
+  const [activeAudio, setActiveAudio] = useState<AudioItem | null>(null);
+  const [allAudios, setAllAudios] = useState<AudioItem[]>([]);
+  const [selectedAudioTrackId, setSelectedAudioTrackId] = useState<string | undefined>(undefined);
+  const [selectedAudioClipIds, setSelectedAudioClipIds] = useState<string[]>([]);
+  const [audioPlaybackState, setAudioPlaybackState] = useState<AudioPlaybackState>("STOPPED");
+  const [audioZoom, setAudioZoom] = useState(40); // 40px per second default
+  const [audioSidebarTab, setAudioSidebarTab] = useState<"OUTLINE" | "VERSIONS" | "ASSETS" | "RELATIONS" | "ATHENA">("OUTLINE");
+  const [audioSaveState, setAudioSaveState] = useState<DocumentSaveState>("SAVED");
+  const [isAudioExportOpen, setIsAudioExportOpen] = useState(false);
+  const [isAudioTemplateOpen, setIsAudioTemplateOpen] = useState(false);
+  const [isAudioChangeSetOpen, setIsAudioChangeSetOpen] = useState(false);
+
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadData();
+    return () => {
+      if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+    };
   }, []);
 
   const loadData = () => {
     setAllDocs(documentService.listDocuments());
     setAllWebsites(webService.listWebsites());
     setAllImages(imageService.listImages());
+    setAllAudios(audioService.listAudioProjects());
   };
 
   // --- Document Studio Handlers ---
@@ -241,28 +271,98 @@ export default function StudioPage() {
     }
   };
 
-  const handleUndoImage = () => {
-    if (!activeImage) return;
-    const prev = imageService.undo(activeImage.artifact.id);
-    if (prev) {
-      setActiveImage({ ...activeImage, documentState: prev });
+  // --- Audio Studio Handlers ---
+  const handleSelectAudio = (aud: AudioItem) => {
+    setActiveAudio(aud);
+    if (aud.documentState.tracks.length > 0) {
+      setSelectedAudioTrackId(aud.documentState.tracks[0].id);
+      if (aud.documentState.tracks[0].clips.length > 0) {
+        setSelectedAudioClipIds([aud.documentState.tracks[0].clips[0].id]);
+      }
+    }
+  };
+
+  const handleUpdateAudioDocumentState = (updated: AudioItem["documentState"]) => {
+    if (!activeAudio) return;
+    audioService.pushUndoState(activeAudio.documentState);
+    setActiveAudio({ ...activeAudio, documentState: updated });
+    setAudioSaveState("SAVING");
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(async () => {
+      const res = await audioService.saveDocumentState(activeAudio.artifact.id, updated, "USER");
+      if (res.success) {
+        setAudioSaveState("SAVED");
+        loadData();
+      } else {
+        setAudioSaveState("SAVE_FAILED");
+      }
+    }, 800);
+  };
+
+  const handleCreateNewAudio = async (
+    templateId?: string,
+    name?: string,
+    customDurationMs?: number
+  ) => {
+    const res = await audioService.createAudioProject({
+      name: name || "Novo Projeto de Áudio",
+      templateId,
+      customDurationMs,
+      actor: "USER",
+    });
+
+    if (res.success && res.audio) {
+      handleSelectAudio(res.audio);
       loadData();
     }
   };
 
-  const handleRedoImage = () => {
-    if (!activeImage) return;
-    const next = imageService.redo(activeImage.artifact.id);
-    if (next) {
-      setActiveImage({ ...activeImage, documentState: next });
-      loadData();
+  const handlePlayAudio = () => {
+    if (!activeAudio) return;
+    setAudioPlaybackState("PLAYING");
+    if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+
+    playbackTimerRef.current = setInterval(() => {
+      setActiveAudio((prev) => {
+        if (!prev) return null;
+        const newPlayhead = prev.documentState.playheadMs + 100;
+        if (newPlayhead >= prev.documentState.timeline.durationMs) {
+          if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+          setAudioPlaybackState("STOPPED");
+          return {
+            ...prev,
+            documentState: { ...prev.documentState, playheadMs: 0 },
+          };
+        }
+        return {
+          ...prev,
+          documentState: { ...prev.documentState, playheadMs: newPlayhead },
+        };
+      });
+    }, 100);
+  };
+
+  const handlePauseAudio = () => {
+    setAudioPlaybackState("PAUSED");
+    if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+  };
+
+  const handleStopAudio = () => {
+    setAudioPlaybackState("STOPPED");
+    if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+    if (activeAudio) {
+      setActiveAudio({
+        ...activeAudio,
+        documentState: { ...activeAudio.documentState, playheadMs: 0 },
+      });
     }
   };
 
   // -------------------------------------------------------------
   // HUB VIEW (When no workspace is active)
   // -------------------------------------------------------------
-  if (!activeDoc && !activeWebsite && !activeImage) {
+  if (!activeDoc && !activeWebsite && !activeImage && !activeAudio) {
     return (
       <PageLayout
         title="VARYNTH Studios"
@@ -270,7 +370,7 @@ export default function StudioPage() {
       >
         <div className="flex flex-col gap-6 max-w-6xl mx-auto">
           {/* Studio Selector Tabs */}
-          <div className="flex items-center gap-3 border-b border-[#1c1d32] pb-3">
+          <div className="flex items-center gap-3 border-b border-[#1c1d32] pb-3 flex-wrap">
             <button
               onClick={() => setActiveStudio("DOCUMENT")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
@@ -305,6 +405,18 @@ export default function StudioPage() {
             >
               <ImageIcon size={16} />
               Image Studio (Studio 3)
+            </button>
+
+            <button
+              onClick={() => setActiveStudio("AUDIO")}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+                activeStudio === "AUDIO"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
+              }`}
+            >
+              <Music size={16} />
+              Audio Studio (Studio 4)
             </button>
           </div>
 
@@ -341,12 +453,6 @@ export default function StudioPage() {
                   <div className="p-12 text-center bg-[#0d0d16] border border-[#1e1e30] rounded-xl flex flex-col items-center gap-3">
                     <FileText size={36} className="text-slate-600" />
                     <p className="text-sm text-slate-400">Nenhum documento criado ainda.</p>
-                    <button
-                      onClick={() => setIsDocTemplateOpen(true)}
-                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium"
-                    >
-                      Criar Primeiro Documento
-                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -419,12 +525,6 @@ export default function StudioPage() {
                   <div className="p-12 text-center bg-[#0d0d16] border border-[#1e1e30] rounded-xl flex flex-col items-center gap-3">
                     <Globe size={36} className="text-slate-600" />
                     <p className="text-sm text-slate-400">Nenhum website criado ainda.</p>
-                    <button
-                      onClick={() => setIsWebTemplateOpen(true)}
-                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium"
-                    >
-                      Criar Primeiro Website
-                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -497,12 +597,6 @@ export default function StudioPage() {
                   <div className="p-12 text-center bg-[#0d0d16] border border-[#1e1e30] rounded-xl flex flex-col items-center gap-3">
                     <ImageIcon size={36} className="text-slate-600" />
                     <p className="text-sm text-slate-400">Nenhuma imagem criada ainda.</p>
-                    <button
-                      onClick={() => setIsImageTemplateOpen(true)}
-                      className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium"
-                    >
-                      Criar Primeira Imagem
-                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -543,6 +637,86 @@ export default function StudioPage() {
               </div>
             </>
           )}
+
+          {/* AUDIO STUDIO HUB */}
+          {activeStudio === "AUDIO" && (
+            <>
+              <div className="p-6 bg-gradient-to-r from-amber-950/40 via-[#1e1410] to-[#0c0d18] border border-amber-500/20 rounded-2xl flex items-center justify-between shadow-xl">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Music className="text-amber-400" size={22} />
+                    Audio Studio
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-1 max-w-xl">
+                    Linha do tempo multipistas com waveforms, cortes não-destrutivos, fades, mixagem offline e exportação em WAV PCM 16-bit com soberania Local-First.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsAudioTemplateOpen(true)}
+                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-amber-500/20 transition"
+                >
+                  <Plus size={16} />
+                  Novo Projeto de Áudio
+                </button>
+              </div>
+
+              {/* Recent Audio Projects Grid */}
+              <div className="flex flex-col gap-3">
+                <h3 className="font-semibold text-base text-white flex items-center gap-2">
+                  <Music size={18} className="text-amber-400" />
+                  Projetos de Áudio no Ecossistema ({allAudios.length})
+                </h3>
+
+                {allAudios.length === 0 ? (
+                  <div className="p-12 text-center bg-[#0d0d16] border border-[#1e1e30] rounded-xl flex flex-col items-center gap-3">
+                    <Music size={36} className="text-slate-600" />
+                    <p className="text-sm text-slate-400">Nenhum projeto de áudio criado ainda.</p>
+                    <button
+                      onClick={() => setIsAudioTemplateOpen(true)}
+                      className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-medium"
+                    >
+                      Criar Primeiro Áudio
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {allAudios.map((aud) => (
+                      <div
+                        key={aud.artifact.id}
+                        onClick={() => handleSelectAudio(aud)}
+                        className="p-5 bg-[#0e0e18] hover:bg-[#1a1410] border border-[#1e1e30] hover:border-amber-500/40 rounded-xl cursor-pointer transition flex flex-col justify-between gap-4 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                              {aud.metadata.documentMode || "MULTITRACK"}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono">
+                              v{aud.artifact.versions?.length || 1}.0
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-white mt-3 group-hover:text-amber-300 transition line-clamp-1">
+                            {aud.artifact.name}
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                            {aud.artifact.description || `${aud.documentState.tracks.length} faixas de áudio`}
+                          </p>
+                        </div>
+                        <div className="pt-3 border-t border-[#1a1a2a] flex items-center justify-between text-xs text-slate-500">
+                          <span className="font-mono">
+                            {Math.round(aud.documentState.timeline.durationMs / 1000)}s ({aud.documentState.tracks.length} faixas)
+                          </span>
+                          <span className="flex items-center gap-1 text-amber-400 group-hover:translate-x-1 transition">
+                            Abrir Audio Studio <ArrowRight size={13} />
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DocumentTemplatesModal
@@ -562,7 +736,312 @@ export default function StudioPage() {
           onClose={() => setIsImageTemplateOpen(false)}
           onSelectTemplate={handleCreateNewImage}
         />
+
+        <AudioTemplatesModal
+          isOpen={isAudioTemplateOpen}
+          onClose={() => setIsAudioTemplateOpen(false)}
+          onSelectTemplate={handleCreateNewAudio}
+        />
       </PageLayout>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // ACTIVE AUDIO STUDIO WORKSPACE
+  // -------------------------------------------------------------
+  if (activeAudio) {
+    const selectedTrack = activeAudio.documentState.tracks.find((t) => t.id === selectedAudioTrackId);
+    let selectedClip: AudioClip | undefined = undefined;
+    if (selectedAudioClipIds.length > 0) {
+      for (const t of activeAudio.documentState.tracks) {
+        const c = t.clips.find((clip) => clip.id === selectedAudioClipIds[0]);
+        if (c) {
+          selectedClip = c;
+          break;
+        }
+      }
+    }
+
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <StudioShell
+          title={activeAudio.artifact.name}
+          subtitle={`Audio Studio (${Math.round(activeAudio.documentState.timeline.durationMs / 1000)}s | ${activeAudio.documentState.tracks.length} faixas)`}
+          saveState={audioSaveState}
+          viewMode="EDIT"
+          onViewModeChange={() => {}}
+          activeSidebarTab={audioSidebarTab}
+          onSidebarTabChange={setAudioSidebarTab}
+          onCreateVersion={async () => {
+            const label =
+              prompt(
+                "Descrição da nova versão do projeto de áudio:",
+                `Versão manual v${(activeAudio.artifact.versions?.length || 0) + 1}`
+              ) || "Versão manual";
+            const res = await audioService.createManualVersion(activeAudio.artifact.id, label, "USER");
+            if (res.success) {
+              const ref = audioService.getAudio(activeAudio.artifact.id);
+              if (ref) setActiveAudio(ref);
+            }
+          }}
+          onExport={() => setIsAudioExportOpen(true)}
+          onDelete={() => {
+            if (confirm("Mover este projeto de áudio para a Lixeira de 10 dias?")) {
+              audioService.saveDocumentState(activeAudio.artifact.id, activeAudio.documentState, "USER");
+              setActiveAudio(null);
+              loadData();
+            }
+          }}
+          sidebarContent={
+            audioSidebarTab === "OUTLINE" ? (
+              <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
+                <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-400 flex items-center gap-1.5 pb-2 border-b border-[#1c1d30]">
+                  <Music size={13} className="text-amber-400" />
+                  Estrutura de Faixas ({activeAudio.documentState.tracks.length})
+                </span>
+                <div className="space-y-1.5 overflow-y-auto flex-1">
+                  {activeAudio.documentState.tracks.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedAudioTrackId(t.id)}
+                      className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between border ${
+                        t.id === selectedAudioTrackId
+                          ? "bg-amber-500/15 border-amber-500/40 text-white font-medium"
+                          : "bg-[#101120] border-transparent text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <span className="truncate">{t.name}</span>
+                      <span className="text-[10px] font-mono text-slate-500">
+                        {t.clips.length} {t.clips.length === 1 ? "clip" : "clips"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : audioSidebarTab === "VERSIONS" ? (
+              <DocumentVersionHistory
+                versions={activeAudio.artifact.versions || []}
+                currentVersionNumber={`v${activeAudio.artifact.versions?.length || 1}.0`}
+                onRestoreVersion={async (vNum) => {
+                  const res = await audioService.restoreVersion(activeAudio.artifact.id, parseInt(vNum) || 1, "USER");
+                  if (res.success && res.audio) {
+                    setActiveAudio(res.audio);
+                  }
+                }}
+              />
+            ) : audioSidebarTab === "ATHENA" ? (
+              <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
+                  <Sparkles size={14} className="text-amber-400" />
+                  Athena Audio Assistant
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  Athena analisa a estrutura temporal, cortes de foley, níveis de ganho e sugere otimizações não-destrutivas.
+                </p>
+                {audioService.getPendingChangeSets(activeAudio.artifact.id).length > 0 && (
+                  <button
+                    onClick={() => setIsAudioChangeSetOpen(true)}
+                    className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold transition"
+                  >
+                    Ver Proposta de Linha do Tempo
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+            )
+          }
+          mainContent={
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Transport Bar */}
+              <AudioTransportControls
+                playbackState={audioPlaybackState}
+                playheadMs={activeAudio.documentState.playheadMs}
+                totalDurationMs={activeAudio.documentState.timeline.durationMs}
+                zoom={audioZoom}
+                snapToGrid={activeAudio.documentState.timeline.snapToGrid}
+                onPlay={handlePlayAudio}
+                onPause={handlePauseAudio}
+                onStop={handleStopAudio}
+                onJumpToStart={() =>
+                  setActiveAudio({
+                    ...activeAudio,
+                    documentState: { ...activeAudio.documentState, playheadMs: 0 },
+                  })
+                }
+                onJumpToEnd={() =>
+                  setActiveAudio({
+                    ...activeAudio,
+                    documentState: {
+                      ...activeAudio.documentState,
+                      playheadMs: activeAudio.documentState.timeline.durationMs,
+                    },
+                  })
+                }
+                onZoomIn={() => setAudioZoom((prev) => Math.min(200, prev + 15))}
+                onZoomOut={() => setAudioZoom((prev) => Math.max(10, prev - 15))}
+                onFitTimeline={() => setAudioZoom(30)}
+                onToggleSnap={() => {
+                  const updated = {
+                    ...activeAudio.documentState,
+                    timeline: {
+                      ...activeAudio.documentState.timeline,
+                      snapToGrid: !activeAudio.documentState.timeline.snapToGrid,
+                    },
+                  };
+                  handleUpdateAudioDocumentState(updated);
+                }}
+                onAddTrack={() => {
+                  const newTrack = athenaAudioActions.createTrack(
+                    `Faixa ${activeAudio.documentState.tracks.length + 1}`,
+                    "AUDIO"
+                  );
+                  handleUpdateAudioDocumentState({
+                    ...activeAudio.documentState,
+                    tracks: [...activeAudio.documentState.tracks, newTrack],
+                  });
+                  setSelectedAudioTrackId(newTrack.id);
+                }}
+                onImportAudio={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "audio/wav,audio/mp3,audio/mpeg,audio/ogg,audio/m4a";
+                  input.onchange = async (e: any) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        const raw = reader.result as string;
+                        const res = await audioService.importAudio({
+                          name: file.name,
+                          mimeType: file.type || "audio/wav",
+                          sizeBytes: file.size,
+                          data: raw,
+                          actor: "USER",
+                        });
+                        if (res.success && res.audio) {
+                          handleSelectAudio(res.audio);
+                          loadData();
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  };
+                  input.click();
+                }}
+                onAskAthena={() => setAudioSidebarTab("ATHENA")}
+              />
+
+              {/* Timeline + Properties Grid */}
+              <div className="flex-1 flex h-full overflow-hidden">
+                <div className="flex-1 h-full overflow-hidden">
+                  <AudioTimeline
+                    documentState={activeAudio.documentState}
+                    zoom={audioZoom}
+                    selectedTrackId={selectedAudioTrackId}
+                    selectedClipIds={selectedAudioClipIds}
+                    onSelectTrack={setSelectedAudioTrackId}
+                    onSelectClip={(cId) => setSelectedAudioClipIds([cId])}
+                    onSeek={(timeMs) =>
+                      setActiveAudio({
+                        ...activeAudio,
+                        documentState: { ...activeAudio.documentState, playheadMs: timeMs },
+                      })
+                    }
+                    onToggleTrackMute={(tId) => {
+                      const updated = activeAudio.documentState.tracks.map((t) =>
+                        t.id === tId ? { ...t, muted: !t.muted } : t
+                      );
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updated });
+                    }}
+                    onToggleTrackSolo={(tId) => {
+                      const updated = activeAudio.documentState.tracks.map((t) =>
+                        t.id === tId ? { ...t, solo: !t.solo } : t
+                      );
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updated });
+                    }}
+                    onUpdateTrackVolume={(tId, vol) => {
+                      const updated = activeAudio.documentState.tracks.map((t) =>
+                        t.id === tId ? { ...t, volume: vol } : t
+                      );
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updated });
+                    }}
+                    onUpdateTrackPan={(tId, pan) => {
+                      const updated = activeAudio.documentState.tracks.map((t) =>
+                        t.id === tId ? { ...t, pan } : t
+                      );
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updated });
+                    }}
+                  />
+                </div>
+
+                {/* Right Properties Column */}
+                <div className="w-72 h-full border-l border-[#1c1d32] overflow-hidden">
+                  <AudioPropertiesPanel
+                    selectedClip={selectedClip}
+                    selectedTrack={selectedTrack}
+                    playheadMs={activeAudio.documentState.playheadMs}
+                    onUpdateClip={(clipId, updates) => {
+                      const updatedTracks = activeAudio.documentState.tracks.map((t) => ({
+                        ...t,
+                        clips: t.clips.map((c) => (c.id === clipId ? { ...c, ...updates } : c)),
+                      }));
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updatedTracks });
+                    }}
+                    onUpdateTrack={(trackId, updates) => {
+                      const updatedTracks = activeAudio.documentState.tracks.map((t) =>
+                        t.id === trackId ? { ...t, ...updates } : t
+                      );
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updatedTracks });
+                    }}
+                    onSplitClipAtPlayhead={(clipId) => {
+                      audioService.splitClip(activeAudio.artifact.id, clipId, activeAudio.documentState.playheadMs, "USER").then((res) => {
+                        if (res.success) {
+                          const ref = audioService.getAudio(activeAudio.artifact.id);
+                          if (ref) setActiveAudio(ref);
+                        } else {
+                          alert(`Não foi possível dividir: ${res.error}`);
+                        }
+                      });
+                    }}
+                    onDeleteClip={(clipId) => {
+                      const updatedTracks = activeAudio.documentState.tracks.map((t) => ({
+                        ...t,
+                        clips: t.clips.filter((c) => c.id !== clipId),
+                      }));
+                      handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: updatedTracks });
+                      setSelectedAudioClipIds([]);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          }
+        />
+
+        <AudioExportModal
+          isOpen={isAudioExportOpen}
+          artifactId={activeAudio.artifact.id}
+          audioTitle={activeAudio.artifact.name}
+          onClose={() => setIsAudioExportOpen(false)}
+        />
+
+        <AudioChangeSetModal
+          isOpen={isAudioChangeSetOpen}
+          changeSets={audioService.getPendingChangeSets(activeAudio.artifact.id)}
+          onAccept={async (csId) => {
+            await audioService.acceptChangeSet(activeAudio.artifact.id, csId);
+            setIsAudioChangeSetOpen(false);
+            const ref = audioService.getAudio(activeAudio.artifact.id);
+            if (ref) setActiveAudio(ref);
+          }}
+          onReject={(csId) => {
+            audioService.rejectChangeSet(activeAudio.artifact.id, csId);
+            setIsAudioChangeSetOpen(false);
+          }}
+          onClose={() => setIsAudioChangeSetOpen(false)}
+        />
+      </div>
     );
   }
 
@@ -605,7 +1084,7 @@ export default function StudioPage() {
                 versions={activeDoc.artifact.versions || []}
                 currentVersionNumber={`v${activeDoc.artifact.versions?.length || 1}.0`}
                 onRestoreVersion={async (vNum) => {
-                  const res = await documentService.restoreVersion(activeDoc.artifact.id, vNum, "USER");
+                  const res = await documentService.restoreVersion(activeDoc.artifact.id, parseInt(vNum) || 1, "USER");
                   if (res.success && res.document) setActiveDoc(res.document);
                 }}
               />
@@ -740,7 +1219,7 @@ export default function StudioPage() {
                 versions={activeWebsite.artifact.versions || []}
                 currentVersionNumber={`v${activeWebsite.artifact.versions?.length || 1}.0`}
                 onRestoreVersion={async (vNum) => {
-                  const res = await webService.restoreVersion(activeWebsite.artifact.id, vNum, "USER");
+                  const res = await webService.restoreVersion(activeWebsite.artifact.id, parseInt(vNum) || 1, "USER");
                   if (res.success && res.website) {
                     setActiveWebsite(res.website);
                   }
@@ -962,8 +1441,20 @@ export default function StudioPage() {
             <ImageToolbar
               canUndo={true}
               canRedo={true}
-              onUndo={handleUndoImage}
-              onRedo={handleRedoImage}
+              onUndo={() => {
+                const prev = imageService.undo(activeImage!.artifact.id);
+                if (prev) {
+                  setActiveImage({ ...activeImage!, documentState: prev });
+                  loadData();
+                }
+              }}
+              onRedo={() => {
+                const next = imageService.redo(activeImage!.artifact.id);
+                if (next) {
+                  setActiveImage({ ...activeImage!, documentState: next });
+                  loadData();
+                }
+              }}
               onAddText={() => {
                 const textLayer = athenaImageActions.createTextLayer("Novo Texto", 200, 200);
                 handleUpdateImageDocumentState({

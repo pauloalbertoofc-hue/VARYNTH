@@ -161,6 +161,58 @@ class ImageCreationEngine implements CreationEngine {
   }
 }
 
+class AudioCreationEngine implements CreationEngine {
+  engineId = "local-audio-engine";
+  name = "VARYNTH Local Audio Engine";
+  supportedArtifactTypes: ArtifactType[] = ["AUDIO"];
+
+  async canExecute(request: CreationRequest): Promise<boolean> {
+    return request.artifactType === "AUDIO";
+  }
+
+  async create(request: CreationRequest): Promise<CreationResult> {
+    const id = `art-aud-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const artifact: Artifact = {
+      id,
+      type: "AUDIO",
+      name: request.name,
+      description: request.description || "Projeto de áudio local",
+      projectId: request.projectId,
+      status: "DRAFT",
+      createdBy: request.actor,
+      createdAt: now,
+      updatedAt: now,
+      currentVersionNumber: 0,
+      versions: [],
+      relationships: [],
+      provenance: {
+        creator: request.actor,
+        generationPrompt: request.prompt,
+        engineUsed: this.engineId,
+      },
+      assetFileIds: [],
+      metadata: {
+        durationMs: request.options?.durationMs || 30000,
+        timelineDurationMs: request.options?.durationMs || 30000,
+        documentMode: "SINGLE_TRACK",
+        format: "WAV",
+      },
+      tags: ["audio", "studio", "draft"],
+    };
+
+    versionManager.createSnapshot(artifact, "Criação inicial do projeto de áudio em DRAFT (v1.0)", request.actor);
+    artifactStore.save(artifact);
+
+    return {
+      success: true,
+      artifact,
+      capabilityStatus: "AVAILABLE",
+    };
+  }
+}
+
 export class CreationEngineRegistry {
   private engines: Map<string, CreationEngine> = new Map();
 
@@ -168,6 +220,7 @@ export class CreationEngineRegistry {
     this.registerEngine(new DocumentCreationEngine());
     this.registerEngine(new CodeCreationEngine());
     this.registerEngine(new ImageCreationEngine());
+    this.registerEngine(new AudioCreationEngine());
   }
 
   public registerEngine(engine: CreationEngine): void {

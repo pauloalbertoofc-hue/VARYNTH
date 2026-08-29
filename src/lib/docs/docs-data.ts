@@ -295,6 +295,36 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Exportação vetorial SVG postergada"],
     },
   },
+  {
+    id: "ADR-017",
+    number: "ADR-017",
+    title: "Modelo de Edição Não-Destrutiva de Áudio e Linha do Tempo",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "A edição de áudio não pode sobrescrever o arquivo original nem destruir gravações brutas sob o Princípio Alex.",
+    decision: "Manter o source asset de áudio como imutável e expressar cortes (trim/split) e ganhos no AudioDocumentState com Undo/Redo de sessão.",
+    rationale: "Garante reversibilidade temporal, histórico sem duplicações e integridade de áudios compartilhados.",
+    alternatives: ["Corte físico destrutivo no disco", "Gravação em fita linear única"],
+    consequences: {
+      gains: ["Preservação total dos áudios originais", "Clips reutilizáveis com múltiplos recortes", "Rollback não-destrutivo"],
+      tradeoffs: ["Mixagem dinâmica necessária no playback e exportação"],
+    },
+  },
+  {
+    id: "ADR-018",
+    number: "ADR-018",
+    title: "Arquitetura de Motor Multipistas e Pipeline de Renderização de Áudio",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Processar áudio multipistas no navegador com segurança dinâmica de memória RAM e codificação WAV PCM 16-bit real.",
+    decision: "Implementar AudioRenderEngine com estimativa dinâmica de memória Float32, semântica formal de Mute/Solo e exportação PCM 16-bit.",
+    rationale: "Evita travamentos de memória, assegura consistência entre playback e render, e gera arquivos de áudio interoperáveis.",
+    alternatives: ["Dependência de APIs de áudio na nuvem", "Falso encoder MP3 com renomeação de extensão"],
+    consequences: {
+      gains: ["Operação 100% Local-First", "Proteção estrita contra exaustão de memória", "Formato WAV canônico"],
+      tradeoffs: ["Encoders MP3/OGG indisponíveis retornam CAPABILITY_UNAVAILABLE"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

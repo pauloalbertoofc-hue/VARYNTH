@@ -83,6 +83,10 @@ export class AssetManager {
     return asset ? JSON.parse(JSON.stringify(asset)) : undefined;
   }
 
+  public getAssetById(id: string): AssetFile | undefined {
+    return this.getAsset(id);
+  }
+
   public async getAssetData(id: string): Promise<Blob | ArrayBuffer | string | null> {
     const asset = this.assets.get(id);
     if (!asset) return null;
