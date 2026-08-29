@@ -13,7 +13,8 @@ export type EntityType =
   | "arquivo"
   | "pesquisa"
   | "ideia"
-  | "referencia";
+  | "referencia"
+  | "codigo";
 
 export interface Activity {
   id: string;
@@ -25,4 +26,3 @@ export interface Activity {
   timestamp: string;
   user?: string;
 }
-

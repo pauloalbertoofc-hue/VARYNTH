@@ -24,6 +24,8 @@ import {
   Trophy,
   Swords,
   Layers,
+  Code2,
+  Terminal,
 } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { modules } from "@/lib/modules";
@@ -38,6 +40,7 @@ interface CommandItem {
     | "Ações Globais"
     | "Projetos"
     | "Tarefas"
+    | "Forge (Código)"
     | "Vault & Conhecimento"
     | "Codex & Teses"
     | "Research & Evidências"
@@ -65,6 +68,7 @@ export function CommandPalette() {
     theses,
     evidences,
     opportunities,
+    forgeFiles,
     people,
     labItems,
     toggleTask,
@@ -107,6 +111,15 @@ export function CommandPalette() {
     // Global Quick Actions
     list.push(
       {
+        id: "action-new-code",
+        title: "Abrir Forge Studio (IDE)",
+        description: "Editar e executar scripts em Python, TS, SQL",
+        icon: Code2,
+        category: "Ações Globais",
+        action: () => router.push("/modules/forge"),
+        keywords: ["forge", "codigo", "ide", "script", "python", "typescript", "+"],
+      },
+      {
         id: "action-new-task",
         title: "Criar Nova Tarefa",
         description: "Adicionar uma tarefa com prioridade e prazo",
@@ -143,17 +156,21 @@ export function CommandPalette() {
         category: "Ações Globais",
         action: () => router.push("/modules/opportunities"),
         keywords: ["edital", "bolsa", "premio", "concurso", "+"],
-      },
-      {
-        id: "action-new-vault",
-        title: "Adicionar Obra ao Vault",
-        description: "Salvar artigo, livro, jurisprudência ou lei",
-        icon: BookOpen,
-        category: "Ações Globais",
-        action: () => router.push("/modules/vault"),
-        keywords: ["vault", "livro", "artigo", "lei", "jurisprudencia", "+"],
       }
     );
+
+    // Forge Files
+    forgeFiles.forEach((file) => {
+      list.push({
+        id: `forge-${file.id}`,
+        title: file.name,
+        description: `Código [${file.language.toUpperCase()}] · Forge Studio`,
+        icon: Code2,
+        category: "Forge (Código)",
+        action: () => router.push("/modules/forge"),
+        keywords: [file.name.toLowerCase(), file.language, "codigo", "script"],
+      });
+    });
 
     // Projects
     projects.forEach((proj) => {
@@ -199,7 +216,7 @@ export function CommandPalette() {
       list.push({
         id: `opp-${o.id}`,
         title: o.title,
-        description: `Edital [${o.status.toUpperCase()}] · ${o.institution} · Prazo: ${o.deadline}`,
+        description: `Edital [${o.status.toUpperCase()}] · ${o.institution}`,
         icon: Trophy,
         category: "Editais & Oportunidades",
         action: () => router.push("/modules/opportunities"),
@@ -243,36 +260,27 @@ export function CommandPalette() {
     // Navigation
     list.push(
       {
-        id: "nav-codex",
-        title: "Ir para Codex (Argument Arena)",
-        description: "Ambiente jurídico e teses dialéticas",
-        icon: Scale,
+        id: "nav-forge",
+        title: "Ir para Forge Studio",
+        description: "Ambiente de desenvolvimento e scripts",
+        icon: Code2,
         category: "Navegação",
-        action: () => router.push("/modules/codex"),
-        keywords: ["codex", "direito", "arena", "jurisprudencia"],
+        action: () => router.push("/modules/forge"),
+        keywords: ["forge", "ide", "editor", "codigo"],
       },
       {
-        id: "nav-research",
-        title: "Ir para Research (Evidence Board)",
-        description: "Pesquisa acadêmica e artigos",
-        icon: GraduationCap,
+        id: "nav-athena",
+        title: "Ir para Athena AI",
+        description: "Command center de IA transversal",
+        icon: Bot,
         category: "Navegação",
-        action: () => router.push("/modules/research"),
-        keywords: ["research", "pesquisa", "evidence", "artigos"],
-      },
-      {
-        id: "nav-opps",
-        title: "Ir para Opportunities (Radar)",
-        description: "Editais de fomento e premiações",
-        icon: Trophy,
-        category: "Navegação",
-        action: () => router.push("/modules/opportunities"),
-        keywords: ["oportunidades", "editais", "bolsas", "radar"],
+        action: () => router.push("/modules/athena"),
+        keywords: ["athena", "ia", "chat"],
       }
     );
 
     return list;
-  }, [projects, theses, evidences, opportunities, vaultItems, tasks, router, toggleTask]);
+  }, [projects, forgeFiles, theses, evidences, opportunities, vaultItems, tasks, router, toggleTask]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands.slice(0, 16);
@@ -324,7 +332,7 @@ export function CommandPalette() {
               setSelectedIndex(0);
             }}
             onKeyDown={handleListKeyDown}
-            placeholder="Buscar projetos, teses na Arena, evidências, editais, tarefas..."
+            placeholder="Buscar projetos, código do Forge, teses, evidências, editais, tarefas..."
             className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
           />
           {query ? (
@@ -402,7 +410,7 @@ export function CommandPalette() {
               <kbd className="bg-[#14141f] px-1 py-0.5 rounded border border-[#1e1e30]">↵</kbd> Selecionar
             </span>
           </div>
-          <span className="text-slate-400 font-medium">VARYNTH Universal Search v3</span>
+          <span className="text-slate-400 font-medium">VARYNTH Universal Search</span>
         </div>
       </div>
 

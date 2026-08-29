@@ -17,3 +17,4 @@ export interface AthenaMessage {
   scope?: AthenaScope;
   actionCard?: AthenaActionCard;
 }
+

@@ -11,3 +11,4 @@ export * from "./types/codex";
 export * from "./types/research";
 export * from "./types/opportunity";
 export * from "./types/athena";
+export * from "./types/forge";

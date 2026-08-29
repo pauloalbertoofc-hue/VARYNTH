@@ -16,11 +16,11 @@ import {
   LabItem,
   GraveyardItem,
   ArgumentThesis,
-  LegalSubject,
   EvidenceItem,
   AcademicResearch,
   Opportunity,
   OpportunityStatus,
+  ForgeFile,
 } from "../types";
 
 const STORAGE_KEYS = {
@@ -41,38 +41,317 @@ const STORAGE_KEYS = {
   RESEARCHES: "varynth_os_researches",
   EVIDENCES: "varynth_os_evidences",
   OPPORTUNITIES: "varynth_os_opportunities",
-  INITIALIZED: "varynth_os_initialized_v3",
+  FORGE: "varynth_os_forge",
+  INITIALIZED: "varynth_os_initialized_v5",
 };
 
-// --- SEED DATA FASE 3 ---
+// --- INITIAL SEED FORGE FILES ---
+const SEED_FORGE_FILES: ForgeFile[] = [
+  {
+    id: "forge-1",
+    name: "token_cost_estimator.ts",
+    language: "typescript",
+    projectId: "proj-varynth",
+    content: `// VARYNTH OS — Token & Cost Estimator for LLMs
+interface ModelCost {
+  inputPer1k: number;
+  outputPer1k: number;
+}
+
+const PRICING: Record<string, ModelCost> = {
+  "gemini-2.5-pro": { inputPer1k: 0.00125, outputPer1k: 0.005 },
+  "gemini-2.5-flash": { inputPer1k: 0.000075, outputPer1k: 0.0003 },
+  "claude-3-7-sonnet": { inputPer1k: 0.003, outputPer1k: 0.015 }
+};
+
+function calculateCost(model: string, inputTokens: number, outputTokens: number) {
+  const price = PRICING[model];
+  if (!price) return "Modelo desconhecido";
+
+  const inCost = (inputTokens / 1000) * price.inputPer1k;
+  const outCost = (outputTokens / 1000) * price.outputPer1k;
+  const total = inCost + outCost;
+
+  console.log(\`[SIMULAÇÃO] Modelo: \${model}\`);
+  console.log(\`• Input (\${inputTokens} tokens): $\${inCost.toFixed(6)}\`);
+  console.log(\`• Output (\${outputTokens} tokens): $\${outCost.toFixed(6)}\`);
+  console.log(\`• TOTAL ESTIMADO: $\${total.toFixed(6)}\`);
+
+  return { model, totalCostUSD: total };
+}
+
+calculateCost("gemini-2.5-flash", 14500, 1200);
+`,
+    createdAt: "2026-08-28T12:00:00.000Z",
+    updatedAt: "2026-08-29T10:00:00.000Z",
+  },
+  {
+    id: "forge-2",
+    name: "stf_jurisprudence_parser.py",
+    language: "python",
+    projectId: "proj-pesquisa-ia",
+    content: `# Script LegalTech para Análise de Informativos
+import re
+import json
+
+raw_decision = """
+REsp 1.798.892/SP. Rel. Min. Nancy Andrighi.
+DIREITO DO CONSUMIDOR E TECNOLOGIA. RESPONSABILIDADE CIVIL OBJETIVA.
+FALHA NA PRESTAÇÃO DE SERVIÇOS ALGORÍTMICOS. TEORIA DO RISCO DA ATIVIDADE.
+Decisão: Recurso Especial conhecido e provido para fixar indenização.
+"""
+
+def extract_metadata(text):
+    case_match = re.search(r'(REsp|ADI|ADC|HC)\\s*([0-9.]+)', text)
+    keywords = ["RESPONSABILIDADE CIVIL", "ALGORÍTMICOS", "RISCO"]
+    
+    found_keywords = [k for k in keywords if k in text.upper()]
+    
+    result = {
+        "identificador": case_match.group(0) if case_match else "N/A",
+        "tags_relevantes": found_keywords,
+        "impacto": "Alto para pesquisa de IA"
+    }
+    
+    print("=== METADADOS EXTRAÍDOS ===")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return result
+
+extract_metadata(raw_decision)
+`,
+    createdAt: "2026-08-27T15:00:00.000Z",
+    updatedAt: "2026-08-28T18:00:00.000Z",
+  },
+  {
+    id: "forge-3",
+    name: "varynth_schema.sql",
+    language: "sql",
+    projectId: "proj-varynth",
+    content: `-- VARYNTH OS Relational Database Blueprint
+CREATE TABLE IF NOT EXISTS projects (
+    id VARCHAR(64) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(50) NOT NULL,
+    priority VARCHAR(20) DEFAULT 'media',
+    status VARCHAR(30) DEFAULT 'ativo',
+    deadline DATE,
+    progress INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS evidence_board (
+    id VARCHAR(64) PRIMARY KEY,
+    research_id VARCHAR(64) REFERENCES projects(id),
+    claim TEXT NOT NULL,
+    source VARCHAR(255) NOT NULL,
+    quote TEXT NOT NULL,
+    strength VARCHAR(30) DEFAULT 'forte',
+    section VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices de busca de alta velocidade
+CREATE INDEX idx_projects_category ON projects(category);
+CREATE INDEX idx_evidence_strength ON evidence_board(strength);
+`,
+    createdAt: "2026-08-28T19:00:00.000Z",
+    updatedAt: "2026-08-28T19:00:00.000Z",
+  },
+];
+
+const SEED_PROJECTS: Project[] = [
+  {
+    id: "proj-varynth",
+    title: "VARYNTH OS — Universo Digital Pessoal",
+    description: "Desenvolvimento da plataforma modular estilo sistema operacional web para centralizar projetos, estudos, pesquisas e Athena AI.",
+    category: "software",
+    status: "ativo",
+    priority: "urgente",
+    deadline: "2026-10-15",
+    tags: ["nextjs", "typescript", "cyberpunk", "os-web"],
+    collaborators: ["Paulo"],
+    progress: 75,
+    createdAt: "2026-08-28T22:00:00.000Z",
+    updatedAt: "2026-08-29T10:00:00.000Z",
+  },
+  {
+    id: "proj-pesquisa-ia",
+    title: "Pesquisa: Inteligência Artificial e Autonomia Cognitiva",
+    description: "Investigação acadêmica sobre o impacto de agentes autônomos na tomada de decisões complexas e hermenêutica jurídica.",
+    category: "pesquisa",
+    status: "ativo",
+    priority: "alta",
+    deadline: "2026-11-30",
+    tags: ["ia", "artigo", "epistemologia", "direito"],
+    collaborators: ["Paulo", "Dr. Roberto Silva"],
+    progress: 45,
+    createdAt: "2026-08-15T14:30:00.000Z",
+    updatedAt: "2026-08-28T18:20:00.000Z",
+  },
+  {
+    id: "proj-ligahub",
+    title: "LigaHub — Gestão Acadêmica v2",
+    description: "Expansão do sistema de gestão da Liga Acadêmica com integração de QR Code para eventos e controle financeiro avançado.",
+    category: "academico",
+    status: "ativo",
+    priority: "media",
+    deadline: "2026-09-20",
+    tags: ["fastapi", "sqlite", "gestao", "academia"],
+    collaborators: ["Paulo", "Mariana Costa"],
+    progress: 80,
+    createdAt: "2026-07-10T10:00:00.000Z",
+    updatedAt: "2026-08-27T16:00:00.000Z",
+  },
+];
+
+const SEED_TASKS: Task[] = [
+  {
+    id: "task-1",
+    projectId: "proj-varynth",
+    title: "Construir Forge Studio e integrador de código",
+    description: "IDE web com abas, runner e templates de automação.",
+    status: "em_progresso",
+    priority: "urgente",
+    dueDate: "2026-08-30",
+    tags: ["forge", "fase-5"],
+    createdAt: "2026-08-29T08:00:00.000Z",
+  },
+  {
+    id: "task-2",
+    projectId: "proj-pesquisa-ia",
+    title: "Catalogar 5 evidências doutrinárias no Evidence Board",
+    description: "Separar argumentos a favor e contra para a seção metodológica do trabalho.",
+    status: "a_fazer",
+    priority: "alta",
+    dueDate: "2026-09-05",
+    tags: ["leitura", "fichamento"],
+    createdAt: "2026-08-26T11:00:00.000Z",
+  },
+];
+
+const SEED_NOTES: Note[] = [
+  {
+    id: "note-1",
+    projectId: "proj-varynth",
+    title: "Princípios de Design do VARYNTH OS",
+    content: "O sistema deve equilibrar estética cyberpunk/gaming com usabilidade profissional impecável. Navegação por atalhos, zero fricção na captura de ideias, e modularidade em 3 camadas (Core, System Apps, Personal Apps).",
+    tags: ["arquitetura", "design", "filosofia"],
+    pinned: true,
+    createdAt: "2026-08-28T22:30:00.000Z",
+    updatedAt: "2026-08-29T09:15:00.000Z",
+  },
+];
+
+const SEED_VAULT: VaultItem[] = [
+  {
+    id: "vault-1",
+    title: "Autonomous Agents & Epistemic Decision Trees",
+    type: "artigo",
+    author: "Russell, S. & Norvig, P. (2025)",
+    source: "arXiv:2501.12345",
+    url: "https://arxiv.org",
+    tags: ["ia", "agentes", "epistemologia", "decisao"],
+    category: "Inteligência Artificial",
+    relatedProjectIds: ["proj-pesquisa-ia", "proj-varynth"],
+    readingStatus: "lendo",
+    notes: "O capítulo 3 aborda o trade-off entre autonomia algorítmica e controle humano determinístico.",
+    createdAt: "2026-08-20T10:00:00.000Z",
+    updatedAt: "2026-08-28T14:00:00.000Z",
+  },
+];
+
+const SEED_CHRONOS: ChronosEvent[] = [
+  {
+    id: "chronos-1",
+    title: "Entrega do Relatório Final da LigaHub",
+    date: "2026-09-20",
+    startTime: "18:00",
+    type: "prazo",
+    projectId: "proj-ligahub",
+    completed: false,
+    notes: "Submissão no portal da coordenação acadêmica.",
+    createdAt: "2026-08-28T10:00:00.000Z",
+  },
+];
+
+const SEED_HISTORICAL: HistoricalMilestone[] = [
+  {
+    id: "hist-1",
+    period: "Agosto 2026",
+    title: "Nascimento do VARYNTH OS",
+    description: "Criação do repositório, arquitetura modular em 3 camadas e deploy de estreia na Vercel.",
+    category: "sistema",
+    badge: "Gênese",
+    date: "2026-08-28",
+  },
+];
+
+const SEED_PEOPLE: Person[] = [
+  {
+    id: "person-1",
+    name: "Dr. Roberto Silva",
+    role: "Professor / Orientador",
+    organization: "Faculdade de Direito & Tecnologia",
+    email: "roberto.silva@universidade.edu.br",
+    tags: ["orientador", "direito-digital", "ia"],
+    notes: "Especialista em responsabilidade civil algorítmica e hermenêutica.",
+    projectPermissions: [
+      { projectId: "proj-pesquisa-ia", level: "administrar" },
+    ],
+    createdAt: "2026-08-15T10:00:00.000Z",
+  },
+];
+
+const SEED_LABS: LabItem[] = [
+  {
+    id: "lab-1",
+    title: "Graph Visualizer para Conexões Epistêmicas",
+    description: "Mecanismo visual em canvas/WebGL para exibir graficamente como uma tese jurídica se apoia em precedentes e doutrinas.",
+    stage: "experimento",
+    category: "software",
+    tags: ["grafo", "canvas", "visualizacao", "ia"],
+    createdAt: "2026-08-24T10:00:00.000Z",
+    updatedAt: "2026-08-29T10:00:00.000Z",
+  },
+];
+
+const SEED_GRAVEYARD: GraveyardItem[] = [
+  {
+    id: "grave-1",
+    title: "Bot de Notícias Jurídicas no Telegram v0.1",
+    originalCategory: "software",
+    whyStarted: "Queria receber resumos diários dos informativos do STF no Telegram.",
+    whyAbandoned: "As regras de scraping mudaram e a manutenção manual ficou inviável com as aulas.",
+    lessonsLearned: "Melhor usar RSS feeds padronizados ou APIs oficiais em vez de web scraping frágil.",
+    reusableAssets: "Módulo de formatação de mensagens em Markdown e parser de ementas em Python.",
+    tags: ["telegram", "python", "scraping"],
+    abandonedAt: "2026-05-15",
+    createdAt: "2026-04-01T10:00:00.000Z",
+  },
+];
+
 const SEED_THESES: ArgumentThesis[] = [
   {
     id: "thesis-1",
     title: "Personalidade Jurídica Eletrônica para Agentes de IA Autônomos",
     area: "Direito Digital & Civil",
-    question: "É viável e necessária a atribuição de uma categoria de personalidade jurídica intermediária (tertium genus) para modelos de IA autônomos com patrimônio segregado?",
+    question: "É viável e necessária a atribuição de uma categoria de personalidade jurídica intermediária para modelos de IA autônomos?",
     pros: [
-      { id: "p1", statement: "Garante um fundo de garantia patrimonial autônomo para indenização de danos decorrentes de decisões algorítmicas opacas (black box)." },
-      { id: "p2", statement: "Evita a estagnação da inovação tecnológica ao delimitar os limites de responsabilidade dos desenvolvedores originais." },
+      { id: "p1", statement: "Garante um fundo de garantia patrimonial autônomo para indenização de danos decorrentes de decisões algorítmicas opacas." },
     ],
     cons: [
-      { id: "c1", statement: "Pode ser utilizada como 'escudo corporativo' (corporate veil) para blindar grandes conglomerados de tecnologia contra responsabilidade civil objetiva." },
-      { id: "c2", statement: "A teoria subjetiva tradicional do Direito exige volição moral e consciência, elementos inexistentes em modelos estatísticos preditivos." },
+      { id: "c1", statement: "Pode ser utilizada como escudo corporativo para blindar conglomerados contra responsabilidade objetiva." },
     ],
     precedents: [
       "STJ — REsp 1.798.892 (Responsabilidade objetiva por fato do produto em plataformas digitais)",
-      "STF — ADC 51 (Acesso a dados telemáticos e soberania jurisdicional)",
     ],
     doctrine: [
       "Pontes de Miranda: Teoria do Fato Jurídico e Sujeito de Direito",
-      "Gunther Teubner: 'Digital Personhood and Algorithmic Subjects'",
-      "Bruno Miragem: Direito das Novas Tecnologias e Proteção do Consumidor",
     ],
-    counterArguments: [
-      "A responsabilidade objetiva da cadeia de fornecedores (Art. 14 do CDC e Art. 927 do CC) já é suficiente para proteger a vítima sem a necessidade de criar ficções de personalidade.",
-    ],
-    conclusion: "A curto prazo, a aplicação robusta da responsabilidade civil objetiva com inversão do ônus da prova e seguros obrigatórios é mais eficiente do que a concessão de personalidade eletrônica plena.",
-    tags: ["ia", "responsabilidade-civil", "personalidade-eletronica", "direito-digital"],
+    counterArguments: [],
+    conclusion: "A curto prazo, a aplicação robusta da responsabilidade civil objetiva com inversão do ônus da prova é mais eficiente.",
+    tags: ["ia", "responsabilidade-civil", "direito-digital"],
     status: "consolidada",
     createdAt: "2026-08-22T10:00:00.000Z",
     updatedAt: "2026-08-28T16:00:00.000Z",
@@ -83,19 +362,14 @@ const SEED_RESEARCHES: AcademicResearch[] = [
   {
     id: "research-1",
     title: "Autonomia Decisória em Agentes de IA: Análise da Teoria do Risco Integral",
-    problem: "Em que medida a autonomia decisória de agentes baseados em LLMs desafia a clássica causalidade direta no direito da responsabilidade civil?",
-    hypothesis: "A opacidade inerente às redes neurais profundas rompe a previsibilidade clássica, demandando um modelo de imputação de risco por atividade perigosa.",
-    objectives: [
-      "Mapear os julgados recentes do STJ sobre responsabilidade por algoritmos.",
-      "Analisar o AI Act europeu e as propostas do marco regulatório brasileiro (PL 2338/2023).",
-      "Propor diretrizes para a distribuição do ônus probatório em perícias algorítmicas.",
-    ],
-    methodology: "Pesquisa qualitativa, bibliográfica e documental, com análise comparada entre a jurisprudência nacional e as diretrizes do AI Act.",
-    targetVenue: "Revista Brasileira de Direito e Tecnologia (Qualis A1)",
-    submissionDeadline: "2026-11-30",
+    problem: "Em que medida a autonomia decisória de agentes baseados em LLMs desafia a causalidade direta na responsabilidade civil?",
+    hypothesis: "A opacidade inerente às redes neurais profundas demanda um modelo de imputação de risco por atividade perigosa.",
+    objectives: ["Mapear julgados do STJ", "Analisar AI Act", "Propor diretrizes probatórias"],
+    methodology: "Pesquisa qualitativa e documental.",
+    targetVenue: "Revista de Direito e Tecnologia (Qualis A1)",
     status: "escrita",
     projectId: "proj-pesquisa-ia",
-    tags: ["ia", "responsabilidade", "artigo-a1", "metodologia"],
+    tags: ["ia", "responsabilidade", "artigo-a1"],
     createdAt: "2026-08-15T14:30:00.000Z",
   },
 ];
@@ -107,35 +381,11 @@ const SEED_EVIDENCES: EvidenceItem[] = [
     claim: "A assimetria informacional em modelos 'black box' inviabiliza a demonstração de culpa tradicional pela vítima.",
     source: "Pasquale, Frank. The Black Box Society (2015)",
     page: "p. 58-62",
-    quote: "When algorithms are shielded by trade secrecy and mathematical complexity, the injured party is structurally incapable of proving technical negligence without state-mandated auditability.",
+    quote: "When algorithms are shielded by trade secrecy, the injured party is structurally incapable of proving technical negligence.",
     strength: "forte",
     section: "discussao",
-    tags: ["black-box", "assimetria", "auditoria"],
+    tags: ["black-box", "assimetria"],
     createdAt: "2026-08-25T11:00:00.000Z",
-  },
-  {
-    id: "evi-2",
-    researchId: "research-1",
-    claim: "O PL 2338/2023 adota a gradação de risco similar ao AI Act europeu para sistemas de alto risco.",
-    source: "Senado Federal — Relatório da Comissão de Juristas (2024)",
-    page: "Art. 14 a 18",
-    quote: "Consideram-se de alto risco as aplicações de inteligência artificial utilizadas para decisões com efeitos jurídicos relevantes sobre pessoas naturais.",
-    strength: "forte",
-    section: "metodologia",
-    tags: ["legislacao", "pl2338", "alto-risco"],
-    createdAt: "2026-08-26T14:00:00.000Z",
-  },
-  {
-    id: "evi-3",
-    researchId: "research-1",
-    claim: "A simples explicabilidade pós-fato (post-hoc XAI) não garante segurança jurídica determinística.",
-    source: "Lipton, Z. C. The Mythos of Model Interpretability (2018)",
-    page: "p. 36",
-    quote: "Linear approximations of nonlinear high-dimensional models often produce plausible explanations that are fundamentally unfaithful to the actual model mechanics.",
-    strength: "moderada",
-    section: "revisao_literatura",
-    tags: ["xai", "explicabilidade", "epistemologia"],
-    createdAt: "2026-08-28T09:30:00.000Z",
   },
 ];
 
@@ -146,65 +396,12 @@ const SEED_OPPORTUNITIES: Opportunity[] = [
     institution: "CNPq / Universidade",
     deadline: "2026-09-25",
     prizeOrGrant: "Bolsa Mensal R$ 700 / 12 meses",
-    url: "https://cnpq.br/editais",
-    requirements: [
-      "Aluno regularmente matriculado",
-      "Orientador com titulação de Doutor",
-      "Plano de trabalho estruturado de 20h semanais",
-    ],
-    requiredDocs: [
-      "Histórico Escolar Atualizado",
-      "Currículo Lattes do orientador e bolsista",
-      "Projeto de Pesquisa com cronograma",
-    ],
+    requirements: ["Aluno matriculado", "Orientador Doutor"],
+    requiredDocs: ["Histórico Escolar", "Lattes", "Projeto de Pesquisa"],
     relatedProjectId: "proj-pesquisa-ia",
     status: "preparando",
-    notes: "Falta anexar o parecer de aprovação do comitê de ética e a assinatura do Dr. Roberto.",
     createdAt: "2026-08-20T10:00:00.000Z",
     updatedAt: "2026-08-28T18:00:00.000Z",
-  },
-  {
-    id: "opp-2",
-    title: "Prêmio Jovem Jurista — Inovação & Direito Digital 2026",
-    institution: "Instituto Brasileiro de Direito e Tecnologia (IBDT)",
-    deadline: "2026-10-31",
-    prizeOrGrant: "R$ 10.000 + Publicação em Livro Coletivo",
-    url: "https://ibdt.org.br/premio-2026",
-    requirements: [
-      "Artigo inédito entre 15 e 25 páginas",
-      "Formatação segundo normas ABNT",
-      "Temática voltada a Direito e Novas Tecnologias",
-    ],
-    requiredDocs: [
-      "Termo de Cessão de Direitos",
-      "Arquivo do Artigo anonimizado (Double Blind Review)",
-    ],
-    relatedProjectId: "proj-pesquisa-ia",
-    status: "analisando",
-    notes: "O artigo da pesquisa sobre IA se encaixa perfeitamente no escopo da chamada.",
-    createdAt: "2026-08-27T15:00:00.000Z",
-    updatedAt: "2026-08-28T12:00:00.000Z",
-  },
-  {
-    id: "opp-3",
-    title: "Hackathon Nacional de LegalTech & Inovação Pública",
-    institution: "Conselho Nacional de Justiça (CNJ)",
-    deadline: "2026-11-15",
-    prizeOrGrant: "R$ 30.000 para os 3 primeiros colocados",
-    url: "https://cnj.jus.br/hackathon",
-    requirements: [
-      "Equipe de 2 a 5 participantes",
-      "Protótipo funcional de software ou assistente de IA",
-    ],
-    requiredDocs: [
-      "Repositório GitHub do projeto",
-      "Vídeo pitch de demonstração de 3 minutos",
-    ],
-    relatedProjectId: "proj-varynth",
-    status: "interessado",
-    notes: "Podemos submeter a arquitetura da Athena integrada ao Codex.",
-    createdAt: "2026-08-29T09:00:00.000Z",
-    updatedAt: "2026-08-29T09:00:00.000Z",
   },
 ];
 
@@ -217,7 +414,6 @@ function triggerStoreUpdate() {
 }
 
 export function useVarynthStore() {
-  // Existing states
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -227,17 +423,15 @@ export function useVarynthStore() {
   const [people, setPeople] = useState<Person[]>([]);
   const [labItems, setLabItems] = useState<LabItem[]>([]);
   const [graveyardItems, setGraveyardItems] = useState<GraveyardItem[]>([]);
-  const [files, setFiles] = useState<ProjectFile[]>([]);
-  const [references, setReferences] = useState<ProjectReference[]>([]);
-  const [timelineEvents, setTimelineEvents] = useState<ProjectTimelineEvent[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-
-  // Phase 3 states
   const [theses, setTheses] = useState<ArgumentThesis[]>([]);
   const [researches, setResearches] = useState<AcademicResearch[]>([]);
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-
+  const [forgeFiles, setForgeFiles] = useState<ForgeFile[]>([]);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [references, setReferences] = useState<ProjectReference[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<ProjectTimelineEvent[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const loadData = useCallback(() => {
@@ -246,10 +440,20 @@ export function useVarynthStore() {
     try {
       const initialized = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
       if (!initialized) {
+        localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(SEED_PROJECTS));
+        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(SEED_TASKS));
+        localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(SEED_NOTES));
+        localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(SEED_VAULT));
+        localStorage.setItem(STORAGE_KEYS.CHRONOS, JSON.stringify(SEED_CHRONOS));
+        localStorage.setItem(STORAGE_KEYS.HISTORICAL, JSON.stringify(SEED_HISTORICAL));
+        localStorage.setItem(STORAGE_KEYS.PEOPLE, JSON.stringify(SEED_PEOPLE));
+        localStorage.setItem(STORAGE_KEYS.LABS, JSON.stringify(SEED_LABS));
+        localStorage.setItem(STORAGE_KEYS.GRAVEYARD, JSON.stringify(SEED_GRAVEYARD));
         localStorage.setItem(STORAGE_KEYS.THESES, JSON.stringify(SEED_THESES));
         localStorage.setItem(STORAGE_KEYS.RESEARCHES, JSON.stringify(SEED_RESEARCHES));
         localStorage.setItem(STORAGE_KEYS.EVIDENCES, JSON.stringify(SEED_EVIDENCES));
         localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(SEED_OPPORTUNITIES));
+        localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(SEED_FORGE_FILES));
         localStorage.setItem(STORAGE_KEYS.INITIALIZED, "true");
       }
 
@@ -262,15 +466,15 @@ export function useVarynthStore() {
       setPeople(JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]"));
       setLabItems(JSON.parse(localStorage.getItem(STORAGE_KEYS.LABS) || "[]"));
       setGraveyardItems(JSON.parse(localStorage.getItem(STORAGE_KEYS.GRAVEYARD) || "[]"));
-      setFiles(JSON.parse(localStorage.getItem(STORAGE_KEYS.FILES) || "[]"));
-      setReferences(JSON.parse(localStorage.getItem(STORAGE_KEYS.REFERENCES) || "[]"));
-      setTimelineEvents(JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMELINE) || "[]"));
-      setActivities(JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES) || "[]"));
-
       setTheses(JSON.parse(localStorage.getItem(STORAGE_KEYS.THESES) || "[]"));
       setResearches(JSON.parse(localStorage.getItem(STORAGE_KEYS.RESEARCHES) || "[]"));
       setEvidences(JSON.parse(localStorage.getItem(STORAGE_KEYS.EVIDENCES) || "[]"));
       setOpportunities(JSON.parse(localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES) || "[]"));
+      setForgeFiles(JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]"));
+      setFiles(JSON.parse(localStorage.getItem(STORAGE_KEYS.FILES) || "[]"));
+      setReferences(JSON.parse(localStorage.getItem(STORAGE_KEYS.REFERENCES) || "[]"));
+      setTimelineEvents(JSON.parse(localStorage.getItem(STORAGE_KEYS.TIMELINE) || "[]"));
+      setActivities(JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES) || "[]"));
     } catch {
       // ignore
     }
@@ -290,7 +494,6 @@ export function useVarynthStore() {
     };
   }, [loadData]);
 
-  // Log activity helper
   const logActivity = useCallback(
     (
       action: Activity["action"],
@@ -699,7 +902,7 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  // --- CODEX & ARGUMENT ARENA (FASE 3) ---
+  // --- CODEX ---
   const addThesis = useCallback(
     (thesisData: Omit<ArgumentThesis, "id" | "createdAt" | "updatedAt">) => {
       const newThesis: ArgumentThesis = {
@@ -734,7 +937,7 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  // --- RESEARCH & EVIDENCE BOARD (FASE 3) ---
+  // --- RESEARCH ---
   const addResearch = useCallback(
     (resData: Omit<AcademicResearch, "id" | "createdAt">) => {
       const newRes: AcademicResearch = {
@@ -797,7 +1000,7 @@ export function useVarynthStore() {
     triggerStoreUpdate();
   }, []);
 
-  // --- OPPORTUNITIES (FASE 3) ---
+  // --- OPPORTUNITIES ---
   const addOpportunity = useCallback(
     (oppData: Omit<Opportunity, "id" | "createdAt" | "updatedAt">) => {
       const newOpp: Opportunity = {
@@ -831,6 +1034,48 @@ export function useVarynthStore() {
     localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(updated));
     triggerStoreUpdate();
   }, []);
+
+  // --- FORGE STUDIO (FASE 5) ---
+  const addForgeFile = useCallback(
+    (fileData: Omit<ForgeFile, "id" | "createdAt" | "updatedAt">) => {
+      const newFile: ForgeFile = {
+        ...fileData,
+        id: "forge-" + Date.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
+      const updated = [newFile, ...current];
+      localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(updated));
+      logActivity("criou", "codigo", newFile.id, newFile.name);
+      triggerStoreUpdate();
+      return newFile;
+    },
+    [logActivity]
+  );
+
+  const updateForgeFile = useCallback((id: string, updates: Partial<ForgeFile>) => {
+    const current: ForgeFile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
+    const updated = current.map((f) =>
+      f.id === id ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f
+    );
+    localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(updated));
+    triggerStoreUpdate();
+  }, []);
+
+  const deleteForgeFile = useCallback(
+    (id: string) => {
+      const current: ForgeFile[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.FORGE) || "[]");
+      const target = current.find((f) => f.id === id);
+      const updated = current.filter((f) => f.id !== id);
+      localStorage.setItem(STORAGE_KEYS.FORGE, JSON.stringify(updated));
+      if (target) {
+        logActivity("removeu", "codigo", id, target.name);
+      }
+      triggerStoreUpdate();
+    },
+    [logActivity]
+  );
 
   // --- REFERENCES & TIMELINE ---
   const addReference = useCallback(
@@ -891,6 +1136,7 @@ export function useVarynthStore() {
     researches,
     evidences,
     opportunities,
+    forgeFiles,
     files,
     references,
     timelineEvents,
@@ -935,6 +1181,9 @@ export function useVarynthStore() {
     addOpportunity,
     updateOpportunity,
     deleteOpportunity,
+    addForgeFile,
+    updateForgeFile,
+    deleteForgeFile,
     addReference,
     deleteReference,
     addTimelineEvent,
