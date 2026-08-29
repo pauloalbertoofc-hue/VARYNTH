@@ -289,8 +289,11 @@ export class AthenaPersonaEngine {
       return { text: this.generateComparisonResponse(candidates.slice(0, 2)) };
     }
 
-    // D. Follow-up Explanation ("Por quê?")
-    if (parsed.ellipsisResolved?.isEllipsis && (clean.includes("por que") || clean.includes("porque"))) {
+    // D. Follow-up Explanation ("Por quê?", "Qual a razão?")
+    if (
+      parsed.ellipsisResolved?.isEllipsis &&
+      (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("escolha") || clean.includes("justificativa"))
+    ) {
       return { text: this.generateFollowUpExplanation(parsed.ellipsisResolved.originalReferent) };
     }
 

@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:athena": "npx tsx src/lib/athena/regression/regression-runner.ts",
+    "test:athena:conversation": "npx tsx src/lib/athena/tests/run-tests.ts",
+    "test:athena:regression": "npx tsx src/lib/athena/regression/regression-runner.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -26,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.3",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

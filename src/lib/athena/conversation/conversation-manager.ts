@@ -122,7 +122,8 @@ export class ConversationManager {
     // Ellipsis Case A: "o segundo", "o primeiro", "esse", "essa"
     if (
       clean === "o segundo" || clean === "a segunda" || clean === "o primeiro" || clean === "a primeira" ||
-      clean === "e o segundo" || clean === "e o primeiro" || clean === "esse" || clean === "essa"
+      clean === "e o segundo" || clean === "e o primeiro" || clean === "esse" || clean === "essa" ||
+      clean.includes("o segundo") || clean.includes("do segundo") || clean.includes("segundo projeto")
     ) {
       isEllipsis = true;
       if (state.recentEntities.length >= 2) {
@@ -138,8 +139,11 @@ export class ConversationManager {
       }
     }
 
-    // Ellipsis Case B: "por que?", "porque?"
-    if (clean === "por que" || clean === "porque" || clean.startsWith("por que") || clean.startsWith("porque")) {
+    // Ellipsis Case B: "por que?", "porque?", "qual a razão"
+    if (
+      clean === "por que" || clean === "porque" || clean.startsWith("por que") || clean.startsWith("porque") ||
+      clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa")
+    ) {
       isEllipsis = true;
       if (state.recentRecommendations && state.recentRecommendations.length > 0) {
         originalReferent = state.recentRecommendations[0];
@@ -156,7 +160,11 @@ export class ConversationManager {
     }
 
     // Ellipsis Case D: "critique essa ideia", "compare os dois"
-    if (clean.includes("critique") || clean.includes("critica")) {
+    if (
+      clean.includes("critique") || clean.includes("critica") ||
+      clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
+      clean.includes("ponto cego") || clean.includes("pontos cegos") || clean.includes("riscos")
+    ) {
       isEllipsis = true;
       if (state.recentEntities.length > 0) {
         originalReferent = state.recentEntities[0];
@@ -164,7 +172,7 @@ export class ConversationManager {
       }
     }
 
-    if (clean.includes("compare") || clean.includes("comparar")) {
+    if (clean.includes("compare") || clean.includes("comparar") || clean.includes("vale mais a pena")) {
       isEllipsis = true;
       if (state.recentEntities.length >= 2) {
         resolvedMeaning = `Comparar as duas iniciativas recentes: "${state.recentEntities[0]}" e "${state.recentEntities[1]}"`;
@@ -193,10 +201,17 @@ export class ConversationManager {
       clean.startsWith("anote isso") ||
       clean.startsWith("anotar") ||
       clean.startsWith("excluir") ||
+      clean.startsWith("exclua") ||
       clean.startsWith("apagar") ||
+      clean.startsWith("apague") ||
       clean.startsWith("deletar") ||
+      clean.startsWith("delete") ||
       clean.startsWith("remover") ||
-      clean.includes("mover para a lixeira") ||
+      clean.startsWith("remova") ||
+      clean.startsWith("mova") ||
+      clean.startsWith("mover") ||
+      clean.includes("para a lixeira") ||
+      clean.includes("na lixeira") ||
       clean.includes("esvaziar lixeira");
 
     if (isOperational) {
@@ -221,6 +236,18 @@ export class ConversationManager {
       subject = "ATHENA_HEALTH";
       requiresContext = false;
     }
+    // Check Ecosystem Briefing Explicit Requests
+    else if (
+      clean.includes("briefing") ||
+      clean.includes("aconteceu desde") ||
+      clean.includes("resumo executivo") ||
+      clean.includes("me atualize sobre")
+    ) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("ECOSYSTEM_BRIEFING");
+      subject = "SYSTEM_ECOSYSTEM";
+      requiresContext = true;
+    }
     // Check Ecosystem / System Status (Adversarial: "como esta o varynth", "como esta aquele projeto")
     else if (
       clean.includes("minha situacao") ||
@@ -238,10 +265,13 @@ export class ConversationManager {
       subject = "USER_RESOURCES";
       requiresContext = true;
     }
-    // Check Cognitive Requests (CRITIQUE, COMPARE, IDEAS, RECOMMEND, ANALYZE, EXPLAIN, PLAN, BRIEFS)
+    // Check Cognitive Requests (CRITIQUE, COMPARE, IDEAS, RECOMMEND, ANALYZE, EXPLAIN, PLAN)
     else if (
       clean.includes("critique") || clean.includes("critica") ||
+      clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
+      clean.includes("ponto cego") || clean.includes("pontos cegos") || clean.includes("riscos") ||
       clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
+      clean.includes("vale mais a pena") || clean.includes("melhor continuar") ||
       clean.includes("ideia") || clean.includes("ideias") ||
       clean.includes("inventar") || clean.includes("criar") ||
       clean.includes("pensar em") || clean.includes("projeto novo") || clean.includes("novo projeto") ||
@@ -251,24 +281,41 @@ export class ConversationManager {
       clean.includes("sugira") || clean.includes("sugestao") ||
       clean.includes("o que acha") || clean.includes("o que fazer") ||
       clean.includes("analisar") || clean.includes("analise") ||
-      clean.includes("explique") || clean.includes("o que e") ||
+      clean.includes("explique") || clean.includes("explica") || clean.includes("o que e") ||
+      clean.includes("metodo cientifico") || clean.includes("epistemologia") || clean.includes("hermeneutica") ||
       clean.includes("voce sabe o que") ||
       clean.includes("planeje") || clean.includes("plano") ||
-      clean.includes("briefing") || clean.includes("o que mudou") ||
+      clean.includes("o que voce faria") || clean.includes("proximo passo") || clean.includes("destravar") || clean.includes("como resolver") ||
       isEllipsis
     ) {
       interactionType = "COGNITIVE_REQUEST";
       requiresContext = true;
 
       // Priority 1: Critique
-      if (clean.includes("critique") || clean.includes("critica") || clean.includes("ponto fraco") || clean.includes("ponto cego")) {
+      if (
+        clean.includes("critique") || clean.includes("critica") ||
+        clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
+        clean.includes("ponto cego") || clean.includes("pontos cegos") || clean.includes("riscos")
+      ) {
         intents.push("CRITIQUE");
       }
       // Priority 2: Compare
-      else if (clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") || clean.includes("versus")) {
+      else if (
+        clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
+        clean.includes("vale mais a pena") || clean.includes("versus")
+      ) {
         intents.push("COMPARE");
       }
-      // Priority 3: Brainstorm & Recommend
+      // Priority 3: Planning / Next steps
+      else if (
+        clean.includes("o que voce faria") || clean.includes("proximo passo") || clean.includes("destravar") ||
+        clean.includes("como resolver") || clean.includes("planeje") || clean.includes("plano")
+      ) {
+        intents.push("RECOMMEND");
+        intents.push("PLAN");
+        subject = "ENGINEERING_PLAN";
+      }
+      // Priority 4: Brainstorm & Recommend
       else {
         if (
           clean.includes("ideia") || clean.includes("ideias") ||
@@ -288,20 +335,17 @@ export class ConversationManager {
         if (clean.includes("analise") || clean.includes("analisar") || clean.includes("examine")) {
           intents.push("ANALYZE");
         }
-        if (clean.includes("o que e") || clean.includes("explique") || clean.includes("voce sabe o que")) {
+        if (
+          clean.includes("o que e") || clean.includes("explique") || clean.includes("explica") ||
+          clean.includes("voce sabe o que") || clean.includes("metodo cientifico") ||
+          clean.includes("epistemologia") || clean.includes("hermeneutica")
+        ) {
           intents.push("EXPLAIN");
-        }
-        if (clean.includes("planeje") || clean.includes("plano") || clean.includes("cronograma")) {
-          intents.push("PLAN");
-        }
-        if (clean.includes("briefing") || clean.includes("o que mudou no varynth")) {
-          intents.push("ECOSYSTEM_BRIEFING");
-          subject = "SYSTEM_ECOSYSTEM";
         }
       }
 
       if (isEllipsis) {
-        if (clean.includes("por que") || clean.includes("porque")) {
+        if (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa")) {
           intents.push("EXPLAIN");
         } else if (clean.includes("continue") || clean.includes("prossiga")) {
           intents.push("CONTINUE");
