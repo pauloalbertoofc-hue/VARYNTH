@@ -41,7 +41,13 @@ export type AthenaEventType =
   | "MIGRATION_VERIFICATION_PASSED"
   | "MIGRATION_COMMITTED"
   | "MIGRATION_ROLLED_BACK"
-  | "MIGRATION_FAILED";
+  | "MIGRATION_FAILED"
+  | "PERMISSION_EVALUATED"
+  | "ACTION_CONFIRMATION_REQUIRED"
+  | "ACTION_CONFIRMATION_CONSUMED"
+  | "ACTION_DENIED"
+  | "ACTION_ALLOWED"
+  | "ACTION_EXECUTED";
 
 export interface AthenaEvent<T = unknown> {
   type: AthenaEventType;
@@ -74,18 +80,21 @@ class EventBus {
       timestamp: new Date().toISOString(),
     };
 
-    const handlers = this.listeners.get(type);
-    if (handlers) {
-      handlers.forEach((handler) => {
+    const typeListeners = this.listeners.get(type);
+    if (typeListeners) {
+      typeListeners.forEach((listener) => {
         try {
-          handler(event);
-        } catch {
-          // ignore error in event handler to prevent pipeline crashes
+          listener(event);
+        } catch (err) {
+          console.error(`[EventBus] Erro ao disparar listener para evento ${type}:`, err);
         }
       });
     }
   }
+
+  clear(): void {
+    this.listeners.clear();
+  }
 }
 
 export const athenaEventBus = new EventBus();
-

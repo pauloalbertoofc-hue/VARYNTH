@@ -32,7 +32,7 @@ async function runBuilderTests() {
 
   // 3. ADRS_COMPENDIUM Generation
   const adrPub = documentationBuilder.buildPublication("ADRS_COMPENDIUM", "INTERNAL");
-  assert(adrPub.chapters.length === 6, "Compêndio de ADRs contém todos os 6 ADRs aceitos");
+  assert(adrPub.chapters.length >= 6, "Compêndio de ADRs contém todos os ADRs aceitos");
   assert(adrPub.metadata.profile === "INTERNAL", "Perfil INTERNAL configurado no Compêndio de ADRs");
 
   // 4. HISTORY_AND_LESSONS Generation

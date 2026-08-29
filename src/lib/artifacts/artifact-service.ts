@@ -215,7 +215,7 @@ export class ArtifactService {
   }
 
   public removeArtifact(id: string, actor: ArtifactActor = "USER"): { success: boolean; error?: string } {
-    const perm = permissionPolicyEngine.evaluate(actor, "DELETE", "ARTIFACT_ACTIVE");
+    const perm = permissionPolicyEngine.evaluate(actor, "DELETE_SOFT", "ARTIFACT_ACTIVE");
     if (!perm.allowed) {
       return { success: false, error: `Permissão negada: ${perm.reason}` };
     }

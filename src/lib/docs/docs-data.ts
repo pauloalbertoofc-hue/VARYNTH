@@ -160,6 +160,21 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Base precisa ser enriquecida manualmente no código-fonte"],
     },
   },
+  {
+    id: "ADR-008",
+    number: "ADR-008",
+    title: "Modelo de Autoridade e Matriz de Permissões da Athena (Core Sovereign Rule)",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "O avanço cognitivo da Athena e futuros studios criativos aumentam o risco de mutações acidentais, destruição de dados ou alterações indevidas no código do sistema.",
+    decision: "Centralizar toda autorização no PermissionPolicyEngine. Core Sovereign Rule bloqueia modificação do Core (DENY); deleção permanente é estritamente proibida (DENY); publicações exigem confirmação humana (CONFIRM).",
+    rationale: "Capacidade não implica autoridade. A Athena pode se tornar extremamente inteligente sem adquirir autoridade irrestrita.",
+    alternatives: ["Permissões isoladas por ferramenta", "Autorização baseada em confiança implícita"],
+    consequences: {
+      gains: ["Proteção absoluta do Core", "Impossibilidade de destruição acidental de dados", "Tokens anti-replay"],
+      tradeoffs: ["Operações de alta criticidade exigem confirmação explícita do usuário"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [
@@ -455,6 +470,21 @@ export const TECHNICAL_DOCS: TechnicalDocItem[] = [
     tags: ["safety", "anti-evasion", "quality-gates", "regression"],
     relatedADRs: ["ADR-004"],
     content: `Qualquer alteração na Athena deve passar por 73 testes históricos cobrindo 15 classes reais de erro antes do deploy.`,
+  },
+  {
+    id: "ath-permissions",
+    slug: "athena-permissions-architecture",
+    title: "Athena Action & Permission Architecture (Core Sovereign Rule)",
+    category: "athena",
+    categoryLabel: "Athena Cognitive OS",
+    icon: "🛡️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-08-29",
+    summary: "Camada central de autoridade com políticas ALLOW, CONFIRM, DENY, SANDBOX e tokens anti-replay.",
+    sourceFilePath: "docs/architecture/athena-action-permission-architecture.md",
+    tags: ["permissoes", "autoridade", "core-sovereign-rule", "sandbox", "tokens"],
+    relatedADRs: ["ADR-008"],
+    content: `Capacidade não implica autoridade. A Athena é proibida de alterar o Core ou expurgar a Lixeira, e publicações exigem validação humana.`,
   },
 
   // --- MODULES ---
