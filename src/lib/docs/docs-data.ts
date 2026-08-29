@@ -235,6 +235,36 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Foco inicial no padrão estruturado Markdown"],
     },
   },
+  {
+    id: "ADR-013",
+    number: "ADR-013",
+    title: "Web Studio Execution Model e Prevenção de Falso Sucesso",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Execuções de compilação web e builds de scripts arbitrários exigem isolamento formal e proteção contra falso sucesso.",
+    decision: "Executar builds via JobManager em SandboxRuntime com watchdog preemptivo, promovendo saídas para o AssetManager apenas quando válidas.",
+    rationale: "Garante integridade e evita que websites falhos sejam marcados indevidamente como ativos.",
+    alternatives: ["Build síncrono no thread principal", "Armazenamento direto sem validação de asset"],
+    consequences: {
+      gains: ["Execução assíncrona tolerante a falhas", "Interrupção de loops infinitos", "Zero falso sucesso"],
+      tradeoffs: ["Necessidade de etapa formal de promoção de assets"],
+    },
+  },
+  {
+    id: "ADR-014",
+    number: "ADR-014",
+    title: "Web Preview Isolation Boundary e Canal de Mensagens Autenticado",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Renderizar código web não confiável no navegador sem comprometer o Core do VARYNTH.",
+    decision: "Isolar o preview em iframe com sandbox='allow-scripts' e autenticar mensagens com WebPreviewEnvelope, token de sessão criptográfico e rate limiting.",
+    rationale: "Impede acesso a parent window, cookies, storage e protege contra flood de mensagens mesmo em origens opacas.",
+    alternatives: ["Iframe sem restrições", "Comunicação livre via postMessage baseada em origin"],
+    consequences: {
+      gains: ["Isolamento rigoroso do Core", "Proteção contra flood", "Comunicação determinística"],
+      tradeoffs: ["Necessidade de script cliente injetado no preview"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

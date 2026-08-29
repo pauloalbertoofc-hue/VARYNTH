@@ -31,6 +31,7 @@ interface StudioShellProps {
   onExport: () => void;
   onDelete?: () => void;
   wordCount?: number;
+  extraAction?: ReactNode;
   sidebarContent: ReactNode;
   mainContent: ReactNode;
   bottomContent?: ReactNode;
@@ -48,6 +49,7 @@ export function StudioShell({
   onExport,
   onDelete,
   wordCount = 0,
+  extraAction,
   sidebarContent,
   mainContent,
   bottomContent,
@@ -140,6 +142,8 @@ export function StudioShell({
               <span className="hidden md:inline">Preview</span>
             </button>
           </div>
+
+          {extraAction}
 
           <button
             onClick={onCreateVersion}

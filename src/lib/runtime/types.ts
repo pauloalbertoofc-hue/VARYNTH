@@ -21,7 +21,8 @@ export type JobType =
   | "BATCH_INDEX_VECTOR"
   | "CODE_TEST_SUITE"
   | "DOCUMENT_EXPORT"
-  | "SANDBOX_EXPERIMENT";
+  | "SANDBOX_EXPERIMENT"
+  | "CODE_EXECUTION";
 
 export type JobActor = ArtifactActor;
 

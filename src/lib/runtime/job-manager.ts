@@ -84,6 +84,10 @@ export class JobManager {
     return j ? JSON.parse(JSON.stringify(j)) : undefined;
   }
 
+  public getJob(id: string): Job | undefined {
+    return this.getById(id);
+  }
+
   /**
    * On initialization, detects running/paused jobs from previous session and marks them as INTERRUPTED.
    */
