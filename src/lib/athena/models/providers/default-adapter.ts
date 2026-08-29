@@ -1,17 +1,23 @@
-import { LLMAdapter, ModelRequest, ModelResponse } from "../adapter";
+import { CognitiveModel, ModelRequest, ModelResponse } from "../adapter";
 
-export class DefaultModelAdapter implements LLMAdapter {
-  id = "default-adapter";
-  name = "VARYNTH Deterministic Reasoning Engine";
+export class DeterministicCognitiveModel implements CognitiveModel {
+  id = "deterministic-local";
+  name = "VARYNTH Deterministic Reasoning Engine (Offline Core)";
+  providerType = "local" as const;
+
+  async available(): Promise<boolean> {
+    return true; // Always 100% available without network
+  }
 
   async generate(request: ModelRequest): Promise<ModelResponse> {
     return {
-      content: `[VARYNTH AI Response based on System Context]`,
-      provider: "varynth-internal",
-      model: "athena-core-v2",
+      content: `[VARYNTH Deterministic Response]`,
+      provider: "varynth-offline-core",
+      model: "athena-local-v2",
+      providerType: "local",
     };
   }
 }
 
-export const defaultModelAdapter = new DefaultModelAdapter();
-
+export const deterministicCognitiveModel = new DeterministicCognitiveModel();
+export const defaultModelAdapter = deterministicCognitiveModel;

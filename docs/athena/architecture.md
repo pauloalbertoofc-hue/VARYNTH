@@ -43,3 +43,4 @@ Os 7 agentes do Conselho (`Council of Agents`) operam com base em:
 - **Regras Hermenêuticas e Metodológicas**: Análise de teses, precedentes, evidências e cronogramas.
 - **Extração Cirúrgica de Contexto**: Uso do `ContextBuilder` para inspecionar os módulos relevantes do VARYNTH.
 - **Revisão Crítica com Critias**: Validação de consistência e identificação de riscos antes da entrega final.
+

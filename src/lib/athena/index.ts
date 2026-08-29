@@ -5,6 +5,7 @@ export * from "./domain/context";
 export * from "./domain/result";
 export * from "./domain/response";
 export * from "./domain/session";
+export * from "./domain/capabilities";
 
 export * from "./kernel/executive-controller";
 export * from "./kernel/perception";
@@ -12,6 +13,7 @@ export * from "./kernel/router";
 export * from "./kernel/scheduler";
 export * from "./kernel/reflection";
 export * from "./kernel/response-builder";
+export * from "./kernel/capabilities";
 
 export * from "./agents/base-agent";
 export * from "./agents/registry";
@@ -29,7 +31,10 @@ export * from "./tools/registry";
 export * from "./memory/memory-manager";
 export * from "./memory/context-builder";
 
+export * from "./models/adapter";
+export * from "./models/model-router";
+export * from "./models/providers/default-adapter";
+
 export * from "./deliberation/deliberation-engine";
 export * from "./events/event-bus";
 export * from "./engine";
-
