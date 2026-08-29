@@ -15,6 +15,10 @@ import {
   X,
   ExternalLink,
   Sparkles,
+  BookOpen,
+  Clock,
+  Users,
+  FlaskConical,
 } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { modules } from "@/lib/modules";
@@ -25,7 +29,7 @@ interface CommandItem {
   title: string;
   description: string;
   icon: React.ElementType | string;
-  category: "Ações Globais" | "Projetos" | "Tarefas" | "Notas" | "Módulos & Apps" | "Navegação";
+  category: "Ações Globais" | "Projetos" | "Tarefas" | "Vault & Conhecimento" | "Colaboradores" | "Labs & Ideias" | "Módulos & Apps" | "Navegação";
   action: () => void;
   keywords?: string[];
   external?: boolean;
@@ -38,9 +42,8 @@ export function CommandPalette() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { projects, tasks, notes, toggleTask } = useVarynthStore();
+  const { projects, tasks, notes, vaultItems, people, labItems, toggleTask } = useVarynthStore();
 
-  // Global open/close listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -76,7 +79,7 @@ export function CommandPalette() {
   const commands: CommandItem[] = useMemo(() => {
     const list: CommandItem[] = [];
 
-    // Quick Actions
+    // Global Quick Actions
     list.push(
       {
         id: "action-new-task",
@@ -87,38 +90,45 @@ export function CommandPalette() {
         action: () => {
           window.dispatchEvent(new CustomEvent("open-quick-create", { detail: { tab: "task" } }));
         },
-        keywords: ["nova tarefa", "adicionar tarefa", "task", "todo", "+"],
+        keywords: ["nova tarefa", "task", "todo", "+"],
       },
       {
-        id: "action-new-note",
-        title: "Criar Nova Nota / Fichamento",
-        description: "Registrar uma ideia ou documento de conhecimento",
-        icon: FileText,
+        id: "action-new-vault",
+        title: "Adicionar Obra ao Vault",
+        description: "Salvar artigo, livro, jurisprudência ou lei",
+        icon: BookOpen,
         category: "Ações Globais",
-        action: () => {
-          window.dispatchEvent(new CustomEvent("open-quick-create", { detail: { tab: "note" } }));
-        },
-        keywords: ["nova nota", "anotacao", "rascunho", "fichamento", "+"],
+        action: () => router.push("/modules/vault"),
+        keywords: ["vault", "livro", "artigo", "lei", "jurisprudencia", "+"],
       },
       {
         id: "action-new-project",
         title: "Criar Novo Projeto",
-        description: "Abrir uma nova workspace dedicada com 7 abas",
+        description: "Abrir uma nova workspace dedicada",
         icon: FolderKanban,
         category: "Ações Globais",
         action: () => {
           window.dispatchEvent(new CustomEvent("open-quick-create", { detail: { tab: "project" } }));
         },
         keywords: ["novo projeto", "workspace", "projeto", "+"],
+      },
+      {
+        id: "action-new-idea",
+        title: "Incubar Nova Ideia no Labs",
+        description: "Registrar hipótese ou experimento no pipeline",
+        icon: FlaskConical,
+        category: "Ações Globais",
+        action: () => router.push("/modules/labs"),
+        keywords: ["labs", "ideia", "experimento", "prototipo", "+"],
       }
     );
 
-    // Projects from store
+    // Projects
     projects.forEach((proj) => {
       list.push({
         id: `proj-${proj.id}`,
         title: proj.title,
-        description: `Projeto (${proj.category}) · Status: ${proj.status} · Prioridade: ${proj.priority}`,
+        description: `Projeto (${proj.category}) · Status: ${proj.status}`,
         icon: FolderKanban,
         category: "Projetos",
         action: () => router.push(`/projects/${proj.id}`),
@@ -126,13 +136,26 @@ export function CommandPalette() {
       });
     });
 
-    // Tasks from store
+    // Vault Items
+    vaultItems.forEach((v) => {
+      list.push({
+        id: `vault-${v.id}`,
+        title: v.title,
+        description: `Vault [${v.type.toUpperCase()}] · ${v.author || v.category}`,
+        icon: BookOpen,
+        category: "Vault & Conhecimento",
+        action: () => router.push("/modules/vault"),
+        keywords: [v.title.toLowerCase(), v.type, ...(v.author ? [v.author.toLowerCase()] : []), ...v.tags],
+      });
+    });
+
+    // Tasks
     tasks.forEach((task) => {
       const isDone = task.status === "concluida";
       list.push({
         id: `task-${task.id}`,
         title: `${isDone ? "✓ " : ""}${task.title}`,
-        description: `Tarefa [${task.priority.toUpperCase()}] · ${isDone ? "Concluída" : "Pendente"}${task.dueDate ? ` · Prazo: ${task.dueDate}` : ""}`,
+        description: `Tarefa [${task.priority.toUpperCase()}] · ${isDone ? "Concluída" : "Pendente"}`,
         icon: CheckSquare,
         category: "Tarefas",
         action: () => {
@@ -146,31 +169,38 @@ export function CommandPalette() {
       });
     });
 
-    // Notes from store
-    notes.forEach((note) => {
+    // People
+    people.forEach((p) => {
       list.push({
-        id: `note-${note.id}`,
-        title: note.title,
-        description: `Nota · ${note.content.slice(0, 60)}...`,
-        icon: FileText,
-        category: "Notas",
-        action: () => {
-          if (note.projectId) {
-            router.push(`/projects/${note.projectId}`);
-          } else {
-            router.push("/dashboard");
-          }
-        },
-        keywords: [note.title.toLowerCase(), ...note.tags],
+        id: `person-${p.id}`,
+        title: p.name,
+        description: `Colaborador · ${p.role}${p.organization ? ` (${p.organization})` : ""}`,
+        icon: Users,
+        category: "Colaboradores",
+        action: () => router.push("/modules/people"),
+        keywords: [p.name.toLowerCase(), p.role.toLowerCase(), ...(p.organization ? [p.organization.toLowerCase()] : []), ...p.tags],
       });
     });
 
-    // Navigation Targets
+    // Labs
+    labItems.forEach((l) => {
+      list.push({
+        id: `lab-${l.id}`,
+        title: l.title,
+        description: `Labs [${l.stage.toUpperCase()}] · ${l.category}`,
+        icon: FlaskConical,
+        category: "Labs & Ideias",
+        action: () => router.push("/modules/labs"),
+        keywords: [l.title.toLowerCase(), l.stage, ...l.tags],
+      });
+    });
+
+    // Navigation
     list.push(
       {
         id: "nav-dashboard",
         title: "Ir para Início / Cockpit",
-        description: "Visão geral do sistema e tarefas do dia",
+        description: "Painel de controle central do VARYNTH OS",
         icon: LayoutDashboard,
         category: "Navegação",
         action: () => router.push("/dashboard"),
@@ -179,11 +209,47 @@ export function CommandPalette() {
       {
         id: "nav-projects",
         title: "Ir para Projetos",
-        description: "Listagem e gestão de todas as workspaces",
+        description: "Listagem e gestão de workspaces",
         icon: FolderKanban,
         category: "Navegação",
         action: () => router.push("/projects"),
-        keywords: ["projetos", "workspaces", "kanban"],
+        keywords: ["projetos", "workspaces"],
+      },
+      {
+        id: "nav-vault",
+        title: "Ir para Vault (Segundo Cérebro)",
+        description: "Biblioteca pessoal e artigos",
+        icon: BookOpen,
+        category: "Navegação",
+        action: () => router.push("/modules/vault"),
+        keywords: ["vault", "biblioteca", "leis", "artigos"],
+      },
+      {
+        id: "nav-chronos",
+        title: "Ir para Chronos (Prazos & Timeline)",
+        description: "Gestão de tempo e linha do tempo histórica",
+        icon: Clock,
+        category: "Navegação",
+        action: () => router.push("/modules/chronos"),
+        keywords: ["chronos", "tempo", "prazos", "timeline", "calendario"],
+      },
+      {
+        id: "nav-people",
+        title: "Ir para People (Colaboradores)",
+        description: "Diretório de contatos e permissões",
+        icon: Users,
+        category: "Navegação",
+        action: () => router.push("/modules/people"),
+        keywords: ["people", "colaboradores", "equipe", "permissoes"],
+      },
+      {
+        id: "nav-labs",
+        title: "Ir para Labs & Graveyard",
+        description: "Incubadora de ideias e retrospectivas",
+        icon: FlaskConical,
+        category: "Navegação",
+        action: () => router.push("/modules/labs"),
+        keywords: ["labs", "ideias", "graveyard", "experimentos"],
       },
       {
         id: "nav-athena",
@@ -192,7 +258,7 @@ export function CommandPalette() {
         icon: Bot,
         category: "Navegação",
         action: () => router.push("/modules/athena"),
-        keywords: ["athena", "ia", "chat", "inteligencia"],
+        keywords: ["athena", "ia", "chat"],
       },
       {
         id: "nav-profile",
@@ -205,7 +271,7 @@ export function CommandPalette() {
       }
     );
 
-    // Registered Modules
+    // Modules
     modules.forEach((mod) => {
       list.push({
         id: `mod-${mod.id}`,
@@ -226,10 +292,10 @@ export function CommandPalette() {
     });
 
     return list;
-  }, [projects, tasks, notes, router, toggleTask]);
+  }, [projects, tasks, vaultItems, people, labItems, router, toggleTask]);
 
   const filteredCommands = useMemo(() => {
-    if (!query.trim()) return commands.slice(0, 15);
+    if (!query.trim()) return commands.slice(0, 16);
     const q = query.toLowerCase().trim();
     return commands.filter((cmd) => {
       return (
@@ -241,7 +307,6 @@ export function CommandPalette() {
     });
   }, [commands, query]);
 
-  // Keyboard navigation within list
   const handleListKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -279,7 +344,7 @@ export function CommandPalette() {
               setSelectedIndex(0);
             }}
             onKeyDown={handleListKeyDown}
-            placeholder="Buscar projetos, tarefas, notas, módulos ou ações globais..."
+            placeholder="Buscar projetos, vault, tarefas, colaboradores, ideias ou ações..."
             className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
           />
           {query ? (

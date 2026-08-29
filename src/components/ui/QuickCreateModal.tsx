@@ -7,25 +7,25 @@ import {
   CheckSquare,
   FolderPlus,
   Lightbulb,
-  Link2,
+  BookOpen,
+  Users,
   X,
   Sparkles,
   Plus,
 } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
-import { ProjectCategory, PriorityLevel } from "@/lib/types";
+import { ProjectCategory, PriorityLevel, VaultItemType, ReadingStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type QuickCreateTab = "note" | "task" | "project" | "idea" | "reference";
+type QuickCreateTab = "task" | "note" | "project" | "vault" | "idea" | "person";
 
 export function QuickCreateModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<QuickCreateTab>("task");
   const router = useRouter();
 
-  const { projects, addTask, addNote, addProject, addReference } = useVarynthStore();
+  const { projects, addTask, addNote, addProject, addVaultItem, addLabItem, addPerson } = useVarynthStore();
 
-  // Form states
   // Task
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
@@ -47,14 +47,26 @@ export function QuickCreateModal() {
   const [projDeadline, setProjDeadline] = useState("");
   const [projTags, setProjTags] = useState("");
 
-  // Reference
-  const [refTitle, setRefTitle] = useState("");
-  const [refAuthor, setRefAuthor] = useState("");
-  const [refUrl, setRefUrl] = useState("");
-  const [refType, setRefType] = useState<"artigo" | "livro" | "jurisprudencia" | "lei" | "site" | "video">("artigo");
-  const [refProject, setRefProject] = useState("");
+  // Vault
+  const [vaultTitle, setVaultTitle] = useState("");
+  const [vaultAuthor, setVaultAuthor] = useState("");
+  const [vaultType, setVaultType] = useState<VaultItemType>("artigo");
+  const [vaultUrl, setVaultUrl] = useState("");
+  const [vaultProject, setVaultProject] = useState("");
+  const [vaultNotes, setVaultNotes] = useState("");
 
-  // Global listeners
+  // Lab Idea
+  const [ideaTitle, setIdeaTitle] = useState("");
+  const [ideaDesc, setIdeaDesc] = useState("");
+  const [ideaHypothesis, setIdeaHypothesis] = useState("");
+  const [ideaCategory, setIdeaCategory] = useState<ProjectCategory>("software");
+
+  // Person
+  const [personName, setPersonName] = useState("");
+  const [personRole, setPersonRole] = useState("");
+  const [personOrg, setPersonOrg] = useState("");
+  const [personEmail, setPersonEmail] = useState("");
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
@@ -149,22 +161,69 @@ export function QuickCreateModal() {
     router.push(`/projects/${newProj.id}`);
   };
 
-  const handleSubmitReference = (e: React.FormEvent) => {
+  const handleSubmitVault = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!refTitle.trim()) return;
+    if (!vaultTitle.trim()) return;
 
-    addReference({
-      title: refTitle.trim(),
-      author: refAuthor.trim() || undefined,
-      url: refUrl.trim() || undefined,
-      type: refType,
-      projectId: refProject || (projects[0]?.id ?? "proj-varynth"),
+    addVaultItem({
+      title: vaultTitle.trim(),
+      author: vaultAuthor.trim() || undefined,
+      type: vaultType,
+      url: vaultUrl.trim() || undefined,
+      category: "Geral",
+      readingStatus: "para_ler",
+      notes: vaultNotes.trim() || undefined,
+      tags: ["quick-capture"],
+      relatedProjectIds: vaultProject ? [vaultProject] : undefined,
     });
 
-    setRefTitle("");
-    setRefAuthor("");
-    setRefUrl("");
+    setVaultTitle("");
+    setVaultAuthor("");
+    setVaultUrl("");
+    setVaultNotes("");
     setIsOpen(false);
+    router.push("/modules/vault");
+  };
+
+  const handleSubmitIdea = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ideaTitle.trim()) return;
+
+    addLabItem({
+      title: ideaTitle.trim(),
+      description: ideaDesc.trim(),
+      hypothesis: ideaHypothesis.trim() || undefined,
+      category: ideaCategory,
+      stage: "ideia",
+      tags: ["incubacao"],
+    });
+
+    setIdeaTitle("");
+    setIdeaDesc("");
+    setIdeaHypothesis("");
+    setIsOpen(false);
+    router.push("/modules/labs");
+  };
+
+  const handleSubmitPerson = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!personName.trim() || !personRole.trim()) return;
+
+    addPerson({
+      name: personName.trim(),
+      role: personRole.trim(),
+      organization: personOrg.trim() || undefined,
+      email: personEmail.trim() || undefined,
+      tags: ["colaborador"],
+      projectPermissions: [],
+    });
+
+    setPersonName("");
+    setPersonRole("");
+    setPersonOrg("");
+    setPersonEmail("");
+    setIsOpen(false);
+    router.push("/modules/people");
   };
 
   if (!isOpen) return null;
@@ -201,10 +260,11 @@ export function QuickCreateModal() {
         <div className="flex items-center gap-1 px-4 py-2 bg-[#0a0a0f]/40 border-b border-[#1e1e30] overflow-x-auto">
           {[
             { id: "task", label: "Tarefa", icon: CheckSquare },
-            { id: "note", label: "Nota / Ideia", icon: FileText },
+            { id: "note", label: "Nota", icon: FileText },
             { id: "project", label: "Projeto", icon: FolderPlus },
-            { id: "reference", label: "Referência", icon: Link2 },
-            { id: "idea", label: "Labs / Ideia", icon: Lightbulb },
+            { id: "vault", label: "Vault", icon: BookOpen },
+            { id: "idea", label: "Labs", icon: Lightbulb },
+            { id: "person", label: "Colaborador", icon: Users },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -226,7 +286,7 @@ export function QuickCreateModal() {
           })}
         </div>
 
-        {/* Form Body */}
+        {/* Body */}
         <div className="p-5">
           {/* TAREFA */}
           {activeTab === "task" && (
@@ -252,10 +312,10 @@ export function QuickCreateModal() {
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Detalhes ou critérios de aceitação..."
+                  placeholder="Critérios de conclusão..."
                   value={taskDesc}
                   onChange={(e) => setTaskDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none resize-none"
                 />
               </div>
 
@@ -267,13 +327,11 @@ export function QuickCreateModal() {
                   <select
                     value={taskProject}
                     onChange={(e) => setTaskProject(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
                   >
                     <option value="">Geral (Sem projeto)</option>
                     {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title}
-                      </option>
+                      <option key={p.id} value={p.id}>{p.title}</option>
                     ))}
                   </select>
                 </div>
@@ -285,7 +343,7 @@ export function QuickCreateModal() {
                   <select
                     value={taskPriority}
                     onChange={(e) => setTaskPriority(e.target.value as PriorityLevel)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
                   >
                     <option value="baixa">Baixa</option>
                     <option value="media">Média</option>
@@ -302,7 +360,7 @@ export function QuickCreateModal() {
                     type="date"
                     value={taskDueDate}
                     onChange={(e) => setTaskDueDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
                   />
                 </div>
               </div>
@@ -311,13 +369,13 @@ export function QuickCreateModal() {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200"
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent transition-colors"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
                 >
                   Criar Tarefa
                 </button>
@@ -326,7 +384,7 @@ export function QuickCreateModal() {
           )}
 
           {/* NOTA */}
-          {(activeTab === "note" || activeTab === "idea") && (
+          {activeTab === "note" && (
             <form onSubmit={handleSubmitNote} className="space-y-3">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
@@ -335,10 +393,10 @@ export function QuickCreateModal() {
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Resumo da reunião ou nova ideia de arquitetura"
+                  placeholder="Ex: Resumo de reunião ou ideia rápida"
                   value={noteTitle}
                   onChange={(e) => setNoteTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -352,54 +410,21 @@ export function QuickCreateModal() {
                   placeholder="Escreva livremente aqui..."
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60 resize-none font-sans"
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none font-sans"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Projeto Vinculado
-                  </label>
-                  <select
-                    value={noteProject}
-                    onChange={(e) => setNoteProject(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
-                  >
-                    <option value="">Geral / Vault</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Tags (separadas por vírgula)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="ideia, pesquisa, direito"
-                    value={noteTags}
-                    onChange={(e) => setNoteTags(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
-                  />
-                </div>
               </div>
 
               <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200"
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent transition-colors"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
                 >
                   Salvar Nota
                 </button>
@@ -417,10 +442,10 @@ export function QuickCreateModal() {
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Artigo sobre Hermenêutica e Modelos LLM"
+                  placeholder="Ex: Artigo sobre Hermenêutica Jurídica"
                   value={projTitle}
                   onChange={(e) => setProjTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -434,11 +459,11 @@ export function QuickCreateModal() {
                   placeholder="Qual o objetivo principal deste projeto?"
                   value={projDesc}
                   onChange={(e) => setProjDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
                     Categoria
@@ -446,7 +471,7 @@ export function QuickCreateModal() {
                   <select
                     value={projCategory}
                     onChange={(e) => setProjCategory(e.target.value as ProjectCategory)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
                   >
                     <option value="software">Software</option>
                     <option value="pesquisa">Pesquisa</option>
@@ -465,7 +490,7 @@ export function QuickCreateModal() {
                   <select
                     value={projPriority}
                     onChange={(e) => setProjPriority(e.target.value as PriorityLevel)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
                   >
                     <option value="baixa">Baixa</option>
                     <option value="media">Média</option>
@@ -473,132 +498,214 @@ export function QuickCreateModal() {
                     <option value="urgente">Urgente 🔥</option>
                   </select>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Prazo Final
-                  </label>
-                  <input
-                    type="date"
-                    value={projDeadline}
-                    onChange={(e) => setProjDeadline(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Tags (separadas por vírgula)
-                </label>
-                <input
-                  type="text"
-                  placeholder="ia, artigo, q1-2026"
-                  value={projTags}
-                  onChange={(e) => setProjTags(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
-                />
               </div>
 
               <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200"
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent transition-colors"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
                 >
-                  Criar Workspace & Abrir
+                  Criar Workspace
                 </button>
               </div>
             </form>
           )}
 
-          {/* REFERÊNCIA */}
-          {activeTab === "reference" && (
-            <form onSubmit={handleSubmitReference} className="space-y-3">
+          {/* VAULT */}
+          {activeTab === "vault" && (
+            <form onSubmit={handleSubmitVault} className="space-y-3">
               <div>
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                  Título da Referência / Fonte *
+                  Título da Obra / Lei / Artigo *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Artigo: Attention is All You Need ou Súmula Vinculante 10"
-                  value={refTitle}
-                  onChange={(e) => setRefTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                  placeholder="Ex: Teoria dos Agentes Autônomos"
+                  value={vaultTitle}
+                  onChange={(e) => setVaultTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   autoFocus
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Autor / Origem
+                    Tipo
+                  </label>
+                  <select
+                    value={vaultType}
+                    onChange={(e) => setVaultType(e.target.value as VaultItemType)}
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                  >
+                    <option value="artigo">Artigo</option>
+                    <option value="livro">Livro / Doutrina</option>
+                    <option value="jurisprudencia">Jurisprudência</option>
+                    <option value="lei">Legislação</option>
+                    <option value="pdf">PDF / Documento</option>
+                    <option value="link">Link Web</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                    Autor
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Vaswani et al., STF, etc."
-                    value={refAuthor}
-                    onChange={(e) => setRefAuthor(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                    placeholder="Ex: STF, Russell & Norvig"
+                    value={vaultAuthor}
+                    onChange={(e) => setVaultAuthor(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Tipo de Fonte
-                  </label>
-                  <select
-                    value={refType}
-                    onChange={(e) => setRefType(e.target.value as typeof refType)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
-                  >
-                    <option value="artigo">Artigo Científico</option>
-                    <option value="livro">Livro / Doutrina</option>
-                    <option value="jurisprudencia">Jurisprudência</option>
-                    <option value="lei">Legislação / Edital</option>
-                    <option value="site">Página Web / Link</option>
-                    <option value="video">Vídeo / Aula</option>
-                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Link / URL de Acesso
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={vaultUrl}
+                  onChange={(e) => setVaultUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent"
+                >
+                  Salvar no Vault
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* LABS */}
+          {activeTab === "idea" && (
+            <form onSubmit={handleSubmitIdea} className="space-y-3">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Título da Ideia / Hipótese *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Automação de Ementas via API"
+                  value={ideaTitle}
+                  onChange={(e) => setIdeaTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Descrição
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="O que você deseja experimentar?"
+                  value={ideaDesc}
+                  onChange={(e) => setIdeaDesc(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Hipótese
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Se fizermos X, economizamos 5 horas de fichamento..."
+                  value={ideaHypothesis}
+                  onChange={(e) => setIdeaHypothesis(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#1e1e30]">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white"
+                >
+                  Incubar no Labs
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* COLABORADOR */}
+          {activeTab === "person" && (
+            <form onSubmit={handleSubmitPerson} className="space-y-3">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Mariana Costa"
+                  value={personName}
+                  onChange={(e) => setPersonName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Link / URL (Opcional)
+                    Cargo / Função *
                   </label>
                   <input
-                    type="url"
-                    placeholder="https://..."
-                    value={refUrl}
-                    onChange={(e) => setRefUrl(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                    type="text"
+                    required
+                    placeholder="Ex: Diretora de Pesquisa"
+                    value={personRole}
+                    onChange={(e) => setPersonRole(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
-                    Vincular a Projeto
+                    Organização
                   </label>
-                  <select
-                    value={refProject}
-                    onChange={(e) => setRefProject(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none focus:border-violet-500/60"
-                  >
-                    <option value="">Geral / Vault</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    placeholder="Ex: Universidade X"
+                    value={personOrg}
+                    onChange={(e) => setPersonOrg(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                  />
                 </div>
               </div>
 
@@ -606,15 +713,15 @@ export function QuickCreateModal() {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200"
+                  className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white glow-accent transition-colors"
+                  className="px-5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
                 >
-                  Adicionar Referência
+                  Cadastrar Colaborador
                 </button>
               </div>
             </form>
@@ -626,4 +733,3 @@ export function QuickCreateModal() {
     </div>
   );
 }
-

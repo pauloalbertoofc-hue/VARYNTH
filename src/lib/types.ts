@@ -3,3 +3,7 @@ export * from "./types/task";
 export * from "./types/note";
 export * from "./types/activity";
 export * from "./types/module";
+export * from "./types/vault";
+export * from "./types/chronos";
+export * from "./types/person";
+export * from "./types/lab";
