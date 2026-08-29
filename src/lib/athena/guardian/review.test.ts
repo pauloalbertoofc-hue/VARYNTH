@@ -36,25 +36,28 @@ async function runReviewCenterTests() {
 
   // 3. Mark As Read & Audit Tracking
   documentationGuardian.markAsRead(rev1.id, "Paulo");
-  assert(rev1.hasBeenRead, "Draft marcado como lido após inspeção no Review Viewer");
+  const readRev1 = documentationGuardian.getReviewItem(rev1.id)!;
+  assert(readRev1.hasBeenRead, "Draft marcado como lido após inspeção no Review Viewer");
   assert(
-    rev1.auditTrail.some((a) => a.action === "VIEWED"),
+    readRev1.auditTrail.some((a) => a.action === "VIEWED"),
     "Trilha de auditoria registrou ação VIEWED do revisor humano"
   );
 
   // 4. Edit Draft Content
   const modifiedText = rev1.fullDraftContent + "\n\n<!-- Revisado e validado por Paulo -->";
   documentationGuardian.updateDraftContent(rev1.id, modifiedText, "Paulo");
-  assert(rev1.editedContent === modifiedText, "Conteúdo editado armazenado com sucesso");
+  const editedRev1 = documentationGuardian.getReviewItem(rev1.id)!;
+  assert(editedRev1.editedContent === modifiedText, "Conteúdo editado armazenado com sucesso");
   assert(
-    rev1.auditTrail.some((a) => a.action === "EDITED"),
+    editedRev1.auditTrail.some((a) => a.action === "EDITED"),
     "Trilha de auditoria registrou ação EDITED"
   );
 
   // 5. Approve Review with Edited Content
   documentationGuardian.approveReview(rev1.id, "Paulo", modifiedText);
-  assert(rev1.status === "APPROVED", "Status do draft atualizado para APPROVED");
-  assert(rev1.reviewedBy === "Paulo", "Revisor humano registrado no documento");
+  const approvedRev1 = documentationGuardian.getReviewItem(rev1.id)!;
+  assert(approvedRev1.status === "APPROVED", "Status do draft atualizado para APPROVED");
+  assert(approvedRev1.reviewedBy === "Paulo", "Revisor humano registrado no documento");
 
   const auditLog = documentationGuardian.listAuditLog();
   assert(
@@ -66,7 +69,9 @@ async function runReviewCenterTests() {
   const rev2 = allReviews[1];
   const rejectReason = "Ajustar premissas do workspace antes de incorporar.";
   documentationGuardian.rejectReview(rev2.id, "Paulo", rejectReason);
-  assert(rev2.status === "REJECTED", "Status do draft atualizado para REJECTED");
+  const rejectedRev2 = documentationGuardian.getReviewItem(rev2.id)!;
+  assert(rejectedRev2.status === "REJECTED", "Status do draft atualizado para REJECTED");
+  assert(rejectedRev2.rejectionReason === rejectReason, "Motivo da rejeição gravado permanentemente");
   const updatedAuditLog = documentationGuardian.listAuditLog();
   assert(
     updatedAuditLog.some((l) => l.type === "HUMAN_REJECTED"),
@@ -86,4 +91,3 @@ runReviewCenterTests().catch((err) => {
   console.error("Erro fatal nos testes do Review Center:", err);
   process.exit(1);
 });
-

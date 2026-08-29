@@ -14,6 +14,20 @@ export class ReviewStore {
 
   constructor() {
     this.init();
+    this.setupStorageListener();
+  }
+
+  private setupStorageListener(): void {
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      window.addEventListener("storage", (event) => {
+        if (event.key === STORAGE_KEY_REVIEWS || event.key === STORAGE_KEY_AUDIT) {
+          this.reloadFromStorage();
+          athenaEventBus.emit("DOCUMENTATION_UPDATED", {
+            source: "storage_event",
+          });
+        }
+      });
+    }
   }
 
   private init(): void {
@@ -24,14 +38,26 @@ export class ReviewStore {
         const storedAudit = localStorage.getItem(STORAGE_KEY_AUDIT);
 
         if (storedReviews) {
-          this.reviews = JSON.parse(storedReviews);
+          const parsed = JSON.parse(storedReviews);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.reviews = parsed;
+          } else {
+            this.reviews = this.getInitialSeedReviews();
+            this.saveToStorage();
+          }
         } else {
           this.reviews = this.getInitialSeedReviews();
           this.saveToStorage();
         }
 
         if (storedAudit) {
-          this.auditLog = JSON.parse(storedAudit);
+          const parsedAudit = JSON.parse(storedAudit);
+          if (Array.isArray(parsedAudit) && parsedAudit.length > 0) {
+            this.auditLog = parsedAudit;
+          } else {
+            this.auditLog = this.getInitialSeedAudit();
+            this.saveToStorage();
+          }
         } else {
           this.auditLog = this.getInitialSeedAudit();
           this.saveToStorage();
@@ -66,27 +92,34 @@ export class ReviewStore {
   }
 
   public getAllReviews(): DocumentationReviewItem[] {
-    return [...this.reviews];
+    return JSON.parse(JSON.stringify(this.reviews));
   }
 
   public getPendingReviews(): DocumentationReviewItem[] {
-    return this.reviews.filter((r) => r.status === "PENDING_REVIEW");
+    return JSON.parse(
+      JSON.stringify(this.reviews.filter((r) => r.status === "PENDING_REVIEW"))
+    );
   }
 
   public getApprovedReviews(): DocumentationReviewItem[] {
-    return this.reviews.filter((r) => r.status === "APPROVED");
+    return JSON.parse(
+      JSON.stringify(this.reviews.filter((r) => r.status === "APPROVED"))
+    );
   }
 
   public getRejectedReviews(): DocumentationReviewItem[] {
-    return this.reviews.filter((r) => r.status === "REJECTED");
+    return JSON.parse(
+      JSON.stringify(this.reviews.filter((r) => r.status === "REJECTED"))
+    );
   }
 
   public getReviewById(id: string): DocumentationReviewItem | undefined {
-    return this.reviews.find((r) => r.id === id);
+    const item = this.reviews.find((r) => r.id === id);
+    return item ? JSON.parse(JSON.stringify(item)) : undefined;
   }
 
   public getAuditLog(): DocumentationAuditRecord[] {
-    return [...this.auditLog];
+    return JSON.parse(JSON.stringify(this.auditLog));
   }
 
   public markAsRead(id: string, reader: string = "Paulo"): boolean {
@@ -185,7 +218,7 @@ export class ReviewStore {
       targetDocument: item.targetDocument,
     });
 
-    return { success: true, item };
+    return { success: true, item: JSON.parse(JSON.stringify(item)) };
   }
 
   public rejectReview(
@@ -235,7 +268,7 @@ export class ReviewStore {
       reason,
     });
 
-    return { success: true, item };
+    return { success: true, item: JSON.parse(JSON.stringify(item)) };
   }
 
   public resetToDemo(): void {
@@ -413,4 +446,3 @@ Testes com múltiplas paráfrases e turnos de contexto.
 }
 
 export const reviewStore = new ReviewStore();
-
