@@ -35,3 +35,4 @@ export interface AcademicResearch {
   tags: string[];
   createdAt: string;
 }
+

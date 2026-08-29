@@ -10,3 +10,4 @@ export * from "./types/lab";
 export * from "./types/codex";
 export * from "./types/research";
 export * from "./types/opportunity";
+export * from "./types/athena";

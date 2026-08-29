@@ -32,3 +32,4 @@ export interface LegalSubject {
   topicsCount: number;
   tags: string[];
 }
+
