@@ -2,6 +2,7 @@
 
 import { Bell, Search, Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 interface NavbarProps {
   title?: string;
@@ -67,17 +68,7 @@ export function Navbar({ title, subtitle }: NavbarProps) {
         </button>
 
         {/* Notifications / Status */}
-        <button
-          className={cn(
-            "relative w-8 h-8 rounded-lg flex items-center justify-center",
-            "text-slate-400 hover:text-slate-100 hover:bg-white/5",
-            "border border-[#1e1e30] hover:border-violet-500/30 transition-all duration-200"
-          )}
-          title="Notificações do Sistema"
-        >
-          <Bell size={14} />
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-        </button>
+        <NotificationCenter />
 
         {/* System Pill */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#14141f] border border-[#1e1e30] text-[10px] font-medium text-violet-300">

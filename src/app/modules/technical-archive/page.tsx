@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useState, useMemo, useEffect, useCallback } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
   TECHNICAL_DOCS,
@@ -9,8 +8,6 @@ import {
   LESSONS_LEARNED_LIST,
   TechnicalDocItem,
   ComponentStatus,
-  ADRItem,
-  LessonLearnedItem,
 } from "@/lib/docs/docs-data";
 import { documentationGuardian } from "@/lib/athena/guardian/documentation-guardian";
 import { reviewStore } from "@/lib/athena/guardian/review-store";
@@ -91,19 +88,12 @@ export default function TechnicalArchivePage() {
 
   // Re-hydrate from localStorage on client-side mount
   useEffect(() => {
-  // Synchronize state from storage
-  const syncStateFromStore = useCallback(() => {
     reviewStore.reloadFromStorage();
     const all = reviewStore.getAllReviews();
     setReviewQueue(all);
     setAuditLog(reviewStore.getAuditLog());
     setHealthReport(documentationGuardian.assessHealth());
   }, []);
-
-  // Re-hydrate from localStorage on client-side mount
-  useEffect(() => {
-    syncStateFromStore();
-  }, [syncStateFromStore]);
 
   // Derived counts from source of truth
   const pendingReviewsCount = useMemo(
@@ -119,80 +109,6 @@ export default function TechnicalArchivePage() {
     [reviewQueue]
   );
 
-  // Filtered Review Queue for Master-Detail list
-  const filteredReviewQueue = useMemo(() => {
-    return reviewQueue.filter(
-      (r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter
-    );
-  }, [reviewQueue, reviewStatusFilter]);
-
-  // Active Item in the Workspace
-  const activeReviewItem = useMemo(() => {
-    return (
-      filteredReviewQueue.find((r) => r.id === selectedInlineReviewId) ||
-      filteredReviewQueue[0] ||
-      reviewQueue[0]
-    );
-  }, [filteredReviewQueue, selectedInlineReviewId, reviewQueue]);
-
-  // Dynamically merged ADRs (including newly approved ADRs)
-  const allADRs = useMemo(() => {
-    const approvedADRs = reviewQueue.filter(
-      (r) => r.status === "APPROVED" && r.type === "ADR"
-    );
-    const dynamicList: ADRItem[] = [...ADR_LIST];
-
-    approvedADRs.forEach((approved) => {
-      if (!dynamicList.some((a) => a.title.includes("ADR-007") || a.id === "ADR-007")) {
-        dynamicList.push({
-          id: "ADR-007",
-          number: "ADR-007",
-          title: "WebAssembly Rust Vector Engine para Busca Semântica Offline",
-          status: "Accepted",
-          date: approved.reviewedAt ? approved.reviewedAt.slice(0, 10) : "2026-08-29",
-          context: approved.rationale,
-          decision: "Compilação de motor vetorial nativo em Rust para WebAssembly (WASM) rodando 100% offline no navegador/Node.js.",
-          rationale: approved.rationale,
-          alternatives: [
-            "Embeddings via API de nuvem (Rejeitada por soberania)",
-            "Chroma/Qdrant standalone em C++ (Rejeitada por sobrecarga de setup)",
-          ],
-          consequences: {
-            gains: ["Busca semântica em <10ms", "100% offline e sem custos de nuvem"],
-            tradeoffs: ["Carregamento inicial de modelo leve de embeddings"],
-          },
-        });
-      }
-    });
-
-    return dynamicList;
-  }, [reviewQueue]);
-
-  // Dynamically merged Lessons Learned (including newly approved Lessons)
-  const allLessons = useMemo(() => {
-    const approvedLessons = reviewQueue.filter(
-      (r) => r.status === "APPROVED" && r.type === "LESSON_LEARNED"
-    );
-    const dynamicList: LessonLearnedItem[] = [...LESSONS_LEARNED_LIST];
-
-    approvedLessons.forEach((approved) => {
-      if (!dynamicList.some((l) => l.number === "05" || l.id === "les-05")) {
-        dynamicList.push({
-          id: "les-05",
-          number: "05",
-          title: "Isolamento Estrito de Escopo em Workspaces de Projetos",
-          problem: "Ao consultar projetos em abas específicas, anáforas genéricas misturavam tarefas globais.",
-          observation: "O contexto local deve ter prioridade máxima sobre o contexto global.",
-          decision: "Injetar targetProjectId ativo como escopo primário e resolver anáforas com precedência local estrita.",
-          result: "Zero contaminação entre pesquisas de projetos distintos e resolução determinística no ConversationManager.",
-          linkedRegressionTest: "ATH-CONV-004",
-        });
-      }
-    });
-
-    return dynamicList;
-  }, [reviewQueue]);
-
   // Refresh Guardian Health & Sync
   const handleRefreshGuardian = () => {
     reviewStore.reloadFromStorage();
@@ -200,7 +116,6 @@ export default function TechnicalArchivePage() {
     setHealthReport(report);
     setReviewQueue(documentationGuardian.listAllReviews());
     setAuditLog(documentationGuardian.listAuditLog());
-    syncStateFromStore();
     setActionMessage("Auditoria e fila documental sincronizadas com sucesso.");
     setTimeout(() => setActionMessage(null), 3000);
   };
@@ -223,7 +138,6 @@ export default function TechnicalArchivePage() {
       setReviewQueue(all);
       setAuditLog(documentationGuardian.listAuditLog());
       setHealthReport(documentationGuardian.assessHealth());
-      syncStateFromStore();
       setActionMessage(`Proposta ${id} aprovada, publicada e persistida com sucesso.`);
     } finally {
       setIsProcessing(false);
@@ -244,7 +158,6 @@ export default function TechnicalArchivePage() {
       setReviewQueue(all);
       setAuditLog(documentationGuardian.listAuditLog());
       setHealthReport(documentationGuardian.assessHealth());
-      syncStateFromStore();
       setActionMessage(`Proposta ${id} rejeitada e registrada na memória de auditoria.`);
     } finally {
       setIsProcessing(false);
@@ -287,8 +200,6 @@ export default function TechnicalArchivePage() {
   const selectedAdr = useMemo(() => {
     return ADR_LIST.find((a) => a.id === selectedAdrId) || ADR_LIST[0];
   }, [selectedAdrId]);
-    return allADRs.find((a) => a.id === selectedAdrId) || allADRs[0];
-  }, [selectedAdrId, allADRs]);
 
   const getStatusBadge = (status: ComponentStatus) => {
     switch (status) {
@@ -465,7 +376,6 @@ export default function TechnicalArchivePage() {
           >
             <FileCode2 className="w-4 h-4" />
             Decisões de Arquitetura (ADRs)
-            Decisões de Arquitetura (ADRs) ({allADRs.length})
           </button>
 
           <button
@@ -478,7 +388,6 @@ export default function TechnicalArchivePage() {
           >
             <History className="w-4 h-4" />
             Lições Aprendidas
-            Lições Aprendidas ({allLessons.length})
           </button>
 
           <button
@@ -606,12 +515,10 @@ export default function TechnicalArchivePage() {
                     <span>1. Selecione o Arquivo / Proposta:</span>
                     <span className="text-[10px] text-cyan-400">
                       {reviewQueue.filter((r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter).length} exibidos
-                      {filteredReviewQueue.length} exibidos
                     </span>
                   </div>
 
                   {reviewQueue.filter((r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter).length === 0 ? (
-                  {filteredReviewQueue.length === 0 ? (
                     <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/60 text-xs text-slate-500 font-mono">
                       Zero itens encontrados para o filtro selecionado.
                     </div>
@@ -639,34 +546,6 @@ export default function TechnicalArchivePage() {
                                 <span className="text-xs font-mono font-bold text-cyan-400">{item.id}</span>
                                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                                   {item.type}
-                    filteredReviewQueue.map((item) => {
-                      const isSelected = activeReviewItem?.id === item.id;
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            setSelectedInlineReviewId(item.id);
-                            documentationGuardian.markAsRead(item.id, "Paulo");
-                          }}
-                          className={`p-4 rounded-xl border transition-all cursor-pointer space-y-2.5 ${
-                            isSelected
-                              ? "bg-cyan-950/30 border-cyan-500/60 shadow-lg shadow-cyan-950/40"
-                              : "bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-950"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${isSelected ? "bg-cyan-400 animate-pulse" : "bg-slate-600"}`} />
-                              <span className="text-xs font-mono font-bold text-cyan-400">{item.id}</span>
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                                {item.type}
-                              </span>
-                            </div>
-
-                            <div>
-                              {item.status === "PENDING_REVIEW" && (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
-                                  Aguardando
                                 </span>
                               </div>
 
@@ -687,33 +566,15 @@ export default function TechnicalArchivePage() {
                                   </span>
                                 )}
                               </div>
-                              )}
-                              {item.status === "APPROVED" && (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1">
-                                  <Check className="w-3 h-3" /> Aprovado
-                                </span>
-                              )}
-                              {item.status === "REJECTED" && (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-bold flex items-center gap-1">
-                                  <X className="w-3 h-3" /> Rejeitado
-                                </span>
-                              )}
                             </div>
-                          </div>
 
                             <h4 className="text-xs font-bold text-white leading-snug">
                               {item.title}
                             </h4>
-                          <h4 className="text-xs font-bold text-white leading-snug">
-                            {item.title}
-                          </h4>
 
                             <p className="text-[11px] text-slate-400 line-clamp-2">
                               {item.summary}
                             </p>
-                          <p className="text-[11px] text-slate-400 line-clamp-2">
-                            {item.summary}
-                          </p>
 
                             <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono text-slate-500">
                               <span className="truncate max-w-[200px] text-cyan-300">
@@ -723,19 +584,9 @@ export default function TechnicalArchivePage() {
                                 {isSelected ? "✓ Ativo na Workspace" : "Clique para abrir →"}
                               </span>
                             </div>
-                          <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono text-slate-500">
-                            <span className="truncate max-w-[200px] text-cyan-300">
-                              {item.targetDocument}
-                            </span>
-                            <span className="text-cyan-400 font-bold flex items-center gap-1">
-                              {isSelected ? "✓ Ativo na Workspace" : "Clique para abrir →"}
-                            </span>
                           </div>
                         );
                       })
-                        </div>
-                      );
-                    })
                   )}
                 </div>
 
@@ -744,51 +595,14 @@ export default function TechnicalArchivePage() {
                   {(() => {
                     const activeItem = reviewQueue.find((r) => r.id === selectedInlineReviewId) || reviewQueue[0];
                     if (!activeItem) {
-                  {!activeReviewItem ? (
-                    <div className="p-12 text-center text-slate-500 font-mono text-xs">
-                      Nenhum documento selecionado para visualização.
-                    </div>
-                  ) : (
-                    (() => {
-                      const activeItem = activeReviewItem;
-                      const activeDraftContent =
-                        inlineEdits[activeItem.id] ||
-                        activeItem.editedContent ||
-                        activeItem.fullDraftContent;
-
                       return (
                         <div className="p-12 text-center text-slate-500 font-mono text-xs">
                           Nenhum documento selecionado para visualização.
                         </div>
                       );
                     }
-                        <div className="space-y-4 flex-1 flex flex-col">
-                          {/* WORKSPACE HEADER */}
-                          <div className="border-b border-slate-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-mono font-bold text-cyan-400">{activeItem.id}</span>
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">
-                                  {activeItem.changeType === "NEW_DOCUMENT" ? "NOVO DOCUMENTO" : "ATUALIZAÇÃO"}
-                                </span>
-                                <span className="text-[10px] font-mono text-slate-400">
-                                  Alvo: <code className="text-cyan-300">{activeItem.targetDocument}</code>
-                                </span>
-                              </div>
-                              <h3 className="text-sm font-bold text-white leading-tight">
-                                {activeItem.title}
-                              </h3>
-                            </div>
 
                     const activeDraftContent = inlineEdits[activeItem.id] || activeItem.editedContent || activeItem.fullDraftContent;
-                            <button
-                              onClick={() => handleOpenReview(activeItem)}
-                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors self-start sm:self-auto shrink-0"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
-                              Abrir em Tela Cheia
-                            </button>
-                          </div>
 
                     return (
                       <div className="space-y-4 flex-1 flex flex-col">
@@ -807,31 +621,6 @@ export default function TechnicalArchivePage() {
                             <h3 className="text-sm font-bold text-white leading-tight">
                               {activeItem.title}
                             </h3>
-                          {/* WORKSPACE TABS */}
-                          <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800/80 pb-2 text-xs">
-                            {[
-                              { id: "doc", label: "Documento Completo", icon: FileText },
-                              ...(activeItem.currentVersionContent ? [{ id: "diff", label: "Comparação (Diff)", icon: FileCode2 }] : []),
-                              { id: "evidences", label: `Evidências (${activeItem.interactiveEvidences.length})`, icon: Sparkles },
-                              { id: "edit", label: "Editar Texto", icon: FileCheck },
-                              { id: "audit", label: "Trilha de Auditoria", icon: Clock },
-                            ].map((t) => {
-                              const Icon = t.icon;
-                              return (
-                                <button
-                                  key={t.id}
-                                  onClick={() => setInlineTab(t.id as any)}
-                                  className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
-                                    inlineTab === t.id
-                                      ? "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm"
-                                      : "text-slate-400 hover:text-white hover:bg-slate-900"
-                                  }`}
-                                >
-                                  <Icon className="w-3.5 h-3.5" />
-                                  {t.label}
-                                </button>
-                              );
-                            })}
                           </div>
 
                           <button
@@ -842,17 +631,6 @@ export default function TechnicalArchivePage() {
                             Abrir em Tela Cheia
                           </button>
                         </div>
-                          {/* WORKSPACE CONTENT BODY */}
-                          <div className="flex-1 min-h-[360px] max-h-[500px] overflow-y-auto pr-1 space-y-4">
-                            {inlineTab === "doc" && (
-                              <div className="space-y-4">
-                                <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 space-y-1">
-                                  <strong className="text-cyan-400 font-mono text-[10px] uppercase">
-                                    Resumo & Rationale:
-                                  </strong>
-                                  <p>{activeItem.summary}</p>
-                                  <p className="text-slate-400 text-[11px] pt-1">{activeItem.rationale}</p>
-                                </div>
 
                         {/* WORKSPACE TABS */}
                         <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800/80 pb-2 text-xs">
@@ -891,37 +669,13 @@ export default function TechnicalArchivePage() {
                                 </strong>
                                 <p>{activeItem.summary}</p>
                                 <p className="text-slate-400 text-[11px] pt-1">{activeItem.rationale}</p>
-                                <div className="p-5 rounded-xl bg-slate-900 border border-slate-800/80 font-sans text-xs text-slate-200 leading-relaxed whitespace-pre-line shadow-inner">
-                                  {activeDraftContent}
-                                </div>
                               </div>
-                            )}
 
                               <div className="p-5 rounded-xl bg-slate-900 border border-slate-800/80 font-sans text-xs text-slate-200 leading-relaxed whitespace-pre-line shadow-inner">
                                 {activeDraftContent}
-                            {inlineTab === "diff" && activeItem.currentVersionContent && (
-                              <div className="space-y-3">
-                                <div className="text-[11px] font-mono text-slate-400">
-                                  Comparação direta com a versão atual em <code className="text-cyan-300">{activeItem.targetDocument}</code>:
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  <div className="p-3.5 rounded-xl bg-red-950/20 border border-red-900/30 space-y-1.5">
-                                    <div className="text-[10px] font-mono font-bold text-red-400 uppercase">Versão Atual</div>
-                                    <pre className="text-[11px] font-mono text-red-300/80 whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                                      {activeItem.currentVersionContent}
-                                    </pre>
-                                  </div>
-                                  <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/30 space-y-1.5">
-                                    <div className="text-[10px] font-mono font-bold text-emerald-400 uppercase">Versão Proposta</div>
-                                    <pre className="text-[11px] font-mono text-emerald-300 whitespace-pre-wrap max-h-[300px] overflow-y-auto">
-                                      {activeDraftContent}
-                                    </pre>
-                                  </div>
-                                </div>
                               </div>
                             </div>
                           )}
-                            )}
 
                           {inlineTab === "diff" && activeItem.currentVersionContent && (
                             <div className="space-y-3">
@@ -934,86 +688,27 @@ export default function TechnicalArchivePage() {
                                   <pre className="text-[11px] font-mono text-red-300/80 whitespace-pre-wrap max-h-[300px] overflow-y-auto">
                                     {activeItem.currentVersionContent}
                                   </pre>
-                            {inlineTab === "evidences" && (
-                              <div className="space-y-3">
-                                <div className="text-xs text-slate-400">
-                                  Evidências empíricas e contratuais utilizadas para fundamentar esta proposta:
                                 </div>
                                 <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/30 space-y-1.5">
                                   <div className="text-[10px] font-mono font-bold text-emerald-400 uppercase">Versão Proposta</div>
                                   <pre className="text-[11px] font-mono text-emerald-300 whitespace-pre-wrap max-h-[300px] overflow-y-auto">
                                     {activeDraftContent}
                                   </pre>
-                                <div className="grid grid-cols-1 gap-2.5">
-                                  {activeItem.interactiveEvidences.map((ev, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between group hover:border-cyan-500/40 transition-all"
-                                    >
-                                      <div className="space-y-0.5">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">
-                                            {ev.type}
-                                          </span>
-                                          <span className="text-xs font-bold text-white">{ev.label}</span>
-                                        </div>
-                                        <p className="text-[11px] text-slate-400">{ev.description}</p>
-                                      </div>
-
-                                      <button
-                                        onClick={() => handleNavigateToEvidence(ev)}
-                                        className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-mono flex items-center gap-1 transition-colors shrink-0"
-                                      >
-                                        Abrir <ChevronRight className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  ))}
                                 </div>
                               </div>
                             </div>
                           )}
-                            )}
 
                           {inlineTab === "evidences" && (
                             <div className="space-y-3">
                               <div className="text-xs text-slate-400">
                                 Evidências empíricas e contratuais utilizadas para fundamentar esta proposta:
-                            {inlineTab === "edit" && (
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between text-xs text-slate-400">
-                                  <span>Edição direta em Markdown antes da publicação:</span>
-                                  <button
-                                    onClick={() => {
-                                      const next = { ...inlineEdits };
-                                      delete next[activeItem.id];
-                                      setInlineEdits(next);
-                                    }}
-                                    className="text-[11px] text-cyan-400 hover:underline"
-                                  >
-                                    Restaurar Original
-                                  </button>
-                                </div>
-
-                                <textarea
-                                  value={activeDraftContent}
-                                  onChange={(e) =>
-                                    setInlineEdits({ ...inlineEdits, [activeItem.id]: e.target.value })
-                                  }
-                                  rows={14}
-                                  className="w-full p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500 leading-relaxed"
-                                />
                               </div>
                               <div className="grid grid-cols-1 gap-2.5">
                                 {activeItem.interactiveEvidences.map((ev, idx) => (
-                            )}
-
-                            {inlineTab === "audit" && (
-                              <div className="space-y-2">
-                                {activeItem.auditTrail.map((audit, idx) => (
                                   <div
                                     key={idx}
                                     className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between group hover:border-cyan-500/40 transition-all"
-                                    className="p-3 rounded-xl bg-slate-900 border border-slate-800/80 text-xs flex items-center justify-between"
                                   >
                                     <div className="space-y-0.5">
                                       <div className="flex items-center gap-2">
@@ -1021,11 +716,6 @@ export default function TechnicalArchivePage() {
                                           {ev.type}
                                         </span>
                                         <span className="text-xs font-bold text-white">{ev.label}</span>
-                                    <div>
-                                      <span className="font-mono text-cyan-400 font-bold">[{audit.action}]</span>{" "}
-                                      <span className="text-slate-200">{audit.details}</span>
-                                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                        Ator: {audit.actor} • {audit.timestamp}
                                       </div>
                                       <p className="text-[11px] text-slate-400">{ev.description}</p>
                                     </div>
@@ -1041,8 +731,6 @@ export default function TechnicalArchivePage() {
                               </div>
                             </div>
                           )}
-                            )}
-                          </div>
 
                           {inlineTab === "edit" && (
                             <div className="space-y-3">
@@ -1068,10 +756,6 @@ export default function TechnicalArchivePage() {
                                 rows={14}
                                 className="w-full p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500 leading-relaxed"
                               />
-                          {/* REJECTION REASON BOX IF REJECTED */}
-                          {activeItem.status === "REJECTED" && activeItem.rejectionReason && (
-                            <div className="p-3 rounded-xl bg-red-950/30 border border-red-900/50 text-xs text-red-300">
-                              <strong className="text-red-400">Motivo da Rejeição Registrado:</strong> {activeItem.rejectionReason}
                             </div>
                           )}
 
@@ -1091,17 +775,6 @@ export default function TechnicalArchivePage() {
                                   </div>
                                 </div>
                               ))}
-                          {/* WORKSPACE FOOTER ACTIONS */}
-                          <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                              <span>
-                                {activeItem.status === "APPROVED"
-                                  ? "Documento aprovado e publicado oficialmente na base documental."
-                                  : activeItem.status === "REJECTED"
-                                  ? "Proposta rejeitada com justificativa registrada no histórico."
-                                  : "Documento inspecionado e pronto para decisão humana."}
-                              </span>
                             </div>
                           )}
                         </div>
@@ -1112,20 +785,6 @@ export default function TechnicalArchivePage() {
                             <strong className="text-red-400">Motivo da Rejeição Registrado:</strong> {activeItem.rejectionReason}
                           </div>
                         )}
-                            <div className="flex items-center gap-2">
-                              {activeItem.status === "PENDING_REVIEW" && (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setInlineRejectingId(activeItem.id);
-                                      setInlineRejectReason("");
-                                    }}
-                                    disabled={isProcessing}
-                                    className="px-3.5 py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-800 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                    Rejeitar
-                                  </button>
 
                         {/* WORKSPACE FOOTER ACTIONS */}
                         <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1139,20 +798,6 @@ export default function TechnicalArchivePage() {
                                 : "Documento inspecionado e pronto para decisão humana."}
                             </span>
                           </div>
-                                  <button
-                                    onClick={() => handleApproveReview(activeItem.id, inlineEdits[activeItem.id])}
-                                    disabled={isProcessing}
-                                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
-                                  >
-                                    {isProcessing ? (
-                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    ) : (
-                                      <Check className="w-3.5 h-3.5" />
-                                    )}
-                                    Aprovar & Publicar em /docs
-                                  </button>
-                                </>
-                              )}
 
                           <div className="flex items-center gap-2">
                             {activeItem.status === "PENDING_REVIEW" && (
@@ -1189,20 +834,11 @@ export default function TechnicalArchivePage() {
                                 Decisão concluída ({activeItem.status})
                               </span>
                             )}
-                              {activeItem.status !== "PENDING_REVIEW" && (
-                                <span className="text-xs font-mono text-cyan-300 font-bold px-3 py-1 rounded bg-cyan-950/60 border border-cyan-800/60">
-                                  Decisão concluída ({activeItem.status})
-                                </span>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </div>
                     );
                   })()}
-                      );
-                    })()
-                  )}
                 </div>
               </div>
             </div>
@@ -1442,10 +1078,8 @@ export default function TechnicalArchivePage() {
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-2">
               <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold px-2 py-1">
                 Registro de Decisões (ADRs)
-                Registro de Decisões (ADRs) ({allADRs.length})
               </h4>
               {ADR_LIST.map((adr) => (
-              {allADRs.map((adr) => (
                 <button
                   key={adr.id}
                   onClick={() => setSelectedAdrId(adr.id)}
@@ -1498,7 +1132,6 @@ export default function TechnicalArchivePage() {
                   <h5 className="text-[11px] font-mono text-amber-400 uppercase tracking-wider font-bold">4. Alternativas Consideradas</h5>
                   <ul className="list-disc list-inside mt-1 space-y-1 text-slate-400">
                     {selectedAdr.alternatives.map((alt, i) => (
-                    {selectedAdr?.alternatives?.map((alt: string, i: number) => (
                       <li key={i}>{alt}</li>
                     ))}
                   </ul>
@@ -1515,7 +1148,6 @@ export default function TechnicalArchivePage() {
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <History className="w-5 h-5 text-cyan-400" />
                 Lições Aprendidas & Memória de Engenharia
-                Lições Aprendidas & Memória de Engenharia ({allLessons.length})
               </h3>
               <p className="text-xs text-slate-400 mt-1">
                 Falhas reais observadas em produção, refatorações necessárias e princípios arquiteturais derivados.
@@ -1524,7 +1156,6 @@ export default function TechnicalArchivePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {LESSONS_LEARNED_LIST.map((lesson) => (
-              {allLessons.map((lesson) => (
                 <div key={lesson.id} className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono font-bold text-cyan-400">Lição #{lesson.number}</span>

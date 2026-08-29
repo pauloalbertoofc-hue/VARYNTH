@@ -19,7 +19,10 @@ export type AthenaEventType =
   | "ARCHITECTURE_CHANGED"
   | "DOCUMENTATION_OUTDATED"
   | "DOCUMENTATION_UPDATED"
-  | "DOCUMENTATION_REVIEW_REQUIRED";
+  | "DOCUMENTATION_REVIEW_REQUIRED"
+  | "SYSTEM_ALERT"
+  | "DEADLINE_APPROACHING"
+  | "TASK_OVERDUE";
 
 export interface AthenaEvent<T = unknown> {
   type: AthenaEventType;
