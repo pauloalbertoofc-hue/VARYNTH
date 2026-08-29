@@ -6,7 +6,8 @@ export type GraphNodeType =
   | "opportunity"
   | "person"
   | "lab"
-  | "forge";
+  | "forge"
+  | "artifact";
 
 export interface GraphNode {
   id: string;

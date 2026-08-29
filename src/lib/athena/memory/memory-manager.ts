@@ -26,11 +26,40 @@ export interface SemanticConcept {
   tags: string[];
 }
 
+const STORAGE_KEY_EPISODIC = "varynth_athena_episodic_memory";
+
 export class MemoryManager {
   private sessionMemory: Map<string, SessionMemory> = new Map();
   private workingMemories: Map<string, WorkingMemory> = new Map();
   private episodicMemory: EpisodicMemoryEntry[] = [];
   private semanticMemory: SemanticConcept[] = [];
+
+  constructor() {
+    this.loadFromStorage();
+  }
+
+  private loadFromStorage(): void {
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_EPISODIC);
+        if (stored) {
+          this.episodicMemory = JSON.parse(stored);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private saveToStorage(): void {
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        localStorage.setItem(STORAGE_KEY_EPISODIC, JSON.stringify(this.episodicMemory));
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   // Session
   getSession(sessionId: string): SessionMemory {
@@ -60,7 +89,7 @@ export class MemoryManager {
     this.workingMemories.delete(taskId);
   }
 
-  // Episodic Memory (Histórico de decisões)
+  // Episodic Memory (Histórico de decisões persistido)
   recordEpisode(summary: string, scope: string): void {
     this.episodicMemory.unshift({
       id: "ep-" + Date.now(),
@@ -69,10 +98,11 @@ export class MemoryManager {
       timestamp: new Date().toISOString(),
     });
     this.episodicMemory = this.episodicMemory.slice(0, 50);
+    this.saveToStorage();
   }
 
   getRecentEpisodes(limit = 5): EpisodicMemoryEntry[] {
-    return this.episodicMemory.slice(0, limit);
+    return JSON.parse(JSON.stringify(this.episodicMemory.slice(0, limit)));
   }
 
   // Vector Contract Placeholder (Pronto para embeddings futuros)

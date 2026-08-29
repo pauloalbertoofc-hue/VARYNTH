@@ -47,9 +47,12 @@ import {
   Download,
   FileText,
   Loader2,
+  Database,
+  Package,
 } from "lucide-react";
 import { ExportModal } from "@/components/docs/ExportModal";
 import { DocumentReviewViewer } from "@/components/docs/DocumentReviewViewer";
+import { BackupModal } from "@/components/backup/BackupModal";
 import Link from "next/link";
 
 type TabMode = "hub" | "guardian" | "map" | "handbook" | "adrs" | "lessons" | "component";
@@ -62,6 +65,7 @@ export default function TechnicalArchivePage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedHandbookChapter, setSelectedHandbookChapter] = useState(0);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   // Review Viewer & Center State
   const [selectedReviewItem, setSelectedReviewItem] = useState<DocumentationReviewItem | null>(null);
@@ -275,6 +279,15 @@ export default function TechnicalArchivePage() {
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar Manual / PDF</span>
+              </button>
+
+              <button
+                onClick={() => setIsBackupOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer"
+                title="Exportar ou restaurar backup universal de todo o VARYNTH OS"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>Backup & Portabilidade</span>
               </button>
 
               <button
@@ -1308,6 +1321,12 @@ export default function TechnicalArchivePage() {
           isOpen={isExportOpen}
           onClose={() => setIsExportOpen(false)}
           currentComponentId={selectedDocId}
+        />
+
+        {/* UNIVERSAL BACKUP & RESTORE MODAL */}
+        <BackupModal
+          isOpen={isBackupOpen}
+          onClose={() => setIsBackupOpen(false)}
         />
 
         {/* DOCUMENT REVIEW VIEWER */}

@@ -108,3 +108,4 @@ runNotificationRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte de notificações:", err);
   process.exit(1);
 });
+

@@ -14,7 +14,10 @@
     "test:docs": "npx tsx src/lib/docs/builder/builder.test.ts",
     "test:review": "npx tsx src/lib/athena/guardian/review.test.ts",
     "test:regression:doc": "npx tsx src/lib/athena/guardian/review-regression.test.ts",
-    "test:notifications": "npx tsx src/lib/notifications/notification-regression.test.ts"
+    "test:notifications": "npx tsx src/lib/notifications/notification-regression.test.ts",
+    "test:artifacts": "npx tsx src/lib/artifacts/artifact-regression.test.ts",
+    "test:jobs": "npx tsx src/lib/runtime/job-regression.test.ts",
+    "test:backup": "npx tsx src/lib/backup/backup-regression.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

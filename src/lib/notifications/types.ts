@@ -27,3 +27,4 @@ export interface VarynthNotification {
 }
 
 export type NotificationFilter = "ALL" | "UNREAD" | "CRITICAL";
+

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
+import { artifactStore } from "@/lib/artifacts/artifact-store";
 import { GraphNode, GraphEdge, GraphNodeType } from "@/lib/types";
 import {
   Share2,
@@ -24,11 +25,13 @@ import {
   Users,
   Code2,
   FlaskConical,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TYPE_CONFIG: Record<GraphNodeType, { label: string; color: string; bg: string }> = {
   project: { label: "Projetos", color: "#38bdf8", bg: "bg-sky-500/20 text-sky-300 border-sky-500/40" },
+  artifact: { label: "Artefatos", color: "#ec4899", bg: "bg-pink-500/20 text-pink-300 border-pink-500/40" },
   vault: { label: "Vault", color: "#a855f7", bg: "bg-purple-500/20 text-purple-300 border-purple-500/40" },
   codex: { label: "Codex (Teses)", color: "#06b6d4", bg: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" },
   research: { label: "Evidências", color: "#10b981", bg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" },
@@ -241,6 +244,44 @@ export default function GraphPage() {
       nodes.push(node);
       if (f.projectId) {
         edgeList.push({ source: node.id, target: `p-${f.projectId}`, label: "código" });
+      }
+    });
+
+    // Universal Artifacts & Relationships
+    const artifacts = artifactStore.getAll();
+    artifacts.forEach((art, idx) => {
+      const node: GraphNode = {
+        id: `art-${art.id}`,
+        label: art.name,
+        type: "artifact",
+        color: "#ec4899",
+        radius: 14,
+        x: 400 + Math.cos(idx * 1.8 + 2.5) * 230,
+        y: 300 + Math.sin(idx * 1.8 + 2.5) * 230,
+        vx: 0,
+        vy: 0,
+        entityId: art.id,
+        link: "/modules/technical-archive",
+        subtitle: `Artefato [${art.type}] · v${art.currentVersionNumber || 1}.0`,
+        description: art.description,
+        tags: art.tags,
+      };
+      nodes.push(node);
+
+      // Link to Project if associated
+      if (art.projectId) {
+        edgeList.push({ source: node.id, target: `p-${art.projectId}`, label: "pertence" });
+      }
+
+      // Link Relationships (SOURCE_OF, DERIVED_FROM, DEPENDS_ON, etc.)
+      if (art.relationships && art.relationships.length > 0) {
+        art.relationships.forEach((rel) => {
+          edgeList.push({
+            source: node.id,
+            target: `art-${rel.targetArtifactId}`,
+            label: rel.type.toLowerCase().replace("_", " "),
+          });
+        });
       }
     });
 

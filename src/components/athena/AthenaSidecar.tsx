@@ -39,6 +39,15 @@ export function AthenaSidecar() {
 
   // Keyboard shortcut Alt + A
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("varynth_athena_messages");
+      if (saved) {
+        setMessages(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
@@ -48,6 +57,15 @@ export function AthenaSidecar() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  const saveMessages = (msgs: AthenaMessage[]) => {
+    setMessages(msgs);
+    try {
+      localStorage.setItem("varynth_athena_messages", JSON.stringify(msgs));
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -81,13 +99,13 @@ export function AthenaSidecar() {
     };
 
     const updated = [...messages, userMsg];
-    setMessages(updated);
+    saveMessages(updated);
     setInput("");
     setIsTyping(true);
 
     try {
       const response = await processAthenaQueryAsync(raw, currentScope, store, undefined, "global-athena-session");
-      setMessages([...updated, response]);
+      saveMessages([...updated, response]);
     } catch {
       // fallback
     } finally {
