@@ -62,12 +62,26 @@ import { videoService } from "@/lib/studio/video/video-service";
 import { athenaVideoActions } from "@/lib/studio/video/athena-video-actions";
 import { VideoItem, VideoDocumentState, VideoClip as VideoClipType, VideoTrack as VideoTrackType, VideoScene as VideoSceneType, VideoPlaybackState } from "@/lib/studio/video/types";
 
+// Game Studio Imports
+import { GameSceneCanvas } from "@/components/studio/game/GameSceneCanvas";
+import { GameEntityHierarchy } from "@/components/studio/game/GameEntityHierarchy";
+import { GameInspector } from "@/components/studio/game/GameInspector";
+import { GameRulesPanel } from "@/components/studio/game/GameRulesPanel";
+import { GamePlayModal } from "@/components/studio/game/GamePlayModal";
+import { GameBuildModal } from "@/components/studio/game/GameBuildModal";
+import { GameTemplatesModal } from "@/components/studio/game/GameTemplatesModal";
+import { GameChangeSetModal } from "@/components/studio/game/GameChangeSetModal";
+import { gameService } from "@/lib/studio/game/game-service";
+import { athenaGameActions } from "@/lib/studio/game/athena-game-actions";
+import { GameItem, GameDocumentState, GameEntity, GameComponent, ComponentType } from "@/lib/studio/game/types";
+
 import {
   FileText,
   Globe,
   Image as ImageIcon,
   Music,
   Video,
+  Gamepad2,
   Plus,
   BookOpen,
   Sparkles,
@@ -79,7 +93,7 @@ import {
 } from "lucide-react";
 
 export default function StudioPage() {
-  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE" | "AUDIO" | "VIDEO">("DOCUMENT");
+  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE" | "AUDIO" | "VIDEO" | "GAME">("DOCUMENT");
 
   // Document Studio State
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
@@ -143,6 +157,18 @@ export default function StudioPage() {
   const [isVideoChangeSetOpen, setIsVideoChangeSetOpen] = useState(false);
   const [isStoryboardMode, setIsStoryboardMode] = useState(false);
 
+  // Game Studio State
+  const [activeGame, setActiveGame] = useState<GameItem | null>(null);
+  const [allGames, setAllGames] = useState<GameItem[]>([]);
+  const [selectedGameSceneId, setSelectedGameSceneId] = useState<string | undefined>(undefined);
+  const [selectedGameEntityId, setSelectedGameEntityId] = useState<string | undefined>(undefined);
+  const [gameSidebarTab, setGameSidebarTab] = useState<"OUTLINE" | "VERSIONS" | "ASSETS" | "RELATIONS" | "ATHENA">("OUTLINE");
+  const [gameSaveState, setGameSaveState] = useState<DocumentSaveState>("SAVED");
+  const [isGamePlayOpen, setIsGamePlayOpen] = useState(false);
+  const [isGameBuildOpen, setIsGameBuildOpen] = useState(false);
+  const [isGameTemplateOpen, setIsGameTemplateOpen] = useState(false);
+  const [isGameChangeSetOpen, setIsGameChangeSetOpen] = useState(false);
+
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -159,6 +185,7 @@ export default function StudioPage() {
     setAllImages(imageService.listImages());
     setAllAudios(audioService.listAudioProjects());
     setAllVideos(videoService.listVideoProjects());
+    setAllGames(gameService.getAllGames());
   };
 
   // --- Document Studio Handlers ---
@@ -472,10 +499,46 @@ export default function StudioPage() {
     }
   };
 
+  // --- Game Studio Handlers ---
+  const handleUpdateGameDocumentState = (newState: GameDocumentState) => {
+    if (!activeGame) return;
+    setActiveGame((prev) => (prev ? { ...prev, documentState: newState } : null));
+    setGameSaveState("SAVING");
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await gameService.saveDocumentState(activeGame.artifact.id, newState, "USER");
+        if (res.success) {
+          setGameSaveState("SAVED");
+          loadData();
+        } else {
+          setGameSaveState("SAVE_FAILED");
+        }
+      } catch (err) {
+        setGameSaveState("SAVE_FAILED");
+      }
+    }, 800);
+  };
+
+  const handleCreateNewGame = async (templateId?: string, name?: string) => {
+    const res = await gameService.createGameProject({
+      name: name || "Novo Projeto de Jogo",
+      templateId,
+      actor: "USER",
+    });
+
+    if (res.success && res.game) {
+      setActiveGame(res.game);
+      setSelectedGameSceneId(res.game.documentState.entrySceneId);
+      loadData();
+    }
+  };
+
   // -------------------------------------------------------------
   // HUB VIEW (When no workspace is active)
   // -------------------------------------------------------------
-  if (!activeDoc && !activeWebsite && !activeImage && !activeAudio && !activeVideo) {
+  if (!activeDoc && !activeWebsite && !activeImage && !activeAudio && !activeVideo && !activeGame) {
     return (
       <PageLayout
         title="VARYNTH Studios"
@@ -542,6 +605,18 @@ export default function StudioPage() {
             >
               <Video size={16} />
               Video Studio (Studio 5)
+            </button>
+
+            <button
+              onClick={() => setActiveStudio("GAME")}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+                activeStudio === "GAME"
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                  : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
+              }`}
+            >
+              <Gamepad2 size={16} />
+              Game Studio (Studio 6)
             </button>
           </div>
 
@@ -927,6 +1002,94 @@ export default function StudioPage() {
               </div>
             </>
           )}
+
+          {/* GAME STUDIO HUB */}
+          {activeStudio === "GAME" && (
+            <>
+              <div className="p-6 bg-gradient-to-r from-emerald-950/40 via-[#10132a] to-[#0c0d18] border border-emerald-500/20 rounded-2xl flex items-center justify-between shadow-xl">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Gamepad2 className="text-emerald-400" size={22} />
+                    Game Studio
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-1 max-w-xl">
+                    Crie protótipos de jogos 2D, quizzes, histórias interativas e mecânicas declarativas com execução em Sandbox e compilação Web (HTML5).
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsGameTemplateOpen(true)}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition"
+                  >
+                    <Plus size={16} />
+                    Novo Jogo
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent Games Grid */}
+              <div className="flex flex-col gap-3">
+                <h3 className="font-semibold text-base text-white flex items-center gap-2">
+                  <Gamepad2 size={18} className="text-emerald-400" />
+                  Projetos de Jogo ({allGames.length})
+                </h3>
+
+                {allGames.length === 0 ? (
+                  <div className="p-12 border border-dashed border-[#202236] rounded-2xl flex flex-col items-center justify-center text-center bg-[#0d0e1a]">
+                    <Gamepad2 size={40} className="text-slate-600 mb-3" />
+                    <h4 className="font-bold text-slate-300">Nenhum projeto de jogo criado</h4>
+                    <p className="text-xs text-slate-500 max-w-md mt-1 mb-4">
+                      Inicie um novo jogo a partir de templates como Protótipo 2D, Quiz Interativo ou Investigação Criminal.
+                    </p>
+                    <button
+                      onClick={() => setIsGameTemplateOpen(true)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md shadow-emerald-500/20"
+                    >
+                      <Plus size={14} /> Criar Primeiro Jogo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {allGames.map((game) => (
+                      <div
+                        key={game.artifact.id}
+                        onClick={() => {
+                          setActiveGame(game);
+                          setSelectedGameSceneId(game.documentState.entrySceneId);
+                        }}
+                        className="p-5 bg-[#0e0e18] hover:bg-[#0e161c] border border-[#1e1e30] hover:border-emerald-500/40 rounded-xl cursor-pointer transition flex flex-col justify-between gap-4 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              {game.metadata.gameType}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono">
+                              v{game.artifact.versions?.length || 1}.0
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-white mt-3 group-hover:text-emerald-300 transition line-clamp-1">
+                            {game.artifact.name}
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                            {game.artifact.description || `${game.documentState.scenes.length} cenas | ${game.documentState.entities.length} entidades`}
+                          </p>
+                        </div>
+                        <div className="pt-3 border-t border-[#1a1a2a] flex items-center justify-between text-xs text-slate-500">
+                          <span className="font-mono">
+                            {game.documentState.scenes.length} cenas ({game.documentState.rules.length} regras)
+                          </span>
+                          <span className="flex items-center gap-1 text-emerald-400 group-hover:translate-x-1 transition">
+                            Abrir Game Studio <ArrowRight size={13} />
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DocumentTemplatesModal
@@ -958,7 +1121,288 @@ export default function StudioPage() {
           onClose={() => setIsVideoTemplateOpen(false)}
           onSelectTemplate={handleCreateNewVideo}
         />
+
+        <GameTemplatesModal
+          isOpen={isGameTemplateOpen}
+          onClose={() => setIsGameTemplateOpen(false)}
+          onSelectTemplate={handleCreateNewGame}
+        />
       </PageLayout>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // ACTIVE GAME STUDIO WORKSPACE
+  // -------------------------------------------------------------
+  if (activeGame) {
+    const currentScene = activeGame.documentState.scenes.find((s) => s.id === (selectedGameSceneId || activeGame.documentState.entrySceneId)) || activeGame.documentState.scenes[0];
+    const selectedEntity = activeGame.documentState.entities.find((e) => e.id === selectedGameEntityId);
+
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <StudioShell
+          title={activeGame.artifact.name}
+          subtitle={`Game Studio (${activeGame.metadata.gameType} - ${activeGame.documentState.scenes.length} cenas, ${activeGame.documentState.entities.length} entidades)`}
+          saveState={gameSaveState}
+          viewMode="SPLIT"
+          onViewModeChange={() => {}}
+          activeSidebarTab={gameSidebarTab}
+          onSidebarTabChange={setGameSidebarTab}
+          onCreateVersion={async () => {
+            const label =
+              prompt(
+                "Descrição da nova versão do jogo:",
+                `Versão manual v${(activeGame.artifact.versions?.length || 0) + 1}`
+              ) || "Versão manual";
+            const res = await gameService.createManualVersion(activeGame.artifact.id, label, "USER");
+            if (res.success) {
+              const ref = gameService.getGame(activeGame.artifact.id);
+              if (ref) setActiveGame(ref);
+            }
+          }}
+          onExport={() => setIsGameBuildOpen(true)}
+          onDelete={() => {
+            if (confirm("Mover este projeto de jogo para a Lixeira de 10 dias?")) {
+              gameService.saveDocumentState(activeGame.artifact.id, activeGame.documentState, "USER");
+              setActiveGame(null);
+              loadData();
+            }
+          }}
+          sidebarContent={
+            gameSidebarTab === "OUTLINE" ? (
+              <GameEntityHierarchy
+                scenes={activeGame.documentState.scenes}
+                entities={activeGame.documentState.entities}
+                activeSceneId={currentScene?.id}
+                selectedEntityId={selectedGameEntityId}
+                onSelectScene={(sceneId) => setSelectedGameSceneId(sceneId)}
+                onSelectEntity={(entId) => setSelectedGameEntityId(entId)}
+                onAddScene={() => {
+                  const newScene = athenaGameActions.createScene(`Cena ${activeGame.documentState.scenes.length + 1}`);
+                  handleUpdateGameDocumentState({
+                    ...activeGame.documentState,
+                    scenes: [...activeGame.documentState.scenes, newScene],
+                  });
+                }}
+                onAddEntity={(sceneId) => {
+                  const newEnt = athenaGameActions.createEntity(
+                    sceneId,
+                    `Entidade ${activeGame.documentState.entities.length + 1}`,
+                    [
+                      { type: "TRANSFORM", x: 400, y: 300, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 1 },
+                      { type: "SPRITE", assetId: "default-sprite", width: 48, height: 48 },
+                    ]
+                  );
+                  handleUpdateGameDocumentState({
+                    ...activeGame.documentState,
+                    entities: [...activeGame.documentState.entities, newEnt],
+                  });
+                  setSelectedGameEntityId(newEnt.id);
+                }}
+                onDeleteEntity={(entId) => {
+                  handleUpdateGameDocumentState({
+                    ...activeGame.documentState,
+                    entities: activeGame.documentState.entities.filter((e) => e.id !== entId),
+                  });
+                  if (selectedGameEntityId === entId) setSelectedGameEntityId(undefined);
+                }}
+                onToggleEntityActive={(entId) => {
+                  const updated = activeGame.documentState.entities.map((e) =>
+                    e.id === entId ? { ...e, active: !e.active } : e
+                  );
+                  handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
+                }}
+              />
+            ) : gameSidebarTab === "VERSIONS" ? (
+              <DocumentVersionHistory
+                versions={activeGame.artifact.versions || []}
+                currentVersionNumber={`v${activeGame.artifact.versions?.length || 1}.0`}
+                onRestoreVersion={async (vNum) => {
+                  const res = await gameService.restoreVersion(activeGame.artifact.id, parseInt(vNum) || 1, "USER");
+                  if (res.success && res.game) {
+                    setActiveGame(res.game);
+                  }
+                }}
+              />
+            ) : gameSidebarTab === "ATHENA" ? (
+              <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
+                  <Sparkles size={14} className="text-amber-400" />
+                  Athena Game Assistant
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  Athena orquestra planos de design de jogos (GDD), geração de cenas, entidades, regras determinísticas e variáveis de estado.
+                </p>
+                {gameService.getPendingChangeSets(activeGame.artifact.id).length > 0 && (
+                  <button
+                    onClick={() => setIsGameChangeSetOpen(true)}
+                    className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold transition"
+                  >
+                    Ver Proposta de Jogo da Athena
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+            )
+          }
+          mainContent={
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Game Top Action Bar */}
+              <div className="p-2.5 bg-[#0f1020] border-b border-[#1c1d32] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsGamePlayOpen(true)}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 transition"
+                  >
+                    <Play size={14} className="fill-white" /> Play Mode (Sandbox)
+                  </button>
+                  <button
+                    onClick={() => setIsGameBuildOpen(true)}
+                    className="px-3.5 py-1.5 bg-[#1a1b32] hover:bg-[#252748] text-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-white/10 transition"
+                  >
+                    Compilar & Exportar
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setGameSidebarTab("ATHENA")}
+                    className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Sparkles size={13} /> Assistência Athena
+                  </button>
+                </div>
+              </div>
+
+              {/* Upper Section: Canvas Viewport + Entity Inspector */}
+              <div className="flex-1 flex overflow-hidden border-b border-[#1c1d32]">
+                <div className="flex-1 h-full overflow-hidden">
+                  <GameSceneCanvas
+                    documentState={activeGame.documentState}
+                    activeScene={currentScene}
+                    selectedEntityId={selectedGameEntityId}
+                    onSelectEntity={(entId) => setSelectedGameEntityId(entId)}
+                    onUpdateEntityTransform={(entId, x, y) => {
+                      const updated = activeGame.documentState.entities.map((e) => {
+                        if (e.id === entId) {
+                          const comps = e.components.map((c) =>
+                            c.type === "TRANSFORM" ? { ...c, x, y } : c
+                          );
+                          return { ...e, components: comps };
+                        }
+                        return e;
+                      });
+                      handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
+                    }}
+                  />
+                </div>
+
+                <div className="w-80 h-full border-l border-[#1c1d32] overflow-hidden">
+                  <GameInspector
+                    selectedEntity={selectedEntity}
+                    onUpdateEntity={(entId, updates) => {
+                      const updated = activeGame.documentState.entities.map((e) =>
+                        e.id === entId ? { ...e, ...updates } : e
+                      );
+                      handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
+                    }}
+                    onAddComponent={(entId, component) => {
+                      const updated = activeGame.documentState.entities.map((e) =>
+                        e.id === entId ? { ...e, components: [...e.components, component] } : e
+                      );
+                      handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
+                    }}
+                    onRemoveComponent={(entId, compType) => {
+                      const updated = activeGame.documentState.entities.map((e) =>
+                        e.id === entId
+                          ? { ...e, components: e.components.filter((c) => c.type !== compType) }
+                          : e
+                      );
+                      handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Lower Section: Declarative Rules & Variables Panel */}
+              <div className="h-64 flex flex-col overflow-hidden">
+                <GameRulesPanel
+                  rules={activeGame.documentState.rules}
+                  variables={activeGame.documentState.variables}
+                  onAddRule={() => {
+                    const newRule = athenaGameActions.createRule(
+                      `Regra ${activeGame.documentState.rules.length + 1}`,
+                      { type: "ON_START" },
+                      [],
+                      [{ type: "SHOW_TEXT", text: "Executando ação inicial." }]
+                    );
+                    handleUpdateGameDocumentState({
+                      ...activeGame.documentState,
+                      rules: [...activeGame.documentState.rules, newRule],
+                    });
+                  }}
+                  onToggleRule={(ruleId) => {
+                    const updated = activeGame.documentState.rules.map((r) =>
+                      r.id === ruleId ? { ...r, enabled: !r.enabled } : r
+                    );
+                    handleUpdateGameDocumentState({ ...activeGame.documentState, rules: updated });
+                  }}
+                  onDeleteRule={(ruleId) => {
+                    handleUpdateGameDocumentState({
+                      ...activeGame.documentState,
+                      rules: activeGame.documentState.rules.filter((r) => r.id !== ruleId),
+                    });
+                  }}
+                  onAddVariable={(name, type, initialValue) => {
+                    const newVar = athenaGameActions.createVariable(name, type, initialValue);
+                    handleUpdateGameDocumentState({
+                      ...activeGame.documentState,
+                      variables: [...activeGame.documentState.variables, newVar],
+                    });
+                  }}
+                  onDeleteVariable={(varId) => {
+                    handleUpdateGameDocumentState({
+                      ...activeGame.documentState,
+                      variables: activeGame.documentState.variables.filter((v) => v.id !== varId),
+                    });
+                  }}
+                  onOpenAthena={() => setGameSidebarTab("ATHENA")}
+                />
+              </div>
+            </div>
+          }
+        />
+
+        <GamePlayModal
+          isOpen={isGamePlayOpen}
+          documentState={activeGame.documentState}
+          onClose={() => setIsGamePlayOpen(false)}
+        />
+
+        <GameBuildModal
+          isOpen={isGameBuildOpen}
+          documentState={activeGame.documentState}
+          gameTitle={activeGame.artifact.name}
+          onClose={() => setIsGameBuildOpen(false)}
+        />
+
+        <GameChangeSetModal
+          isOpen={isGameChangeSetOpen}
+          changeSets={gameService.getPendingChangeSets(activeGame.artifact.id)}
+          onAccept={async (csId) => {
+            await gameService.acceptChangeSet(activeGame.artifact.id, csId);
+            setIsGameChangeSetOpen(false);
+            const ref = gameService.getGame(activeGame.artifact.id);
+            if (ref) setActiveGame(ref);
+          }}
+          onReject={(csId) => {
+            gameService.rejectChangeSet(activeGame.artifact.id, csId);
+            setIsGameChangeSetOpen(false);
+          }}
+          onClose={() => setIsGameChangeSetOpen(false)}
+        />
+      </div>
     );
   }
 

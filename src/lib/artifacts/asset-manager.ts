@@ -78,6 +78,30 @@ export class AssetManager {
     return JSON.parse(JSON.stringify(asset));
   }
 
+  public async createAsset(
+    params: {
+      name: string;
+      type?: string;
+      mimeType: string;
+      sizeBytes: number;
+      data?: Blob | ArrayBuffer | string;
+      metadata?: Record<string, unknown>;
+    },
+    actor: ArtifactActor = "USER"
+  ): Promise<{ asset: AssetFile }> {
+    const asset = await this.registerAsset(
+      {
+        name: params.name,
+        mimeType: params.mimeType,
+        sizeBytes: params.sizeBytes,
+        createdBy: actor,
+        metadata: { ...params.metadata, assetType: params.type },
+      },
+      params.data
+    );
+    return { asset };
+  }
+
   public getAsset(id: string): AssetFile | undefined {
     const asset = this.assets.get(id);
     return asset ? JSON.parse(JSON.stringify(asset)) : undefined;

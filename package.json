@@ -26,8 +26,9 @@
     "test:sandbox:web": "npx tsx src/lib/runtime/sandbox-web-regression.test.ts",
     "test:image-studio": "npx tsx src/lib/studio/image/image-studio-regression.test.ts",
     "test:audio-studio": "npx tsx src/lib/studio/audio/audio-studio-regression.test.ts",
-    "test:temporal-core": "npx tsx src/lib/studio/temporal/temporal-core.test.ts",
-    "test:video-studio": "npx tsx src/lib/studio/video/video-studio-regression.test.ts"
+    "test:video-studio": "npx tsx src/lib/studio/video/video-studio-regression.test.ts",
+    "test:game-rules": "npx tsx src/lib/studio/game/game-rules.test.ts",
+    "test:game-studio": "npx tsx src/lib/studio/game/game-studio-regression.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

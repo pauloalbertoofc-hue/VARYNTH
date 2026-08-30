@@ -112,7 +112,7 @@ async function runJobRegressionTests() {
   const videoReport = studioRoadmapManager.getStudioReadinessReport("video-studio");
   assert(videoReport.readyForImplementation === true, "JOB-REG-015: Video Studio possui prontidão completa com local-video-engine");
   const gameReport = studioRoadmapManager.getStudioReadinessReport("game-studio");
-  assert(gameReport.readyForImplementation === false, "JOB-REG-015: Game Studio reporta corretamente falta de engine de jogos local");
+  assert(gameReport.readyForImplementation === true, "JOB-REG-015: Game Studio possui prontidão completa com local-game-engine");
 
   console.log("\n===============================================================");
   console.log(`  RESULTADO: ${passed} Aprovados, ${failed} Falhas`);

@@ -266,6 +266,57 @@ class VideoCreationEngine implements CreationEngine {
   }
 }
 
+class GameCreationEngine implements CreationEngine {
+  engineId = "local-game-engine";
+  name = "VARYNTH Local Game Engine";
+  supportedArtifactTypes: ArtifactType[] = ["GAME"];
+
+  async canExecute(request: CreationRequest): Promise<boolean> {
+    return request.artifactType === "GAME";
+  }
+
+  async create(request: CreationRequest): Promise<CreationResult> {
+    const id = `art-game-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const artifact: Artifact = {
+      id,
+      type: "GAME",
+      name: request.name,
+      description: request.description || "Projeto de jogo 2D / Web Game",
+      projectId: request.projectId,
+      status: "DRAFT",
+      createdBy: request.actor,
+      createdAt: now,
+      updatedAt: now,
+      currentVersionNumber: 0,
+      versions: [],
+      relationships: [],
+      provenance: {
+        creator: request.actor,
+        generationPrompt: request.prompt,
+        engineUsed: this.engineId,
+      },
+      assetFileIds: [],
+      metadata: {
+        gameType: request.options?.gameType || "2D",
+        resolution: request.options?.resolution || { width: 800, height: 600 },
+        frameRate: request.options?.frameRate || 60,
+      },
+      tags: ["game", "studio", "draft"],
+    };
+
+    versionManager.createSnapshot(artifact, "Criação inicial do projeto de jogo em DRAFT (v1.0)", request.actor);
+    artifactStore.save(artifact);
+
+    return {
+      success: true,
+      artifact,
+      capabilityStatus: "AVAILABLE",
+    };
+  }
+}
+
 export class CreationEngineRegistry {
   private engines: Map<string, CreationEngine> = new Map();
 
@@ -275,6 +326,7 @@ export class CreationEngineRegistry {
     this.registerEngine(new ImageCreationEngine());
     this.registerEngine(new AudioCreationEngine());
     this.registerEngine(new VideoCreationEngine());
+    this.registerEngine(new GameCreationEngine());
   }
 
   public registerEngine(engine: CreationEngine): void {

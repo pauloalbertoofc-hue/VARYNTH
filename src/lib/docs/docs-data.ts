@@ -370,6 +370,51 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Resolução 4K é desabilitada em runtimes com memória insuficiente"],
     },
   },
+  {
+    id: "ADR-022",
+    number: "ADR-022",
+    title: "Modelo de Artefato de Jogo Desacoplado de Engine e Arquitetura Entidade-Componente",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Representar jogos declarativamente sem acoplamento a engines monolíticas proprietárias, permitindo manipulação inteligente pela Athena.",
+    decision: "Estruturar o GameDocumentState sobre arquitetura composicional Entidade-Componente (ECS), com prevenção de ciclos transitivos na hierarquia e imutabilidade de source assets.",
+    rationale: "Garante portabilidade, serialização limpa e integridade estrutural sob o Princípio Alex.",
+    alternatives: ["Acoplamento direto com Unity/Godot/Phaser", "Classes rígidas para cada objeto do jogo"],
+    consequences: {
+      gains: ["Portabilidade universal", "Orquestração segura pela Athena", "Hierarquia acíclica rigorosa"],
+      tradeoffs: ["Física 3D pesada fora do escopo da V1"],
+    },
+  },
+  {
+    id: "ADR-023",
+    number: "ADR-023",
+    title: "Motor Declarativo de Regras (Rules Before Code) e Play Mode em Sandbox",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Permitir que a Athena crie mecânicas ricas sem gerar scripts arbitrários vulneráveis a loops infinitos, isolando a execução de testes.",
+    decision: "Implementar GameRulesEngine com proteção de orçamento de execução (RULE_EXECUTION_BUDGET_EXCEEDED), fila de eventos determinística, timestep fixo (60Hz), PRNG com seed e isolamento estrito de GameTestSession.",
+    rationale: "Elimina congelamento do navegador, previne tempestades de regras (rule storms) e possibilita replay determinístico de bugs.",
+    alternatives: ["Geração irrestrita de código JavaScript para tudo", "Mutação direta do estado editável durante playtest"],
+    consequences: {
+      gains: ["Zero congelamentos de navegador", "Replay determinístico de sessões", "Segurança absoluta no Sandbox"],
+      tradeoffs: ["Mecânicas de alta complexidade exigem scripts em Sandbox"],
+    },
+  },
+  {
+    id: "ADR-024",
+    number: "ADR-024",
+    title: "Pipeline de Compilação de Jogos e Descoberta Honesta de Capacidades",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Compilar pacotes de jogos através de jobs formais rastreados com reporte transparente de capacidades de exportação.",
+    decision: "Executar builds via JobManager com geração de Derived Build Assets HTML5 e descoberta honesta de capacidades (canExport retorna CAPABILITY_UNAVAILABLE para Android/Desktop sem toolchain).",
+    rationale: "Garante transparência, evita falsos executáveis e mantém o processo de build 100% Local-First.",
+    alternatives: ["Geração de APKs/EXEs simulados sem compilador", "Compilação síncrona no thread de interface"],
+    consequences: {
+      gains: ["Builds rastreados no JobManager", "Transparência total de capacidades", "Pacotes Web reproduzíveis"],
+      tradeoffs: ["Compilação nativa para consoles/mobile fica para fases posteriores"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [
