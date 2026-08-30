@@ -17,3 +17,4 @@ A Athena precisa transformar intenções amplas do usuário (ex: "Transforme est
 ## Consequências
 - **Ganhos**: Decomposição transparente, inspeção prévia pelo usuário e ordenação topológica determinística.
 - **Trade-offs**: Custo computacional leve de validação de grafo antes da emissão do plano.
+

@@ -19,32 +19,51 @@ export class CreativeOrchestrator {
   private static plans: Map<string, CreativePlan> = new Map();
   private static planHistory: Map<string, CreativePlan[]> = new Map(); // planId -> historical revisions
   private static isInitialized = false;
+  private static fallbackStorage: string | null = null;
 
   private static init(): void {
     if (this.isInitialized) return;
+    let stored: string | null = this.fallbackStorage;
     if (typeof window !== "undefined" && window.localStorage) {
       try {
-        const stored = localStorage.getItem(PLANS_STORAGE_KEY);
-        if (stored) {
-          const list: CreativePlan[] = JSON.parse(stored);
-          list.forEach((p) => this.plans.set(p.id, p));
-        }
+        stored = localStorage.getItem(PLANS_STORAGE_KEY) || stored;
       } catch (err) {
         console.warn("[CreativeOrchestrator] Erro ao carregar planos do localStorage:", err);
+      }
+    }
+    if (stored) {
+      try {
+        const list: CreativePlan[] = JSON.parse(stored);
+        list.forEach((p) => this.plans.set(p.id, p));
+      } catch (err) {
+        console.warn("[CreativeOrchestrator] Erro ao fazer parse dos planos:", err);
       }
     }
     this.isInitialized = true;
   }
 
   private static saveToStorage(): void {
+    const list = Array.from(this.plans.values());
+    const serialized = JSON.stringify(list);
+    this.fallbackStorage = serialized;
     if (typeof window !== "undefined" && window.localStorage) {
       try {
-        const list = Array.from(this.plans.values());
-        localStorage.setItem(PLANS_STORAGE_KEY, JSON.stringify(list));
+        localStorage.setItem(PLANS_STORAGE_KEY, serialized);
       } catch (err) {
         console.error("[CreativeOrchestrator] Erro ao salvar planos no storage:", err);
       }
     }
+  }
+
+  public static listPlans(): CreativePlan[] {
+    this.init();
+    return Array.from(this.plans.values());
+  }
+
+  public static reloadFromStorage(): void {
+    this.isInitialized = false;
+    this.plans.clear();
+    this.init();
   }
 
   /**
@@ -381,6 +400,16 @@ export class CreativeOrchestrator {
       success: true,
       executionPlan,
     };
+  }
+
+  public static cancelPlan(planId: string): { success: boolean; plan?: CreativePlan } {
+    const plan = this.getPlan(planId);
+    if (!plan) return { success: false };
+    plan.status = "CANCELLED";
+    plan.updatedAt = new Date().toISOString();
+    this.saveToStorage();
+    athenaEventBus.emit("EXECUTION_CANCELLED" as any, { planId });
+    return { success: true, plan };
   }
 
   /**

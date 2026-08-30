@@ -18,3 +18,4 @@ A execução de múltiplos steps em diferentes estúdios pode gerar concorrênci
 ## Consequências
 - **Ganhos**: Execução paralela sem race conditions, rastreabilidade total e conformidade com o modelo de segurança soberano.
 - **Trade-offs**: Serialização de steps que compartilham o mesmo alvo de gravação.
+

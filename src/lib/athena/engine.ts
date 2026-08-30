@@ -17,6 +17,7 @@ import { athenaResponseBuilder } from "./kernel/response-builder";
 import { athenaConversationManager } from "./conversation/conversation-manager";
 import { athenaPersonaEngine } from "./persona/persona-engine";
 import { ollamaAdapter } from "./models/providers/ollama-adapter";
+import { athenaToolManager } from "./tools/tool-manager";
 import { responseCompletenessValidator } from "./conversation/completeness-validator";
 import { InteractionDebugInfo } from "./domain/conversation";
 
@@ -231,51 +232,20 @@ function processDeterministicWorkflow(
 
     for (const step of workflow.steps) {
       if (step.toolCall) {
-        if (step.toolCall.toolName === "tasks.create") {
-          const created = ctx.addTask(
-            {
-              title: (step.toolCall.params.title as string) || "Nova tarefa via Athena",
-              projectId: (step.toolCall.params.projectId as string) || undefined,
-              priority: (step.toolCall.params.priority as any) || "media",
-              status: "a_fazer",
-            },
-            "athena"
-          );
-          toolOutputs[step.id] = { actionType: "tasks.create", data: created };
-        } else if (step.toolCall.toolName === "notes.create") {
-          const note = ctx.addNote(
-            {
-              title: `Nota Rápida — ${new Date().toLocaleDateString()}`,
-              content: (step.toolCall.params.content as string) || "",
-              tags: ["athena", "captura-rapida"],
-              pinned: false,
-            },
-            "athena"
-          );
-          toolOutputs[step.id] = { actionType: "notes.create", data: { content: step.toolCall.params.content } };
-        } else if (step.toolCall.toolName === "chronos.listDeadlines") {
-          const projectDeadlines = ctx.projects
-            .filter((p) => p.deadline)
-            .map((p) => ({ title: p.title, deadline: p.deadline, priority: p.priority }));
-          const chronosDeadlines = ctx.chronosEvents
-            .filter((e) => !e.completed)
-            .map((e) => ({ title: e.title, date: e.date, startTime: e.startTime, type: e.type }));
-          toolOutputs[step.id] = { actionType: "chronos.listDeadlines", data: { projectDeadlines, chronosDeadlines } };
-        } else if (step.toolCall.toolName === "trash.moveWithUndo") {
-          toolOutputs[step.id] = { actionType: "trash.moveWithUndo", data: { retentionDays: 10 } };
-        } else if (step.toolCall.toolName === "diagnostics.run") {
-          toolOutputs[step.id] = {
-            actionType: "diagnostics.run",
-            data: {
-              activeProj: ctx.projects.filter((p) => p.status === "ativo").length,
-              pendingTasks: ctx.tasks.filter((t) => t.status !== "concluida").length,
-              completedTasks: ctx.tasks.filter((t) => t.status === "concluida").length,
-              totalVault: ctx.vaultItems.length,
-              totalTheses: ctx.theses.length,
-              totalOpps: ctx.opportunities.length,
-              urgentTasks: ctx.tasks.filter((t) => t.status !== "concluida" && (t.priority === "urgente" || t.priority === "alta")).length,
-            },
-          };
+        const res = athenaToolManager.executeTool(
+          step.toolCall.toolName as any,
+          step.toolCall.params,
+          ctx,
+          task.id
+        );
+        // Handle sync or async tool result
+        if (res instanceof Promise) {
+          // If sync facade, we await safely when async
+          res.then((r) => {
+            toolOutputs[step.id] = r;
+          });
+        } else {
+          toolOutputs[step.id] = res;
         }
       }
     }

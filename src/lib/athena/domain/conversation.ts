@@ -112,4 +112,5 @@ export interface ConversationState {
   lastInteractionAt: string;
   recentRecommendations?: string[];
   recentCritiques?: string[];
+  interruptedTopicStack?: { topic: string; projectId?: string; timestamp: string }[];
 }

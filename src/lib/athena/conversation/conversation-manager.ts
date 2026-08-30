@@ -37,10 +37,14 @@ export class ConversationManager {
         lastInteractionAt: new Date().toISOString(),
         recentRecommendations: [],
         recentCritiques: [],
+        interruptedTopicStack: [],
       });
       this.sessionHistories.set(sessionId, []);
     }
     const state = this.sessions.get(sessionId)!;
+    if (!state.interruptedTopicStack) {
+      state.interruptedTopicStack = [];
+    }
     if (currentProjectId && !state.currentProjectId) {
       state.currentProjectId = currentProjectId;
     }
@@ -74,10 +78,31 @@ export class ConversationManager {
     let targetProjectTitle: string | undefined;
     let referencedEntityName: string | undefined;
 
+    // Check if user is returning to a previously interrupted topic
+    if (clean.startsWith("voltando ao") || clean.startsWith("voltando a") || clean.startsWith("voltando para")) {
+      if (state.interruptedTopicStack && state.interruptedTopicStack.length > 0) {
+        const prev = state.interruptedTopicStack.pop();
+        if (prev) {
+          state.currentTopic = prev.topic;
+          state.currentProjectId = prev.projectId;
+          targetProjectId = prev.projectId;
+          targetProjectTitle = prev.topic;
+        }
+      }
+    }
+
     // Check if any registered project title is explicitly in the prompt
     for (const proj of allProjects) {
       const projNorm = normalizeText(proj.title);
       if (clean.includes(projNorm)) {
+        if (state.currentTopic && state.currentTopic !== proj.title) {
+          if (!state.interruptedTopicStack) state.interruptedTopicStack = [];
+          state.interruptedTopicStack.push({
+            topic: state.currentTopic,
+            projectId: state.currentProjectId,
+            timestamp: new Date().toISOString(),
+          });
+        }
         targetProjectId = proj.id;
         targetProjectTitle = proj.title;
         state.currentProjectId = proj.id;
@@ -189,6 +214,14 @@ export class ConversationManager {
     let requiresAction = false;
     let subject = "GENERAL";
 
+    const nonPunct = prompt.replace(/[.,!?\s]/g, "");
+    if (nonPunct.length === 0) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("CLARIFICATION_REQUIRED");
+      confidence = "LOW";
+      subject = "UNCERTAIN_INPUT";
+    }
+
     // Check Operational Request (MUTATION)
     const isOperational =
       clean.startsWith("crie uma tarefa") ||
@@ -248,10 +281,19 @@ export class ConversationManager {
       subject = "SYSTEM_ECOSYSTEM";
       requiresContext = true;
     }
-    // Check Ecosystem / System Status (Adversarial: "como esta o varynth", "como esta aquele projeto")
+    // Check Ecosystem / System Status (Adversarial: "como esta o varynth", "como esta aquele projeto", "como está meu sistema")
     else if (
       clean.includes("minha situacao") ||
       clean.includes("como esta o varynth") ||
+      clean.includes("como esta meu sistema") ||
+      clean.includes("como esta o sistema") ||
+      clean.includes("meu sistema") ||
+      clean.includes("saude do sistema") ||
+      clean.includes("quantos projetos") ||
+      clean.includes("projetos ativos") ||
+      clean.includes("quantas tarefas") ||
+      clean.includes("tarefas ativas") ||
+      clean.includes("tarefas pendentes") ||
       clean.includes("como estao meus projetos") ||
       clean.includes("como estao minhas tarefas") ||
       clean.includes("como esta aquele projeto") ||

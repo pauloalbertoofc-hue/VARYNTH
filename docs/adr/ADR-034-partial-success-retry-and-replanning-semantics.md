@@ -18,3 +18,4 @@ Em fluxos criativos complexos, falhas pontuais em uma etapa não devem destruir 
 ## Consequências
 - **Ganhos**: Resiliência pragmática, zero desperdício de trabalho computacional útil e rastreabilidade histórica.
 - **Trade-offs**: Maior complexidade na consolidação do relatório de status final do plano.
+

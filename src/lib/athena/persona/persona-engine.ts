@@ -230,6 +230,13 @@ export class AthenaPersonaEngine {
       .replace(/\bathenas\b/g, "")
       .trim();
 
+    // 0. Honest Clarification for Low Confidence / Ambiguous
+    if (parsed.intents.includes("CLARIFICATION_REQUIRED") || parsed.confidence === "LOW" || clean.length < 3) {
+      return {
+        text: `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,
+      };
+    }
+
     // 1. FAST CONVERSATION PATH (Diálogo Social, Humor, Empatia)
     if (parsed.interactionType === "CONVERSATION") {
       // Casual Humor
@@ -336,7 +343,7 @@ export class AthenaPersonaEngine {
     }
 
     // H. Honest Understanding Policy for Low-Confidence / Unknown
-    if (parsed.confidence === "LOW" || clean.length < 3) {
+    if ((parsed.confidence as string) === "LOW" || (parsed.confidence as string) === "UNKNOWN" || clean.length < 3) {
       athenaLocalTelemetry.record("session", prompt, "LOW_CONFIDENCE", { clean });
       return {
         text: `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,

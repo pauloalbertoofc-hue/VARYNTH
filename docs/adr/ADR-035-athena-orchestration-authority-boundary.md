@@ -18,3 +18,4 @@ Definir claramente os limites entre compreensão, planejamento, execução e pub
 ## Consequências
 - **Ganhos**: Soberania humana incondicional sobre dados e publicações, transparência e explicabilidade determinística.
 - **Trade-offs**: Exigência de confirmações contextuais em ações de alto impacto.
+

@@ -105,6 +105,10 @@ export class MemoryManager {
     return JSON.parse(JSON.stringify(this.episodicMemory.slice(0, limit)));
   }
 
+  getEpisodicMemory(): EpisodicMemoryEntry[] {
+    return JSON.parse(JSON.stringify(this.episodicMemory));
+  }
+
   // Vector Contract Placeholder (Pronto para embeddings futuros)
   async queryVectorMemory(query: string, limit = 3): Promise<string[]> {
     // Vector search contract interface

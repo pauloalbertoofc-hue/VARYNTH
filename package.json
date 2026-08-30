@@ -33,7 +33,8 @@
     "test:invariants": "npx tsx src/lib/hardening/system-invariants.test.ts",
     "test:concurrency": "npx tsx src/lib/hardening/concurrency-recovery.test.ts",
     "test:hardening": "npx tsx src/lib/hardening/security-chaos.test.ts",
-    "test:orchestration": "npx tsx src/lib/orchestration/creative-orchestration.test.ts"
+    "test:orchestration": "npx tsx src/lib/orchestration/creative-orchestration.test.ts",
+    "test:athena-system": "npx tsx src/lib/athena/tests/athena-system-regression.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -70,3 +70,4 @@ graph TD
 - `INV-034`: Completude de manifestos de proveniência.
 - `INV-035`: Segurança de outputs commitados em cancelamentos tardios.
 - `INV-036`: Declaração prévia ou confirmação para fallbacks com mudança semântica.
+
