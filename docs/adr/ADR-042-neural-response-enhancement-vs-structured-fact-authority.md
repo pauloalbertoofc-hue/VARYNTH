@@ -23,3 +23,4 @@ O adaptador neural local (Ollama) pode ser utilizado opcionalmente para enriquec
 ## Consequências
 - Fatos operacionais são 100% confiáveis e verificáveis.
 - Queda de latência e garantia absoluta contra alucinações de mutações no banco de dados.
+

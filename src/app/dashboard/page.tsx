@@ -109,7 +109,8 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <Link
             href="/projects"
-            className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-violet-500/40 transition-all group"
+            aria-label="Acessar painel de projetos ativos"
+            className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-violet-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
           >
             <div className="flex items-center justify-between text-slate-400 text-xs">
               <span>Projetos Ativos</span>
@@ -119,32 +120,44 @@ export default function DashboardPage() {
             <p className="text-[10px] text-slate-500 mt-0.5">{projects.length} no total</p>
           </Link>
 
-          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-amber-500/40 transition-all">
+          <Link
+            href="/projects"
+            aria-label={`Ver ${pendingTasks.length} tarefas pendentes nos projetos`}
+            className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-amber-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          >
             <div className="flex items-center justify-between text-slate-400 text-xs">
               <span>Tarefas Pendentes</span>
-              <CheckSquare size={16} className="text-amber-400" />
+              <CheckSquare size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-2xl font-bold text-amber-400 mt-1">{pendingTasks.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">{urgentTasks.length} urgentes / altas</p>
-          </div>
+          </Link>
 
-          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-emerald-500/40 transition-all">
+          <Link
+            href="/modules/activity"
+            aria-label={`Ver histórico de ${completedTasks.length} tarefas concluídas e audit trail`}
+            className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-emerald-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
             <div className="flex items-center justify-between text-slate-400 text-xs">
               <span>Concluídas</span>
-              <Zap size={16} className="text-emerald-400" />
+              <Zap size={16} className="text-emerald-400 group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-2xl font-bold text-emerald-400 mt-1">{completedTasks.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">Histórico registrado</p>
-          </div>
+          </Link>
 
-          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-cyan-500/40 transition-all">
+          <Link
+            href="/modules/vault"
+            aria-label={`Acessar ${notes.length} notas e acervo de conhecimento do Vault`}
+            className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-cyan-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+          >
             <div className="flex items-center justify-between text-slate-400 text-xs">
               <span>Notas & Vault</span>
-              <FileText size={16} className="text-cyan-400" />
+              <FileText size={16} className="text-cyan-400 group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-2xl font-bold text-cyan-400 mt-1">{notes.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">Fichamentos salvos</p>
-          </div>
+          </Link>
         </div>
 
         {/* Main Cockpit Layout: 2 Columns */}

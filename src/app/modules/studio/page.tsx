@@ -174,18 +174,71 @@ export default function StudioPage() {
 
   useEffect(() => {
     loadData();
+
+    const handleUpdate = () => loadData();
+    window.addEventListener("varynth_artifacts_updated", handleUpdate);
+    window.addEventListener("BACKUP_RESTORE_COMPLETED", handleUpdate);
+    window.addEventListener("varynth_store_update", handleUpdate);
+
     return () => {
       if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+      window.removeEventListener("varynth_artifacts_updated", handleUpdate);
+      window.removeEventListener("BACKUP_RESTORE_COMPLETED", handleUpdate);
+      window.removeEventListener("varynth_store_update", handleUpdate);
     };
   }, []);
 
   const loadData = () => {
-    setAllDocs(documentService.listDocuments());
-    setAllWebsites(webService.listWebsites());
-    setAllImages(imageService.listImages());
-    setAllAudios(audioService.listAudioProjects());
-    setAllVideos(videoService.listVideoProjects());
-    setAllGames(gameService.getAllGames());
+    const docs = documentService.listDocuments();
+    const webs = webService.listWebsites();
+    const imgs = imageService.listImages();
+    const auds = audioService.listAudioProjects();
+    const vids = videoService.listVideoProjects();
+    const gms = gameService.getAllGames();
+
+    setAllDocs(docs);
+    setAllWebsites(webs);
+    setAllImages(imgs);
+    setAllAudios(auds);
+    setAllVideos(vids);
+    setAllGames(gms);
+
+    // Stale Selection Invalidation on Restore / Update
+    setActiveDoc((prev) => {
+      if (!prev) return docs[0] || null;
+      const found = docs.find((d) => d.artifact.id === prev.artifact.id);
+      return found || docs[0] || null;
+    });
+
+    setActiveWebsite((prev) => {
+      if (!prev) return webs[0] || null;
+      const found = webs.find((w) => w.artifact.id === prev.artifact.id);
+      return found || webs[0] || null;
+    });
+
+    setActiveImage((prev) => {
+      if (!prev) return imgs[0] || null;
+      const found = imgs.find((i) => i.artifact.id === prev.artifact.id);
+      return found || imgs[0] || null;
+    });
+
+    setActiveAudio((prev) => {
+      if (!prev) return auds[0] || null;
+      const found = auds.find((a) => a.artifact.id === prev.artifact.id);
+      return found || auds[0] || null;
+    });
+
+    setActiveVideo((prev) => {
+      if (!prev) return vids[0] || null;
+      const found = vids.find((v) => v.artifact.id === prev.artifact.id);
+      return found || vids[0] || null;
+    });
+
+    setActiveGame((prev) => {
+      if (!prev) return gms[0] || null;
+      const found = gms.find((g) => g.artifact.id === prev.artifact.id);
+      return found || gms[0] || null;
+    });
   };
 
   // --- Document Studio Handlers ---

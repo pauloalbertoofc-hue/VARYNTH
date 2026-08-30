@@ -253,8 +253,13 @@ export class BackupService {
       creativeGraph.rebuildIndex();
       CreativeIntegrityValidator.evaluateAll();
 
-      // Trigger universal reload events
+      // Trigger universal reactive store reload events
       window.dispatchEvent(new CustomEvent("varynth_store_update"));
+      window.dispatchEvent(new CustomEvent("varynth_artifacts_updated"));
+      window.dispatchEvent(new CustomEvent("varynth_notification_updated"));
+      window.dispatchEvent(new CustomEvent("varynth_jobs_updated"));
+      window.dispatchEvent(new CustomEvent("varynth_guardian_updated"));
+      window.dispatchEvent(new CustomEvent("BACKUP_RESTORE_COMPLETED", { detail: { mode, counts } }));
 
       athenaEventBus.emit("BACKUP_RESTORED", {
         mode,

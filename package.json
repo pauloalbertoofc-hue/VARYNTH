@@ -37,7 +37,8 @@
     "test:athena-system": "npx tsx src/lib/athena/tests/athena-system-regression.test.ts",
     "test:athena-intelligence": "npx tsx src/lib/athena/tests/athena-intelligence-suite.test.ts",
     "test:athena-semantic": "npx tsx src/lib/athena/tests/semantic-regression.test.ts",
-    "test:athena-response-quality": "npx tsx src/lib/athena/tests/athena-response-quality.test.ts"
+    "test:athena-response-quality": "npx tsx src/lib/athena/tests/athena-response-quality.test.ts",
+    "test:product-reality": "npx tsx src/lib/tests/product-reality.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

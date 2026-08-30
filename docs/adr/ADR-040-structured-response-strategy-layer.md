@@ -20,3 +20,4 @@ O pipeline cognitivo da Athena separava a interpretação semântica da execuç�
 ## Consequências
 - Aberturas e respostas adaptam-se naturalmente ao contexto (concisas para perguntas diretas, detalhadas para reflexões conceituais).
 - Resoluções de erros e mal-entendidos tornam-se claras, empáticas e objetivas.
+

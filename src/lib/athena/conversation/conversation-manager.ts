@@ -237,8 +237,13 @@ export class ConversationManager {
       semantic.intent === "TASK_QUERY" ||
       semantic.intent === "PROJECT_QUERY" ||
       semantic.intent === "ECOSYSTEM_STATUS" ||
+      clean.includes("quantas tarefas") ||
       clean.includes("quantos projetos") ||
+      clean.includes("tarefas existem") ||
+      clean.includes("tarefas do projeto") ||
       clean.includes("projetos ativos") ||
+      clean.includes("como esta meu sistema") ||
+      clean.includes("como esta o sistema") ||
       clean.includes("como estao meus projetos") ||
       clean.includes("como estao minhas tarefas") ||
       clean.includes("como esta aquele projeto") ||

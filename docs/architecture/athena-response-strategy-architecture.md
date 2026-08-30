@@ -80,3 +80,4 @@
         ▼                 ▼
  [Entrega Texto]    [Descarta saída neural e usa Fallback Determinístico (FAIL-CLOSED)]
 ```
+

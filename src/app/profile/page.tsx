@@ -23,6 +23,8 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { backupService } from "@/lib/backup/backup-service";
+import { BackupModal } from "@/components/backup/BackupModal";
 
 export default function ProfilePage() {
   const store = useVarynthStore();
@@ -38,63 +40,25 @@ export default function ProfilePage() {
     forgeFiles: store.forgeFiles,
   });
 
-  // Export Full VARYNTH OS Snapshot
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+
+  // Canonical Universal Backup Export
   const handleExportBackup = () => {
-    const backupData = {
-      version: "VARYNTH_OS_v6.0",
-      exportedAt: new Date().toISOString(),
-      user: "Paulo",
-      projects: store.projects,
-      tasks: store.tasks,
-      notes: store.notes,
-      vaultItems: store.vaultItems,
-      chronosEvents: store.chronosEvents,
-      historicalMilestones: store.historicalMilestones,
-      people: store.people,
-      labItems: store.labItems,
-      graveyardItems: store.graveyardItems,
-      theses: store.theses,
-      researches: store.researches,
-      evidences: store.evidences,
-      opportunities: store.opportunities,
-      forgeFiles: store.forgeFiles,
-    };
-
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `varynth_os_backup_${new Date().toISOString().split("T")[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // Import Backup File
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (data.projects) localStorage.setItem("varynth_os_projects", JSON.stringify(data.projects));
-        if (data.tasks) localStorage.setItem("varynth_os_tasks", JSON.stringify(data.tasks));
-        if (data.notes) localStorage.setItem("varynth_os_notes", JSON.stringify(data.notes));
-        if (data.vaultItems) localStorage.setItem("varynth_os_vault", JSON.stringify(data.vaultItems));
-        if (data.chronosEvents) localStorage.setItem("varynth_os_chronos", JSON.stringify(data.chronosEvents));
-        if (data.theses) localStorage.setItem("varynth_os_theses", JSON.stringify(data.theses));
-        if (data.evidences) localStorage.setItem("varynth_os_evidences", JSON.stringify(data.evidences));
-        if (data.opportunities) localStorage.setItem("varynth_os_opportunities", JSON.stringify(data.opportunities));
-        if (data.forgeFiles) localStorage.setItem("varynth_os_forge", JSON.stringify(data.forgeFiles));
-
-        setImportStatus("✓ Backup restaurado com sucesso! Recarregando...");
-        setTimeout(() => window.location.reload(), 1200);
-      } catch {
-        setImportStatus("❌ Erro ao ler arquivo JSON de backup.");
-      }
-    };
-    reader.readAsText(file);
+    try {
+      const backup = backupService.exportVarynthBackup();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `varynth-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setImportStatus(`✓ Backup canônico exportado com sucesso (${a.download}).`);
+    } catch (err: any) {
+      setImportStatus(`❌ Erro ao exportar backup: ${err?.message || err}`);
+    }
   };
 
   return (
@@ -232,22 +196,19 @@ export default function ProfilePage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
             <button
               onClick={handleExportBackup}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
               <Download size={15} />
               <span>Exportar Backup Completo (.JSON)</span>
             </button>
 
-            <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-[#14141f] hover:bg-[#1e1e30] border border-[#1e1e30] cursor-pointer transition-all">
+            <button
+              onClick={() => setIsBackupModalOpen(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-[#14141f] hover:bg-[#1e1e30] border border-[#1e1e30] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+            >
               <Upload size={15} className="text-cyan-400" />
-              <span>Restaurar de Arquivo JSON</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportBackup}
-                className="hidden"
-              />
-            </label>
+              <span>Gerenciador de Backup & Restauração</span>
+            </button>
           </div>
 
           {importStatus && (
@@ -256,6 +217,11 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        <BackupModal
+          isOpen={isBackupModalOpen}
+          onClose={() => setIsBackupModalOpen(false)}
+        />
       </div>
     </PageLayout>
   );

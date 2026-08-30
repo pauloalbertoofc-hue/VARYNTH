@@ -92,7 +92,7 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
 
       if (result.success) {
         setStatusMessage({
-          text: `Restauração concluída no modo ${restoreMode}. Recarregue a página para ver todos os dados sincronizados.`,
+          text: `Restauração concluída no modo ${restoreMode}. Todos os módulos e stores foram sincronizados reativamente.`,
           type: "success",
         });
       } else {

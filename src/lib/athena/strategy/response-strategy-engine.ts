@@ -210,17 +210,21 @@ export class AthenaResponseStrategyEngine {
 
     // Ground general task statistics
     if (ctx && (semantic.intent === "TASK_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("tarefa") || clean.includes("pendent") || clean.includes("fila") || clean.includes("devendo"))) {
-      const pending = ctx.tasks.filter((t: Task) => t.status !== "concluida");
+      const allTasks = targetProjectId ? ctx.tasks.filter((t: Task) => t.projectId === targetProjectId) : ctx.tasks;
+      const pending = allTasks.filter((t: Task) => t.status !== "concluida");
       const urgent = pending.filter((t: Task) => t.priority === "urgente" || t.priority === "alta");
+      const targetProj = targetProjectId ? ctx.projects.find((p: Project) => p.id === targetProjectId) : undefined;
 
       keyFacts.push({
         key: "pendingTasksCount",
         value: pending.length,
-        label: `${pending.length} tarefas pendentes no total`,
+        label: targetProj
+          ? `${pending.length} tarefas pendentes no projeto ${targetProj.title}`
+          : `${pending.length} tarefas pendentes no total`,
         supportedBy: {
           sourceType: "TASK_REPOSITORY",
-          sourceId: "all-tasks",
-          queryRef: "status!=concluida",
+          sourceId: targetProjectId || "all-tasks",
+          queryRef: targetProjectId ? `projectId=${targetProjectId}` : "status!=concluida",
           evaluatedAt,
         },
       });
@@ -231,7 +235,7 @@ export class AthenaResponseStrategyEngine {
         label: `${urgent.length} tarefas de alta prioridade`,
         supportedBy: {
           sourceType: "TASK_REPOSITORY",
-          sourceId: "urgent-tasks",
+          sourceId: targetProjectId ? `urgent-${targetProjectId}` : "urgent-tasks",
           queryRef: "priority=alta|urgente",
           evaluatedAt,
         },
@@ -252,7 +256,7 @@ export class AthenaResponseStrategyEngine {
     }
 
     // Ground project statistics
-    if (ctx && (semantic.intent === "PROJECT_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("projeto") || clean.includes("workspace"))) {
+    if (ctx && (semantic.intent === "PROJECT_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("projeto") || clean.includes("workspace") || clean.includes("sistema"))) {
       const activeProjects = ctx.projects.filter((p: Project) => p.status === "ativo");
       keyFacts.push({
         key: "activeProjectsCount",
@@ -299,7 +303,9 @@ export class AthenaResponseStrategyEngine {
       clean.includes("o que e") ||
       clean.includes("explique") ||
       clean.includes("como funciona") ||
-      clean.includes("conceito");
+      clean.includes("conceito") ||
+      clean.includes("voce sabe o que") ||
+      clean.includes("hermeneutica");
 
     const isCritiqueOrCompare =
       clean.includes("critique") ||

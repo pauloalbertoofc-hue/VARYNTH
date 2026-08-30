@@ -240,6 +240,61 @@ export function processAthenaQuery(
   );
 
   const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
+  const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
+  const semantic: import("./semantic/types").SemanticInterpretation = parsed.semanticInterpretation || {
+    intent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
+    confidence: parsed.confidence === "HIGH" ? 0.95 : 0.7,
+    confidenceLevel: parsed.confidence,
+    polarity: "AFFIRMATIVE",
+    isNoise: false,
+    ambiguity: parsed.isAmbiguous ? "SEMANTIC" : "NONE",
+    requiresClarification: Boolean(parsed.isAmbiguous),
+    clarificationPrompt: parsed.clarificationPrompt,
+    slots: {},
+    candidateScores: [],
+    margin: 1.0,
+    semanticSource: "DETERMINISTIC",
+    trace: {
+      timestamp: new Date().toISOString(),
+      rawPrompt: prompt,
+      normalizedText: prompt.toLowerCase(),
+      deterministicSignals: [],
+      pragmaticFlags: [],
+      similarityTopCandidates: [],
+      selectedIntent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
+      confidenceScore: 0.9,
+      confidenceBucket: parsed.confidence,
+      semanticSource: "DETERMINISTIC",
+      margin: 1.0,
+    },
+  };
+
+  const responseIntent = AthenaResponseStrategyEngine.plan(
+    semantic,
+    sessionState,
+    ctx,
+    scope,
+    resolvedProjectId,
+    prompt
+  );
+
+  if (responseIntent.mode === "CLARIFICATION" || (parsed.isAmbiguous && parsed.clarificationPrompt)) {
+    const clarResult = athenaPersonaEngine.generateDialogueResponse(
+      prompt,
+      parsed,
+      undefined,
+      ctx,
+      responseIntent,
+      sessionId
+    );
+    return {
+      id: "ath-" + Date.now(),
+      sender: "athena",
+      text: clarResult.text,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scope,
+    };
+  }
 
   if (parsed.interactionType === "OPERATIONAL_REQUEST") {
     return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
@@ -250,7 +305,9 @@ export function processAthenaQuery(
     prompt,
     parsed,
     activeProj?.title,
-    ctx
+    ctx,
+    responseIntent,
+    sessionId
   );
 
   athenaConversationManager.recordAssistantResponse(

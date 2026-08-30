@@ -345,7 +345,20 @@ export class AthenaPersonaEngine {
         };
       }
 
+      const activeProjectsFact = intent.keyFacts.find((f) => f.key === "activeProjectsCount");
       const pendingTasksFact = intent.keyFacts.find((f) => f.key === "pendingTasksCount");
+
+      const isProjectOrSystemQuery =
+        (clean.includes("projeto") || clean.includes("sistema") || clean.includes("workspace")) &&
+        !clean.includes("tarefa") &&
+        !clean.includes("pendent");
+
+      if (isProjectOrSystemQuery && activeProjectsFact && typeof activeProjectsFact.value === "number") {
+        return {
+          text: `Você tem **${activeProjectsFact.value} projetos ativos** nas suas workspaces no momento.`,
+        };
+      }
+
       if (pendingTasksFact && typeof pendingTasksFact.value === "number") {
         const pendingCount = pendingTasksFact.value;
         const urgentCount = (intent.keyFacts.find((f) => f.key === "urgentTasksCount")?.value as number) || 0;
@@ -361,7 +374,6 @@ export class AthenaPersonaEngine {
         };
       }
 
-      const activeProjectsFact = intent.keyFacts.find((f) => f.key === "activeProjectsCount");
       if (activeProjectsFact && typeof activeProjectsFact.value === "number") {
         return {
           text: `Você tem **${activeProjectsFact.value} projetos ativos** nas suas workspaces no momento.`,

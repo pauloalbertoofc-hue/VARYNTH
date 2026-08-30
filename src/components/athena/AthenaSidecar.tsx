@@ -78,6 +78,21 @@ export function AthenaSidecar() {
     return null;
   }
 
+  // 1. Resolve Project Context from Route with validation
+  let routeProjectId: string | undefined = undefined;
+  const projectRouteMatch = pathname.match(/\/projects\/([^/?#]+)/);
+  if (projectRouteMatch && projectRouteMatch[1]) {
+    try {
+      const candidateId = decodeURIComponent(projectRouteMatch[1]);
+      const projectExists = store.projects.some((p) => p.id === candidateId);
+      if (projectExists) {
+        routeProjectId = candidateId;
+      }
+    } catch {
+      // ignore decode error
+    }
+  }
+
   // Derive scope from current route
   let currentScope: AthenaScope = "geral";
   if (pathname.includes("/codex")) currentScope = "juridico";
@@ -104,7 +119,14 @@ export function AthenaSidecar() {
     setIsTyping(true);
 
     try {
-      const response = await processAthenaQueryAsync(raw, currentScope, store, undefined, "global-athena-session");
+      const sessionId = routeProjectId ? `project-${routeProjectId}-sidecar-session` : "global-athena-session";
+      const response = await processAthenaQueryAsync(
+        raw,
+        currentScope,
+        store,
+        routeProjectId,
+        sessionId
+      );
       saveMessages([...updated, response]);
     } catch {
       // fallback
