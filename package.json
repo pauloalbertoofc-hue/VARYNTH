@@ -34,7 +34,8 @@
     "test:concurrency": "npx tsx src/lib/hardening/concurrency-recovery.test.ts",
     "test:hardening": "npx tsx src/lib/hardening/security-chaos.test.ts",
     "test:orchestration": "npx tsx src/lib/orchestration/creative-orchestration.test.ts",
-    "test:athena-system": "npx tsx src/lib/athena/tests/athena-system-regression.test.ts"
+    "test:athena-system": "npx tsx src/lib/athena/tests/athena-system-regression.test.ts",
+    "test:athena-intelligence": "npx tsx src/lib/athena/tests/athena-intelligence-suite.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
