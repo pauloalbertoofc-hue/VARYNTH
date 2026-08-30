@@ -17,7 +17,19 @@ export type ActionType =
   | "creative.linkArtifact"
   | "creative.unlinkArtifact"
   | "creative.setPinMode"
-  | "creative.reviewDependencyUpdate";
+  | "creative.reviewDependencyUpdate"
+  | "creative.plan"
+  | "creative.reviewPlan"
+  | "creative.approvePlan"
+  | "creative.executePlan"
+  | "creative.pausePlan"
+  | "creative.cancelPlan"
+  | "creative.retryStep"
+  | "creative.replan"
+  | "creative.getPlanStatus"
+  | "creative.getStepStatus"
+  | "creative.explainBlocker"
+  | "creative.rebuildAffectedOutputs";
 
 export interface AthenaAction {
   id: string;

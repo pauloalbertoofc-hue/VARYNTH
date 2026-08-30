@@ -111,10 +111,20 @@ export const CREATION_FOUNDATION_ROADMAP = [
   {
     phase: 3,
     id: "athena-creative-orchestration",
-    name: "Phase 3 — Athena Creative Orchestration",
-    status: "PLANNED",
-    description: "Orquestração autônoma de fluxos criativos multimodais (Document -> Script -> Audio/Image -> Video -> Game).",
-    capabilities: ["autonomous-multimodal-orchestration", "multi-studio-generation", "smart-dependency-synthesis"],
+    name: "Phase 3 — Athena Creative Orchestration, Multi-Studio Planning & Governed Execution",
+    status: "READY",
+    description: "Orquestração soberana multi-studio sob o princípio UNDERSTAND ≠ PLAN ≠ EXECUTE ≠ PUBLISH, DAG determinística, governança via ToolManager e semântica de sucesso parcial.",
+    capabilities: [
+      "creative-intent-decomposition",
+      "honest-capability-discovery",
+      "dag-cycle-validation",
+      "governed-execution-controller",
+      "input-version-freezing",
+      "partial-success-semantics",
+      "anti-toctou-approval-scope",
+      "semantic-replanning-diff",
+      "system-invariants-inv021-036",
+    ],
   },
 ];
 

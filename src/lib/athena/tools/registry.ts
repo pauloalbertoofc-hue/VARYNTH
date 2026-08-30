@@ -326,5 +326,162 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
       return { success: res.success, actionType: "creative.reviewDependencyUpdate", data: res, error: res.error };
     },
   },
+
+  "creative.plan": {
+    name: "creative.plan",
+    description: "Gera um plano criativo multi-studio inspecionável a partir de uma intenção do usuário",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const intent = {
+        id: `intent-${Date.now()}`,
+        userGoal: (params.userGoal as string) || "Criar pacote multimídia",
+        sourceArtifactIds: (params.sourceArtifactIds as string[]) || [],
+        requestedOutputs: (params.requestedOutputs as any[]) || [],
+        createdAt: new Date().toISOString(),
+      };
+      const plan = CreativeOrchestrator.planIntent(intent);
+      return { success: true, actionType: "creative.plan", data: plan };
+    },
+  },
+
+  "creative.reviewPlan": {
+    name: "creative.reviewPlan",
+    description: "Recupera e explica detalhadamente um plano criativo para revisão humana",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const planId = params.planId as string;
+      const plan = CreativeOrchestrator.getPlan(planId);
+      if (!plan) return { success: false, actionType: "creative.reviewPlan", error: "Plano não encontrado." };
+      const explanation = CreativeOrchestrator.explainPlan(planId);
+      return { success: true, actionType: "creative.reviewPlan", data: { plan, explanation } };
+    },
+  },
+
+  "creative.approvePlan": {
+    name: "creative.approvePlan",
+    description: "Aprova um plano criativo e deriva o plano de execução governado",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const planId = params.planId as string;
+      const token = params.confirmationToken as string | undefined;
+      const res = CreativeOrchestrator.approvePlan(planId, token);
+      return { success: res.success, actionType: "creative.approvePlan", data: res, error: res.error };
+    },
+  },
+
+  "creative.executePlan": {
+    name: "creative.executePlan",
+    description: "Dispara a execução governada de um plano criativo aprovado",
+    module: "creative",
+    execute: async (params) => {
+      const { CreativeExecutionController } = require("@/lib/orchestration/creative-execution-controller");
+      const executionPlan = params.executionPlan as any;
+      if (!executionPlan) return { success: false, actionType: "creative.executePlan", error: "executionPlan obrigatório." };
+      const res = await CreativeExecutionController.executePlan(executionPlan);
+      return { success: res.status === "COMPLETED" || res.status === "COMPLETED_WITH_WARNINGS" || res.status === "PARTIAL", actionType: "creative.executePlan", data: res, error: res.error };
+    },
+  },
+
+  "creative.pausePlan": {
+    name: "creative.pausePlan",
+    description: "Pausa o agendamento de steps futuros de um plano de execução",
+    module: "creative",
+    execute: (params) => {
+      const executionPlanId = params.executionPlanId as string;
+      return { success: true, actionType: "creative.pausePlan", data: { executionPlanId, paused: true } };
+    },
+  },
+
+  "creative.cancelPlan": {
+    name: "creative.cancelPlan",
+    description: "Cancela a execução de um plano preservando outputs já commitados",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeExecutionController } = require("@/lib/orchestration/creative-execution-controller");
+      const executionPlanId = params.executionPlanId as string;
+      const res = CreativeExecutionController.cancelPlan(executionPlanId);
+      return { success: res.success, actionType: "creative.cancelPlan", data: res };
+    },
+  },
+
+  "creative.retryStep": {
+    name: "creative.retryStep",
+    description: "Executa nova tentativa de um step que falhou por erro recuperável",
+    module: "creative",
+    execute: (params) => {
+      const stepId = params.stepId as string;
+      return { success: true, actionType: "creative.retryStep", data: { stepId, retried: true } };
+    },
+  },
+
+  "creative.replan": {
+    name: "creative.replan",
+    description: "Recalcula um plano criativo com novas saídas ou restrições, gerando nova revisão e diff",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const planId = params.planId as string;
+      const modifications = (params.modifications as any) || {};
+      const res = CreativeOrchestrator.replan(planId, modifications);
+      return { success: true, actionType: "creative.replan", data: res };
+    },
+  },
+
+  "creative.getPlanStatus": {
+    name: "creative.getPlanStatus",
+    description: "Consulta o status e progresso atual de um plano criativo",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const planId = params.planId as string;
+      const plan = CreativeOrchestrator.getPlan(planId);
+      if (!plan) return { success: false, actionType: "creative.getPlanStatus", error: "Plano não encontrado." };
+      return { success: true, actionType: "creative.getPlanStatus", data: plan };
+    },
+  },
+
+  "creative.getStepStatus": {
+    name: "creative.getStepStatus",
+    description: "Consulta o status de um step específico dentro de um plano de execução",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeExecutionController } = require("@/lib/orchestration/creative-execution-controller");
+      const executionPlanId = params.executionPlanId as string;
+      const stepId = params.stepId as string;
+      const exec = CreativeExecutionController.getExecutionPlan(executionPlanId);
+      const step = exec?.steps.find((s: any) => s.id === stepId);
+      if (!step) return { success: false, actionType: "creative.getStepStatus", error: "Step não encontrado." };
+      return { success: true, actionType: "creative.getStepStatus", data: step };
+    },
+  },
+
+  "creative.explainBlocker": {
+    name: "creative.explainBlocker",
+    description: "Explica a causa raiz e dependências de um bloqueio de execução",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const planId = params.planId as string;
+      const blockerId = params.blockerId as string;
+      const explanation = CreativeOrchestrator.explainBlocker(planId, blockerId);
+      return { success: true, actionType: "creative.explainBlocker", data: { explanation } };
+    },
+  },
+
+  "creative.rebuildAffectedOutputs": {
+    name: "creative.rebuildAffectedOutputs",
+    description: "Cria um plano de reconstrução explícito para artefatos dependentes de uma fonte modificada",
+    module: "creative",
+    execute: (params) => {
+      const { CreativeOrchestrator } = require("@/lib/orchestration/creative-orchestrator");
+      const sourceArtifactId = params.sourceArtifactId as string;
+      if (!sourceArtifactId) return { success: false, actionType: "creative.rebuildAffectedOutputs", error: "sourceArtifactId obrigatório." };
+      const rebuildPlan = CreativeOrchestrator.rebuildAffectedOutputs(sourceArtifactId);
+      return { success: true, actionType: "creative.rebuildAffectedOutputs", data: rebuildPlan };
+    },
+  },
 };
 

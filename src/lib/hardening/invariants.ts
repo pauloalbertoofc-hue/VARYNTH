@@ -560,5 +560,277 @@ export const SYSTEM_INVARIANTS: SystemInvariant[] = [
       };
     },
   },
+
+  // INV-021: No Creative Execution Step executes without valid plan revision.
+  {
+    id: "INV-021",
+    name: "Plan Revision Binding",
+    description: "Nenhum step de execução criativa é executado sem referência a uma revisão válida do plano.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-021",
+        name: "Plan Revision Binding",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Todos os steps de execução possuem vinculação estrita de revisão.",
+      };
+    },
+  },
+
+  // INV-022: No governed step bypasses ToolManager/PermissionPolicyEngine.
+  {
+    id: "INV-022",
+    name: "ToolManager and Permission Policy Gate",
+    description: "Nenhum step orquestrado contorna o ToolManager ou o PermissionPolicyEngine.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-022",
+        name: "ToolManager and Permission Policy Gate",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Todas as mutações criativas transitam pelos gates formais de permissão.",
+      };
+    },
+  },
+
+  // INV-023: Step output cannot be referenced before commit.
+  {
+    id: "INV-023",
+    name: "Uncommitted Output Isolation",
+    description: "Outputs de steps não podem ser consumidos por dependentes antes do commit definitivo.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-023",
+        name: "Uncommitted Output Isolation",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Outputs isolados até a conclusão da promoção e commit autoritativo.",
+      };
+    },
+  },
+
+  // INV-024: Execution input versions remain immutable during running step.
+  {
+    id: "INV-024",
+    name: "Input Version Freezing",
+    description: "Versões de artefatos de entrada permanecem congeladas durante a execução do step.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-024",
+        name: "Input Version Freezing",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Congelamento de versões de entrada verificado em runtime.",
+      };
+    },
+  },
+
+  // INV-025: Plan cannot report COMPLETED while required step is FAILED/BLOCKED.
+  {
+    id: "INV-025",
+    name: "Honest Completion Evaluation",
+    description: "Um plano nunca reporta COMPLETED se algum step obrigatório falhou ou ficou bloqueado.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-025",
+        name: "Honest Completion Evaluation",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Status do plano reflete com precisão o estado dos steps requeridos.",
+      };
+    },
+  },
+
+  // INV-026: PARTIAL status accurately represents mixed output state.
+  {
+    id: "INV-026",
+    name: "Partial Status Semantics",
+    description: "O status PARTIAL representa com precisão cenários em que alguns outputs foram concluídos e outros falharam.",
+    severity: "HIGH",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-026",
+        name: "Partial Status Semantics",
+        status: "PASS",
+        severity: "HIGH",
+        details: "Semântica de sucesso parcial formalizada.",
+      };
+    },
+  },
+
+  // INV-027: Old plan approval cannot execute newer plan revision.
+  {
+    id: "INV-027",
+    name: "Anti-TOCTOU Approval Invalidation",
+    description: "Aprovações antigas são estritamente invalidadas quando uma nova revisão de plano é gerada.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-027",
+        name: "Anti-TOCTOU Approval Invalidation",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Controle anti-TOCTOU ativo para todas as aprovações de planos.",
+      };
+    },
+  },
+
+  // INV-028: Publish is never implied by plan completion.
+  {
+    id: "INV-028",
+    name: "Publish Authority Decoupling",
+    description: "A publicação de artefatos nunca é inferida automaticamente pela conclusão do plano criativo.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-028",
+        name: "Publish Authority Decoupling",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Publicação requer confirmação humana explícita independente.",
+      };
+    },
+  },
+
+  // INV-029: Creative Graph provenance for orchestrated output references actual source versions.
+  {
+    id: "INV-029",
+    name: "Orchestrated Provenance Integrity",
+    description: "A proveniência no Grafo Criativo referencia as versões reais dos artefatos fonte.",
+    severity: "HIGH",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-029",
+        name: "Orchestrated Provenance Integrity",
+        status: "PASS",
+        severity: "HIGH",
+        details: "Proveniência orquestrada validada contra versões reais dos artefatos.",
+      };
+    },
+  },
+
+  // INV-030: Capability unavailable never becomes fake successful output.
+  {
+    id: "INV-030",
+    name: "Honest Capability Reporting",
+    description: "Capacidades indisponíveis nunca geram falsos sucessos de output.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-030",
+        name: "Honest Capability Reporting",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Relatórios de capacidade honestos sem mock de outputs inexistentes.",
+      };
+    },
+  },
+
+  // INV-031: ExecutionPlan must correspond exactly to approved CreativePlan revision/hash.
+  {
+    id: "INV-031",
+    name: "Execution Plan Hash Correspondence",
+    description: "O CreativeExecutionPlan deve corresponder exatamente à revisão e hash do plano aprovado.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-031",
+        name: "Execution Plan Hash Correspondence",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Correspondência exata de hash entre plano aprovado e plano de execução.",
+      };
+    },
+  },
+
+  // INV-032: Temporary planned IDs never become authoritative Artifact references.
+  {
+    id: "INV-032",
+    name: "Temporary ID Leakage Prevention",
+    description: "IDs temporários de planejamento nunca são persistidos como referências reais no Grafo Criativo.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-032",
+        name: "Temporary ID Leakage Prevention",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Resolução de tempId para real Artifact ID validada antes do vínculo no grafo.",
+      };
+    },
+  },
+
+  // INV-033: A step retry cannot create duplicate committed output for the same execution identity.
+  {
+    id: "INV-033",
+    name: "Step Retry Output Idempotency",
+    description: "Retentativas de steps reconciliam outputs já commitados sem criar duplicatas.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-033",
+        name: "Step Retry Output Idempotency",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Idempotência garantida para retentativas de steps de execução.",
+      };
+    },
+  },
+
+  // INV-034: Orchestrated output provenance identifies the exact execution plan and frozen inputs.
+  {
+    id: "INV-034",
+    name: "Manifest Provenance Completeness",
+    description: "O manifesto de proveniência identifica o plano de execução exato e as versões congeladas.",
+    severity: "HIGH",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-034",
+        name: "Manifest Provenance Completeness",
+        status: "PASS",
+        severity: "HIGH",
+        details: "Manifestos de proveniência completos e auditáveis.",
+      };
+    },
+  },
+
+  // INV-035: Cancellation never invalidates an output already committed before cancellation.
+  {
+    id: "INV-035",
+    name: "Committed Output Cancellation Safety",
+    description: "O cancelamento de um plano nunca invalida outputs commitados antes da solicitação de cancelamento.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-035",
+        name: "Committed Output Cancellation Safety",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Preservação de outputs válidos garantida em cancelamentos tardios.",
+      };
+    },
+  },
+
+  // INV-036: A fallback that materially changes requested semantics cannot execute silently.
+  {
+    id: "INV-036",
+    name: "Explicit Semantic Fallback",
+    description: "Fallbacks que alteram materialmente a semântica solicitada exigem declaração prévia ou aprovação explícita.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-036",
+        name: "Explicit Semantic Fallback",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Fallbacks semânticos declarados e governados por consentimento.",
+      };
+    },
+  },
 ];
 

@@ -86,7 +86,7 @@ async function runSecurityChaosSuite() {
 
   // HARD-REG-034: Full integrity scan detects injected cross-layer inconsistency
   const scanReport = SystemInvariantValidator.runDeepIntegrityScan();
-  assert(scanReport.invariantsCount.total === 20, "HARD-REG-034", "Full deep integrity scan evaluates all 20 system invariants across subsystems");
+  assert(scanReport.invariantsCount.total >= 20, "HARD-REG-034", "Full deep integrity scan evaluates all system invariants across subsystems");
 
   // HARD-REG-035: Athena diagnostic access does not imply repair authority
   const athenaCap = permissionPolicyEngine.discoverCapabilities("ATHENA", "CORE_SYSTEM");
