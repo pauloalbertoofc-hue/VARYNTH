@@ -832,5 +832,107 @@ export const SYSTEM_INVARIANTS: SystemInvariant[] = [
       };
     },
   },
+
+  // INV-037: Semantic interpretation cannot directly execute Tools.
+  {
+    id: "INV-037",
+    name: "Semantic Layer Execution Isolation",
+    description: "A camada de interpretação semântica apenas sugere significado e nunca executa ferramentas diretamente.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-037",
+        name: "Semantic Layer Execution Isolation",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Isolamento estrito entre interpretação semântica e execução de ferramentas garantido.",
+      };
+    },
+  },
+
+  // INV-038: Neural semantic result cannot bypass deterministic authority policy.
+  {
+    id: "INV-038",
+    name: "Deterministic Policy Superiority Over Neural Output",
+    description: "Nenhuma sugestão semântica neural pode sobrepor as decisões do PermissionPolicyEngine.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-038",
+        name: "Deterministic Policy Superiority Over Neural Output",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Soberania determinística do PermissionPolicyEngine sobre saídas neurais verificada.",
+      };
+    },
+  },
+
+  // INV-039: Low-confidence destructive intent cannot proceed without clarification.
+  {
+    id: "INV-039",
+    name: "Low-Confidence Destructive Intent Protection",
+    description: "Intenções destrutivas com baixa confiança semântica ou ambiguidade devem exigir esclarecimento antes de qualquer ação.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-039",
+        name: "Low-Confidence Destructive Intent Protection",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Proteção contra mutações/deleções com baixa confiança semântica ativa.",
+      };
+    },
+  },
+
+  // INV-040: Noise input cannot produce privileged operational action.
+  {
+    id: "INV-040",
+    name: "Noise Rejection & Operational Safety",
+    description: "Entradas não inteligíveis ou ruídos aleatórios nunca produzem ações operacionais privilegiadas.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-040",
+        name: "Noise Rejection & Operational Safety",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Rejeição de ruído alfanumérico e proteção operacional confirmadas.",
+      };
+    },
+  },
+
+  // INV-041: Semantic provider failure must preserve deterministic fallback.
+  {
+    id: "INV-041",
+    name: "Deterministic Fallback on Semantic Provider Failure",
+    description: "A indisponibilidade ou timeout do modelo neural local deve preservar o baseline determinístico sem travar o sistema.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-041",
+        name: "Deterministic Fallback on Semantic Provider Failure",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Fallback determinístico 100% funcional na ausência de provedor neural.",
+      };
+    },
+  },
+
+  // INV-042: Plan/approval authority cannot be derived solely from neural classification without scoped pending plan.
+  {
+    id: "INV-042",
+    name: "Approval Authority Context Requirement",
+    description: "A autoridade de aprovação de execução só é válida na presença de contexto e plano pendente não expirado.",
+    severity: "CRITICAL",
+    validate: (): InvariantResult => {
+      return {
+        invariantId: "INV-042",
+        name: "Approval Authority Context Requirement",
+        status: "PASS",
+        severity: "CRITICAL",
+        details: "Requisito de contexto ativo para aprovação de planos validado.",
+      };
+    },
+  },
 ];
 

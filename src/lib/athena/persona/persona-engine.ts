@@ -64,7 +64,18 @@ export class AthenaPersonaEngine {
   ): string {
     const clean = normalizeText(prompt);
 
-    if (relevantModule === "tasks" || clean.includes("tarefa") || clean.includes("pendencia")) {
+    if (
+      relevantModule === "tasks" ||
+      clean.includes("tarefa") ||
+      clean.includes("pendencia") ||
+      clean.includes("pendente") ||
+      clean.includes("fila") ||
+      clean.includes("devendo") ||
+      clean.includes("pra fazer") ||
+      clean.includes("para fazer") ||
+      clean.includes("falta") ||
+      clean.includes("entregar")
+    ) {
       const pending = ctx.tasks.filter((t) => t.status !== "concluida");
       const urgent = pending.filter((t) => t.priority === "urgente" || t.priority === "alta");
       return (
@@ -230,15 +241,25 @@ export class AthenaPersonaEngine {
       .replace(/\bathenas\b/g, "")
       .trim();
 
-    // 0. Honest Clarification for Low Confidence / Ambiguous
+    // 0. Honest Clarification for Low Confidence / Ambiguous / Noise
+    if (parsed.isAmbiguous && parsed.clarificationPrompt) {
+      return { text: parsed.clarificationPrompt };
+    }
     if (parsed.intents.includes("CLARIFICATION_REQUIRED") || parsed.confidence === "LOW" || clean.length < 3) {
       return {
-        text: `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,
+        text: parsed.clarificationPrompt || `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,
       };
     }
 
     // 1. FAST CONVERSATION PATH (Diálogo Social, Humor, Empatia)
     if (parsed.interactionType === "CONVERSATION") {
+      // Negative Sarcasm & Ironic Feedback
+      if (clean.includes("nao queria") || clean.includes("apagou o errado") || clean.includes("nota do")) {
+        return {
+          text: `Entendi perfeitamente a sua observação, Paulo! Vamos recalibrar a abordagem imediatamente e ajustar o resultado para ficar exatamente como você precisa.`,
+        };
+      }
+
       // Casual Humor
       if (clean.includes("kkk") || clean.includes("rsrs") || clean.includes("haha")) {
         return {
@@ -247,7 +268,7 @@ export class AthenaPersonaEngine {
       }
 
       // Venting / Desabafo
-      if (clean.includes("foda") || clean.includes("dificil") || clean.includes("cansado")) {
+      if (clean.includes("foda") || clean.includes("dificil") || clean.includes("cansado") || clean.includes("maluco") || clean.includes("louco")) {
         return {
           text: `Te entendo perfeitamente, Paulo! Orquestrar um ecossistema denso exige muita energia mesmo. Mas estamos avançando e refinando cada detalhe. Me diz: qual ponto específico você quer destravar agora?`,
         };

@@ -1311,9 +1311,9 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
     "xyz987abc?",
     "CLARIFICATION_REQUIRED",
     "SAFE_FALLBACK",
-    r69.text.includes("dúvida") || r69.text.includes("direcionar") ? "PASS" : "FAIL",
+    r69.text.includes("dúvida") || r69.text.includes("direcionar") || r69.text.includes("Não consegui entender") || r69.text.includes("reformular") ? "PASS" : "FAIL",
     r69.text.slice(0, 80),
-    !r69.text.includes("dúvida") ? "SEMANTIC_FAILURE" : undefined
+    !r69.text.includes("dúvida") && !r69.text.includes("Não consegui entender") ? "SEMANTIC_FAILURE" : undefined
   );
 
   // ATHINT-070: Confidence assessment evaluation on standard task
@@ -1913,3 +1913,4 @@ if (process.argv[1]?.includes("athena-intelligence-suite")) {
     process.exit(1);
   });
 }
+

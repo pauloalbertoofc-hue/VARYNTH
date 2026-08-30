@@ -56,6 +56,7 @@ export interface ParsedCognitiveContext {
   isAmbiguous: boolean;
   ambiguityType?: "IRRELEVANT" | "RELEVANT" | "DANGEROUS";
   clarificationPrompt?: string;
+  semanticInterpretation?: import("../semantic/types").SemanticInterpretation;
 }
 
 export interface InteractionDebugInfo {

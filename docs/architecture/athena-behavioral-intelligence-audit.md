@@ -190,3 +190,4 @@ Para elevar a Athena ao estado da arte sem comprometer a autoridade determiníst
 3. **Structured State for Truth**: O banco de dados local e o Graph continuam sendo a única autoridade factual do sistema.
 4. **Governed Memory**: O `MemoryGate` continua barrando persistência indevida.
 5. **Explicit Uncertainty**: Se a similaridade semântica for baixa ou ambígua, o sistema pergunta em vez de adivinhar.
+

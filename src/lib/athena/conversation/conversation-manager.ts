@@ -10,6 +10,7 @@ import {
 import { sessionSummarizer } from "./session-summarizer";
 import { AthenaMessage } from "../domain/response";
 import { Project } from "@/lib/types";
+import { SemanticInterpretationEngine } from "../semantic/semantic-interpretation-engine";
 
 export function normalizeText(text: string): string {
   return text
@@ -205,109 +206,94 @@ export class ConversationManager {
     }
 
     // -------------------------------------------------------------
-    // 3. TOP-LEVEL INTERACTION CLASS & INTENT COMPOSITION
+    // 3. SEMANTIC INTERPRETATION LAYER INTEGRATION
     // -------------------------------------------------------------
+    const semantic = SemanticInterpretationEngine.interpretSync(clean, prompt, {
+      currentProjectId: targetProjectId,
+      currentTopic: state.currentTopic,
+      recentEntities: state.recentEntities,
+    });
+
     let interactionType: InteractionType = "CONVERSATION";
     const intents: CognitiveIntent[] = [];
-    let confidence: ConfidenceLevel = "HIGH";
+    let confidence: ConfidenceLevel = semantic.confidenceLevel === "HIGH" ? "HIGH" : semantic.confidenceLevel === "MEDIUM" ? "MEDIUM" : "LOW";
     let requiresContext = false;
     let requiresAction = false;
     let subject = "GENERAL";
+    let isAmbiguous = semantic.isNoise || semantic.requiresClarification;
+    let clarificationPrompt = semantic.clarificationPrompt;
 
-    const nonPunct = prompt.replace(/[.,!?\s]/g, "");
-    if (nonPunct.length === 0) {
+    // A. Noise & Uncertainty
+    if (semantic.isNoise || semantic.requiresClarification) {
       interactionType = "COGNITIVE_REQUEST";
       intents.push("CLARIFICATION_REQUIRED");
       confidence = "LOW";
       subject = "UNCERTAIN_INPUT";
+      isAmbiguous = true;
+      clarificationPrompt = semantic.clarificationPrompt || "Fiquei em dúvida sobre como direcionar. O que você gostaria de explorar no sistema?";
     }
-
-    // Check Operational Request (MUTATION)
-    const isOperational =
-      clean.startsWith("crie uma tarefa") ||
-      clean.startsWith("criar tarefa") ||
-      clean.startsWith("nova tarefa") ||
-      clean.startsWith("adicione uma tarefa") ||
-      clean.startsWith("adicionar tarefa") ||
-      clean.startsWith("crie uma nota") ||
-      clean.startsWith("criar nota") ||
-      clean.startsWith("anote isso") ||
-      clean.startsWith("anotar") ||
-      clean.startsWith("excluir") ||
-      clean.startsWith("exclua") ||
-      clean.startsWith("apagar") ||
-      clean.startsWith("apague") ||
-      clean.startsWith("deletar") ||
-      clean.startsWith("delete") ||
-      clean.startsWith("remover") ||
-      clean.startsWith("remova") ||
-      clean.startsWith("mova") ||
-      clean.startsWith("mover") ||
-      clean.includes("para a lixeira") ||
-      clean.includes("na lixeira") ||
-      clean.includes("esvaziar lixeira");
-
-    if (isOperational) {
-      interactionType = "OPERATIONAL_REQUEST";
-      intents.push("EXECUTION_REQUEST");
-      requiresAction = true;
-      requiresContext = true;
-      subject = "DATABASE_MUTATION";
-    }
-    // Check Athena Self Diagnostic
+    // B. Ecosystem / Tasks / Projects Status
     else if (
-      clean.includes("seu kernel") ||
-      clean.includes("sua memoria") ||
-      clean.includes("problema na sua memoria") ||
-      clean.includes("seus modulos") ||
-      clean.includes("como esta seu sistema") ||
-      clean.includes("voce esta funcionando") ||
-      clean.includes("diagnostico da athena")
+      semantic.intent === "TASK_QUERY" ||
+      semantic.intent === "PROJECT_QUERY" ||
+      semantic.intent === "ECOSYSTEM_STATUS" ||
+      clean.includes("quantos projetos") ||
+      clean.includes("projetos ativos") ||
+      clean.includes("como estao meus projetos") ||
+      clean.includes("como estao minhas tarefas") ||
+      clean.includes("como esta aquele projeto") ||
+      clean.includes("como esta esse projeto") ||
+      clean.includes("meus prazos")
     ) {
       interactionType = "COGNITIVE_REQUEST";
-      intents.push("ATHENA_SELF_STATUS");
-      subject = "ATHENA_HEALTH";
-      requiresContext = false;
+      intents.push("ECOSYSTEM_STATUS");
+      subject = semantic.intent === "TASK_QUERY" ? "USER_RESOURCES" : semantic.intent === "PROJECT_QUERY" ? "PROJECT" : "USER_RESOURCES";
+      requiresContext = true;
     }
-    // Check Ecosystem Briefing Explicit Requests
-    else if (
-      clean.includes("briefing") ||
-      clean.includes("aconteceu desde") ||
-      clean.includes("resumo executivo") ||
-      clean.includes("me atualize sobre")
-    ) {
+    // C. Ecosystem Briefing
+    else if (semantic.intent === "ECOSYSTEM_BRIEFING") {
       interactionType = "COGNITIVE_REQUEST";
       intents.push("ECOSYSTEM_BRIEFING");
       subject = "SYSTEM_ECOSYSTEM";
       requiresContext = true;
     }
-    // Check Ecosystem / System Status (Adversarial: "como esta o varynth", "como esta aquele projeto", "como está meu sistema")
-    else if (
-      clean.includes("minha situacao") ||
-      clean.includes("como esta o varynth") ||
-      clean.includes("como esta meu sistema") ||
-      clean.includes("como esta o sistema") ||
-      clean.includes("meu sistema") ||
-      clean.includes("saude do sistema") ||
-      clean.includes("quantos projetos") ||
-      clean.includes("projetos ativos") ||
-      clean.includes("quantas tarefas") ||
-      clean.includes("tarefas ativas") ||
-      clean.includes("tarefas pendentes") ||
-      clean.includes("como estao meus projetos") ||
-      clean.includes("como estao minhas tarefas") ||
-      clean.includes("como esta aquele projeto") ||
-      clean.includes("como esta esse projeto") ||
-      clean.includes("meus prazos") ||
-      clean.includes("tenho muita coisa pendente") ||
-      clean.includes("o que tenho pendente")
-    ) {
+    // D. Athena Self Diagnostic
+    else if (semantic.intent === "ATHENA_SELF_STATUS") {
       interactionType = "COGNITIVE_REQUEST";
-      intents.push("ECOSYSTEM_STATUS");
-      subject = "USER_RESOURCES";
-      requiresContext = true;
+      intents.push("ATHENA_SELF_STATUS");
+      subject = "ATHENA_HEALTH";
+      requiresContext = false;
     }
-    // Check Cognitive Requests (CRITIQUE, COMPARE, IDEAS, RECOMMEND, ANALYZE, EXPLAIN, PLAN)
+    // E. Operational Mutation (Strictly affirmative, not negated)
+    else if (
+      (semantic.intent === "EXECUTION_REQUEST" || semantic.intent === "CREATIVE_INTENT") &&
+      semantic.polarity !== "NEGATED" &&
+      !semantic.negatedScope?.disallowedActions.includes("EXECUTE")
+    ) {
+      interactionType = "OPERATIONAL_REQUEST";
+      intents.push("EXECUTION_REQUEST");
+      requiresAction = true;
+      requiresContext = true;
+      subject = semantic.intent === "CREATIVE_INTENT" ? "CREATIVE_STUDIO" : "DATABASE_MUTATION";
+    }
+    // F. Epistemic Concepts & Explanations
+    else if (semantic.intent === "EPISTEMIC_QUERY") {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("EXPLAIN");
+      subject = "EPISTEMIC_CONCEPT";
+      requiresContext = false;
+    }
+    // G. Pragmatic Feedback (Sarcasm, Venting, Scolding)
+    else if (
+      semantic.trace.pragmaticFlags.includes("SARCASM_OR_IRONY") ||
+      semantic.trace.pragmaticFlags.includes("EMOTIONAL_VENTING") ||
+      clean.includes("nao queria") || clean.includes("apagou o errado") || clean.includes("nota do")
+    ) {
+      interactionType = "CONVERSATION";
+      intents.push("SOCIAL_CONVERSATION");
+      requiresContext = false;
+    }
+    // H. Cognitive Requests (Critique, Compare, Ideas, Recommend, Analyze, Explain, Plan)
     else if (
       clean.includes("critique") || clean.includes("critica") ||
       clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
@@ -401,7 +387,7 @@ export class ConversationManager {
         intents.push("EXPLORE");
       }
     }
-    // Check Social Conversation & Fast Chit-Chat
+    // H. Default: Social Conversation & Fast Chit-Chat
     else {
       interactionType = "CONVERSATION";
       intents.push("SOCIAL_CONVERSATION");
@@ -453,7 +439,9 @@ export class ConversationManager {
             resolvedMeaning,
           }
         : undefined,
-      isAmbiguous: false,
+      isAmbiguous,
+      clarificationPrompt,
+      semanticInterpretation: semantic,
     };
   }
 
