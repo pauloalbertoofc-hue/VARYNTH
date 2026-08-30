@@ -110,7 +110,9 @@ async function runJobRegressionTests() {
   const docReport = studioRoadmapManager.getStudioReadinessReport("document-studio");
   assert(docReport.readyForImplementation === true, "JOB-REG-015: Document Studio possui prontidão completa para implementação");
   const videoReport = studioRoadmapManager.getStudioReadinessReport("video-studio");
-  assert(videoReport.readyForImplementation === false, "JOB-REG-015: Video Studio reporta corretamente falta de rendering engine local");
+  assert(videoReport.readyForImplementation === true, "JOB-REG-015: Video Studio possui prontidão completa com local-video-engine");
+  const gameReport = studioRoadmapManager.getStudioReadinessReport("game-studio");
+  assert(gameReport.readyForImplementation === false, "JOB-REG-015: Game Studio reporta corretamente falta de engine de jogos local");
 
   console.log("\n===============================================================");
   console.log(`  RESULTADO: ${passed} Aprovados, ${failed} Falhas`);

@@ -49,21 +49,37 @@ import { audioService } from "@/lib/studio/audio/audio-service";
 import { athenaAudioActions } from "@/lib/studio/audio/athena-audio-actions";
 import { AudioItem, AudioClip, AudioTrack, AudioPlaybackState } from "@/lib/studio/audio/types";
 
+// Video Studio Imports
+import { VideoPreviewFrame } from "@/components/studio/video/VideoPreviewFrame";
+import { VideoTimeline } from "@/components/studio/video/VideoTimeline";
+import { VideoScenePanel } from "@/components/studio/video/VideoScenePanel";
+import { VideoPropertiesPanel } from "@/components/studio/video/VideoPropertiesPanel";
+import { VideoTransportControls } from "@/components/studio/video/VideoTransportControls";
+import { VideoExportModal } from "@/components/studio/video/VideoExportModal";
+import { VideoTemplatesModal } from "@/components/studio/video/VideoTemplatesModal";
+import { VideoChangeSetModal } from "@/components/studio/video/VideoChangeSetModal";
+import { videoService } from "@/lib/studio/video/video-service";
+import { athenaVideoActions } from "@/lib/studio/video/athena-video-actions";
+import { VideoItem, VideoDocumentState, VideoClip as VideoClipType, VideoTrack as VideoTrackType, VideoScene as VideoSceneType, VideoPlaybackState } from "@/lib/studio/video/types";
+
 import {
   FileText,
   Globe,
   Image as ImageIcon,
   Music,
+  Video,
   Plus,
   BookOpen,
   Sparkles,
   ArrowRight,
   Play,
   RotateCw,
+  Film,
+  Upload,
 } from "lucide-react";
 
 export default function StudioPage() {
-  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE" | "AUDIO">("DOCUMENT");
+  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE" | "AUDIO" | "VIDEO">("DOCUMENT");
 
   // Document Studio State
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
@@ -112,6 +128,21 @@ export default function StudioPage() {
   const [isAudioTemplateOpen, setIsAudioTemplateOpen] = useState(false);
   const [isAudioChangeSetOpen, setIsAudioChangeSetOpen] = useState(false);
 
+  // Video Studio State
+  const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
+  const [allVideos, setAllVideos] = useState<VideoItem[]>([]);
+  const [selectedVideoTrackId, setSelectedVideoTrackId] = useState<string | undefined>(undefined);
+  const [selectedVideoClipIds, setSelectedVideoClipIds] = useState<string[]>([]);
+  const [selectedVideoSceneId, setSelectedVideoSceneId] = useState<string | undefined>(undefined);
+  const [videoPlaybackState, setVideoPlaybackState] = useState<VideoPlaybackState>("STOPPED");
+  const [videoZoom, setVideoZoom] = useState(30); // 30px per second default
+  const [videoSidebarTab, setVideoSidebarTab] = useState<"OUTLINE" | "VERSIONS" | "ASSETS" | "RELATIONS" | "ATHENA">("OUTLINE");
+  const [videoSaveState, setVideoSaveState] = useState<DocumentSaveState>("SAVED");
+  const [isVideoExportOpen, setIsVideoExportOpen] = useState(false);
+  const [isVideoTemplateOpen, setIsVideoTemplateOpen] = useState(false);
+  const [isVideoChangeSetOpen, setIsVideoChangeSetOpen] = useState(false);
+  const [isStoryboardMode, setIsStoryboardMode] = useState(false);
+
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -127,6 +158,7 @@ export default function StudioPage() {
     setAllWebsites(webService.listWebsites());
     setAllImages(imageService.listImages());
     setAllAudios(audioService.listAudioProjects());
+    setAllVideos(videoService.listVideoProjects());
   };
 
   // --- Document Studio Handlers ---
@@ -359,10 +391,91 @@ export default function StudioPage() {
     }
   };
 
+  // --- Video Studio Handlers ---
+  const handleUpdateVideoDocumentState = (newState: VideoDocumentState) => {
+    if (!activeVideo) return;
+    setActiveVideo((prev) => (prev ? { ...prev, documentState: newState } : null));
+    setVideoSaveState("SAVING");
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await videoService.saveDocumentState(activeVideo.artifact.id, newState, "USER");
+        if (res.success) {
+          setVideoSaveState("SAVED");
+          loadData();
+        } else {
+          setVideoSaveState("SAVE_FAILED");
+        }
+      } catch (err) {
+        setVideoSaveState("SAVE_FAILED");
+      }
+    }, 800);
+  };
+
+  const handleCreateNewVideo = async (
+    templateId?: string,
+    title?: string,
+    customDimensions?: { width: number; height: number; durationMs?: number }
+  ) => {
+    const res = await videoService.createVideoProject({
+      name: title || "Novo Projeto de Vídeo",
+      templateId,
+      customDimensions,
+      actor: "USER",
+    });
+
+    if (res.success && res.video) {
+      setActiveVideo(res.video);
+      loadData();
+    }
+  };
+
+  const handlePlayVideo = () => {
+    if (!activeVideo) return;
+    setVideoPlaybackState("PLAYING");
+    if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+
+    playbackTimerRef.current = setInterval(() => {
+      setActiveVideo((prev) => {
+        if (!prev) return null;
+        const newPlayhead = prev.documentState.playheadMs + 100;
+        if (newPlayhead >= prev.documentState.timeline.durationMs) {
+          if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+          setVideoPlaybackState("STOPPED");
+          return {
+            ...prev,
+            documentState: { ...prev.documentState, playheadMs: 0 },
+          };
+        }
+        return {
+          ...prev,
+          documentState: { ...prev.documentState, playheadMs: newPlayhead },
+        };
+      });
+    }, 100);
+  };
+
+  const handlePauseVideo = () => {
+    setVideoPlaybackState("PAUSED");
+    if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+  };
+
+  const handleStopVideo = () => {
+    setVideoPlaybackState("STOPPED");
+    if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+    if (activeVideo) {
+      setActiveVideo({
+        ...activeVideo,
+        documentState: { ...activeVideo.documentState, playheadMs: 0 },
+      });
+    }
+  };
+
   // -------------------------------------------------------------
   // HUB VIEW (When no workspace is active)
   // -------------------------------------------------------------
-  if (!activeDoc && !activeWebsite && !activeImage && !activeAudio) {
+  if (!activeDoc && !activeWebsite && !activeImage && !activeAudio && !activeVideo) {
     return (
       <PageLayout
         title="VARYNTH Studios"
@@ -417,6 +530,18 @@ export default function StudioPage() {
             >
               <Music size={16} />
               Audio Studio (Studio 4)
+            </button>
+
+            <button
+              onClick={() => setActiveStudio("VIDEO")}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+                activeStudio === "VIDEO"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
+              }`}
+            >
+              <Video size={16} />
+              Video Studio (Studio 5)
             </button>
           </div>
 
@@ -717,6 +842,91 @@ export default function StudioPage() {
               </div>
             </>
           )}
+
+          {/* VIDEO STUDIO HUB */}
+          {activeStudio === "VIDEO" && (
+            <>
+              <div className="p-6 bg-gradient-to-r from-blue-950/40 via-[#10132a] to-[#0c0d18] border border-blue-500/20 rounded-2xl flex items-center justify-between shadow-xl">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Video className="text-blue-400" size={22} />
+                    Video Studio
+                  </h2>
+                  <p className="text-sm text-slate-400 mt-1 max-w-xl">
+                    Edite e componha vídeos com linha do tempo multipistas, integração de cenas semânticas, legendas, títulos, transições e renderização local determinística.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsVideoTemplateOpen(true)}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition"
+                  >
+                    <Plus size={16} />
+                    Novo Vídeo
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent Videos Grid */}
+              <div className="flex flex-col gap-3">
+                <h3 className="font-semibold text-base text-white flex items-center gap-2">
+                  <Film size={18} className="text-blue-400" />
+                  Projetos de Vídeo ({allVideos.length})
+                </h3>
+
+                {allVideos.length === 0 ? (
+                  <div className="p-12 border border-dashed border-[#202236] rounded-2xl flex flex-col items-center justify-center text-center bg-[#0d0e1a]">
+                    <Video size={40} className="text-slate-600 mb-3" />
+                    <h4 className="font-bold text-slate-300">Nenhum projeto de vídeo criado</h4>
+                    <p className="text-xs text-slate-500 max-w-md mt-1 mb-4">
+                      Inicie um novo vídeo a partir de templates como Paisagem (16:9), Vertical (9:16) ou Slideshow Narrado.
+                    </p>
+                    <button
+                      onClick={() => setIsVideoTemplateOpen(true)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md shadow-blue-500/20"
+                    >
+                      <Plus size={14} /> Criar Primeiro Vídeo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {allVideos.map((vid) => (
+                      <div
+                        key={vid.artifact.id}
+                        onClick={() => setActiveVideo(vid)}
+                        className="p-5 bg-[#0e0e18] hover:bg-[#101426] border border-[#1e1e30] hover:border-blue-500/40 rounded-xl cursor-pointer transition flex flex-col justify-between gap-4 group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                              {vid.documentState.timeline.width}×{vid.documentState.timeline.height}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono">
+                              v{vid.artifact.versions?.length || 1}.0
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-white mt-3 group-hover:text-blue-300 transition line-clamp-1">
+                            {vid.artifact.name}
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                            {vid.artifact.description || `${vid.documentState.tracks.length} faixas | ${vid.documentState.scenes.length} cenas`}
+                          </p>
+                        </div>
+                        <div className="pt-3 border-t border-[#1a1a2a] flex items-center justify-between text-xs text-slate-500">
+                          <span className="font-mono">
+                            {Math.round(vid.documentState.timeline.durationMs / 1000)}s ({vid.documentState.scenes.length} cenas)
+                          </span>
+                          <span className="flex items-center gap-1 text-blue-400 group-hover:translate-x-1 transition">
+                            Abrir Video Studio <ArrowRight size={13} />
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DocumentTemplatesModal
@@ -742,7 +952,335 @@ export default function StudioPage() {
           onClose={() => setIsAudioTemplateOpen(false)}
           onSelectTemplate={handleCreateNewAudio}
         />
+
+        <VideoTemplatesModal
+          isOpen={isVideoTemplateOpen}
+          onClose={() => setIsVideoTemplateOpen(false)}
+          onSelectTemplate={handleCreateNewVideo}
+        />
       </PageLayout>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // ACTIVE VIDEO STUDIO WORKSPACE
+  // -------------------------------------------------------------
+  if (activeVideo) {
+    const selectedTrack = activeVideo.documentState.tracks.find((t) => t.id === selectedVideoTrackId);
+    let selectedClip: VideoClipType | undefined = undefined;
+    if (selectedVideoClipIds.length > 0) {
+      for (const t of activeVideo.documentState.tracks) {
+        const c = t.clips.find((clip) => clip.id === selectedVideoClipIds[0]);
+        if (c) {
+          selectedClip = c;
+          break;
+        }
+      }
+    }
+    const selectedScene = activeVideo.documentState.scenes.find((s) => s.id === selectedVideoSceneId);
+
+    return (
+      <div className="h-screen flex flex-col overflow-hidden">
+        <StudioShell
+          title={activeVideo.artifact.name}
+          subtitle={`Video Studio (${activeVideo.documentState.timeline.width}x${activeVideo.documentState.timeline.height} @ ${Math.round(activeVideo.documentState.timeline.frameRate.numerator / activeVideo.documentState.timeline.frameRate.denominator)}fps)`}
+          saveState={videoSaveState}
+          viewMode="SPLIT"
+          onViewModeChange={() => {}}
+          activeSidebarTab={videoSidebarTab}
+          onSidebarTabChange={setVideoSidebarTab}
+          onCreateVersion={async () => {
+            const label =
+              prompt(
+                "Descrição da nova versão do vídeo:",
+                `Versão manual v${(activeVideo.artifact.versions?.length || 0) + 1}`
+              ) || "Versão manual";
+            const res = await videoService.createManualVersion(activeVideo.artifact.id, label, "USER");
+            if (res.success) {
+              const ref = videoService.getVideo(activeVideo.artifact.id);
+              if (ref) setActiveVideo(ref);
+            }
+          }}
+          onExport={() => setIsVideoExportOpen(true)}
+          onDelete={() => {
+            if (confirm("Mover este projeto de vídeo para a Lixeira de 10 dias?")) {
+              videoService.saveDocumentState(activeVideo.artifact.id, activeVideo.documentState, "USER");
+              setActiveVideo(null);
+              loadData();
+            }
+          }}
+          sidebarContent={
+            videoSidebarTab === "OUTLINE" ? (
+              <VideoScenePanel
+                scenes={activeVideo.documentState.scenes}
+                selectedSceneId={selectedVideoSceneId}
+                isStoryboardMode={isStoryboardMode}
+                onToggleStoryboard={() => setIsStoryboardMode(!isStoryboardMode)}
+                onSelectScene={(sceneId) => {
+                  setSelectedVideoSceneId(sceneId);
+                  const sc = activeVideo.documentState.scenes.find((s) => s.id === sceneId);
+                  if (sc) {
+                    setActiveVideo({
+                      ...activeVideo,
+                      documentState: { ...activeVideo.documentState, playheadMs: sc.startMs },
+                    });
+                  }
+                }}
+                onAddScene={() => {
+                  const duration = 10000;
+                  const lastScene = activeVideo.documentState.scenes[activeVideo.documentState.scenes.length - 1];
+                  const startMs = lastScene ? lastScene.endMs : 0;
+                  const endMs = startMs + duration;
+                  const newScene = athenaVideoActions.createScene(
+                    `Cena ${activeVideo.documentState.scenes.length + 1}`,
+                    startMs,
+                    endMs
+                  );
+                  handleUpdateVideoDocumentState({
+                    ...activeVideo.documentState,
+                    scenes: [...activeVideo.documentState.scenes, newScene],
+                    timeline: {
+                      ...activeVideo.documentState.timeline,
+                      durationMs: Math.max(activeVideo.documentState.timeline.durationMs, endMs),
+                    },
+                  });
+                }}
+              />
+            ) : videoSidebarTab === "VERSIONS" ? (
+              <DocumentVersionHistory
+                versions={activeVideo.artifact.versions || []}
+                currentVersionNumber={`v${activeVideo.artifact.versions?.length || 1}.0`}
+                onRestoreVersion={async (vNum) => {
+                  const res = await videoService.restoreVersion(activeVideo.artifact.id, parseInt(vNum) || 1, "USER");
+                  if (res.success && res.video) {
+                    setActiveVideo(res.video);
+                  }
+                }}
+              />
+            ) : videoSidebarTab === "ATHENA" ? (
+              <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
+                  <Sparkles size={14} className="text-amber-400" />
+                  Athena Video Assistant
+                </div>
+                <p className="text-slate-400 text-[11px]">
+                  Athena orquestra planos de montagem audiovisual, cortes temporais de clips e legendas sincronizadas.
+                </p>
+                {videoService.getPendingChangeSets(activeVideo.artifact.id).length > 0 && (
+                  <button
+                    onClick={() => setIsVideoChangeSetOpen(true)}
+                    className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold transition"
+                  >
+                    Ver Proposta Audiovisual
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+            )
+          }
+          mainContent={
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Transport Controls */}
+              <VideoTransportControls
+                playbackState={videoPlaybackState}
+                playheadMs={activeVideo.documentState.playheadMs}
+                totalDurationMs={activeVideo.documentState.timeline.durationMs}
+                frameRate={activeVideo.documentState.timeline.frameRate}
+                zoom={videoZoom}
+                snapToGrid={activeVideo.documentState.timeline.snapToGrid}
+                onPlay={handlePlayVideo}
+                onPause={handlePauseVideo}
+                onStop={handleStopVideo}
+                onJumpToStart={() =>
+                  setActiveVideo({
+                    ...activeVideo,
+                    documentState: { ...activeVideo.documentState, playheadMs: 0 },
+                  })
+                }
+                onJumpToEnd={() =>
+                  setActiveVideo({
+                    ...activeVideo,
+                    documentState: {
+                      ...activeVideo.documentState,
+                      playheadMs: activeVideo.documentState.timeline.durationMs,
+                    },
+                  })
+                }
+                onZoomIn={() => setVideoZoom((prev) => Math.min(150, prev + 10))}
+                onZoomOut={() => setVideoZoom((prev) => Math.max(10, prev - 10))}
+                onFitTimeline={() => setVideoZoom(30)}
+                onToggleSnap={() => {
+                  handleUpdateVideoDocumentState({
+                    ...activeVideo.documentState,
+                    timeline: {
+                      ...activeVideo.documentState.timeline,
+                      snapToGrid: !activeVideo.documentState.timeline.snapToGrid,
+                    },
+                  });
+                }}
+                onAddTrack={() => {
+                  const newTrack: VideoTrackType = {
+                    id: `track-${Date.now()}`,
+                    name: `Faixa ${activeVideo.documentState.tracks.length + 1}`,
+                    type: "VIDEO",
+                    visible: true,
+                    locked: false,
+                    order: activeVideo.documentState.tracks.length + 1,
+                    clips: [],
+                    color: "#3b82f6",
+                  };
+                  handleUpdateVideoDocumentState({
+                    ...activeVideo.documentState,
+                    tracks: [...activeVideo.documentState.tracks, newTrack],
+                  });
+                }}
+                onAddScene={() => {
+                  const lastScene = activeVideo.documentState.scenes[activeVideo.documentState.scenes.length - 1];
+                  const startMs = lastScene ? lastScene.endMs : 0;
+                  const endMs = startMs + 10000;
+                  const newScene = athenaVideoActions.createScene(
+                    `Cena ${activeVideo.documentState.scenes.length + 1}`,
+                    startMs,
+                    endMs
+                  );
+                  handleUpdateVideoDocumentState({
+                    ...activeVideo.documentState,
+                    scenes: [...activeVideo.documentState.scenes, newScene],
+                  });
+                }}
+                onImportVideo={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "video/*,image/*,audio/*";
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      const newClip: VideoClipType = {
+                        id: `clip-${Date.now()}`,
+                        trackId: activeVideo.documentState.tracks[0]?.id || "track-video",
+                        name: file.name,
+                        type: file.type.startsWith("image/") ? "IMAGE" : file.type.startsWith("audio/") ? "AUDIO" : "VIDEO",
+                        timelineStartMs: activeVideo.documentState.playheadMs,
+                        sourceStartMs: 0,
+                        sourceEndMs: 10000,
+                        transform: { x: 0, y: 0, width: 1920, height: 1080, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
+                        opacity: 1,
+                      };
+                      const updatedTracks = activeVideo.documentState.tracks.map((t, idx) =>
+                        idx === 0 ? { ...t, clips: [...t.clips, newClip] } : t
+                      );
+                      handleUpdateVideoDocumentState({
+                        ...activeVideo.documentState,
+                        tracks: updatedTracks,
+                      });
+                    }
+                  };
+                  input.click();
+                }}
+                onAskAthena={() => setVideoSidebarTab("ATHENA")}
+              />
+
+              {/* Upper Section: Preview Player + Properties Panel */}
+              <div className="flex-1 flex overflow-hidden border-b border-[#1c1d32]">
+                <div className="flex-1 h-full overflow-hidden">
+                  <VideoPreviewFrame
+                    documentState={activeVideo.documentState}
+                    playheadMs={activeVideo.documentState.playheadMs}
+                  />
+                </div>
+
+                <div className="w-72 h-full border-l border-[#1c1d32] overflow-hidden">
+                  <VideoPropertiesPanel
+                    selectedClip={selectedClip}
+                    selectedScene={selectedScene}
+                    selectedTrack={selectedTrack}
+                    playheadMs={activeVideo.documentState.playheadMs}
+                    onUpdateClip={(clipId, up) => {
+                      const updatedTracks = activeVideo.documentState.tracks.map((t) => ({
+                        ...t,
+                        clips: t.clips.map((c) => (c.id === clipId ? { ...c, ...up } : c)),
+                      }));
+                      handleUpdateVideoDocumentState({ ...activeVideo.documentState, tracks: updatedTracks });
+                    }}
+                    onUpdateScene={(sceneId, up) => {
+                      const updatedScenes = activeVideo.documentState.scenes.map((s) =>
+                        s.id === sceneId ? { ...s, ...up } : s
+                      );
+                      handleUpdateVideoDocumentState({ ...activeVideo.documentState, scenes: updatedScenes });
+                    }}
+                    onSplitClipAtPlayhead={(clipId) => {
+                      videoService.splitClip(activeVideo.artifact.id, clipId, activeVideo.documentState.playheadMs, "USER").then((res) => {
+                        if (res.success) {
+                          const ref = videoService.getVideo(activeVideo.artifact.id);
+                          if (ref) setActiveVideo(ref);
+                        } else {
+                          alert(`Não foi possível dividir clip: ${res.error}`);
+                        }
+                      });
+                    }}
+                    onDeleteClip={(clipId) => {
+                      const updatedTracks = activeVideo.documentState.tracks.map((t) => ({
+                        ...t,
+                        clips: t.clips.filter((c) => c.id !== clipId),
+                      }));
+                      handleUpdateVideoDocumentState({ ...activeVideo.documentState, tracks: updatedTracks });
+                      setSelectedVideoClipIds([]);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Lower Section: Multitrack Timeline */}
+              <div className="h-64 flex flex-col overflow-hidden">
+                <VideoTimeline
+                  documentState={activeVideo.documentState}
+                  zoom={videoZoom}
+                  selectedTrackId={selectedVideoTrackId}
+                  selectedClipIds={selectedVideoClipIds}
+                  onSelectTrack={setSelectedVideoTrackId}
+                  onSelectClip={(cId) => setSelectedVideoClipIds([cId])}
+                  onSeek={(ms) =>
+                    setActiveVideo({
+                      ...activeVideo,
+                      documentState: { ...activeVideo.documentState, playheadMs: ms },
+                    })
+                  }
+                  onToggleTrackVisibility={(tId) => {
+                    const updatedTracks = activeVideo.documentState.tracks.map((t) =>
+                      t.id === tId ? { ...t, visible: !t.visible } : t
+                    );
+                    handleUpdateVideoDocumentState({ ...activeVideo.documentState, tracks: updatedTracks });
+                  }}
+                />
+              </div>
+            </div>
+          }
+        />
+
+        <VideoExportModal
+          isOpen={isVideoExportOpen}
+          artifactId={activeVideo.artifact.id}
+          videoTitle={activeVideo.artifact.name}
+          onClose={() => setIsVideoExportOpen(false)}
+        />
+
+        <VideoChangeSetModal
+          isOpen={isVideoChangeSetOpen}
+          changeSets={videoService.getPendingChangeSets(activeVideo.artifact.id)}
+          onAccept={async (csId) => {
+            await videoService.acceptChangeSet(activeVideo.artifact.id, csId);
+            setIsVideoChangeSetOpen(false);
+            const ref = videoService.getVideo(activeVideo.artifact.id);
+            if (ref) setActiveVideo(ref);
+          }}
+          onReject={(csId) => {
+            videoService.rejectChangeSet(activeVideo.artifact.id, csId);
+            setIsVideoChangeSetOpen(false);
+          }}
+          onClose={() => setIsVideoChangeSetOpen(false)}
+        />
+      </div>
     );
   }
 

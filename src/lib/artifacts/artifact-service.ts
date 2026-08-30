@@ -304,6 +304,10 @@ export class ArtifactService {
     return this.removeArtifact(id, actor);
   }
 
+  public async trash(id: string, actor: ArtifactActor = "USER"): Promise<{ success: boolean; error?: string }> {
+    return this.moveToTrash(id, actor);
+  }
+
   public async restoreFromTrash(id: string, actor: ArtifactActor = "USER"): Promise<{ success: boolean; artifact?: Artifact; error?: string }> {
     const artifact = artifactStore.getById(id);
     if (!artifact) return { success: false, error: "Artefato não encontrado" };

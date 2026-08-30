@@ -325,6 +325,51 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Encoders MP3/OGG indisponíveis retornam CAPABILITY_UNAVAILABLE"],
     },
   },
+  {
+    id: "ADR-019",
+    number: "ADR-019",
+    title: "Núcleo Temporal Compartilhado (TemporalCore) e Modelo Multipistas",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Unificar a base de cálculo temporal e conversão de frame rates racionais entre Audio Studio e Video Studio sem drift acumulado.",
+    decision: "Extrair o TemporalCore com suporte a taxas racionais (23.976, 29.97, 59.94fps), master timeline clock em milissegundos e funções canônicas de conversão.",
+    rationale: "Garante sincronização matemática exata entre áudio, vídeo, legendas e marcadores mantendo zero regressões no Audio Studio.",
+    alternatives: ["Fórmulas ad-hoc de ponto flutuante espalhadas pela UI", "Motores de tempo duplicados e incompatíveis"],
+    consequences: {
+      gains: ["Sincronização rigorosa sem drift", "Snapping magnético unificado", "Preservação integral do Audio Studio"],
+      tradeoffs: ["Necessidade de utilizar funções utilitárias centralizadas para conversão"],
+    },
+  },
+  {
+    id: "ADR-020",
+    number: "ADR-020",
+    title: "Edição Não-Destrutiva de Vídeo e Arquitetura de Cenas Semânticas",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "A edição e montagem de vídeos não pode destruir arquivos de mídia brutos nem duplicar fontes no disco sob o Princípio Alex.",
+    decision: "Manter source assets imutáveis e expressar cuts, scenes, transforms, keyframes e legendas no VideoDocumentState com histórico de Undo/Redo desacoplado do VersionManager.",
+    rationale: "Permite navegação por cenas semânticas, visualização em Storyboard e reversibilidade total sem inflar versões.",
+    alternatives: ["Corte e concatenação destrutiva de arquivos", "Cenas como fontes de tempo concorrentes"],
+    consequences: {
+      gains: ["Imutabilidade dos originais", "Navegação em Storyboard", "Rollback Alex restaurando como vNext"],
+      tradeoffs: ["Composição dinâmica necessária durante preview e render"],
+    },
+  },
+  {
+    id: "ADR-021",
+    number: "ADR-021",
+    title: "Preview de Vídeo e Pipeline Determinístico de Renderização Offline",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Processar e compor vídeo localmente no navegador com segurança estrita de memória de trabalho e exportação de alta fidelidade.",
+    decision: "Implementar VideoRenderEngine com estimativa conservadora de working-set (teto de 128MB), composição incremental frame a frame e verificação honesta de capacidades de encoder/muxer.",
+    rationale: "Evita esgotamento de memória, previne falso sucesso e gera arquivos derivados reais rastreados no JobManager.",
+    alternatives: ["Renderização em servidores cloud comerciais", "Decodificação simultânea de todos os frames na memória RAM"],
+    consequences: {
+      gains: ["Operação 100% Local-First", "Proteção contra exaustão de RAM", "Transparência total nas capacidades reais"],
+      tradeoffs: ["Resolução 4K é desabilitada em runtimes com memória insuficiente"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

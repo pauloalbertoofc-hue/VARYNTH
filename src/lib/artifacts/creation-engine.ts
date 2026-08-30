@@ -213,6 +213,59 @@ class AudioCreationEngine implements CreationEngine {
   }
 }
 
+class VideoCreationEngine implements CreationEngine {
+  engineId = "local-video-engine";
+  name = "VARYNTH Local Video Engine";
+  supportedArtifactTypes: ArtifactType[] = ["VIDEO"];
+
+  async canExecute(request: CreationRequest): Promise<boolean> {
+    return request.artifactType === "VIDEO";
+  }
+
+  async create(request: CreationRequest): Promise<CreationResult> {
+    const id = `art-vid-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const artifact: Artifact = {
+      id,
+      type: "VIDEO",
+      name: request.name,
+      description: request.description || "Projeto de vídeo local",
+      projectId: request.projectId,
+      status: "DRAFT",
+      createdBy: request.actor,
+      createdAt: now,
+      updatedAt: now,
+      currentVersionNumber: 0,
+      versions: [],
+      relationships: [],
+      provenance: {
+        creator: request.actor,
+        generationPrompt: request.prompt,
+        engineUsed: this.engineId,
+      },
+      assetFileIds: [],
+      metadata: {
+        width: request.options?.width || 1920,
+        height: request.options?.height || 1080,
+        durationMs: request.options?.durationMs || 30000,
+        timelineDurationMs: request.options?.durationMs || 30000,
+        format: "MP4",
+      },
+      tags: ["video", "studio", "draft"],
+    };
+
+    versionManager.createSnapshot(artifact, "Criação inicial do projeto de vídeo em DRAFT (v1.0)", request.actor);
+    artifactStore.save(artifact);
+
+    return {
+      success: true,
+      artifact,
+      capabilityStatus: "AVAILABLE",
+    };
+  }
+}
+
 export class CreationEngineRegistry {
   private engines: Map<string, CreationEngine> = new Map();
 
@@ -221,6 +274,7 @@ export class CreationEngineRegistry {
     this.registerEngine(new CodeCreationEngine());
     this.registerEngine(new ImageCreationEngine());
     this.registerEngine(new AudioCreationEngine());
+    this.registerEngine(new VideoCreationEngine());
   }
 
   public registerEngine(engine: CreationEngine): void {
