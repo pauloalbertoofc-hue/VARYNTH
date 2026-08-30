@@ -69,3 +69,4 @@ export const GameTemplatesModal: React.FC<GameTemplatesModalProps> = ({
     </div>
   );
 };
+

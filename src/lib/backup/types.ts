@@ -14,7 +14,7 @@ import {
   TrashItem,
   ActivityLog,
 } from "../types";
-import { Artifact } from "../artifacts/types";
+import { Artifact, AssetFile, AssetUsageRecord } from "../artifacts/types";
 import { DocumentationReviewItem, DocumentationAuditRecord } from "../athena/guardian/types";
 import { VarynthNotification } from "../notifications/types";
 
@@ -42,6 +42,8 @@ export interface VarynthBackupManifest {
     docReviews: number;
     docAuditLogs: number;
     notifications: number;
+    assets?: number;
+    assetUsages?: number;
   };
 }
 
@@ -66,6 +68,9 @@ export interface VarynthBackupPayload {
     docReviews?: DocumentationReviewItem[];
     docAuditLogs?: DocumentationAuditRecord[];
     notifications?: VarynthNotification[];
+    assets?: AssetFile[];
+    assetUsages?: AssetUsageRecord[];
+    assetBlobs?: Record<string, { base64Data: string; mimeType: string; checksum?: string }>;
   };
 }
 

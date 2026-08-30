@@ -494,3 +494,4 @@ runGameStudioRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte do Game Studio:", err);
   process.exit(1);
 });
+

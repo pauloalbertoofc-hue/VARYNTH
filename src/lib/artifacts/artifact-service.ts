@@ -4,12 +4,18 @@ import {
   ArtifactStatus,
   ArtifactActor,
   ArtifactRelationshipType,
+  ArtifactRelationship,
+  CreativeIntegrityReport,
+  CreativeEdgeType,
+  VersionPinMode,
   ArtifactFilter,
   ArtifactProvenance,
 } from "./types";
 import { artifactStore } from "./artifact-store";
 import { versionManager } from "./version-manager";
 import { assetManager } from "./asset-manager";
+import { creativeGraph } from "./creative-graph";
+import { CreativeIntegrityValidator } from "./creative-integrity-validator";
 import { permissionPolicyEngine } from "../permissions/permission-policy";
 import { athenaEventBus } from "../athena/events/event-bus";
 
@@ -221,32 +227,273 @@ export class ArtifactService {
     sourceArtifactId: string,
     targetArtifactId: string,
     type: ArtifactRelationshipType,
-    description?: string
+    description?: string,
+    semanticRole?: string,
+    usageSlot?: string,
+    targetVersionId?: string,
+    targetVersionNumber?: number,
+    pinMode: "PINNED" | "FOLLOW_LATEST" = "PINNED"
   ): { success: boolean; error?: string } {
-    const source = artifactStore.getById(sourceArtifactId);
-    const target = artifactStore.getById(targetArtifactId);
+    return this.linkDependency(
+      {
+        sourceArtifactId,
+        targetArtifactId,
+        type,
+        description,
+        semanticRole,
+        usageSlot,
+        targetVersionId,
+        targetVersionNumber,
+        pinMode,
+      },
+      "USER"
+    );
+  }
+
+  public linkDependency(
+    params: {
+      sourceArtifactId: string;
+      targetArtifactId: string;
+      type: ArtifactRelationshipType;
+      semanticRole?: string;
+      targetVersionId?: string;
+      targetVersionNumber?: number;
+      pinMode?: "PINNED" | "FOLLOW_LATEST";
+      usageSlot?: string;
+      description?: string;
+    },
+    actor: ArtifactActor = "USER"
+  ): { success: boolean; error?: string } {
+    const source = artifactStore.getById(params.sourceArtifactId);
+    const target = artifactStore.getById(params.targetArtifactId);
 
     if (!source || !target) {
       return { success: false, error: "Um ou ambos os artefatos da relação não existem." };
     }
 
-    const relationship = {
-      targetArtifactId,
-      type,
-      description,
+    // 1. Cycle validation
+    const cycleCheck = creativeGraph.validateCycleConstraints(params.sourceArtifactId, params.targetArtifactId, params.type);
+    if (!cycleCheck.valid) {
+      return { success: false, error: cycleCheck.error };
+    }
+
+    // 2. Resolve version details
+    const targetLatest = target.versions?.[target.versions.length - 1];
+    const authoritativeVersionId = params.targetVersionId || target.currentVersionId || targetLatest?.versionId || "v1-init";
+    const presentationVersionNumber = params.targetVersionNumber || target.currentVersionNumber || targetLatest?.versionNumber || 1;
+
+    const relationship: ArtifactRelationship = {
+      id: `rel-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      targetArtifactId: params.targetArtifactId,
+      targetVersionId: authoritativeVersionId,
+      targetVersionNumber: presentationVersionNumber,
+      type: params.type,
+      semanticRole: params.semanticRole,
+      pinMode: params.pinMode || "PINNED",
+      usageSlot: params.usageSlot,
+      description: params.description,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    source.relationships = [...(source.relationships || []), relationship];
+    // Remove any previous relationship for the exact same slot/target
+    source.relationships = (source.relationships || []).filter(
+      (r) => !(r.targetArtifactId === params.targetArtifactId && r.usageSlot === params.usageSlot)
+    );
+    source.relationships.push(relationship);
+
     artifactStore.save(source);
+    creativeGraph.rebuildIndex();
 
     athenaEventBus.emit("ARTIFACT_RELATIONSHIP_LINKED", {
-      sourceId: sourceArtifactId,
-      targetId: targetArtifactId,
-      relationshipType: type,
+      sourceId: params.sourceArtifactId,
+      targetId: params.targetArtifactId,
+      relationshipType: params.type,
+      targetVersionId: authoritativeVersionId,
+      pinMode: relationship.pinMode,
     });
 
     return { success: true };
+  }
+
+  public unlinkDependency(
+    sourceArtifactId: string,
+    targetArtifactId: string,
+    usageSlot?: string,
+    actor: ArtifactActor = "USER"
+  ): { success: boolean; error?: string } {
+    const source = artifactStore.getById(sourceArtifactId);
+    if (!source) return { success: false, error: `Artefato ${sourceArtifactId} não encontrado.` };
+
+    source.relationships = (source.relationships || []).filter((r) => {
+      if (usageSlot) {
+        return !(r.targetArtifactId === targetArtifactId && r.usageSlot === usageSlot);
+      }
+      return r.targetArtifactId !== targetArtifactId;
+    });
+
+    artifactStore.save(source);
+    creativeGraph.rebuildIndex();
+
+    athenaEventBus.emit("ARTIFACT_UNLINKED", {
+      sourceId: sourceArtifactId,
+      targetId: targetArtifactId,
+      usageSlot,
+      actor,
+    });
+
+    return { success: true };
+  }
+
+  public setPinMode(
+    sourceArtifactId: string,
+    targetArtifactId: string,
+    pinMode: "PINNED" | "FOLLOW_LATEST",
+    targetVersionId?: string,
+    actor: ArtifactActor = "USER"
+  ): { success: boolean; error?: string } {
+    const source = artifactStore.getById(sourceArtifactId);
+    if (!source) return { success: false, error: `Artefato ${sourceArtifactId} não encontrado.` };
+
+    const rel = (source.relationships || []).find((r) => r.targetArtifactId === targetArtifactId);
+    if (!rel) return { success: false, error: `Relação com ${targetArtifactId} não encontrada.` };
+
+    rel.pinMode = pinMode;
+    if (targetVersionId) {
+      rel.targetVersionId = targetVersionId;
+      const target = artifactStore.getById(targetArtifactId);
+      const matchedVer = target?.versions?.find((v) => v.versionId === targetVersionId);
+      if (matchedVer) {
+        rel.targetVersionNumber = matchedVer.versionNumber;
+      }
+    }
+    rel.updatedAt = new Date().toISOString();
+
+    artifactStore.save(source);
+    creativeGraph.rebuildIndex();
+
+    return { success: true };
+  }
+
+  /**
+   * Transactional Dependency Update with ATOMIC_ROLLBACK
+   */
+  public async acceptDependencyUpdate(
+    params: {
+      consumerArtifactId: string;
+      targetArtifactId: string;
+      newVersionId: string;
+      newVersionNumber: number;
+      newAssetId?: string;
+      usageSlot?: string;
+    },
+    actor: ArtifactActor = "USER"
+  ): Promise<{ success: boolean; error?: string }> {
+    const consumer = artifactStore.getById(params.consumerArtifactId);
+    const target = artifactStore.getById(params.targetArtifactId);
+
+    if (!consumer || !target) {
+      return { success: false, error: "Consumidor ou alvo não encontrado." };
+    }
+
+    // 1. Permission check for published consumers
+    if (consumer.status === "PUBLISHED") {
+      const perm = permissionPolicyEngine.evaluate({
+        actor: { type: actor },
+        action: "MODIFY",
+        targetDomain: "ARTIFACT_PUBLISHED",
+        resourceStatus: "PUBLISHED",
+      });
+      if ((!perm.allowed && perm.policy === "DENY") || perm.requiresConfirmation || perm.policy === "CONFIRM") {
+        return { success: false, error: `[PERMISSÃO NEGADA / CONFIRMAÇÃO NECESSÁRIA] ${perm.reason || "Requer confirmação do usuário."}` };
+      }
+    }
+
+    // 2. Create safety snapshot of consumer artifact
+    versionManager.createSnapshot(
+      consumer,
+      `[SAFETY SNAPSHOT] Atualização de dependência '${target.name}' para v${params.newVersionNumber}.0`,
+      actor
+    );
+
+    // Save backup state for atomic rollback
+    const previousConsumerJson = JSON.stringify(consumer);
+    const previousUsages = assetManager.getUsagesForArtifact(consumer.id);
+
+    try {
+      // 3. Update Relationship
+      const rel = (consumer.relationships || []).find(
+        (r) => r.targetArtifactId === params.targetArtifactId && (!params.usageSlot || r.usageSlot === params.usageSlot)
+      );
+
+      if (rel) {
+        rel.targetVersionId = params.newVersionId;
+        rel.targetVersionNumber = params.newVersionNumber;
+        rel.updatedAt = new Date().toISOString();
+      }
+
+      // 4. Update physical AssetUsageRecord if newAssetId provided
+      if (params.newAssetId && params.usageSlot) {
+        // Remove previous usage for this slot
+        const oldUsage = previousUsages.find((u) => u.usageSlot === params.usageSlot);
+        if (oldUsage) {
+          assetManager.removeUsage(oldUsage.id);
+        }
+
+        assetManager.registerUsage({
+          id: `usage-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          assetId: params.newAssetId,
+          consumerArtifactId: consumer.id,
+          consumerVersionId: consumer.currentVersionId || "current",
+          consumerVersionNumber: consumer.currentVersionNumber || 1,
+          usageSlot: params.usageSlot,
+          sourceArtifactId: params.targetArtifactId,
+          sourceVersionId: params.newVersionId,
+          sourceVersionNumber: params.newVersionNumber,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      // 5. Evaluate Creative Integrity
+      artifactStore.save(consumer);
+      const integrity = CreativeIntegrityValidator.evaluate(consumer.id);
+      if (!integrity.valid) {
+        throw new Error(
+          `[ATOMIC_ROLLBACK] Integridade violada: ${integrity.issues.map((i) => i.message).join("; ")}`
+        );
+      }
+
+      creativeGraph.rebuildIndex();
+      athenaEventBus.emit("DEPENDENCY_UPDATED", {
+        consumerId: consumer.id,
+        targetId: params.targetArtifactId,
+        newVersionId: params.newVersionId,
+        newVersionNumber: params.newVersionNumber,
+      });
+
+      return { success: true };
+    } catch (err: any) {
+      // Atomic Rollback
+      const restoredConsumer = JSON.parse(previousConsumerJson);
+      artifactStore.save(restoredConsumer);
+      creativeGraph.rebuildIndex();
+      return { success: false, error: err.message };
+    }
+  }
+
+  public getDependencyImpact(artifactId: string): {
+    directDependentsCount: number;
+    directDependents: Array<{ consumerArtifactId: string; consumerName: string; relationship: ArtifactRelationship }>;
+  } {
+    const dependents = creativeGraph.getDependents(artifactId);
+    return {
+      directDependentsCount: dependents.length,
+      directDependents: dependents,
+    };
+  }
+
+  public getCreativeIntegrity(artifactId: string): CreativeIntegrityReport {
+    return CreativeIntegrityValidator.evaluate(artifactId);
   }
 
   public restoreVersion(
@@ -265,6 +512,7 @@ export class ArtifactService {
     }
 
     const saved = artifactStore.save(res.rolledBackArtifact);
+    creativeGraph.rebuildIndex();
     return { success: true, artifact: saved };
   }
 
@@ -296,6 +544,17 @@ export class ArtifactService {
     // Soft delete preserving versions and assets
     artifact.status = "TRASHED";
     artifactStore.save(artifact);
+    creativeGraph.rebuildIndex();
+
+    // Check impact on dependents
+    const impact = this.getDependencyImpact(id);
+    if (impact.directDependentsCount > 0) {
+      athenaEventBus.emit("DEPENDENCY_STALE", {
+        artifactId: id,
+        dependentsCount: impact.directDependentsCount,
+        status: "SOURCE_TRASHED",
+      });
+    }
 
     return { success: true };
   }
@@ -313,15 +572,31 @@ export class ArtifactService {
     if (!artifact) return { success: false, error: "Artefato não encontrado" };
     artifact.status = "DRAFT";
     const saved = artifactStore.save(artifact);
+    creativeGraph.rebuildIndex();
+
+    athenaEventBus.emit("DEPENDENCY_RESTORED", { artifactId: id });
     return { success: true, artifact: saved };
   }
 
   public async linkRelationship(
     sourceId: string,
-    relationship: { targetArtifactId: string; type: ArtifactRelationshipType; description?: string },
+    relationship: { targetArtifactId: string; type: ArtifactRelationshipType; description?: string; semanticRole?: string; usageSlot?: string; targetVersionId?: string; targetVersionNumber?: number; pinMode?: "PINNED" | "FOLLOW_LATEST" },
     actor: ArtifactActor = "USER"
   ): Promise<{ success: boolean; error?: string }> {
-    return this.addRelationship(sourceId, relationship.targetArtifactId, relationship.type, relationship.description);
+    return this.linkDependency(
+      {
+        sourceArtifactId: sourceId,
+        targetArtifactId: relationship.targetArtifactId,
+        type: relationship.type,
+        description: relationship.description,
+        semanticRole: relationship.semanticRole,
+        usageSlot: relationship.usageSlot,
+        targetVersionId: relationship.targetVersionId,
+        targetVersionNumber: relationship.targetVersionNumber,
+        pinMode: relationship.pinMode,
+      },
+      actor
+    );
   }
 }
 

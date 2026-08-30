@@ -50,3 +50,4 @@ A Athena auxilia na concepção do jogo através de um fluxo estruturado:
 1. Geração de `GameCreationPlan` (Conceito, Loop de Jogabilidade, Cenas, Entidades, Variáveis e Regras).
 2. Apresentação para inspeção e aprovação do usuário.
 3. Compilação em `GameChangeSet` atômico com snapshot de segurança prévio e `ATOMIC_ROLLBACK` em caso de erro.
+

@@ -97,7 +97,13 @@ export type AthenaEventType =
   | "GAME_BUILD_FAILED"
   | "GAME_EXPORT_COMPLETED"
   | "GAME_ASSET_MISSING"
-  | "GAME_CHANGESET_APPLIED";
+  | "GAME_CHANGESET_APPLIED"
+  | "ARTIFACT_LINKED"
+  | "ARTIFACT_UNLINKED"
+  | "DEPENDENCY_UPDATED"
+  | "DEPENDENCY_STALE"
+  | "DEPENDENCY_MISSING"
+  | "DEPENDENCY_RESTORED";
 
 export interface AthenaEvent<T = unknown> {
   type: AthenaEventType;

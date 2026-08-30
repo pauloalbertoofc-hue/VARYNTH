@@ -140,3 +140,4 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
     </div>
   );
 };
+

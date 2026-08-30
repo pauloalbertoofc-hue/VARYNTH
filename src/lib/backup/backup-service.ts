@@ -5,6 +5,9 @@ import {
   RestoreMode,
 } from "./types";
 import { artifactStore } from "../artifacts/artifact-store";
+import { assetManager } from "../artifacts/asset-manager";
+import { creativeGraph } from "../artifacts/creative-graph";
+import { CreativeIntegrityValidator } from "../artifacts/creative-integrity-validator";
 import { reviewStore } from "../athena/guardian/review-store";
 import { notificationStore } from "../notifications/notification-store";
 import { athenaEventBus } from "../athena/events/event-bus";
@@ -26,6 +29,8 @@ const STORAGE_KEYS = {
   TRASH: "varynth_os_trash",
   ACTIVITIES: "varynth_os_activities",
   ARTIFACTS: "varynth_artifacts_v4",
+  ASSETS: "varynth_assets_registry_v4",
+  ASSET_USAGES: "varynth_asset_usages_v4",
   DOC_REVIEWS: "varynth_docs_review_queue_v4",
   DOC_AUDIT: "varynth_docs_audit_log_v4",
   NOTIFICATIONS: "varynth_notifications_v4",
@@ -61,6 +66,8 @@ export class BackupService {
     const docReviews = reviewStore.getAllReviews();
     const docAuditLogs = reviewStore.getAuditLog();
     const notifications = notificationStore.getAll();
+    const assets = getLocal(STORAGE_KEYS.ASSETS, []);
+    const assetUsages = getLocal(STORAGE_KEYS.ASSET_USAGES, []);
 
     const manifest: VarynthBackupManifest = {
       varynthVersion: "4.0.0",
@@ -86,6 +93,8 @@ export class BackupService {
         docReviews: docReviews.length,
         docAuditLogs: docAuditLogs.length,
         notifications: notifications.length,
+        assets: assets.length,
+        assetUsages: assetUsages.length,
       },
     };
 
@@ -110,6 +119,8 @@ export class BackupService {
         docReviews,
         docAuditLogs,
         notifications,
+        assets,
+        assetUsages,
       },
     };
 
@@ -192,6 +203,9 @@ export class BackupService {
 
       const counts: Record<string, number> = {};
 
+      // ==========================================
+      // PHASE A: Restore Entities, Artifacts, Versions & Assets
+      // ==========================================
       counts.projects = mergeCollection(STORAGE_KEYS.PROJECTS, payload.data.projects);
       counts.tasks = mergeCollection(STORAGE_KEYS.TASKS, payload.data.tasks);
       counts.notes = mergeCollection(STORAGE_KEYS.NOTES, payload.data.notes);
@@ -212,6 +226,10 @@ export class BackupService {
         artifactStore.reloadFromStorage();
       }
 
+      if (payload.data.assets) {
+        counts.assets = mergeCollection(STORAGE_KEYS.ASSETS, payload.data.assets);
+      }
+
       if (payload.data.docReviews) {
         counts.docReviews = mergeCollection(STORAGE_KEYS.DOC_REVIEWS, payload.data.docReviews);
         reviewStore.reloadFromStorage();
@@ -221,6 +239,19 @@ export class BackupService {
         counts.notifications = mergeCollection(STORAGE_KEYS.NOTIFICATIONS, payload.data.notifications);
         notificationStore.reloadFromStorage();
       }
+
+      // ==========================================
+      // PHASE B: Restore Relationships & Asset Usages
+      // ==========================================
+      if (payload.data.assetUsages) {
+        counts.assetUsages = mergeCollection(STORAGE_KEYS.ASSET_USAGES, payload.data.assetUsages);
+      }
+
+      // ==========================================
+      // PHASE C: Creative Graph Rebuild & Integrity Evaluation
+      // ==========================================
+      creativeGraph.rebuildIndex();
+      CreativeIntegrityValidator.evaluateAll();
 
       // Trigger universal reload events
       window.dispatchEvent(new CustomEvent("varynth_store_update"));
@@ -234,7 +265,7 @@ export class BackupService {
       notificationService.create({
         type: "BACKUP_RESTORED",
         title: "Backup Restaurado com Sucesso",
-        message: `Restauração concluída no modo ${mode}. Todas as coleções foram sincronizadas.`,
+        message: `Restauração concluída no modo ${mode}. Grafo criativo e assets sincronizados.`,
         severity: "SUCCESS",
         source: "SYSTEM",
       });

@@ -129,3 +129,4 @@ export const GameSceneCanvas: React.FC<GameSceneCanvasProps> = ({
     </div>
   );
 };
+

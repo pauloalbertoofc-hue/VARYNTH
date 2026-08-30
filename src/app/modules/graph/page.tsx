@@ -28,6 +28,8 @@ import {
   Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DependencyInspectorModal } from "@/components/studio/common/DependencyInspectorModal";
+import { Artifact } from "@/lib/artifacts/types";
 
 const TYPE_CONFIG: Record<GraphNodeType, { label: string; color: string; bg: string }> = {
   project: { label: "Projetos", color: "#38bdf8", bg: "bg-sky-500/20 text-sky-300 border-sky-500/40" },
@@ -57,6 +59,7 @@ export default function GraphPage() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [filterType, setFilterType] = useState<string>("todos");
   const [search, setSearch] = useState("");
+  const [inspectingArtifact, setInspectingArtifact] = useState<Artifact | null>(null);
 
   // Build Nodes and Edges from Store
   const { initialNodes, edges } = useMemo(() => {
@@ -590,6 +593,19 @@ export default function GraphPage() {
                 </div>
               )}
 
+              {selectedNode.type === "artifact" && (
+                <button
+                  onClick={() => {
+                    const art = artifactStore.getById(selectedNode.entityId);
+                    if (art) setInspectingArtifact(art);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-indigo-300 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 transition-all"
+                >
+                  <Sparkles size={13} />
+                  <span>Inspecionar Dependências & Grafo</span>
+                </button>
+              )}
+
               {selectedNode.link && (
                 <Link
                   href={selectedNode.link}
@@ -600,6 +616,17 @@ export default function GraphPage() {
                 </Link>
               )}
             </div>
+          )}
+
+          {inspectingArtifact && (
+            <DependencyInspectorModal
+              artifact={inspectingArtifact}
+              onClose={() => setInspectingArtifact(null)}
+              onUpdate={() => {
+                const refreshed = artifactStore.getById(inspectingArtifact.id);
+                if (refreshed) setInspectingArtifact(refreshed);
+              }}
+            />
           )}
 
           {/* Quick Helper Legend */}

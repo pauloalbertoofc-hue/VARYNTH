@@ -82,6 +82,33 @@ export const STUDIO_ROADMAP: StudioDefinition[] = [
   },
 ];
 
+export const CREATION_FOUNDATION_ROADMAP = [
+  {
+    phase: 1,
+    id: "cross-studio-integration",
+    name: "Phase 1 — Cross-Studio Integration & Creative Graph",
+    status: "READY",
+    description: "Unificação relacional dos 6 Studios, Creative Graph, Version Pinning, Asset Usage e Validador de Integridade Criativa.",
+    capabilities: ["creative-graph", "version-pinning", "asset-usage-tracking", "creative-integrity-validator", "reverse-index"],
+  },
+  {
+    phase: 2,
+    id: "creation-foundation-hardening",
+    name: "Phase 2 — Creation Foundation Hardening & Chaos Testing",
+    status: "PLANNED",
+    description: "Resiliência a desastres, testes de caos, políticas avançadas de GC e integridade sob alta concorrência.",
+    capabilities: ["chaos-resilience", "deep-gc-policy", "concurrent-stress-safety"],
+  },
+  {
+    phase: 3,
+    id: "athena-creative-orchestration",
+    name: "Phase 3 — Athena Creative Orchestration",
+    status: "PLANNED",
+    description: "Orquestração autônoma de fluxos criativos multimodais (Document -> Script -> Audio/Image -> Video -> Game).",
+    capabilities: ["autonomous-multimodal-orchestration", "multi-studio-generation", "smart-dependency-synthesis"],
+  },
+];
+
 export class StudioRoadmapManager {
   public listStudios(): StudioDefinition[] {
     return [...STUDIO_ROADMAP].sort((a, b) => a.order - b.order);

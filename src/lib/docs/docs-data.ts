@@ -415,6 +415,51 @@ export const ADR_LIST: ADRItem[] = [
       tradeoffs: ["Compilação nativa para consoles/mobile fica para fases posteriores"],
     },
   },
+  {
+    id: "ADR-025",
+    number: "ADR-025",
+    title: "Grafo Criativo Unificado e Relações Cross-Studio",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Os seis Studios corriam o risco de formar silos isolados sem rastreabilidade de dependências e proveniência.",
+    decision: "Instituir o CreativeGraphEngine como camada autoritativa indexando relações declaradas em Artifact.relationships, com regras diferenciadas para ciclos em DAGs causais vs referências associativas.",
+    rationale: "Unifica os seis estúdios em um ecossistema coerente e compreendido pela Athena sem duplicar armazenamento.",
+    alternatives: ["Silos isolados por estúdio", "Grafo monolítico externo desvinculado dos artefatos"],
+    consequences: {
+      gains: ["Rastreabilidade de proveniência", "Consultas reversas de dependentes", "Validação de DAG acíclico"],
+      tradeoffs: ["Necessidade de reindexação ao alterar relações"],
+    },
+  },
+  {
+    id: "ADR-026",
+    number: "ADR-026",
+    title: "Política de Version Pinning e Tolerância a Dependências Desatualizadas",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Evoluções em artefatos de origem não devem alterar silenciosamente composições e renders de consumidores existentes.",
+    decision: "Adotar version pinning baseado em targetVersionId imutável com detecção de UPDATE_AVAILABLE e atualização transacional com ATOMIC_ROLLBACK.",
+    rationale: "Evita mutações acidentais e quebras invisíveis em composições publicadas.",
+    alternatives: ["Atualização silenciosa e automática de tudo", "Pinning baseado apenas em números de versão voláteis"],
+    consequences: {
+      gains: ["Estabilidade determinística", "Rollback atômico em falha", "Diagnóstico preciso de versões"],
+      tradeoffs: ["Exigência de revisão manual de atualizações em artefatos publicados"],
+    },
+  },
+  {
+    id: "ADR-027",
+    number: "ADR-027",
+    title: "Reuso Físico de Assets e Segurança de Lixeira Cross-Studio",
+    status: "Accepted",
+    date: "2026-08-29",
+    context: "Compartilhar assets binários (PNG, WAV, MP4) entre múltiplos estúdios protegendo contra deleções indevidas.",
+    decision: "Registrar usos físicos em AssetUsageRecord com preservação histórica no Garbage Collection (Princípio Alex) e distinção entre SOURCE_TRASHED e ASSET_MISSING.",
+    rationale: "Maximiza economia de armazenamento sem comprometer a integridade de versões passadas.",
+    alternatives: ["Cópia física duplicada para cada estúdio consumidor", "Exclusão agressiva de assets não usados na versão ativa"],
+    consequences: {
+      gains: ["Zero duplicação física", "Proteção de histórico sob o Princípio Alex", "Diagnóstico honesto de integridade"],
+      tradeoffs: ["Maior retenção de armazenamento para histórico de versões"],
+    },
+  },
 ];
 
 export const LESSONS_LEARNED_LIST: LessonLearnedItem[] = [

@@ -376,3 +376,4 @@ export interface GameCommandHistoryState {
   past: GameDocumentState[];
   future: GameDocumentState[];
 }
+

@@ -19,3 +19,4 @@ Acoplar o VARYNTH OS a uma engine comercial ou monolítica específica (como Uni
 * A Athena pode inspecionar e orquestrar cenas e entidades de forma declarativa e segura.
 ### Negativas / Mitigações
 * Recursos complexos de física 3D não são suportados nativamente nesta V1 (prioridade 2D/Web).
+

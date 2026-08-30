@@ -286,3 +286,4 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
     </div>
   );
 };
+

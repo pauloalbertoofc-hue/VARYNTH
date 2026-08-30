@@ -11,7 +11,13 @@ export type ActionType =
   | "research.getEvidences"
   | "codex.searchTheses"
   | "opportunities.list"
-  | "diagnostics.run";
+  | "diagnostics.run"
+  | "creative.queryDependents"
+  | "creative.getProvenance"
+  | "creative.linkArtifact"
+  | "creative.unlinkArtifact"
+  | "creative.setPinMode"
+  | "creative.reviewDependencyUpdate";
 
 export interface AthenaAction {
   id: string;

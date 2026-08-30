@@ -216,3 +216,4 @@ export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
     </div>
   );
 };
+

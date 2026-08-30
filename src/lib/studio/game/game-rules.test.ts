@@ -186,3 +186,4 @@ runGameRulesTests().catch((err) => {
   console.error("Erro fatal na suíte de regras de jogo:", err);
   process.exit(1);
 });
+

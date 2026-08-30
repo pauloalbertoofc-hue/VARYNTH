@@ -19,3 +19,4 @@ Além disso, testar o jogo (`Play Mode`) não pode sobrescrever acidentalmente o
 * Capacidade de replay determinístico para depuração e testes pela Athena.
 ### Negativas / Mitigações
 * Mecânicas matemáticas de altíssima complexidade exigem scripts em Sandbox via Web Studio.
+

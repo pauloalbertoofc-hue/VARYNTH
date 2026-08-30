@@ -215,5 +215,116 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
       };
     },
   },
+
+  "creative.queryDependents": {
+    name: "creative.queryDependents",
+    description: "Consulta todos os artefatos e Studios que dependem de um artefato específico",
+    module: "creative",
+    execute: (params) => {
+      const artifactId = params.artifactId as string;
+      if (!artifactId) return { success: false, actionType: "creative.queryDependents", error: "artifactId obrigatório." };
+      const { creativeGraph } = require("@/lib/artifacts/creative-graph");
+      const dependents = creativeGraph.getDependents(artifactId);
+      return { success: true, actionType: "creative.queryDependents", data: { artifactId, dependentsCount: dependents.length, dependents } };
+    },
+  },
+
+  "creative.getProvenance": {
+    name: "creative.getProvenance",
+    description: "Rastreia a árvore de proveniência completa de um artefato",
+    module: "creative",
+    execute: (params) => {
+      const artifactId = params.artifactId as string;
+      if (!artifactId) return { success: false, actionType: "creative.getProvenance", error: "artifactId obrigatório." };
+      const { creativeGraph } = require("@/lib/artifacts/creative-graph");
+      const chain = creativeGraph.getProvenanceChain(artifactId);
+      return { success: true, actionType: "creative.getProvenance", data: { artifactId, provenanceChain: chain } };
+    },
+  },
+
+  "creative.linkArtifact": {
+    name: "creative.linkArtifact",
+    description: "Vincula uma dependência tipada entre dois artefatos criativos",
+    module: "creative",
+    execute: (params) => {
+      const sourceArtifactId = params.sourceArtifactId as string;
+      const targetArtifactId = params.targetArtifactId as string;
+      const type = params.type as any || "DEPENDS_ON";
+      const semanticRole = params.semanticRole as string | undefined;
+      const usageSlot = params.usageSlot as string | undefined;
+      const targetVersionId = params.targetVersionId as string | undefined;
+      const pinMode = params.pinMode as any || "PINNED";
+
+      const { artifactService } = require("@/lib/artifacts/artifact-service");
+      const res = artifactService.linkDependency({
+        sourceArtifactId,
+        targetArtifactId,
+        type,
+        semanticRole,
+        usageSlot,
+        targetVersionId,
+        pinMode,
+      });
+
+      return { success: res.success, actionType: "creative.linkArtifact", data: res, error: res.error };
+    },
+  },
+
+  "creative.unlinkArtifact": {
+    name: "creative.unlinkArtifact",
+    description: "Desvincula uma relação de dependência entre dois artefatos",
+    module: "creative",
+    execute: (params) => {
+      const sourceArtifactId = params.sourceArtifactId as string;
+      const targetArtifactId = params.targetArtifactId as string;
+      const usageSlot = params.usageSlot as string | undefined;
+
+      const { artifactService } = require("@/lib/artifacts/artifact-service");
+      const res = artifactService.unlinkDependency(sourceArtifactId, targetArtifactId, usageSlot);
+      return { success: res.success, actionType: "creative.unlinkArtifact", data: res, error: res.error };
+    },
+  },
+
+  "creative.setPinMode": {
+    name: "creative.setPinMode",
+    description: "Altera o modo de version pinning (PINNED vs FOLLOW_LATEST) de uma dependência",
+    module: "creative",
+    execute: (params) => {
+      const sourceArtifactId = params.sourceArtifactId as string;
+      const targetArtifactId = params.targetArtifactId as string;
+      const pinMode = params.pinMode as "PINNED" | "FOLLOW_LATEST";
+      const targetVersionId = params.targetVersionId as string | undefined;
+
+      const { artifactService } = require("@/lib/artifacts/artifact-service");
+      const res = artifactService.setPinMode(sourceArtifactId, targetArtifactId, pinMode, targetVersionId);
+      return { success: res.success, actionType: "creative.setPinMode", data: res, error: res.error };
+    },
+  },
+
+  "creative.reviewDependencyUpdate": {
+    name: "creative.reviewDependencyUpdate",
+    description: "Aplica de forma transacional uma atualização de dependência em um artefato consumidor",
+    module: "creative",
+    execute: async (params) => {
+      const consumerArtifactId = params.consumerArtifactId as string;
+      const targetArtifactId = params.targetArtifactId as string;
+      const newVersionId = params.newVersionId as string;
+      const newVersionNumber = (params.newVersionNumber as number) || 1;
+      const newAssetId = params.newAssetId as string | undefined;
+      const usageSlot = params.usageSlot as string | undefined;
+
+      const { artifactService } = require("@/lib/artifacts/artifact-service");
+      const res = await artifactService.acceptDependencyUpdate({
+        consumerArtifactId,
+        targetArtifactId,
+        newVersionId,
+        newVersionNumber,
+        newAssetId,
+        usageSlot,
+      });
+
+      return { success: res.success, actionType: "creative.reviewDependencyUpdate", data: res, error: res.error };
+    },
+  },
 };
 

@@ -44,6 +44,15 @@ export class ToolManager {
         return { action: "READ", targetDomain: "CODEX_THESES" };
       case "research.getEvidences":
         return { action: "READ", targetDomain: "RESEARCH_EVIDENCES" };
+      case "creative.queryDependents":
+      case "creative.getProvenance":
+        return { action: "READ", targetDomain: "ARTIFACT_ACTIVE" };
+      case "creative.linkArtifact":
+      case "creative.unlinkArtifact":
+      case "creative.setPinMode":
+        return { action: "MODIFY", targetDomain: "ARTIFACT_DRAFT" };
+      case "creative.reviewDependencyUpdate":
+        return { action: "MODIFY", targetDomain: "ARTIFACT_ACTIVE" };
       default:
         return { action: "READ", targetDomain: "WORKSPACE_PROJECT" };
     }

@@ -18,3 +18,4 @@ Além disso, solicitar exportação para plataformas sem toolchains nativas inst
 * Empacotamento Web interoperável e seguro sem dependência de nuvem externa.
 ### Negativas / Mitigações
 * Builds nativos para consoles ou mobile exigirão bridges de toolchain adicionais no futuro.
+
