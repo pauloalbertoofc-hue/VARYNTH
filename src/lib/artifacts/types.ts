@@ -140,6 +140,8 @@ export interface AssetFile {
   sizeBytes: number;
   storageType: StorageType;
   storageKey: string;
+  status?: "VALID" | "QUARANTINED" | "CORRUPTED";
+  quarantineReason?: string;
   checksum?: string;
   createdAt: string;
   createdBy: ArtifactActor;
@@ -155,11 +157,14 @@ export interface Artifact {
   projectId?: string;
   status: ArtifactStatus;
 
+  // Optimistic Concurrency Control (OCC)
+  revision?: number;
+
   createdBy: ArtifactActor;
   createdAt: string;
   updatedAt: string;
 
-  // Versioning
+  // Versioning (Creative History)
   currentVersionId?: string;
   currentVersionNumber: number;
   versions: ArtifactVersion[];

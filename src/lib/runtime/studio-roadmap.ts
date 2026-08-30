@@ -94,10 +94,19 @@ export const CREATION_FOUNDATION_ROADMAP = [
   {
     phase: 2,
     id: "creation-foundation-hardening",
-    name: "Phase 2 — Creation Foundation Hardening & Chaos Testing",
-    status: "PLANNED",
-    description: "Resiliência a desastres, testes de caos, políticas avançadas de GC e integridade sob alta concorrência.",
-    capabilities: ["chaos-resilience", "deep-gc-policy", "concurrent-stress-safety"],
+    name: "Phase 2 — System Hardening, Failure Recovery & Invariant Validation",
+    status: "READY",
+    description: "Invariantes INV-001..INV-020, TransactionJournal com persistência pré-mutação, OCC, anti-TOCTOU, quarentena e testes de caos determinísticos.",
+    capabilities: [
+      "system-invariants-inv001-020",
+      "durable-transaction-journal",
+      "startup-recovery-idempotency",
+      "occ-revision-control",
+      "anti-toctou-context-binding",
+      "deterministic-chaos-testing",
+      "asset-quarantine-model",
+      "fail-closed-policy",
+    ],
   },
   {
     phase: 3,

@@ -114,19 +114,56 @@ export class JobManager {
     return count;
   }
 
-  public createJob(params: {
+  public calculateInputManifestFingerprint(params: {
     type: JobType;
-    title: string;
-    description?: string;
-    priority?: JobPriority;
-    createdBy?: JobActor;
     relatedArtifactId?: string;
-    relatedProjectId?: string;
     creationEngineId?: string;
     metadata?: Record<string, unknown>;
-  }): Job {
-    // 1. Permission check for autonomous jobs
-    if (params.createdBy === "ATHENA") {
+  }): string {
+    const sortObjectKeys = (obj: any): any => {
+      if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return obj;
+      return Object.keys(obj)
+        .sort()
+        .reduce((acc: Record<string, any>, key: string) => {
+          acc[key] = sortObjectKeys(obj[key]);
+          return acc;
+        }, {});
+    };
+
+    const payload = {
+      type: params.type,
+      relatedArtifactId: params.relatedArtifactId || "",
+      creationEngineId: params.creationEngineId || "",
+      config: sortObjectKeys(params.metadata || {}),
+    };
+
+    const raw = JSON.stringify(payload);
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return `mnf-${Math.abs(hash).toString(16)}`;
+  }
+
+  public createJob(
+    params: {
+      type: JobType;
+      title: string;
+      description?: string;
+      priority?: JobPriority;
+      createdBy?: JobActor;
+      relatedArtifactId?: string;
+      relatedProjectId?: string;
+      creationEngineId?: string;
+      metadata?: Record<string, unknown>;
+      deduplicate?: boolean;
+    },
+    actor: JobActor = "USER"
+  ): Job {
+    // 1. Permission check
+    if (actor === "ATHENA") {
       const perm = permissionPolicyEngine.evaluate({
         actor: { type: "ATHENA" },
         action: "CREATE",
@@ -134,6 +171,20 @@ export class JobManager {
       });
       if (!perm.allowed) {
         throw new Error(`Permissão negada para criação de job: ${perm.reason}`);
+      }
+    }
+
+    const fingerprint = this.calculateInputManifestFingerprint(params);
+
+    // 2. Job Deduplication check
+    if (params.deduplicate !== false) {
+      const existingJob = this.jobs.find(
+        (j) =>
+          (j.status === "RUNNING" || j.status === "QUEUED") &&
+          j.inputManifestFingerprint === fingerprint
+      );
+      if (existingJob) {
+        return JSON.parse(JSON.stringify(existingJob));
       }
     }
 
@@ -149,6 +200,9 @@ export class JobManager {
       priority: params.priority || "NORMAL",
       progress: 0,
       createdAt: now,
+      commitPointReached: false,
+      inputManifestFingerprint: fingerprint,
+      outputAssetIds: [],
       logs: [
         {
           id: `log-${Date.now()}-1`,
@@ -241,16 +295,30 @@ export class JobManager {
     return checkpoint;
   }
 
-  public completeJob(id: string, result?: unknown): boolean {
+  public completeJob(id: string, result?: unknown, outputAssetIds?: string[]): boolean {
     const job = this.jobs.find((j) => j.id === id);
-    if (!job || job.status !== "RUNNING") return false;
+    if (!job || (job.status !== "RUNNING" && job.status !== "PAUSED" && job.status !== "QUEUED")) return false;
 
+    // Failure injection simulation point
+    if (typeof (globalThis as any).__failJobPromotion === "function" && (globalThis as any).__failJobPromotion()) {
+      job.status = "FAILED";
+      job.completedAt = new Date().toISOString();
+      this.addLog(id, "ERROR", "Falha na promoção de outputs do job.");
+      this.saveToStorage();
+      this.emitUpdate();
+      return false;
+    }
+
+    // Set commit point
+    job.commitPointReached = true;
+    job.outputAssetIds = outputAssetIds || (result && (result as any).assetId ? [(result as any).assetId] : ["out-default"]);
+    job.resultData = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : undefined;
     job.status = "COMPLETED";
     job.progress = 100;
     job.completedAt = new Date().toISOString();
     job.result = result;
 
-    this.addLog(id, "INFO", "Execução concluída com sucesso (100%).");
+    this.addLog(id, "INFO", "Execução concluída com sucesso (100%). Ponto de commit atingido.");
 
     this.saveToStorage();
     this.emitUpdate();
@@ -304,6 +372,12 @@ export class JobManager {
   public cancelJob(id: string, reason = "Cancelado pelo usuário"): boolean {
     const job = this.jobs.find((j) => j.id === id);
     if (!job || job.status === "COMPLETED" || job.status === "CANCELLED") return false;
+
+    // If commit point was already reached, cancel is rejected
+    if (job.commitPointReached) {
+      this.addLog(id, "WARNING", "Tentativa de cancelamento ignorada: Job já ultrapassou o ponto de commit autoritativo.");
+      return false;
+    }
 
     job.status = "CANCELLED";
     job.completedAt = new Date().toISOString();
@@ -370,6 +444,9 @@ export class JobManager {
         status: "COMPLETED",
         priority: "HIGH",
         progress: 100,
+        commitPointReached: true,
+        outputAssetIds: ["engine.wasm"],
+        resultData: { compiledSize: 2100000 },
         createdAt: now,
         startedAt: now,
         completedAt: now,

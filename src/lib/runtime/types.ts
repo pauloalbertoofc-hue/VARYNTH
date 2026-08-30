@@ -65,6 +65,10 @@ export interface Job {
   relatedArtifactId?: string;
   relatedProjectId?: string;
   creationEngineId?: string;
+  commitPointReached?: boolean;
+  outputAssetIds?: string[];
+  resultData?: Record<string, unknown>;
+  inputManifestFingerprint?: string;
   logs: JobLogEntry[];
   result?: unknown;
   error?: JobError;

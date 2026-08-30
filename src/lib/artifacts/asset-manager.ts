@@ -2,6 +2,7 @@ import { AssetFile, Artifact, ArtifactActor, StorageType, AssetUsageRecord } fro
 import { assetStorage } from "../persistence/indexeddb-adapter";
 import { athenaEventBus } from "../athena/events/event-bus";
 import { artifactStore } from "./artifact-store";
+import { FailureInjector } from "../hardening/failure-injector";
 
 const ASSET_REGISTRY_KEY = "varynth_assets_registry_v4";
 const ASSET_USAGES_KEY = "varynth_asset_usages_v4";
@@ -9,9 +10,21 @@ const ASSET_USAGES_KEY = "varynth_asset_usages_v4";
 export class AssetManager {
   private assets: Map<string, AssetFile> = new Map();
   private usages: Map<string, AssetUsageRecord> = new Map();
+  private isLoaded: boolean = false;
 
   constructor() {
     this.init();
+    this.setupStorageListener();
+  }
+
+  private setupStorageListener(): void {
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      window.addEventListener("storage", (event) => {
+        if (event.key === ASSET_REGISTRY_KEY || event.key === ASSET_USAGES_KEY) {
+          this.init();
+        }
+      });
+    }
   }
 
   private init(): void {
@@ -20,18 +33,24 @@ export class AssetManager {
         const stored = localStorage.getItem(ASSET_REGISTRY_KEY);
         if (stored) {
           const list: AssetFile[] = JSON.parse(stored);
-          list.forEach((a) => this.assets.set(a.id, a));
+          this.assets.clear();
+          list.forEach((a) => {
+            if (!a.status) a.status = "VALID";
+            this.assets.set(a.id, a);
+          });
         }
 
         const storedUsages = localStorage.getItem(ASSET_USAGES_KEY);
         if (storedUsages) {
           const uList: AssetUsageRecord[] = JSON.parse(storedUsages);
+          this.usages.clear();
           uList.forEach((u) => this.usages.set(u.id, u));
         }
       } catch (err) {
         console.warn("[AssetManager] Erro ao carregar registry do localStorage:", err);
       }
     }
+    this.isLoaded = true;
   }
 
   private saveRegistry(): void {
@@ -103,6 +122,10 @@ export class AssetManager {
     },
     data?: Blob | ArrayBuffer | string
   ): Promise<AssetFile> {
+    // Failure Injector simulation points
+    FailureInjector.checkAndThrow("storage-exhaustion", "Storage quota exceeded during asset registration.");
+    FailureInjector.checkAndThrow("during-asset-write", "Disk write failure during asset payload storage.");
+
     const id = `asset-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const storageKey = `blob-${id}`;
     const storageType = params.storageType || "INDEXEDDB_BLOB";
@@ -118,6 +141,7 @@ export class AssetManager {
       sizeBytes: params.sizeBytes,
       storageType,
       storageKey,
+      status: "VALID",
       createdAt: new Date().toISOString(),
       createdBy: params.createdBy || "USER",
       artifactIds: params.artifactIds || [],
@@ -130,6 +154,33 @@ export class AssetManager {
     athenaEventBus.emit("ASSET_CREATED", { assetId: id, name: asset.name, sizeBytes: asset.sizeBytes });
 
     return JSON.parse(JSON.stringify(asset));
+  }
+
+  public quarantineAsset(assetId: string, reason: string): AssetFile | undefined {
+    const asset = this.assets.get(assetId);
+    if (!asset) return undefined;
+
+    asset.status = "QUARANTINED";
+    asset.quarantineReason = reason;
+    this.saveRegistry();
+
+    athenaEventBus.emit("ASSET_QUARANTINED" as any, { assetId, reason });
+    return JSON.parse(JSON.stringify(asset));
+  }
+
+  public isAssetUsable(assetId: string): boolean {
+    const asset = this.assets.get(assetId);
+    if (!asset) return false;
+    if (asset.status === "QUARANTINED" || asset.status === "CORRUPTED") return false;
+    return true;
+  }
+
+  public getAllAssets(): AssetFile[] {
+    return Array.from(this.assets.values()).map((a) => JSON.parse(JSON.stringify(a)));
+  }
+
+  public getAll(): AssetFile[] {
+    return this.getAllAssets();
   }
 
   public async createAsset(

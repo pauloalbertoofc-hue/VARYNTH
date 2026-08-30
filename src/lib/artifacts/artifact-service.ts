@@ -18,6 +18,7 @@ import { creativeGraph } from "./creative-graph";
 import { CreativeIntegrityValidator } from "./creative-integrity-validator";
 import { permissionPolicyEngine } from "../permissions/permission-policy";
 import { athenaEventBus } from "../athena/events/event-bus";
+import { TransactionJournal } from "../hardening/transaction-journal";
 
 export class ArtifactService {
   public async createArtifact(
@@ -160,6 +161,29 @@ export class ArtifactService {
     });
 
     return { success: true, artifact: saved };
+  }
+
+  public async rollbackArtifactVersion(
+    id: string,
+    targetVersionNumber: number,
+    actor: ArtifactActor = "USER"
+  ): Promise<{ success: boolean; artifact?: Artifact; error?: string }> {
+    const artifact = artifactStore.getById(id);
+    if (!artifact) return { success: false, error: "Artefato não encontrado." };
+    const res = versionManager.rollbackToVersion(artifact, targetVersionNumber, actor);
+    if (res.success && res.rolledBackArtifact) {
+      const saved = artifactStore.save(res.rolledBackArtifact);
+      return { success: true, artifact: saved };
+    }
+    return { success: false, error: res.error };
+  }
+
+  public async rollbackToVersion(
+    id: string,
+    targetVersionNumber: number,
+    actor: ArtifactActor = "USER"
+  ) {
+    return this.rollbackArtifactVersion(id, targetVersionNumber, actor);
   }
 
   public async update(
@@ -409,19 +433,29 @@ export class ArtifactService {
       }
     }
 
-    // 2. Create safety snapshot of consumer artifact
-    versionManager.createSnapshot(
-      consumer,
-      `[SAFETY SNAPSHOT] Atualização de dependência '${target.name}' para v${params.newVersionNumber}.0`,
-      actor
-    );
+    // 2. Begin durable transaction BEFORE any mutation side effect
+    const tx = TransactionJournal.beginTransaction("DEPENDENCY_UPDATE", [consumer.id], {
+      [consumer.id]: JSON.parse(JSON.stringify(consumer)),
+    });
 
     // Save backup state for atomic rollback
     const previousConsumerJson = JSON.stringify(consumer);
     const previousUsages = assetManager.getUsagesForArtifact(consumer.id);
 
     try {
-      // 3. Update Relationship
+      // 3. Create safety snapshot of consumer artifact
+      versionManager.createSnapshot(
+        consumer,
+        `[SAFETY SNAPSHOT] Atualização de dependência '${target.name}' para v${params.newVersionNumber}.0`,
+        actor
+      );
+
+      // Durable prepare
+      TransactionJournal.prepareTransaction(tx.id, "SNAPSHOT_CREATED", {
+        [consumer.id]: JSON.parse(previousConsumerJson),
+      });
+
+      // 4. Update Relationship
       const rel = (consumer.relationships || []).find(
         (r) => r.targetArtifactId === params.targetArtifactId && (!params.usageSlot || r.usageSlot === params.usageSlot)
       );
@@ -432,7 +466,7 @@ export class ArtifactService {
         rel.updatedAt = new Date().toISOString();
       }
 
-      // 4. Update physical AssetUsageRecord if newAssetId provided
+      // 5. Update physical AssetUsageRecord if newAssetId provided
       if (params.newAssetId && params.usageSlot) {
         // Remove previous usage for this slot
         const oldUsage = previousUsages.find((u) => u.usageSlot === params.usageSlot);
@@ -454,7 +488,7 @@ export class ArtifactService {
         });
       }
 
-      // 5. Evaluate Creative Integrity
+      // 6. Evaluate Creative Integrity
       artifactStore.save(consumer);
       const integrity = CreativeIntegrityValidator.evaluate(consumer.id);
       if (!integrity.valid) {
@@ -463,6 +497,13 @@ export class ArtifactService {
         );
       }
 
+      // 7. Mark Committing
+      TransactionJournal.markCommitting(tx.id);
+
+      // 8. Commit Transaction
+      TransactionJournal.commitTransaction(tx.id);
+
+      // 9. Rebuild index and emit side-effect events ONLY after authoritative commit
       creativeGraph.rebuildIndex();
       athenaEventBus.emit("DEPENDENCY_UPDATED", {
         consumerId: consumer.id,
@@ -474,6 +515,7 @@ export class ArtifactService {
       return { success: true };
     } catch (err: any) {
       // Atomic Rollback
+      TransactionJournal.rollbackTransaction(tx.id, err.message);
       const restoredConsumer = JSON.parse(previousConsumerJson);
       artifactStore.save(restoredConsumer);
       creativeGraph.rebuildIndex();

@@ -36,7 +36,7 @@ export class ArtifactStore {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            this.artifacts = parsed;
+            this.artifacts = this.migrateLegacyRevisions(parsed);
           } else {
             this.artifacts = this.getSeedArtifacts();
             this.saveToStorage();
@@ -54,6 +54,22 @@ export class ArtifactStore {
 
     this.artifacts = this.getSeedArtifacts();
     this.isLoaded = true;
+  }
+
+  private migrateLegacyRevisions(list: Artifact[]): Artifact[] {
+    let mutated = false;
+    const migrated = list.map((art) => {
+      if (typeof art.revision !== "number" || art.revision < 1) {
+        mutated = true;
+        return { ...art, revision: 1 };
+      }
+      return art;
+    });
+    if (mutated) {
+      this.artifacts = migrated;
+      this.saveToStorage();
+    }
+    return migrated;
   }
 
   private saveToStorage(): void {
@@ -76,23 +92,42 @@ export class ArtifactStore {
 
   public getById(id: string): Artifact | undefined {
     const item = this.artifacts.find((a) => a.id === id);
-    return item ? JSON.parse(JSON.stringify(item)) : undefined;
+    if (!item) return undefined;
+    if (typeof item.revision !== "number") {
+      item.revision = 1;
+    }
+    return JSON.parse(JSON.stringify(item));
   }
 
   public getByProjectId(projectId: string): Artifact[] {
     return JSON.parse(JSON.stringify(this.artifacts.filter((a) => a.projectId === projectId)));
   }
 
-  public save(artifact: Artifact): Artifact {
-    const idx = this.artifacts.findIndex((a) => a.id === artifact.id);
+  public save(artifact: Artifact, expectedRevision?: number): Artifact {
+    const clone = JSON.parse(JSON.stringify(artifact)) as Artifact;
+    const idx = this.artifacts.findIndex((a) => a.id === clone.id);
+
     if (idx >= 0) {
-      this.artifacts[idx] = JSON.parse(JSON.stringify(artifact));
+      const existing = this.artifacts[idx];
+      const currentRev = typeof existing.revision === "number" ? existing.revision : 1;
+
+      // Optimistic Concurrency Control (OCC) check
+      if (expectedRevision !== undefined && expectedRevision !== currentRev) {
+        throw new Error(
+          `WRITE_CONFLICT: Conflito de escrita no artefato '${clone.name}' (${clone.id}). Revisão esperada: ${expectedRevision}, revisão atual no store: ${currentRev}.`
+        );
+      }
+
+      clone.revision = currentRev + 1;
+      this.artifacts[idx] = clone;
     } else {
-      this.artifacts.unshift(JSON.parse(JSON.stringify(artifact)));
+      clone.revision = typeof clone.revision === "number" ? clone.revision : 1;
+      this.artifacts.unshift(clone);
     }
+
     this.saveToStorage();
     this.emitUpdate();
-    return JSON.parse(JSON.stringify(artifact));
+    return JSON.parse(JSON.stringify(clone));
   }
 
   public remove(id: string): boolean {
@@ -157,12 +192,18 @@ export class ArtifactStore {
           {
             targetArtifactId: "art-dataset-001",
             type: "DEPENDS_ON",
+            targetVersionId: "ver-art-data-001-v1",
+            targetVersionNumber: 1,
+            pinMode: "PINNED",
             description: "Consome o dataset jurisprudencial do STF.",
             createdAt: "2026-08-20T12:00:00.000Z",
           },
           {
             targetArtifactId: "art-interactive-001",
             type: "SOURCE_OF",
+            targetVersionId: "ver-art-int-001-v1",
+            targetVersionNumber: 1,
+            pinMode: "PINNED",
             description: "Fornece base conceitual para o portal interativo.",
             createdAt: "2026-08-28T09:00:00.000Z",
           },
@@ -211,6 +252,9 @@ export class ArtifactStore {
           {
             targetArtifactId: "art-diagram-001",
             type: "ADAPTED_TO",
+            targetVersionId: "ver-art-diag-001-v1",
+            targetVersionNumber: 1,
+            pinMode: "PINNED",
             description: "Mapeado no diagrama de arquitetura transversal.",
             createdAt: "2026-08-25T11:00:00.000Z",
           },
@@ -260,6 +304,9 @@ export class ArtifactStore {
           {
             targetArtifactId: "art-doc-001",
             type: "DERIVED_FROM",
+            targetVersionId: "ver-art-doc-001-v2",
+            targetVersionNumber: 2,
+            pinMode: "PINNED",
             description: "Derivado dos conceitos do Tratado de IA.",
             createdAt: "2026-08-28T09:00:00.000Z",
           },

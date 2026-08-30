@@ -304,18 +304,72 @@ export class PermissionPolicyEngine {
   }
 
   /**
-   * Generates a single-use ActionConfirmation token for high-risk operations.
+   * Generates a canonical deterministic hash of the action authorization context.
+   */
+  public calculateContextHash(context: {
+    action: string;
+    targetDomain: string;
+    resourceId?: string;
+    expectedRevision?: number;
+    expectedVersionId?: string;
+    criticalParameters?: Record<string, unknown>;
+  }): string {
+    const sortObjectKeys = (obj: any): any => {
+      if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return obj;
+      return Object.keys(obj)
+        .sort()
+        .reduce((acc: Record<string, any>, key: string) => {
+          acc[key] = sortObjectKeys(obj[key]);
+          return acc;
+        }, {});
+    };
+
+    const canonicalPayload = {
+      action: context.action,
+      targetDomain: context.targetDomain,
+      resourceId: context.resourceId || "",
+      expectedRevision: context.expectedRevision || 1,
+      expectedVersionId: context.expectedVersionId || "",
+      criticalParameters: sortObjectKeys(context.criticalParameters || {}),
+    };
+
+    const raw = JSON.stringify(canonicalPayload);
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return `auth-ctx-${Math.abs(hash).toString(16)}`;
+  }
+
+  /**
+   * Generates a single-use ActionConfirmation token for high-risk operations with canonical context binding.
    */
   public generateConfirmation(
     action: VarynthAction,
     targetDomain: SecurityTargetDomain,
     summary: string,
     consequences: string[] = [],
-    resourceId?: string
+    resourceId?: string,
+    contextOptions?: {
+      expectedRevision?: number;
+      expectedVersionId?: string;
+      criticalParameters?: Record<string, unknown>;
+    }
   ): ActionConfirmation {
     const actionId = `conf-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const token = `token-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 min expiry
+
+    const authContextHash = this.calculateContextHash({
+      action,
+      targetDomain,
+      resourceId,
+      expectedRevision: contextOptions?.expectedRevision,
+      expectedVersionId: contextOptions?.expectedVersionId,
+      criticalParameters: contextOptions?.criticalParameters,
+    });
 
     const confirmation: ActionConfirmation = {
       actionId,
@@ -323,6 +377,10 @@ export class PermissionPolicyEngine {
       action,
       targetDomain,
       resourceId,
+      expectedRevision: contextOptions?.expectedRevision,
+      expectedVersionId: contextOptions?.expectedVersionId,
+      authorizationContextHash: authContextHash,
+      criticalParameters: contextOptions?.criticalParameters ? JSON.parse(JSON.stringify(contextOptions.criticalParameters)) : undefined,
       summary,
       consequences,
       expiresAt,
@@ -343,9 +401,16 @@ export class PermissionPolicyEngine {
   }
 
   /**
-   * Verifies and safely consumes a confirmation token (One-Time Token, prevents reuse).
+   * Verifies and safely consumes a confirmation token (One-Time Token, prevents reuse and TOCTOU mutations).
    */
-  public verifyAndConsumeToken(token: string): { valid: boolean; confirmation?: ActionConfirmation; error?: string } {
+  public verifyAndConsumeToken(
+    token: string,
+    currentContextOptions?: {
+      currentRevision?: number;
+      currentVersionId?: string;
+      currentParameters?: Record<string, unknown>;
+    }
+  ): { valid: boolean; confirmation?: ActionConfirmation; error?: string } {
     const confirmation = this.activeConfirmations.get(token);
     if (!confirmation) {
       return { valid: false, error: "Token de confirmação inexistente ou expirado." };
@@ -358,6 +423,51 @@ export class PermissionPolicyEngine {
     if (new Date(confirmation.expiresAt).getTime() < Date.now()) {
       this.activeConfirmations.delete(token);
       return { valid: false, error: "Token de confirmação expirado (tempo limite de 15 minutos excedido)." };
+    }
+
+    // Anti-TOCTOU & Context Binding Check
+    if (currentContextOptions) {
+      // 1. Revision / Version checks
+      if (
+        typeof confirmation.expectedRevision === "number" &&
+        typeof currentContextOptions.currentRevision === "number" &&
+        currentContextOptions.currentRevision !== confirmation.expectedRevision
+      ) {
+        return {
+          valid: false,
+          error: `CONFIRMATION_STALE: O artefato foi modificado (revisão esperada: ${confirmation.expectedRevision}, atual: ${currentContextOptions.currentRevision}). Confirmação invalidada.`,
+        };
+      }
+
+      if (
+        confirmation.expectedVersionId &&
+        currentContextOptions.currentVersionId &&
+        confirmation.expectedVersionId !== currentContextOptions.currentVersionId
+      ) {
+        return {
+          valid: false,
+          error: `CONFIRMATION_STALE: A versão do artefato evoluiu (esperada: ${confirmation.expectedVersionId}, atual: ${currentContextOptions.currentVersionId}). Confirmação invalidada.`,
+        };
+      }
+
+      // 2. Canonical parameter hash check
+      if (confirmation.authorizationContextHash) {
+        const currentHash = this.calculateContextHash({
+          action: confirmation.action,
+          targetDomain: confirmation.targetDomain,
+          resourceId: confirmation.resourceId,
+          expectedRevision: confirmation.expectedRevision,
+          expectedVersionId: confirmation.expectedVersionId,
+          criticalParameters: currentContextOptions.currentParameters || confirmation.criticalParameters,
+        });
+
+        if (currentHash !== confirmation.authorizationContextHash) {
+          return {
+            valid: false,
+            error: "CONFIRMATION_STALE: Os parâmetros críticos da operação foram alterados desde a confirmação autorizada.",
+          };
+        }
+      }
     }
 
     // Mark as used

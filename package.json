@@ -29,7 +29,10 @@
     "test:video-studio": "npx tsx src/lib/studio/video/video-studio-regression.test.ts",
     "test:game-rules": "npx tsx src/lib/studio/game/game-rules.test.ts",
     "test:game-studio": "npx tsx src/lib/studio/game/game-studio-regression.test.ts",
-    "test:cross-studio": "npx tsx src/lib/artifacts/cross-studio-integration.test.ts"
+    "test:cross-studio": "npx tsx src/lib/artifacts/cross-studio-integration.test.ts",
+    "test:invariants": "npx tsx src/lib/hardening/system-invariants.test.ts",
+    "test:concurrency": "npx tsx src/lib/hardening/concurrency-recovery.test.ts",
+    "test:hardening": "npx tsx src/lib/hardening/security-chaos.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -67,6 +67,10 @@ export interface ActionConfirmation {
   action: VarynthAction;
   targetDomain: SecurityTargetDomain;
   resourceId?: string;
+  expectedRevision?: number;
+  expectedVersionId?: string;
+  authorizationContextHash?: string;
+  criticalParameters?: Record<string, unknown>;
   summary: string;
   consequences: string[];
   expiresAt: string;
