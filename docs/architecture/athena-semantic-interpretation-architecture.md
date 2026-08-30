@@ -89,3 +89,4 @@ A Camada Semântica Local Híbrida da Athena atua como o elo de tradução semâ
             │  cooldown de 30s)     │       │  requisição)  │
             └───────────────────────┘       └───────────────┘
 ```
+

@@ -112,3 +112,4 @@ export interface SemanticFusionPolicy {
   enableLocalLMEnrichment: boolean;
   localLMTimeoutMs: number;
 }
+

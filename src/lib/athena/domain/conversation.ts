@@ -114,4 +114,10 @@ export interface ConversationState {
   recentRecommendations?: string[];
   recentCritiques?: string[];
   interruptedTopicStack?: { topic: string; projectId?: string; timestamp: string }[];
+  clarificationContext?: {
+    target: string;
+    candidateIds: string[];
+    attemptCount: number;
+    status: "PENDING" | "RESOLVED";
+  };
 }

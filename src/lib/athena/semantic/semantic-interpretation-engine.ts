@@ -146,8 +146,13 @@ export class SemanticInterpretationEngine {
     }
     // Rule G: Similarity Ranking & Statistical Score
     else if (topSim && topSim.score >= 0.28) {
-      selectedIntent = topSim.intent;
-      finalConfidence = Math.min(0.98, topSim.score + (similarityMargin > 0.08 ? 0.15 : 0.05));
+      if (topSim.intent === "CLARIFICATION_RESPONSE" && !context.hasPendingSlot) {
+        selectedIntent = "SOCIAL_CONVERSATION";
+        finalConfidence = 0.7;
+      } else {
+        selectedIntent = topSim.intent;
+        finalConfidence = Math.min(0.98, topSim.score + (similarityMargin > 0.08 ? 0.15 : 0.05));
+      }
     }
     // Rule H: Fallback
     else {
@@ -229,3 +234,4 @@ export class SemanticInterpretationEngine {
     return syncRes;
   }
 }
+

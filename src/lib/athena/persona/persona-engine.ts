@@ -1,17 +1,27 @@
+/**
+ * VARYNTH OS — ATHENA PERSONA & RESPONSE COMPOSITION ENGINE
+ * Renders natural, grounded, context-sensitive responses aligned with
+ * ResponseIntent, AthenaPersonaProfile, and Directness principles.
+ */
+
 import { AthenaPersonaConfig, DEFAULT_ATHENA_PERSONA } from "../domain/persona";
 import {
-  ConversationMode,
-  CognitiveIntent,
   ParsedCognitiveContext,
 } from "../domain/conversation";
 import { EPISTEMIC_KNOWLEDGE_BASE, EpistemicConcept } from "../knowledge/epistemic-concepts";
 import { AthenaEngineContext } from "../engine";
-import { responseCompletenessValidator } from "../conversation/completeness-validator";
 import { athenaLocalTelemetry } from "../conversation/telemetry";
 import { normalizeText } from "../conversation/conversation-manager";
+import {
+  ResponseIntent,
+  AthenaPersonaProfile,
+} from "../strategy/types";
+import { AthenaResponseStrategyEngine } from "../strategy/response-strategy-engine";
 
 export class AthenaPersonaEngine {
   private config: AthenaPersonaConfig = { ...DEFAULT_ATHENA_PERSONA };
+  // Ephemeral in-memory record of recent opening styles per session (NOT persisted in episodic memory)
+  private ephemeralOpenings: Map<string, string[]> = new Map();
 
   getConfig(): AthenaPersonaConfig {
     return this.config;
@@ -19,6 +29,36 @@ export class AthenaPersonaEngine {
 
   updateConfig(updates: Partial<AthenaPersonaConfig>): void {
     this.config = { ...this.config, ...updates };
+  }
+
+  getPersonaProfile(): AthenaPersonaProfile {
+    return AthenaResponseStrategyEngine.getProfile();
+  }
+
+  /**
+   * Records and rotates recent opening patterns to avoid monotonous repetition.
+   */
+  private selectOpening(sessionId = "default", style: "warm" | "concise" | "neutral"): string {
+    const recent = this.ephemeralOpenings.get(sessionId) || [];
+    const warmOpenings = [
+      "Olá, Paulo! Tudo excelente por aqui! 😊",
+      "Por aqui tudo em ordem e conectado, Paulo! 😊",
+      "Pronta por aqui para acompanhar suas ideias e pesquisas! 😊",
+    ];
+    const conciseOpenings = [
+      "Entendido.",
+      "Certo.",
+      "Perfeito.",
+    ];
+
+    const pool = style === "warm" ? warmOpenings : conciseOpenings;
+    const available = pool.filter((o) => !recent.includes(o));
+    const chosen = available.length > 0 ? available[0] : pool[0];
+
+    // Maintain ephemeral window of last 2 openings
+    const updated = [...recent, chosen].slice(-2);
+    this.ephemeralOpenings.set(sessionId, updated);
+    return chosen;
   }
 
   /**
@@ -228,30 +268,108 @@ export class AthenaPersonaEngine {
   }
 
   /**
-   * Main direct response generator with strict adherence to direct answers and anti-evasion.
+   * Main direct response generator with strict adherence to direct answers, factual grounding, and anti-evasion.
    */
   generateDialogueResponse(
     prompt: string,
     parsed: ParsedCognitiveContext,
     activeProjectTitle?: string,
-    ctx?: AthenaEngineContext
+    ctx?: AthenaEngineContext,
+    intent?: ResponseIntent,
+    sessionId = "default"
   ): { text: string; recommendations?: string[]; critiques?: string[] } {
     const clean = normalizeText(prompt)
       .replace(/\bathena\b/g, "")
       .replace(/\bathenas\b/g, "")
       .trim();
 
-    // 0. Honest Clarification for Low Confidence / Ambiguous / Noise
-    if (parsed.isAmbiguous && parsed.clarificationPrompt) {
-      return { text: parsed.clarificationPrompt };
-    }
-    if (parsed.intents.includes("CLARIFICATION_REQUIRED") || parsed.confidence === "LOW" || clean.length < 3) {
+    // 0. Misunderstanding Repair / User Frustration (Concise & Non-Defensive)
+    if (
+      intent?.isMisunderstandingRepair ||
+      clean.includes("nao foi isso") ||
+      clean.includes("nao e isso") ||
+      clean.includes("entendeu errado") ||
+      clean.includes("de novo nao")
+    ) {
+      if (clean.includes("de novo nao")) {
+        return {
+          text: `Entendido perfeitamente. Vamos recalibrar a abordagem imediatamente sem rodeios. Em qual ponto exato deseja focar agora?`,
+        };
+      }
       return {
-        text: parsed.clarificationPrompt || `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,
+        text: `Entendido! Vamos recalibrar a abordagem. Me diga: qual é o objetivo exato em que você gostaria de focar agora?`,
       };
     }
 
-    // 1. FAST CONVERSATION PATH (Diálogo Social, Humor, Empatia)
+    // 1. Targeted Clarification & Uncertainty
+    if (intent?.mode === "CLARIFICATION" || parsed.isAmbiguous) {
+      const clar = intent?.clarificationState;
+      if (clar?.isLoopDetected && clar.candidates && clar.candidates.length > 0) {
+        return {
+          text: `Para direcionar com precisão sem repetições, selecione uma das opções encontradas:\n` +
+            clar.candidates.map((c, i) => `${i + 1}. **${c.name}**`).join("\n") +
+            `\n\nQual delas você prefere abrir?`,
+        };
+      }
+
+      if (clar?.candidates && clar.candidates.length >= 2) {
+        return {
+          text: `Você está se referindo ao projeto **"${clar.candidates[0].name}"** ou ao **"${clar.candidates[1].name}"**? Me avisa para puxarmos o contexto exato!`,
+        };
+      }
+
+      if (parsed.clarificationPrompt) {
+        return { text: parsed.clarificationPrompt };
+      }
+    }
+
+    if (intent?.mode === "UNCERTAINTY" || (parsed.confidence as string) === "LOW" || (parsed.confidence as string) === "UNKNOWN") {
+      if (intent?.uncertaintyType === "UNKNOWN") {
+        return {
+          text: `Não encontrei esse termo no acervo do VARYNTH. Pode reformular ou me dar uma pista sobre o projeto correspondente?`,
+        };
+      }
+      return {
+        text: `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,
+      };
+    }
+
+    // 2. Factual Query Answers via Structured keyFacts (Princípio Answer First, Detail Second)
+    if (intent && intent.keyFacts.length > 0) {
+      const projProgressFact = intent.keyFacts.find((f) => f.key === "projectProgress");
+      if (projProgressFact && typeof projProgressFact.value === "number") {
+        const pct = projProgressFact.value;
+        const pendingCount = (intent.keyFacts.find((f) => f.key === "projectPendingTasks")?.value as number) || 0;
+        return {
+          text: `O projeto está atualmente com **${pct}% de progresso** (${pendingCount} tarefas ainda em andamento). Ainda faltam etapas antes da publicação definitiva!`,
+        };
+      }
+
+      const pendingTasksFact = intent.keyFacts.find((f) => f.key === "pendingTasksCount");
+      if (pendingTasksFact && typeof pendingTasksFact.value === "number") {
+        const pendingCount = pendingTasksFact.value;
+        const urgentCount = (intent.keyFacts.find((f) => f.key === "urgentTasksCount")?.value as number) || 0;
+        const topUrgent = (intent.keyFacts.find((f) => f.key === "topUrgentTaskTitle")?.value as string) || "";
+
+        return {
+          text:
+            `Você tem **${pendingCount} tarefas pendentes** no momento` +
+            (urgentCount > 0
+              ? `, sendo **${urgentCount} de alta prioridade** (ex: *"__${topUrgent}__"*).`
+              : " (todas em dia, sem urgências acumuladas).") +
+            `\n\nPodemos pegar a primeira e avançar agora?`,
+        };
+      }
+
+      const activeProjectsFact = intent.keyFacts.find((f) => f.key === "activeProjectsCount");
+      if (activeProjectsFact && typeof activeProjectsFact.value === "number") {
+        return {
+          text: `Você tem **${activeProjectsFact.value} projetos ativos** nas suas workspaces no momento.`,
+        };
+      }
+    }
+
+    // 3. FAST CONVERSATION PATH (Diálogo Social, Humor, Empatia com abertura variada)
     if (parsed.interactionType === "CONVERSATION") {
       // Negative Sarcasm & Ironic Feedback
       if (clean.includes("nao queria") || clean.includes("apagou o errado") || clean.includes("nota do")) {
@@ -293,20 +411,21 @@ export class AthenaPersonaEngine {
         };
       }
 
-      // Greetings
+      // Greetings with dynamic anti-repetition selection
+      const opening = this.selectOpening(sessionId, "warm");
       return {
-        text: `Olá, Paulo! Tudo excelente por aqui! 😊 Conectada ao seu ecossistema e pronta para acompanhar suas ideias e pesquisas. O que temos na pauta hoje?`,
+        text: `${opening} Conectada ao seu ecossistema e pronta para acompanhar suas ideias e pesquisas. O que temos na pauta hoje?`,
       };
     }
 
-    // 2. COGNITIVE PATH: Direct, Substantive Answers (Anti-Evasion)
+    // 4. COGNITIVE PATH: Substantive Answers
 
     // A. Athena Self Diagnostic
     if (parsed.intents.includes("ATHENA_SELF_STATUS")) {
       return { text: this.generateAthenaSelfStatus() };
     }
 
-    // B. Critique ("Critique essa ideia") - High priority
+    // B. Critique ("Critique essa ideia")
     if (parsed.intents.includes("CRITIQUE")) {
       return this.generateCritiqueResponse(parsed.ellipsisResolved?.originalReferent || activeProjectTitle);
     }
@@ -363,15 +482,7 @@ export class AthenaPersonaEngine {
       };
     }
 
-    // H. Honest Understanding Policy for Low-Confidence / Unknown
-    if ((parsed.confidence as string) === "LOW" || (parsed.confidence as string) === "UNKNOWN" || clean.length < 3) {
-      athenaLocalTelemetry.record("session", prompt, "LOW_CONFIDENCE", { clean });
-      return {
-        text: `Fiquei em dúvida sobre como direcionar essa resposta. Você gostaria de focar em uma recomendação prática de projeto, em uma reflexão conceitual ou em uma consulta ao sistema?`,
-      };
-    }
-
-    // I. Direct Intellectual Dialogue
+    // H. Direct Intellectual Dialogue
     if (activeProjectTitle) {
       return {
         text: `Sobre **"${prompt}"** no projeto **"${activeProjectTitle}"**: podemos conectar com os fichamentos existentes no Vault e estruturar os próximos passos no Chronos. Qual ponto específico você quer detalhar agora?`,

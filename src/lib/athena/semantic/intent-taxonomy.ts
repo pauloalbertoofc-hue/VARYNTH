@@ -268,3 +268,4 @@ export const CANONICAL_INTENT_TAXONOMY: Record<AthenaCanonicalIntent, IntentDefi
 export const ALL_INTENT_EXAMPLES: IntentCorpusItem[] = Object.values(CANONICAL_INTENT_TAXONOMY).flatMap(
   (def) => def.examples
 );
+

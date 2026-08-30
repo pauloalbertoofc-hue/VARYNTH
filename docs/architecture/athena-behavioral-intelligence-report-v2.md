@@ -61,3 +61,4 @@ No teste `SEM-REG-021` e `SEM-REG-030`, frases inéditas jamais vistas no corpus
 - *"Tem trabalho meu parado por aí?"* → Classificado corretamente como `TASK_QUERY`.
 
 Isso comprova que a Athena generaliza semântica e morfologia por similaridade estatística, em vez de depender de memorização de strings fixas.
+

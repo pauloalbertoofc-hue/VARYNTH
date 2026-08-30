@@ -145,3 +145,4 @@ export class LocalSimilarityEngine {
     return { candidates: sorted, margin };
   }
 }
+

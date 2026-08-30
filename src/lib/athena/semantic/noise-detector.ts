@@ -104,3 +104,4 @@ export class NoiseDetector {
     return { isNoise: false, confidence: 0.0 };
   }
 }
+

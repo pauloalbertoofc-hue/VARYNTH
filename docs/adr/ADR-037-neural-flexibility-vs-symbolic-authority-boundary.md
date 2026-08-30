@@ -19,3 +19,4 @@ No VARYNTH OS, a soberania tecnológica exige separação absoluta entre a flexi
 ## Consequências
 - Invariantes `INV-037` (Isolamento de Execução) e `INV-038` (Superioridade da Política Determinística) formalizadas e ativas.
 - Resiliência comprovada nos testes de injeção indireta e chamadas maliciosas (`ATHINT-057`, `SEM-REG-020`).
+

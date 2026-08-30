@@ -20,6 +20,8 @@ import { ollamaAdapter } from "./models/providers/ollama-adapter";
 import { athenaToolManager } from "./tools/tool-manager";
 import { responseCompletenessValidator } from "./conversation/completeness-validator";
 import { InteractionDebugInfo } from "./domain/conversation";
+import { AthenaResponseStrategyEngine } from "./strategy/response-strategy-engine";
+import { FactLockValidator } from "./strategy/fact-lock-validator";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -54,24 +56,70 @@ export async function processAthenaQueryAsync(
   );
 
   const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
+  const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
+  const semantic: import("./semantic/types").SemanticInterpretation = parsed.semanticInterpretation || {
+    intent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
+    confidence: parsed.confidence === "HIGH" ? 0.95 : 0.7,
+    confidenceLevel: parsed.confidence,
+    polarity: "AFFIRMATIVE",
+    isNoise: false,
+    ambiguity: parsed.isAmbiguous ? "SEMANTIC" : "NONE",
+    requiresClarification: Boolean(parsed.isAmbiguous),
+    clarificationPrompt: parsed.clarificationPrompt,
+    slots: {},
+    candidateScores: [],
+    margin: 1.0,
+    semanticSource: "DETERMINISTIC",
+    trace: {
+      timestamp: new Date().toISOString(),
+      rawPrompt: prompt,
+      normalizedText: prompt.toLowerCase(),
+      deterministicSignals: [],
+      pragmaticFlags: [],
+      similarityTopCandidates: [],
+      selectedIntent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
+      confidenceScore: 0.9,
+      confidenceBucket: parsed.confidence,
+      semanticSource: "DETERMINISTIC",
+      margin: 1.0,
+    },
+  };
 
-  // 2. Ambiguity Handling (Dangerous / Relevant Ambiguity)
-  if (parsed.isAmbiguous && parsed.clarificationPrompt) {
+  // 2. Response Strategy Layer (Plans structured response intent grounded in real state)
+  const responseIntent = AthenaResponseStrategyEngine.plan(
+    semantic,
+    sessionState,
+    ctx,
+    scope,
+    resolvedProjectId,
+    prompt
+  );
+
+  // 3. Ambiguity & Clarification Handling
+  if (responseIntent.mode === "CLARIFICATION" || (parsed.isAmbiguous && parsed.clarificationPrompt)) {
+    const clarResult = athenaPersonaEngine.generateDialogueResponse(
+      prompt,
+      parsed,
+      undefined,
+      ctx,
+      responseIntent,
+      sessionId
+    );
     return {
       id: "ath-" + Date.now(),
       sender: "athena",
-      text: parsed.clarificationPrompt,
+      text: clarResult.text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       scope,
     };
   }
 
-  // 3. OPERATIONAL PATH: System Mutation Commands
+  // 4. OPERATIONAL PATH: System Mutation Commands
   if (parsed.interactionType === "OPERATIONAL_REQUEST") {
     return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
   }
 
-  // 4. COGNITIVE PATH via Local Neural Engine (when Ollama is active on 127.0.0.1:11434)
+  // 5. COGNITIVE PATH via Local Neural Engine (when Ollama is active on 127.0.0.1:11434)
   const isOllamaOnline = await ollamaAdapter.isAvailable();
   if (isOllamaOnline && ollamaAdapter.activeModel && parsed.interactionType === "COGNITIVE_REQUEST") {
     try {
@@ -80,13 +128,14 @@ export async function processAthenaQueryAsync(
         activeProject: activeProj ? { title: activeProj.title, category: activeProj.category, status: activeProj.status } : null,
         recentTasks: ctx.tasks.slice(0, 5).map((t) => ({ title: t.title, priority: t.priority })),
         upcomingDeadlines: ctx.projects.filter((p) => p.deadline).slice(0, 3).map((p) => ({ title: p.title, deadline: p.deadline })),
-        vaultItemsCount: ctx.vaultItems.length,
-        thesesCount: ctx.theses.length,
+        keyFacts: responseIntent.keyFacts,
+        responseMode: responseIntent.mode,
+        responseTone: responseIntent.tone,
       };
 
       const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
 Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
-Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
+Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando com o Paulo, criador do VARYNTH OS.`;
 
       const modelResponse = await ollamaAdapter.generate({
         systemPrompt,
@@ -96,42 +145,48 @@ Você está conversando com o Paulo, dono e criador do VARYNTH OS.`;
       });
 
       if (modelResponse.content && modelResponse.content.trim().length > 0) {
-        const replyText = modelResponse.content.trim();
-        athenaConversationManager.recordAssistantResponse(sessionId, replyText);
+        const candidateReply = modelResponse.content.trim();
+        const factLockCheck = FactLockValidator.validate(candidateReply, responseIntent);
 
-        return {
-          id: "ath-" + Date.now(),
-          sender: "athena",
-          text: replyText,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          scope,
-          metadata: {
-            engine: "ollama-local",
-            model: ollamaAdapter.activeModel,
-            debug: {
-              interactionType: parsed.interactionType,
-              detectedIntents: parsed.intents,
-              resolvedSubject: parsed.subject,
-              contextUsed: ["Projects", "Tasks", "Vault", "Chronos"],
-              confidence: parsed.confidence,
-              selectedPath: "COGNITIVE_PATH",
-              ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
-            } as InteractionDebugInfo,
-          },
-        };
+        if (factLockCheck.isValid) {
+          athenaConversationManager.recordAssistantResponse(sessionId, candidateReply);
+
+          return {
+            id: "ath-" + Date.now(),
+            sender: "athena",
+            text: candidateReply,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            scope,
+            metadata: {
+              engine: "ollama-local",
+              model: ollamaAdapter.activeModel,
+              debug: {
+                interactionType: parsed.interactionType,
+                detectedIntents: parsed.intents,
+                resolvedSubject: parsed.subject,
+                contextUsed: ["Projects", "Tasks", "Vault", "Chronos"],
+                confidence: parsed.confidence,
+                selectedPath: "COGNITIVE_PATH",
+                ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
+              } as InteractionDebugInfo,
+            },
+          };
+        }
       }
     } catch {
       // Fallback seamlessly to deterministic Persona
     }
   }
 
-  // 5. DETERMINISTIC COGNITIVE / FAST CONVERSATION PATH (0 ms, 100% offline)
+  // 6. DETERMINISTIC COGNITIVE / FAST CONVERSATION PATH (0 ms, 100% offline)
   const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
   const result = athenaPersonaEngine.generateDialogueResponse(
     prompt,
     parsed,
     activeProj?.title,
-    ctx
+    ctx,
+    responseIntent,
+    sessionId
   );
 
   // Validate Completeness

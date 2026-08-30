@@ -21,3 +21,4 @@ O processamento de linguagem natural no VARYNTH OS precisa lidar de forma segura
 ## Consequências
 - Invariantes `INV-039` (Proteção contra baixa confiança em ações destrutivas) e `INV-040` (Rejeição de Ruído) formalizadas.
 - 100% de precisão nos cenários de pragmática e autoridade na suíte comportamental `ATHINT`.
+

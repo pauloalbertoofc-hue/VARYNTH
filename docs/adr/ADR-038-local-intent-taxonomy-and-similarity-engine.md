@@ -18,3 +18,4 @@ O modelo anterior de correspondência heurística dependia de dezenas de `clean.
 ## Consequências
 - Paráfrases coloquiais como *"Tem coisa pendente?"*, *"O que ficou pra fazer?"* e *"Estou devendo alguma coisa?"* mapeiam confiavelmente para `TASK_QUERY`.
 - Generalização comprovada no conjunto holdout cego (`SEM-REG-021`, `SEM-REG-030`).
+

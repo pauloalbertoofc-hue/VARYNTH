@@ -24,3 +24,4 @@ Era necessário introduzir uma camada semântica local híbrida entre a normaliz
 - A taxa de acerto na suíte comportamental cega `ATHINT-001..100` subiu de **87% para 96%** com zero falhas remanescentes.
 - O sistema mantém 100% de funcionalidade quando o servidor Ollama está offline (`INV-041`).
 - Sinais determinísticos de negação e segurança possuem veto incondicional sobre qualquer proposta neural (`INV-038`).
+
