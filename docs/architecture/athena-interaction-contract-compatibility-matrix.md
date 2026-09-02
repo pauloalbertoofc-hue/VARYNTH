@@ -98,6 +98,10 @@ Etapas mutáveis registram estado anterior e posterior. A reversão automática 
 
 Os contratos consolidados são validados pela suíte `interaction-contract-e2e.test.ts`, da entrada do usuário até resposta, capacidade ou mutação persistida. O relatório de evidências, critérios e lacunas remanescentes está em `docs/architecture/athena-contract-e2e-validation.md`.
 
+## Observabilidade e diagnóstico local
+
+O journal unificado correlaciona contratos, sessões, projetos, planos, etapas, ferramentas e agentes. Mantém no máximo 300 eventos, remove tokens e campos sensíveis antes da persistência e oferece exportação manual sanitizada. A interface é somente-leitura: explica escolhas, bloqueios e falhas, mas não concede autoridade nem executa ações.
+
 O painel mostra objetivo, status, progresso, hash, revisão, capacidades, autoridade, risco, confirmações, dependências do DAG, resultados, erros, journal, checkpoint e métricas. A máquina de estados determina quais ações aparecem: aprovar, executar, pausar, reconciliar e retomar, cancelar e repetir etapa.
 
 Reversão sem executor concreto de undo aparece explicitamente indisponível; a interface nunca simula restauração. Toda atualização ocorre pelo evento local `varynth_capability_plans_updated`, sem `fetch`, endpoint ou API HTTP.

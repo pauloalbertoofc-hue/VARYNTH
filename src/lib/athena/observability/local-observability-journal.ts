@@ -42,7 +42,12 @@ const SENSITIVE_KEY = /(token|secret|password|authorization|cookie|content|rawpr
 
 function sanitize(value: unknown, depth = 0): unknown {
   if (depth > 4) return "[TRUNCATED]";
-  if (typeof value === "string") return value.length > 240 ? `${value.slice(0, 240)}…` : value;
+  if (typeof value === "string") {
+    const redacted = value
+      .replace(/\btoken-[a-z0-9-]+\b/gi, "[REDACTED_TOKEN]")
+      .replace(/\bBearer\s+[^\s]+/gi, "Bearer [REDACTED]");
+    return redacted.length > 240 ? `${redacted.slice(0, 240)}…` : redacted;
+  }
   if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitize(item, depth + 1));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
@@ -58,9 +63,9 @@ function clone<T>(value: T): T {
 }
 
 function categoryFor(type: string): ObservabilityCategory {
+  if (type.includes("PERMISSION") || type.includes("CONFIRMATION") || type.includes("DENIED")) return "SECURITY";
   if (type.includes("AGENT")) return "AGENT";
   if (type.includes("ACTION") || type.includes("TOOL")) return "TOOL";
-  if (type.includes("PERMISSION") || type.includes("CONFIRMATION") || type.includes("DENIED")) return "SECURITY";
   if (type.includes("PLAN") || type.includes("STEP") || type.includes("WORKFLOW") || type.includes("EXECUTION")) return "PLAN";
   return "SYSTEM";
 }
@@ -84,6 +89,7 @@ export class LocalObservabilityJournal {
       ...input,
       id: input.id || `obs-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: input.timestamp || new Date().toISOString(),
+      message: sanitize(input.message) as string,
       details: input.details ? sanitize(input.details) as Record<string, unknown> : undefined,
     };
     this.entries = [...this.entries, entry].slice(-RETENTION_LIMIT);
