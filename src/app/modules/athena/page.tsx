@@ -33,6 +33,7 @@ import { AthenaMessageText } from "@/components/athena/AthenaMessageText";
 import { analyzeAthenaState } from "@/lib/athena/insights/global-intelligence";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaGovernanceCenter } from "@/components/athena/AthenaGovernanceCenter";
+import { AthenaCapabilityPlanPanel } from "@/components/athena/AthenaCapabilityPlanPanel";
 
 const SCOPES: { id: AthenaScope; label: string; icon: React.ElementType; color: string }[] = [
   { id: "geral", label: "Visão Geral (OS)", icon: Layers, color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
@@ -272,6 +273,8 @@ export default function AthenaHubPage() {
         </section>
 
         <AthenaGovernanceCenter store={store} onPrompt={(prompt) => handleSend(prompt)} />
+
+        <AthenaCapabilityPlanPanel store={store} />
 
         {/* Main Terminal Window */}
         <div className="flex w-full min-w-0 flex-col h-[560px] rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner shadow-2xl">

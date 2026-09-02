@@ -83,3 +83,11 @@ O `CapabilityPlanStore` mantém planos completos no armazenamento local com fall
 O `CapabilityPlanRuntime` oferece máquina de estados, reconciliação e controles de pausa, retomada, cancelamento, retry e reversão. Na inicialização, planos `EXECUTING` tornam-se `INTERRUPTED`; a retomada exige hash aprovado válido e capacidades ainda disponíveis. O `WorkflowExecutor` ignora etapas já `COMPLETED`, garantindo idempotência após crash ou reload.
 
 Reversão nunca é presumida: somente etapas mutáveis que declaram `supportsUndo` podem ser revertidas, e o runtime exige um executor de undo explícito. O diagnóstico local apresenta progresso, próxima etapa, último evento, capacidades, confirmações, duração, falhas, bloqueios, retries e reversões sem serviços remotos.
+
+## Interface de inspeção e controle implementada
+
+O `AthenaCapabilityPlanPanel` é um Client Component restrito à fronteira interativa, pois consome `localStorage`, eventos locais e controles. A visão completa está no Athena Command Center; o Sidecar apresenta um resumo compacto dos planos ativos.
+
+O painel mostra objetivo, status, progresso, hash, revisão, capacidades, autoridade, risco, confirmações, dependências do DAG, resultados, erros, journal, checkpoint e métricas. A máquina de estados determina quais ações aparecem: aprovar, executar, pausar, reconciliar e retomar, cancelar e repetir etapa.
+
+Reversão sem executor concreto de undo aparece explicitamente indisponível; a interface nunca simula restauração. Toda atualização ocorre pelo evento local `varynth_capability_plans_updated`, sem `fetch`, endpoint ou API HTTP.

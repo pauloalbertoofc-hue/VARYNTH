@@ -38,6 +38,20 @@ export class CapabilityPlanExecutor {
       }
     }
 
+    const unconfirmed = original.steps.filter((step) => {
+      if (!step.requiresConfirmation || step.status === "COMPLETED") return false;
+      const receipt = step.confirmation;
+      return !receipt || receipt.confirmedPlanHash !== original.planHash ||
+        receipt.confirmedRevision !== original.revision || Date.parse(receipt.expiresAt) < Date.now();
+    });
+    if (unconfirmed.length > 0) {
+      const message = `Confirmação humana válida necessária: ${unconfirmed.map((step) => step.name).join(", ")}.`;
+      return {
+        plan: { ...original, status: "BLOCKED", events: [...original.events, { id: `event-${Date.now()}-confirmation-blocked`, type: "CONFIRMATION_REQUIRED", message, timestamp: new Date().toISOString() }] },
+        summary: this.summary("BLOCKED", [], [], unconfirmed.map((step) => step.id), [], message),
+      };
+    }
+
     const startedAt = new Date().toISOString();
     let plan: CapabilityExecutionPlan = {
       ...original,
@@ -53,14 +67,32 @@ export class CapabilityPlanExecutor {
       context,
       storeContext,
       {
-        beforeStep: () => options.shouldContinue ? options.shouldContinue(plan.id) : true,
-        onStepSettled: async (workflowStep, snapshot) => {
+        beforeStep: (workflowStep) => {
+          const planStep = plan.steps.find((step) => step.id === workflowStep.id);
+          if (planStep?.requiresConfirmation) {
+            const receipt = planStep.confirmation;
+            if (!receipt || receipt.confirmedPlanHash !== plan.planHash || receipt.confirmedRevision !== plan.revision || Date.parse(receipt.expiresAt) < Date.now()) {
+              return false;
+            }
+            if (workflowStep.toolCall) workflowStep.toolCall.params = { ...workflowStep.toolCall.params, confirmationToken: receipt.token };
+          }
+          return options.shouldContinue ? options.shouldContinue(plan.id) : true;
+        },
+        onStepSettled: async (workflowStep, snapshot, metadata) => {
           const status = workflowStep.status === "COMPLETED" ? "COMPLETED" as const : "FAILED" as const;
           plan = {
             ...plan,
             sourceWorkflow: { ...plan.sourceWorkflow, steps: [...plan.sourceWorkflow.steps] },
             steps: plan.steps.map((step) => step.id === workflowStep.id
-              ? { ...step, status, result: workflowStep.result, error: workflowStep.error }
+              ? {
+                  ...step,
+                  status,
+                  result: workflowStep.result,
+                  error: workflowStep.error,
+                  mutationRecord: status === "COMPLETED" && step.authority === "MUTATE_GOVERNED"
+                    ? { before: metadata?.beforeState, after: workflowStep.result, recordedAt: new Date().toISOString() }
+                    : step.mutationRecord,
+                }
               : step),
             checkpoint: {
               completedStepIds: plan.sourceWorkflow.steps.filter((step) => step.status === "COMPLETED").map((step) => step.id),

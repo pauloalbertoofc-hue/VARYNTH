@@ -7,6 +7,8 @@ export interface ToolDefinition {
   module: string;
   requiresConfirmation?: boolean;
   execute: (params: Record<string, unknown>, ctx: AthenaEngineContext) => Promise<ActionResult> | ActionResult;
+  captureBefore?: (params: Record<string, unknown>, ctx: AthenaEngineContext) => unknown;
+  undo?: (params: Record<string, unknown>, result: ActionResult, ctx: AthenaEngineContext) => Promise<void> | void;
 }
 
 export const registeredTools: Record<ActionType, ToolDefinition> = {
@@ -34,6 +36,12 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
         actionType: "tasks.create",
         data: created,
       };
+    },
+    captureBefore: () => null,
+    undo: (_params, result, ctx) => {
+      const id = (result.data as { id?: string } | undefined)?.id;
+      if (!id || !ctx.deleteTask) throw new Error("[TOOL_UNDO_UNAVAILABLE] A tarefa criada não pode ser removida neste contexto.");
+      ctx.deleteTask(id, "athena");
     },
   },
 
@@ -85,6 +93,12 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
         actionType: "notes.create",
         data: created,
       };
+    },
+    captureBefore: () => null,
+    undo: (_params, result, ctx) => {
+      const id = (result.data as { id?: string } | undefined)?.id;
+      if (!id || !ctx.deleteNote) throw new Error("[TOOL_UNDO_UNAVAILABLE] A nota criada não pode ser removida neste contexto.");
+      ctx.deleteNote(id, "athena");
     },
   },
 
@@ -484,4 +498,3 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
     },
   },
 };
-

@@ -22,6 +22,34 @@ export class ToolManager {
     return Array.from(this.tools.values());
   }
 
+  prepareConfirmation(name: ActionType, params: Record<string, unknown>, expectedRevision: number) {
+    const { action, targetDomain } = this.mapToolToPermission(name);
+    const criticalParameters = this.withoutConfirmationToken(params);
+    return permissionPolicyEngine.generateConfirmation(
+      action,
+      targetDomain,
+      `Confirmar ${name} com os parâmetros exibidos no plano.`,
+      ["A confirmação vale uma vez e será invalidada se o plano ou os parâmetros mudarem."],
+      (params.id as string) || (params.taskId as string),
+      { expectedRevision, criticalParameters }
+    );
+  }
+
+  captureBefore(name: ActionType, params: Record<string, unknown>, ctx: AthenaEngineContext): unknown {
+    return this.tools.get(name)?.captureBefore?.(params, ctx);
+  }
+
+  async undoTool(name: ActionType, params: Record<string, unknown>, result: ActionResult, ctx: AthenaEngineContext): Promise<void> {
+    const undo = this.tools.get(name)?.undo;
+    if (!undo) throw new Error(`[TOOL_UNDO_UNAVAILABLE] ${name}`);
+    await undo(params, result, ctx);
+  }
+
+  private withoutConfirmationToken(params: Record<string, unknown>): Record<string, unknown> {
+    const { confirmationToken: _token, ...criticalParameters } = params;
+    return criticalParameters;
+  }
+
   private mapToolToPermission(name: ActionType): { action: VarynthAction; targetDomain: SecurityTargetDomain } {
     switch (name) {
       case "tasks.create":
@@ -53,6 +81,10 @@ export class ToolManager {
         return { action: "MODIFY", targetDomain: "ARTIFACT_DRAFT" };
       case "creative.reviewDependencyUpdate":
         return { action: "MODIFY", targetDomain: "ARTIFACT_ACTIVE" };
+      case "creative.approvePlan":
+        return { action: "PUBLISH", targetDomain: "ARTIFACT_PUBLISHED" };
+      case "creative.executePlan":
+        return { action: "EXECUTE", targetDomain: "ARTIFACT_DRAFT" };
       default:
         return { action: "READ", targetDomain: "WORKSPACE_PROJECT" };
     }
@@ -97,6 +129,17 @@ export class ToolManager {
     }
 
     if (decision.requiresConfirmation && decision.policy === "CONFIRM") {
+      const token = params.confirmationToken as string | undefined;
+      if (token) {
+        const verified = permissionPolicyEngine.verifyAndConsumeToken(token, {
+          currentParameters: this.withoutConfirmationToken(params),
+        });
+        if (verified.valid) {
+          athenaEventBus.emit("ACTION_ALLOWED", { toolName: name, confirmationActionId: verified.confirmation?.actionId }, taskId);
+        } else {
+          return { success: false, actionType: name, error: `[CONFIRMAÇÃO INVÁLIDA] ${verified.error}` };
+        }
+      } else {
       const conf = permissionPolicyEngine.generateConfirmation(
         action,
         targetDomain,
@@ -117,6 +160,7 @@ export class ToolManager {
           summary: conf.summary,
         },
       };
+      }
     }
 
     athenaEventBus.emit("ACTION_ALLOWED", { toolName: name, params }, taskId);

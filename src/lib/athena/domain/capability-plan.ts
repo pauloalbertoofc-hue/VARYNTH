@@ -34,6 +34,20 @@ export interface CapabilityPlanStep {
   status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "BLOCKED" | "SKIPPED";
   result?: unknown;
   error?: string;
+  confirmation?: {
+    token: string;
+    authorizationContextHash: string;
+    confirmedPlanHash: string;
+    confirmedRevision: number;
+    expiresAt: string;
+    confirmedAt: string;
+  };
+  mutationRecord?: {
+    before: unknown;
+    after: unknown;
+    recordedAt: string;
+    revertedAt?: string;
+  };
 }
 
 export interface CapabilityExecutionPlan {

@@ -6,6 +6,7 @@ import { capabilityPlanExecutor, CapabilityPlanExecutionResult } from "./capabil
 import { capabilityPlanStateMachine } from "./capability-plan-state-machine";
 import { capabilityPlanStore, CapabilityPlanStore } from "./capability-plan-store";
 import { executableCapabilityRegistry } from "../kernel/executable-capability-registry";
+import { athenaToolManager } from "../tools/tool-manager";
 
 export interface CapabilityPlanReconciliation {
   valid: boolean;
@@ -115,6 +116,40 @@ export class CapabilityPlanRuntime {
     return this.store.save(resumed);
   }
 
+  confirmStep(planId: string, stepId: string): CapabilityExecutionPlan {
+    const plan = this.require(planId);
+    if (plan.status !== "APPROVED") throw new Error(`[CAPABILITY_PLAN_NOT_APPROVED] ${plan.status}`);
+    if (calculateCapabilityPlanHash(plan) !== plan.planHash || plan.approvedHash !== plan.planHash) {
+      throw new Error("[CAPABILITY_PLAN_CONFIRMATION_STALE] O plano mudou após a aprovação.");
+    }
+    const step = plan.steps.find((candidate) => candidate.id === stepId);
+    if (!step || !step.requiresConfirmation || step.capabilityKind !== "TOOL") {
+      throw new Error(`[CAPABILITY_STEP_CONFIRMATION_NOT_REQUIRED] ${stepId}`);
+    }
+    const confirmation = athenaToolManager.prepareConfirmation(
+      step.capabilityId as import("../domain/action").ActionType,
+      step.inputs,
+      plan.revision
+    );
+    const now = new Date().toISOString();
+    return this.store.save({
+      ...plan,
+      updatedAt: now,
+      steps: plan.steps.map((candidate) => candidate.id === stepId ? {
+        ...candidate,
+        confirmation: {
+          token: confirmation.token,
+          authorizationContextHash: confirmation.authorizationContextHash || "",
+          confirmedPlanHash: plan.planHash,
+          confirmedRevision: plan.revision,
+          expiresAt: confirmation.expiresAt,
+          confirmedAt: now,
+        },
+      } : candidate),
+      events: [...plan.events, { id: `event-${Date.now()}-confirmation`, type: "STEP_CONFIRMED", message: `${step.name}: confirmação humana vinculada à revisão ${plan.revision}.`, timestamp: now, stepId }],
+    });
+  }
+
   retryStep(planId: string, stepId: string): CapabilityExecutionPlan {
     const plan = this.require(planId);
     const step = plan.steps.find((candidate) => candidate.id === stepId);
@@ -151,6 +186,21 @@ export class CapabilityPlanRuntime {
     plan = capabilityPlanStateMachine.transition(plan, "REVERTED", "Mutações reversíveis desfeitas em ordem inversa.");
     plan.metrics = { ...plan.metrics, reversalCount: plan.metrics.reversalCount + 1 };
     return this.store.save(plan);
+  }
+
+  async revertWithRegisteredUndo(planId: string, storeContext: AthenaEngineContext): Promise<CapabilityExecutionPlan> {
+    return this.revert(planId, async (step) => {
+      if (step.capabilityKind !== "TOOL" || !step.mutationRecord) {
+        throw new Error(`[CAPABILITY_PLAN_UNDO_UNAVAILABLE] ${step.id}`);
+      }
+      await athenaToolManager.undoTool(
+        step.capabilityId as import("../domain/action").ActionType,
+        step.inputs,
+        step.mutationRecord.after as import("../domain/action").ActionResult,
+        storeContext
+      );
+      step.mutationRecord = { ...step.mutationRecord, revertedAt: new Date().toISOString() };
+    });
   }
 
   diagnose(planId: string): CapabilityPlanDiagnostic {

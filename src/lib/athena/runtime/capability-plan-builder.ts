@@ -21,7 +21,7 @@ export function calculateCapabilityPlanHash(
     taskId: plan.taskId,
     objective: plan.objective,
     revision: plan.revision,
-    steps: plan.steps.map(({ status: _status, result: _result, error: _error, ...step }) => step),
+    steps: plan.steps.map(({ status: _status, result: _result, error: _error, confirmation: _confirmation, mutationRecord: _mutationRecord, ...step }) => step),
   });
 }
 

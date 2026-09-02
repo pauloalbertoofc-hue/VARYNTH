@@ -53,6 +53,7 @@ export interface AthenaEngineContext {
   toggleTask?: (id: string, actorType?: "user" | "athena" | "system") => void;
   updateTask?: (id: string, updates: Partial<Task>, actorType?: "user" | "athena" | "system") => void;
   deleteTask?: (id: string, actorType?: "user" | "athena" | "system") => unknown;
+  deleteNote?: (id: string, actorType?: "user" | "athena" | "system") => unknown;
 }
 
 function withContractMetadata(

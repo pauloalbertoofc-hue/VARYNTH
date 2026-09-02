@@ -26,7 +26,10 @@ const READ_ONLY_TOOLS = new Set<ActionType>([
   "creative.getStepStatus", "creative.explainBlocker",
 ]);
 
-const UNDO_TOOLS = new Set<ActionType>(["trash.moveWithUndo"]);
+const CONFIRMATION_TOOLS = new Set<ActionType>([
+  "tasks.toggle", "tasks.update", "trash.moveWithUndo",
+  "creative.reviewDependencyUpdate", "creative.approvePlan", "creative.executePlan",
+]);
 
 const REQUIRED_INPUTS: Partial<Record<ActionType, string[]>> = {
   "tasks.create": ["title"],
@@ -81,8 +84,8 @@ export class ExecutableCapabilityRegistry {
         taskTypes: ["ACTION_FAST"],
         actionType: tool.name,
         mutatesData: authority === "MUTATE_GOVERNED",
-        requiresConfirmation: Boolean(tool.requiresConfirmation),
-        supportsUndo: UNDO_TOOLS.has(tool.name),
+        requiresConfirmation: Boolean(tool.requiresConfirmation) || CONFIRMATION_TOOLS.has(tool.name),
+        supportsUndo: Boolean(tool.undo),
         requiredInputs: REQUIRED_INPUTS[tool.name] || [],
       };
     });

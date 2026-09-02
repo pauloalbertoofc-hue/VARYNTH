@@ -19,7 +19,7 @@ export interface WorkflowExecutionResult {
 
 export interface WorkflowExecutionHooks {
   beforeStep?: (step: WorkflowStep) => boolean | Promise<boolean>;
-  onStepSettled?: (step: WorkflowStep, snapshot: WorkflowExecutionResult) => void | Promise<void>;
+  onStepSettled?: (step: WorkflowStep, snapshot: WorkflowExecutionResult, metadata?: { beforeState?: unknown }) => void | Promise<void>;
 }
 
 export class WorkflowExecutor {
@@ -54,6 +54,7 @@ export class WorkflowExecutor {
       }
       step.status = "RUNNING";
       step.startedAt = new Date().toISOString();
+      let beforeState: unknown;
 
       try {
         // 1. Tool execution if defined
@@ -65,12 +66,14 @@ export class WorkflowExecutor {
           if (selection.status !== "SELECTED" || !selection.selected) {
             throw new Error(`[CAPABILITY_${selection.status}] ${selection.reason}`);
           }
+          beforeState = athenaToolManager.captureBefore(step.toolCall.toolName as import("../domain/action").ActionType, step.toolCall.params, storeCtx);
           const res = await athenaToolManager.executeTool(
             step.toolCall.toolName as any,
             step.toolCall.params,
             storeCtx,
             task.id
           );
+          if (!res.success) throw new Error(res.error || `[TOOL_EXECUTION_FAILED] ${step.toolCall.toolName}`);
           toolOutputs[step.id] = res;
           step.result = res;
         }
@@ -102,7 +105,7 @@ export class WorkflowExecutor {
         await hooks?.onStepSettled?.(step, {
           workflowId: workflow.id, success: true, stepResults: { ...stepResults },
           agentResults: [...agentResults], toolOutputs: { ...toolOutputs },
-        });
+        }, { beforeState });
       } catch (err: any) {
         step.status = "FAILED";
         step.error = err?.message || String(err);
@@ -111,7 +114,7 @@ export class WorkflowExecutor {
         await hooks?.onStepSettled?.(step, {
           workflowId: workflow.id, success: false, stepResults: { ...stepResults },
           agentResults: [...agentResults], toolOutputs: { ...toolOutputs }, error: step.error,
-        });
+        }, { beforeState });
 
         return {
           workflowId: workflow.id,
