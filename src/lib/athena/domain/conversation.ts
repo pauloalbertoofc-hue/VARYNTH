@@ -67,6 +67,7 @@ export interface InteractionDebugInfo {
   confidence: ConfidenceLevel;
   selectedPath: "FAST_CONVERSATION_PATH" | "COGNITIVE_PATH" | "OPERATIONAL_PATH";
   ellipsisResolved?: boolean;
+  interactionContract?: import("./interaction-contract").InteractionContract;
 }
 
 export interface LocalFailureTelemetryRecord {

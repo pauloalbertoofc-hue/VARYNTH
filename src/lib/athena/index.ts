@@ -10,11 +10,13 @@ export * from "./domain/budget";
 export * from "./domain/provenance";
 export * from "./domain/confidence";
 export * from "./domain/conversation";
+export * from "./domain/interaction-contract";
 export * from "./domain/persona";
 
 export * from "./kernel/executive-controller";
 export * from "./kernel/perception";
 export * from "./kernel/router";
+export * from "./kernel/interaction-contract-router";
 export * from "./kernel/scheduler";
 export * from "./kernel/reflection";
 export * from "./kernel/response-builder";
@@ -59,6 +61,8 @@ export * from "./runtime/state-machine";
 export * from "./runtime/workflow-builder";
 export * from "./runtime/workflow-executor";
 export * from "./runtime/checkpoint";
+export * from "./runtime/contract-executors";
+export * from "./runtime/interaction-contract-gateway";
 
 export * from "./deliberation/deliberation-engine";
 export * from "./events/event-bus";

@@ -18,6 +18,8 @@ import { memoryGate } from "../memory/memory-gate";
 import { cognitiveCheckpointManager } from "../runtime/checkpoint";
 import { athenaConversationManager } from "../conversation/conversation-manager";
 import { athenaPersonaEngine } from "../persona/persona-engine";
+import { athenaInteractionContractRouter } from "./interaction-contract-router";
+import { athenaInteractionContractGateway } from "../runtime/interaction-contract-gateway";
 
 export class ExecutiveController {
   async process(
@@ -38,6 +40,7 @@ export class ExecutiveController {
       storeCtx.projects,
       targetProjectId
     );
+    const contractDecision = athenaInteractionContractRouter.route(convContext);
 
     const resolvedProjectId = convContext.resolvedEntities.targetProjectId || targetProjectId;
 
@@ -59,16 +62,16 @@ export class ExecutiveController {
     }
 
     // 3. Handle Conversational, Cognitive & Brainstorm Messages (Non-Mutations)
-    if (convContext.interactionType !== "OPERATIONAL_REQUEST") {
+    if (contractDecision.contract !== "USE_TOOL") {
       const activeProj = resolvedProjectId
         ? storeCtx.projects.find((p) => p.id === resolvedProjectId)
         : undefined;
 
-      const result = athenaPersonaEngine.generateDialogueResponse(
-        rawPrompt,
-        convContext,
-        activeProj?.title,
-        storeCtx as any
+      const result = athenaInteractionContractGateway.execute(
+        contractDecision,
+        () => athenaPersonaEngine.generateDialogueResponse(
+          rawPrompt, convContext, activeProj?.title, storeCtx as any
+        )
       );
 
       const response: AthenaResponse = {
@@ -81,6 +84,7 @@ export class ExecutiveController {
           interactionType: convContext.interactionType,
           intents: convContext.intents,
           resolvedProjectId,
+          interactionContract: contractDecision.contract,
         },
       };
 
@@ -89,6 +93,8 @@ export class ExecutiveController {
       athenaEventBus.emit("RESPONSE_READY", response);
       return response;
     }
+
+    athenaInteractionContractRouter.require(contractDecision, "USE_TOOL");
 
     // 4. Execution & Analysis Path: normalize prompt into a Task
     let task = athenaPerceptionEngine.perceive(rawPrompt, scope, resolvedProjectId);
@@ -110,7 +116,10 @@ export class ExecutiveController {
     task = taskStateMachine.transition(task, "RUNNING");
 
     // 9. Execute Workflow with Checkpoints
-    const workflowResult = await athenaWorkflowExecutor.execute(workflow, task, context, storeCtx);
+    const workflowResult = await athenaInteractionContractGateway.executeAsync(
+      contractDecision,
+      () => athenaWorkflowExecutor.execute(workflow, task, context, storeCtx)
+    );
     cognitiveCheckpointManager.saveCheckpoint(workflow, workflow.steps.length - 1, workflowResult.stepResults);
 
     // 10. Deliberation & Reflection (governed by Budget)
@@ -151,6 +160,7 @@ export class ExecutiveController {
       provenanceCount: provenanceTracker.getRecentProvenance().length,
       intents: convContext.intents,
       mode: convContext.mode,
+      interactionContract: contractDecision.contract,
     };
 
     // 13. Memory Gate Evaluation before permanent storage

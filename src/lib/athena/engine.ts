@@ -28,6 +28,9 @@ import { athenaProjectOperations } from "./operations/project-operations";
 import { athenaGlobalIntelligence } from "./insights/global-intelligence";
 import { athenaContextualMemory } from "./memory/contextual-memory";
 import { athenaProjectPlanManager } from "./planning/project-plan-manager";
+import { athenaInteractionContractRouter } from "./kernel/interaction-contract-router";
+import { decisionForContract, InteractionContractDecision } from "./domain/interaction-contract";
+import { athenaInteractionContractGateway } from "./runtime/interaction-contract-gateway";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -46,6 +49,56 @@ export interface AthenaEngineContext {
   toggleTask?: (id: string, actorType?: "user" | "athena" | "system") => void;
   updateTask?: (id: string, updates: Partial<Task>, actorType?: "user" | "athena" | "system") => void;
   deleteTask?: (id: string, actorType?: "user" | "athena" | "system") => unknown;
+}
+
+function withContractMetadata(
+  response: AthenaMessage,
+  decision: InteractionContractDecision
+): AthenaMessage {
+  return {
+    ...response,
+    metadata: {
+      ...response.metadata,
+      interactionContract: decision.contract,
+      contractReason: decision.reason,
+    },
+  };
+}
+
+function tryLegacyGateway(
+  prompt: string,
+  scope: AthenaScope,
+  ctx: AthenaEngineContext,
+  targetProjectId: string | undefined,
+  sessionId: string
+): AthenaMessage | undefined {
+  const handlers: Array<{
+    decision: InteractionContractDecision;
+    handle: () => AthenaMessage | undefined;
+  }> = [
+    {
+      decision: decisionForContract("USE_TOOL", "legacy.project-plan-manager"),
+      handle: () => athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId),
+    },
+    {
+      decision: decisionForContract("USE_TOOL", "legacy.project-operations"),
+      handle: () => athenaProjectOperations.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
+    },
+    {
+      decision: decisionForContract("USE_TOOL", "legacy.contextual-memory"),
+      handle: () => athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
+    },
+    {
+      decision: decisionForContract("ANSWER_SELF", "legacy.global-intelligence"),
+      handle: () => athenaGlobalIntelligence.tryHandle(prompt, scope, ctx, targetProjectId),
+    },
+  ];
+
+  for (const handler of handlers) {
+    const response = athenaInteractionContractGateway.execute(handler.decision, handler.handle);
+    if (response) return withContractMetadata(response, handler.decision);
+  }
+  return undefined;
 }
 
 function alignSemanticWithConversationIntent(
@@ -95,29 +148,8 @@ export async function processAthenaQueryAsync(
   sessionId = "default-session"
 ): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
-
-  const projectPlanResponse = athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId);
-  if (projectPlanResponse) return projectPlanResponse;
-
-  const operationalResponse = athenaProjectOperations.tryHandle(
-    prompt,
-    scope,
-    ctx,
-    targetProjectId,
-    sessionId
-  );
-  if (operationalResponse) return operationalResponse;
-
-  const memoryResponse = athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId);
-  if (memoryResponse) return memoryResponse;
-
-  const intelligenceResponse = athenaGlobalIntelligence.tryHandle(
-    prompt,
-    scope,
-    ctx,
-    targetProjectId
-  );
-  if (intelligenceResponse) return intelligenceResponse;
+  const legacyResponse = tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
+  if (legacyResponse) return legacyResponse;
 
   // 1. Contextual Perception & Intent Composition
   const parsed = athenaConversationManager.processMessage(
@@ -126,6 +158,7 @@ export async function processAthenaQueryAsync(
     ctx.projects,
     targetProjectId
   );
+  const contractDecision = athenaInteractionContractRouter.route(parsed);
 
   const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
   const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
@@ -188,13 +221,17 @@ export async function processAthenaQueryAsync(
   }
 
   // 4. OPERATIONAL PATH: System Mutation Commands
-  if (parsed.interactionType === "OPERATIONAL_REQUEST") {
-    return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
+  if (contractDecision.contract === "USE_TOOL") {
+    athenaInteractionContractRouter.require(contractDecision, "USE_TOOL");
+    return athenaInteractionContractGateway.execute(
+      contractDecision,
+      () => withContractMetadata(processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId), contractDecision)
+    );
   }
 
   // 5. COGNITIVE PATH via Local Neural Engine (when Ollama is active on 127.0.0.1:11434)
   const isOllamaOnline = await ollamaAdapter.isAvailable();
-  if (isOllamaOnline && ollamaAdapter.activeModel && parsed.interactionType === "COGNITIVE_REQUEST") {
+  if (isOllamaOnline && ollamaAdapter.activeModel && contractDecision.contract === "USE_AGENT") {
     try {
       const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
       const contextData = {
@@ -210,12 +247,10 @@ export async function processAthenaQueryAsync(
 Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
 Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando com o Paulo, criador do VARYNTH OS.`;
 
-      const modelResponse = await ollamaAdapter.generate({
-        systemPrompt,
-        userPrompt: prompt,
-        contextData,
-        temperature: 0.7,
-      });
+      const modelResponse = await athenaInteractionContractGateway.executeAsync(
+        contractDecision,
+        () => ollamaAdapter.generate({ systemPrompt, userPrompt: prompt, contextData, temperature: 0.7 })
+      );
 
       if (modelResponse.content && modelResponse.content.trim().length > 0) {
         const candidateReply = modelResponse.content.trim();
@@ -241,6 +276,7 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
                 confidence: parsed.confidence,
                 selectedPath: "COGNITIVE_PATH",
                 ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
+                interactionContract: contractDecision.contract,
               } as InteractionDebugInfo,
             },
           };
@@ -253,13 +289,11 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
 
   // 6. DETERMINISTIC COGNITIVE / FAST CONVERSATION PATH (0 ms, 100% offline)
   const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
-  const result = athenaPersonaEngine.generateDialogueResponse(
-    prompt,
-    parsed,
-    activeProj?.title,
-    ctx,
-    responseIntent,
-    sessionId
+  const result = athenaInteractionContractGateway.execute(
+    contractDecision,
+    () => athenaPersonaEngine.generateDialogueResponse(
+      prompt, parsed, activeProj?.title, ctx, responseIntent, sessionId
+    )
   );
 
   // Validate Completeness
@@ -289,6 +323,7 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
         confidence: parsed.confidence,
         selectedPath: parsed.interactionType === "CONVERSATION" ? "FAST_CONVERSATION_PATH" : "COGNITIVE_PATH",
         ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
+        interactionContract: contractDecision.contract,
       } as InteractionDebugInfo,
     },
   };
@@ -305,31 +340,15 @@ export function processAthenaQuery(
   sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
-  const projectPlanResponse = athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId);
-  if (projectPlanResponse) return projectPlanResponse;
-  const operationalResponse = athenaProjectOperations.tryHandle(
-    prompt,
-    scope,
-    ctx,
-    targetProjectId,
-    sessionId
-  );
-  if (operationalResponse) return operationalResponse;
-  const memoryResponse = athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId);
-  if (memoryResponse) return memoryResponse;
-  const intelligenceResponse = athenaGlobalIntelligence.tryHandle(
-    prompt,
-    scope,
-    ctx,
-    targetProjectId
-  );
-  if (intelligenceResponse) return intelligenceResponse;
+  const legacyResponse = tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
+  if (legacyResponse) return legacyResponse;
   const parsed = athenaConversationManager.processMessage(
     sessionId,
     prompt,
     ctx.projects,
     targetProjectId
   );
+  const contractDecision = athenaInteractionContractRouter.route(parsed);
 
   const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
   const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
@@ -389,18 +408,20 @@ export function processAthenaQuery(
     };
   }
 
-  if (parsed.interactionType === "OPERATIONAL_REQUEST") {
-    return processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId);
+  if (contractDecision.contract === "USE_TOOL") {
+    athenaInteractionContractRouter.require(contractDecision, "USE_TOOL");
+    return athenaInteractionContractGateway.execute(
+      contractDecision,
+      () => withContractMetadata(processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId), contractDecision)
+    );
   }
 
   const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
-  const result = athenaPersonaEngine.generateDialogueResponse(
-    prompt,
-    parsed,
-    activeProj?.title,
-    ctx,
-    responseIntent,
-    sessionId
+  const result = athenaInteractionContractGateway.execute(
+    contractDecision,
+    () => athenaPersonaEngine.generateDialogueResponse(
+      prompt, parsed, activeProj?.title, ctx, responseIntent, sessionId
+    )
   );
 
   athenaConversationManager.recordAssistantResponse(
@@ -416,6 +437,10 @@ export function processAthenaQuery(
     text: result.text,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     scope,
+    metadata: {
+      interactionContract: contractDecision.contract,
+      interactionType: parsed.interactionType,
+    },
   };
 }
 
