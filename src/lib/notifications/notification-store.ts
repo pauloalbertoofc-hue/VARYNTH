@@ -97,6 +97,10 @@ export class NotificationStore {
     entityId?: string;
     entityType?: string;
     targetPath?: string;
+    reason?: string;
+    evidence?: string[];
+    fingerprint?: string;
+    actions?: VarynthNotification["actions"];
   }): VarynthNotification {
     const newNotif: VarynthNotification = {
       id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -108,6 +112,10 @@ export class NotificationStore {
       entityId: params.entityId,
       entityType: params.entityType,
       targetPath: params.targetPath,
+      reason: params.reason,
+      evidence: params.evidence,
+      fingerprint: params.fingerprint,
+      actions: params.actions,
       read: false,
       createdAt: new Date().toISOString(),
     };
@@ -215,4 +223,3 @@ export class NotificationStore {
 }
 
 export const notificationStore = new NotificationStore();
-

@@ -1,0 +1,7 @@
+.git
+.next
+.npm-cache
+.vercel-cli
+.varynth-data
+*.tsbuildinfo
+src/lib/tests/forge-browser-security.test.ts.bak

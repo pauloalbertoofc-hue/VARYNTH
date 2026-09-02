@@ -9,6 +9,7 @@ import {
   ArgumentThesis,
   EvidenceItem,
   Opportunity,
+  Note,
 } from "../types";
 import { athenaPerceptionEngine } from "./kernel/perception";
 import { athenaContextBuilder } from "./memory/context-builder";
@@ -22,6 +23,11 @@ import { responseCompletenessValidator } from "./conversation/completeness-valid
 import { InteractionDebugInfo } from "./domain/conversation";
 import { AthenaResponseStrategyEngine } from "./strategy/response-strategy-engine";
 import { FactLockValidator } from "./strategy/fact-lock-validator";
+import { SemanticInterpretation } from "./semantic/types";
+import { athenaProjectOperations } from "./operations/project-operations";
+import { athenaGlobalIntelligence } from "./insights/global-intelligence";
+import { athenaContextualMemory } from "./memory/contextual-memory";
+import { athenaProjectPlanManager } from "./planning/project-plan-manager";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -31,8 +37,51 @@ export interface AthenaEngineContext {
   theses: ArgumentThesis[];
   evidences: EvidenceItem[];
   opportunities: Opportunity[];
+  notes?: Note[];
   addTask: (taskData: Omit<Task, "id" | "createdAt">, actorType?: "user" | "athena" | "system") => Task;
   addNote: (noteData: { title: string; content: string; projectId?: string; tags: string[]; pinned?: boolean }, actorType?: "user" | "athena" | "system") => unknown;
+  updateProject?: (id: string, updates: Partial<Project>, actorType?: "user" | "athena" | "system") => void;
+  deleteProject?: (id: string, actorType?: "user" | "athena" | "system") => { id: string } | void;
+  restoreFromTrash?: (trashId: string, actorType?: "user" | "athena" | "system") => unknown;
+  toggleTask?: (id: string, actorType?: "user" | "athena" | "system") => void;
+  updateTask?: (id: string, updates: Partial<Task>, actorType?: "user" | "athena" | "system") => void;
+  deleteTask?: (id: string, actorType?: "user" | "athena" | "system") => unknown;
+}
+
+function alignSemanticWithConversationIntent(
+  semantic: SemanticInterpretation,
+  parsed: ReturnType<typeof athenaConversationManager.processMessage>
+): SemanticInterpretation {
+  let intent = semantic.intent;
+
+  if (parsed.intents.includes("ATHENA_SELF_STATUS")) intent = "ATHENA_SELF_STATUS";
+  else if (parsed.intents.includes("ECOSYSTEM_BRIEFING")) intent = "ECOSYSTEM_BRIEFING";
+  else if (parsed.intents.includes("ECOSYSTEM_STATUS")) intent = "ECOSYSTEM_STATUS";
+  else if (parsed.intents.includes("EXECUTION_REQUEST")) intent = "EXECUTION_REQUEST";
+  else if (parsed.intents.includes("SOCIAL_CONVERSATION")) intent = "SOCIAL_CONVERSATION";
+  else if (
+    parsed.intents.includes("BRAINSTORM") ||
+    parsed.intents.includes("RECOMMEND") ||
+    parsed.intents.includes("PLAN")
+  ) intent = "CREATIVE_INTENT";
+  else if (
+    parsed.intents.includes("CRITIQUE") ||
+    parsed.intents.includes("COMPARE") ||
+    parsed.intents.includes("EXPLAIN") ||
+    parsed.intents.includes("ANALYZE")
+  ) intent = "EPISTEMIC_QUERY";
+
+  if (intent === semantic.intent) return semantic;
+
+  return {
+    ...semantic,
+    intent,
+    confidence: parsed.confidence === "HIGH" ? 0.95 : semantic.confidence,
+    confidenceLevel: parsed.confidence,
+    ambiguity: "NONE",
+    requiresClarification: false,
+    clarificationPrompt: undefined,
+  };
 }
 
 /**
@@ -47,6 +96,29 @@ export async function processAthenaQueryAsync(
 ): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
 
+  const projectPlanResponse = athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId);
+  if (projectPlanResponse) return projectPlanResponse;
+
+  const operationalResponse = athenaProjectOperations.tryHandle(
+    prompt,
+    scope,
+    ctx,
+    targetProjectId,
+    sessionId
+  );
+  if (operationalResponse) return operationalResponse;
+
+  const memoryResponse = athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId);
+  if (memoryResponse) return memoryResponse;
+
+  const intelligenceResponse = athenaGlobalIntelligence.tryHandle(
+    prompt,
+    scope,
+    ctx,
+    targetProjectId
+  );
+  if (intelligenceResponse) return intelligenceResponse;
+
   // 1. Contextual Perception & Intent Composition
   const parsed = athenaConversationManager.processMessage(
     sessionId,
@@ -57,7 +129,7 @@ export async function processAthenaQueryAsync(
 
   const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
   const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
-  const semantic: import("./semantic/types").SemanticInterpretation = parsed.semanticInterpretation || {
+  const semantic: SemanticInterpretation = parsed.semanticInterpretation || {
     intent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
     confidence: parsed.confidence === "HIGH" ? 0.95 : 0.7,
     confidenceLevel: parsed.confidence,
@@ -86,8 +158,9 @@ export async function processAthenaQueryAsync(
   };
 
   // 2. Response Strategy Layer (Plans structured response intent grounded in real state)
+  const strategySemantic = alignSemanticWithConversationIntent(semantic, parsed);
   const responseIntent = AthenaResponseStrategyEngine.plan(
-    semantic,
+    strategySemantic,
     sessionState,
     ctx,
     scope,
@@ -232,6 +305,25 @@ export function processAthenaQuery(
   sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
+  const projectPlanResponse = athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId);
+  if (projectPlanResponse) return projectPlanResponse;
+  const operationalResponse = athenaProjectOperations.tryHandle(
+    prompt,
+    scope,
+    ctx,
+    targetProjectId,
+    sessionId
+  );
+  if (operationalResponse) return operationalResponse;
+  const memoryResponse = athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId);
+  if (memoryResponse) return memoryResponse;
+  const intelligenceResponse = athenaGlobalIntelligence.tryHandle(
+    prompt,
+    scope,
+    ctx,
+    targetProjectId
+  );
+  if (intelligenceResponse) return intelligenceResponse;
   const parsed = athenaConversationManager.processMessage(
     sessionId,
     prompt,
@@ -241,7 +333,7 @@ export function processAthenaQuery(
 
   const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
   const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
-  const semantic: import("./semantic/types").SemanticInterpretation = parsed.semanticInterpretation || {
+  const semantic: SemanticInterpretation = parsed.semanticInterpretation || {
     intent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
     confidence: parsed.confidence === "HIGH" ? 0.95 : 0.7,
     confidenceLevel: parsed.confidence,
@@ -269,8 +361,9 @@ export function processAthenaQuery(
     },
   };
 
+  const strategySemantic = alignSemanticWithConversationIntent(semantic, parsed);
   const responseIntent = AthenaResponseStrategyEngine.plan(
-    semantic,
+    strategySemantic,
     sessionState,
     ctx,
     scope,

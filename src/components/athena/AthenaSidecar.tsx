@@ -19,6 +19,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AthenaMessageText } from "./AthenaMessageText";
+import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 
 export function AthenaSidecar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,14 +37,17 @@ export function AthenaSidecar() {
   const [isTyping, setIsTyping] = useState(false);
   const pathname = usePathname();
   const store = useVarynthStore();
+  const engineStatus = useAthenaEngineStatus();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isProjectWorkspace = /^\/projects\/[^/]+/.test(pathname);
 
   // Keyboard shortcut Alt + A
   useEffect(() => {
     try {
       const saved = localStorage.getItem("varynth_athena_messages");
       if (saved) {
-        setMessages(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setMessages(parsed);
       }
     } catch {
       // ignore
@@ -99,8 +104,6 @@ export function AthenaSidecar() {
   if (pathname.includes("/research")) currentScope = "pesquisa";
   if (pathname.includes("/chronos") || pathname.includes("/projects")) currentScope = "produtividade";
 
-  const engineStatus = useAthenaEngineStatus();
-
   const handleSend = async (textToSend?: string) => {
     const raw = textToSend || input;
     if (!raw.trim()) return;
@@ -127,9 +130,17 @@ export function AthenaSidecar() {
         routeProjectId,
         sessionId
       );
+      athenaContextualMemory.recordInteraction(raw, response.text, store, sessionId, routeProjectId);
       saveMessages([...updated, response]);
     } catch {
-      // fallback
+      const failure: AthenaMessage = {
+        id: "ath-error-" + Date.now(),
+        sender: "athena",
+        text: "Não consegui concluir essa solicitação agora. Nenhuma ação foi aplicada ao VARYNTH. Tente novamente; se o problema continuar, verifique o estado do motor local.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope: currentScope,
+      };
+      saveMessages([...updated, failure]);
     } finally {
       setIsTyping(false);
     }
@@ -138,7 +149,7 @@ export function AthenaSidecar() {
   return (
     <>
       {/* Floating Action Button */}
-      {!isOpen && (
+      {!isOpen && !isProjectWorkspace && (
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-2xl border border-violet-400/40 glow-accent transition-all duration-300 group hover:scale-105"
@@ -156,9 +167,15 @@ export function AthenaSidecar() {
         </button>
       )}
 
-      {/* Floating Sidecar Drawer */}
+      {/* Floating Sidecar Drawer / Mobile Bottom Sheet */}
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-50 w-full max-w-sm sm:max-w-md h-[520px] bg-[#0f0f1a] border border-[#2d2d4a] rounded-2xl shadow-2xl flex flex-col overflow-hidden clip-corner glow-accent animate-fade-in">
+        <>
+          <div
+            onClick={() => setIsOpen(false)}
+            className="sm:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
+            aria-hidden="true"
+          />
+          <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-5 sm:right-5 z-50 w-full sm:max-w-md h-[85dvh] sm:h-[520px] bg-[#0f0f1a] border-t sm:border border-[#2d2d4a] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden clip-corner glow-accent animate-slide-up sm:animate-fade-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#0a0a0f] border-b border-[#1e1e30]">
             <div className="flex items-center gap-2">
@@ -198,6 +215,7 @@ export function AthenaSidecar() {
               </Link>
               <button
                 onClick={() => setIsOpen(false)}
+                aria-label="Fechar Athena Sidecar"
                 className="p-1 text-slate-400 hover:text-slate-200"
               >
                 <X size={15} />
@@ -238,7 +256,7 @@ export function AthenaSidecar() {
                           : "bg-violet-600 text-white shadow-sm"
                       )}
                     >
-                      <div className="whitespace-pre-wrap">{msg.text}</div>
+                      <AthenaMessageText text={msg.text} />
 
                       {msg.actionCard && (
                         <div className="mt-2 p-2 rounded-lg bg-[#0a0a0f] border border-violet-500/30 flex items-center justify-between gap-2 text-[11px]">
@@ -313,6 +331,7 @@ export function AthenaSidecar() {
               <button
                 type="submit"
                 disabled={!input.trim()}
+                aria-label="Enviar mensagem para a Athena"
                 className="p-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
               >
                 <Send size={13} />
@@ -320,8 +339,8 @@ export function AthenaSidecar() {
             </form>
           </div>
         </div>
-      )}
-    </>
+      </>
+    )}
+  </>
   );
 }
-

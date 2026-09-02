@@ -293,19 +293,24 @@ export default function GraphPage() {
 
   const nodesRef = useRef<GraphNode[]>(initialNodes);
   const draggedNodeRef = useRef<GraphNode | null>(null);
+  const isSleepingRef = useRef<boolean>(false);
+  const animationFrameRef = useRef<number>(0);
+
+  const wakePhysics = () => {
+    isSleepingRef.current = false;
+  };
 
   useEffect(() => {
     nodesRef.current = initialNodes;
-  }, [initialNodes]);
+    wakePhysics();
+  }, [initialNodes, filterType, search]);
 
-  // Canvas Physics & Render Loop
+  // Canvas Physics & Render Loop with Sleep/Wake Battery Optimization
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    let animationFrameId: number;
 
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -319,43 +324,54 @@ export default function GraphPage() {
 
       const activeIds = new Set(filteredNodes.map((n) => n.id));
 
-      // 1. Particle Physics (Forces)
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
+      // 1. Particle Physics (Forces) - Only calculate if active
+      let totalKineticEnergy = 0;
 
-      for (let i = 0; i < filteredNodes.length; i++) {
-        const nodeA = filteredNodes[i];
-        if (nodeA === draggedNodeRef.current) continue;
+      if (!isSleepingRef.current) {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
 
-        // Center gravity
-        nodeA.vx += (centerX - nodeA.x) * 0.0004;
-        nodeA.vy += (centerY - nodeA.y) * 0.0004;
+        for (let i = 0; i < filteredNodes.length; i++) {
+          const nodeA = filteredNodes[i];
+          if (nodeA === draggedNodeRef.current) continue;
 
-        // Repulsion between nodes
-        for (let j = i + 1; j < filteredNodes.length; j++) {
-          const nodeB = filteredNodes[j];
-          const dx = nodeB.x - nodeA.x;
-          const dy = nodeB.y - nodeA.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          // Center gravity
+          nodeA.vx += (centerX - nodeA.x) * 0.0004;
+          nodeA.vy += (centerY - nodeA.y) * 0.0004;
 
-          if (dist < 220) {
-            const force = (220 - dist) / dist * 0.05;
-            nodeA.vx -= dx * force;
-            nodeA.vy -= dy * force;
-            nodeB.vx += dx * force;
-            nodeB.vy += dy * force;
+          // Repulsion between nodes
+          for (let j = i + 1; j < filteredNodes.length; j++) {
+            const nodeB = filteredNodes[j];
+            const dx = nodeB.x - nodeA.x;
+            const dy = nodeB.y - nodeA.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+            if (dist < 220) {
+              const force = ((220 - dist) / dist) * 0.05;
+              nodeA.vx -= dx * force;
+              nodeA.vy -= dy * force;
+              nodeB.vx += dx * force;
+              nodeB.vy += dy * force;
+            }
           }
+
+          // Apply velocity with damping
+          nodeA.vx *= 0.85;
+          nodeA.vy *= 0.85;
+          nodeA.x += nodeA.vx;
+          nodeA.y += nodeA.vy;
+
+          // Keep in bounds
+          nodeA.x = Math.max(30, Math.min(canvas.width - 30, nodeA.x));
+          nodeA.y = Math.max(30, Math.min(canvas.height - 30, nodeA.y));
+
+          totalKineticEnergy += Math.abs(nodeA.vx) + Math.abs(nodeA.vy);
         }
 
-        // Apply velocity with damping
-        nodeA.vx *= 0.85;
-        nodeA.vy *= 0.85;
-        nodeA.x += nodeA.vx;
-        nodeA.y += nodeA.vy;
-
-        // Keep in bounds
-        nodeA.x = Math.max(30, Math.min(canvas.width - 30, nodeA.x));
-        nodeA.y = Math.max(30, Math.min(canvas.height - 30, nodeA.y));
+        // Put physics to sleep if stable and not actively dragging
+        if (totalKineticEnergy < 0.005 && !draggedNodeRef.current) {
+          isSleepingRef.current = true;
+        }
       }
 
       // 2. Draw Edges
@@ -413,16 +429,17 @@ export default function GraphPage() {
         ctx.fillText(shortLabel, node.x, node.y + node.radius + 12);
       });
 
-      animationFrameId = requestAnimationFrame(render);
+      animationFrameRef.current = requestAnimationFrame(render);
     };
 
     render();
 
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => cancelAnimationFrame(animationFrameRef.current);
   }, [edges, filterType, search, selectedNode]);
 
-  // Mouse Handlers for Drag & Click
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Unified Pointer Handlers for Mouse, Touch, and Pen
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    wakePhysics();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -432,19 +449,25 @@ export default function GraphPage() {
     const hit = nodesRef.current.find((n) => {
       const dx = n.x - clickX;
       const dy = n.y - clickY;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 5;
+      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 8;
     });
 
     if (hit) {
       draggedNodeRef.current = hit;
       setSelectedNode(hit);
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore capture error
+      }
     } else {
       setSelectedNode(null);
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!draggedNodeRef.current) return;
+    wakePhysics();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -457,11 +480,34 @@ export default function GraphPage() {
     draggedNodeRef.current.vy = 0;
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (draggedNodeRef.current) {
+      draggedNodeRef.current = null;
+      wakePhysics();
+    }
+    try {
+      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+        canvasRef.current.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
     draggedNodeRef.current = null;
+    wakePhysics();
+    try {
+      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+        canvasRef.current.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleResetLayout = () => {
+    wakePhysics();
     nodesRef.current = initialNodes.map((n, idx) => ({
       ...n,
       x: 400 + Math.cos(idx) * 200,
@@ -545,9 +591,11 @@ export default function GraphPage() {
             ref={canvasRef}
             width={1200}
             height={700}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
+            style={{ touchAction: "none" }}
             className="w-full h-full cursor-grab active:cursor-grabbing"
           />
 

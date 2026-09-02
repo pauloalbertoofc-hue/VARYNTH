@@ -55,6 +55,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     useVarynthStore();
 
   const [activeTab, setActiveTab] = useState<ProjectTab>("visao_geral");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const project = projects.find((p) => p.id === projectId);
 
@@ -89,8 +90,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const handleStatusChange = (newStatus: ProjectStatus) => {
     updateProject(project.id, { status: newStatus });
   };
-
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleConfirmDelete = () => {
     deleteProject(project.id);
@@ -150,6 +149,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <div className="flex items-center gap-1.5 bg-[#14141f] px-2.5 py-1.5 rounded-lg border border-[#1e1e30]">
                   <span className="text-[11px] text-slate-400">Status:</span>
                   <select
+                    aria-label="Status do projeto"
                     value={project.status}
                     onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
                     className="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer"
@@ -165,6 +165,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <div className="flex items-center gap-1.5 bg-[#14141f] px-2.5 py-1.5 rounded-lg border border-[#1e1e30]">
                   <span className="text-[11px] text-slate-400">Prioridade:</span>
                   <select
+                    aria-label="Prioridade do projeto"
                     value={project.priority}
                     onChange={(e) => updateProject(project.id, { priority: e.target.value as PriorityLevel })}
                     className="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer"
@@ -174,6 +175,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     <option value="alta">Alta</option>
                     <option value="urgente">Urgente 🔥</option>
                   </select>
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-[#14141f] px-2.5 py-1.5 rounded-lg border border-[#1e1e30]">
+                  <Calendar size={13} className="text-violet-400" />
+                  <label htmlFor="project-deadline" className="text-[11px] text-slate-400">Prazo:</label>
+                  <input
+                    id="project-deadline"
+                    type="date"
+                    value={project.deadline || ""}
+                    onInput={(e) => {
+                      const value = (e.currentTarget as HTMLInputElement).value;
+                      updateProject(project.id, { deadline: value || undefined });
+                    }}
+                    className="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer"
+                  />
                 </div>
 
                 <button
@@ -388,4 +404,3 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     </PageLayout>
   );
 }
-

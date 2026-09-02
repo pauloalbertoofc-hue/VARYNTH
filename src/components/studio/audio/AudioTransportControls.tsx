@@ -14,6 +14,8 @@ import {
   Plus,
   Upload,
   Sparkles,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { AudioPlaybackState } from "@/lib/studio/audio/types";
 
@@ -23,6 +25,10 @@ interface AudioTransportControlsProps {
   totalDurationMs: number;
   zoom: number; // Pixels per second
   snapToGrid: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onPlay: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -43,6 +49,10 @@ export function AudioTransportControls({
   totalDurationMs,
   zoom,
   snapToGrid,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onPlay,
   onPause,
   onStop,
@@ -118,6 +128,32 @@ export function AudioTransportControls({
           <span className="text-slate-600">/</span>
           <span className="text-slate-400">{formatTimecode(totalDurationMs)}</span>
         </div>
+
+        {/* Undo / Redo Buttons */}
+        {(onUndo || onRedo) && (
+          <div className="flex items-center ml-2 bg-[#141528] p-0.5 rounded-lg border border-[#232544]">
+            {onUndo && (
+              <button
+                onClick={onUndo}
+                disabled={canUndo === false}
+                className="p-1.5 text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400 rounded transition"
+                title="Desfazer (Ctrl+Z)"
+              >
+                <Undo2 size={13} />
+              </button>
+            )}
+            {onRedo && (
+              <button
+                onClick={onRedo}
+                disabled={canRedo === false}
+                className="p-1.5 text-slate-400 hover:text-white disabled:opacity-40 disabled:hover:text-slate-400 rounded transition"
+                title="Refazer (Ctrl+Y)"
+              >
+                <Redo2 size={13} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Center: Track Creation & Audio Import */}

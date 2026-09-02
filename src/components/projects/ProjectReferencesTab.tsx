@@ -171,7 +171,7 @@ export function ProjectReferencesTab({ projectId }: ProjectReferencesTabProps) {
                   )}
                   <button
                     onClick={() => deleteReference(ref.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity"
+                    className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
                     title="Remover referência"
                   >
                     <Trash2 size={13} />

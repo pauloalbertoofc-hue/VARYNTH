@@ -21,7 +21,7 @@ async function runBackupRegressionTests() {
   // Test BAK-REG-001: Export produces valid manifest and entity counts
   const backup = backupService.exportVarynthBackup("Test Suite Environment");
   assert(backup.manifest.varynthVersion === "4.0.0", "BAK-REG-001: Versão do VARYNTH no manifesto é 4.0.0");
-  assert(backup.manifest.schemaVersion === 1, "BAK-REG-001: Versão de esquema é 1");
+  assert(backup.manifest.schemaVersion === 2, "BAK-REG-001: Versão de esquema é 2");
   assert(typeof backup.manifest.entitiesCount.artifacts === "number", "BAK-REG-001: Contagem de artefatos presente");
   assert(Array.isArray(backup.data.artifacts), "BAK-REG-001: Coleção de artefatos exportada como array");
 
@@ -61,4 +61,3 @@ runBackupRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte de backup:", err);
   process.exit(1);
 });
-

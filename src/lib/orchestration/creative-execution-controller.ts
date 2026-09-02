@@ -338,4 +338,13 @@ export class CreativeExecutionController {
     const p = this.activeExecutions.get(id);
     return p ? JSON.parse(JSON.stringify(p)) : undefined;
   }
+
+  public static getExecutionPlanByCreativePlanId(planId: string): CreativeExecutionPlan | undefined {
+    for (const exec of this.activeExecutions.values()) {
+      if (exec.planId === planId) {
+        return JSON.parse(JSON.stringify(exec));
+      }
+    }
+    return undefined;
+  }
 }

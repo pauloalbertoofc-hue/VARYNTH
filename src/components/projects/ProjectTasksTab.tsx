@@ -188,6 +188,8 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                 <div className="flex items-center gap-3 min-w-0">
                   <button
                     onClick={() => toggleTask(task.id)}
+                    aria-label={isDone ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
+                    title={isDone ? "Reabrir tarefa" : "Concluir tarefa"}
                     className="text-violet-400 hover:text-violet-300 transition-colors flex-shrink-0"
                   >
                     {isDone ? <CheckSquare size={18} className="text-emerald-400" /> : <Square size={18} />}
@@ -217,7 +219,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
 
                   <button
                     onClick={() => deleteTask(task.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-opacity"
+                    className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
                     title="Remover tarefa"
                   >
                     <Trash2 size={13} />
@@ -231,4 +233,3 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
     </div>
   );
 }
-

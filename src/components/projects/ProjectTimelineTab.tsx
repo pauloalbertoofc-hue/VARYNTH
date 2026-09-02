@@ -121,10 +121,10 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
                   </div>
                   <button
                     onClick={() => deleteTimelineEvent(evt.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-opacity"
+                    className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
                     title="Remover evento"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
                 <h4 className="text-xs font-bold text-slate-200 mt-1">{evt.title}</h4>

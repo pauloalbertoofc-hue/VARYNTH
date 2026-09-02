@@ -132,7 +132,7 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleDelete(file.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-opacity"
+                  className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
                   title="Remover arquivo"
                 >
                   <Trash2 size={13} />

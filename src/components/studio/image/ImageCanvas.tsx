@@ -61,21 +61,46 @@ export function ImageCanvas({
     <div
       ref={containerRef}
       className="relative flex-1 h-full bg-[#070810] overflow-hidden select-none flex items-center justify-center"
-      onMouseDown={(e) => {
+      style={{ touchAction: "none" }}
+      onPointerDown={(e) => {
         if (e.target === containerRef.current || (e.target as HTMLElement).id === "canvas-backdrop") {
           onSelectLayer(undefined);
-          if (e.button === 1 || e.altKey) {
+          if (e.pointerType === "touch" || e.button === 1 || e.altKey || e.buttons === 1) {
             setIsPanning(true);
             setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+            try {
+              (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            } catch {
+              // ignore
+            }
           }
         }
       }}
-      onMouseMove={(e) => {
+      onPointerMove={(e) => {
         if (isPanning) {
           setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
         }
       }}
-      onMouseUp={() => setIsPanning(false)}
+      onPointerUp={(e) => {
+        setIsPanning(false);
+        try {
+          if ((e.target as HTMLElement).hasPointerCapture(e.pointerId)) {
+            (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+          }
+        } catch {
+          // ignore
+        }
+      }}
+      onPointerCancel={(e) => {
+        setIsPanning(false);
+        try {
+          if ((e.target as HTMLElement).hasPointerCapture(e.pointerId)) {
+            (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+          }
+        } catch {
+          // ignore
+        }
+      }}
     >
       {/* Zoom / Navigation Overlay Controls */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-[#121324]/90 backdrop-blur-md border border-[#222442] p-1.5 rounded-xl text-xs text-slate-300 shadow-xl">

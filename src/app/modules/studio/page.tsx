@@ -73,7 +73,12 @@ import { GameTemplatesModal } from "@/components/studio/game/GameTemplatesModal"
 import { GameChangeSetModal } from "@/components/studio/game/GameChangeSetModal";
 import { gameService } from "@/lib/studio/game/game-service";
 import { athenaGameActions } from "@/lib/studio/game/athena-game-actions";
-import { GameItem, GameDocumentState, GameEntity, GameComponent, ComponentType } from "@/lib/studio/game/types";
+import { GameItem, GameDocumentState, GameEntity, GameComponent, GameScene, GameRule, GameVariable, ComponentType } from "@/lib/studio/game/types";
+import { StudioAssetPanel } from "@/components/studio/common/StudioAssetPanel";
+import { StudioRelationsPanel } from "@/components/studio/common/StudioRelationsPanel";
+import { CreativeOrchestrationModal } from "@/components/studio/common/CreativeOrchestrationModal";
+import { STUDIO_DEFINITIONS, StudioType, isValidStudioType, getStudioDefinition } from "@/lib/studio/studio-registry";
+import { artifactStore } from "@/lib/artifacts/artifact-store";
 
 import {
   FileText,
@@ -84,16 +89,20 @@ import {
   Gamepad2,
   Plus,
   BookOpen,
+  Network,
   Sparkles,
   ArrowRight,
   Play,
   RotateCw,
   Film,
   Upload,
+  AlertTriangle,
+  ArrowLeft,
 } from "lucide-react";
 
 export default function StudioPage() {
-  const [activeStudio, setActiveStudio] = useState<"DOCUMENT" | "WEB" | "IMAGE" | "AUDIO" | "VIDEO" | "GAME">("DOCUMENT");
+  const [activeStudio, setActiveStudio] = useState<StudioType>("DOCUMENT");
+  const [notFoundArtifactId, setNotFoundArtifactId] = useState<string | null>(null);
 
   // Document Studio State
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
@@ -169,22 +178,135 @@ export default function StudioPage() {
   const [isGameTemplateOpen, setIsGameTemplateOpen] = useState(false);
   const [isGameChangeSetOpen, setIsGameChangeSetOpen] = useState(false);
 
+  // Creative Orchestrator Modal
+  const [isOrchestrationModalOpen, setIsOrchestrationModalOpen] = useState(false);
+  const [orchestrationPlanId, setOrchestrationPlanId] = useState<string | undefined>(undefined);
+
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const syncFromUrl = () => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const studioParam = params.get("studio")?.toUpperCase();
+    const idParam = params.get("id");
+
+    if (studioParam && isValidStudioType(studioParam)) {
+      setActiveStudio(studioParam);
+    }
+
+    if (idParam) {
+      const art = artifactStore.getById(idParam);
+      if (!art || art.status === "TRASHED") {
+        setNotFoundArtifactId(idParam);
+        setActiveDoc(null);
+        setActiveWebsite(null);
+        setActiveImage(null);
+        setActiveAudio(null);
+        setActiveVideo(null);
+        setActiveGame(null);
+        return;
+      }
+
+      setNotFoundArtifactId(null);
+      // Determine Studio by artifact type (authoritative)
+      if (art.type === "DOCUMENT") {
+        setActiveStudio("DOCUMENT");
+        const doc = documentService.getDocument(art.id);
+        setActiveDoc(doc || null);
+        setActiveWebsite(null);
+        setActiveImage(null);
+        setActiveAudio(null);
+        setActiveVideo(null);
+        setActiveGame(null);
+      } else if (art.type === "WEBSITE" || art.type === "CODE") {
+        setActiveStudio("WEB");
+        const ws = webService.getWebsite(art.id);
+        if (ws) {
+          setActiveWebsite(ws);
+          const entry = ws.files.find((f) => f.path === "index.html" || f.isEntry) || ws.files[0];
+          setActiveWebFile(entry);
+        }
+        setActiveDoc(null);
+        setActiveImage(null);
+        setActiveAudio(null);
+        setActiveVideo(null);
+        setActiveGame(null);
+      } else if (art.type === "IMAGE") {
+        setActiveStudio("IMAGE");
+        const img = imageService.getImage(art.id);
+        setActiveImage(img || null);
+        setActiveDoc(null);
+        setActiveWebsite(null);
+        setActiveAudio(null);
+        setActiveVideo(null);
+        setActiveGame(null);
+      } else if (art.type === "AUDIO") {
+        setActiveStudio("AUDIO");
+        const aud = audioService.getAudio(art.id);
+        setActiveAudio(aud || null);
+        setActiveDoc(null);
+        setActiveWebsite(null);
+        setActiveImage(null);
+        setActiveVideo(null);
+        setActiveGame(null);
+      } else if (art.type === "VIDEO") {
+        setActiveStudio("VIDEO");
+        const vid = videoService.getVideo(art.id);
+        setActiveVideo(vid || null);
+        setActiveDoc(null);
+        setActiveWebsite(null);
+        setActiveImage(null);
+        setActiveAudio(null);
+        setActiveGame(null);
+      } else if (art.type === "GAME") {
+        setActiveStudio("GAME");
+        const gm = gameService.getGame(art.id);
+        setActiveGame(gm || null);
+        setActiveDoc(null);
+        setActiveWebsite(null);
+        setActiveImage(null);
+        setActiveAudio(null);
+        setActiveVideo(null);
+      }
+    } else {
+      setNotFoundArtifactId(null);
+      // In Hub view without specific id, do not open active workspace
+      setActiveDoc(null);
+      setActiveWebsite(null);
+      setActiveImage(null);
+      setActiveAudio(null);
+      setActiveVideo(null);
+      setActiveGame(null);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    syncFromUrl();
 
     const handleUpdate = () => loadData();
+    const handlePopState = () => syncFromUrl();
+    const handleOpenOrchestration = (e: any) => {
+      if (e.detail?.planId) {
+        setOrchestrationPlanId(e.detail.planId);
+      }
+      setIsOrchestrationModalOpen(true);
+    };
+
     window.addEventListener("varynth_artifacts_updated", handleUpdate);
     window.addEventListener("BACKUP_RESTORE_COMPLETED", handleUpdate);
     window.addEventListener("varynth_store_update", handleUpdate);
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("open-creative-orchestration" as any, handleOpenOrchestration);
 
     return () => {
       if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
       window.removeEventListener("varynth_artifacts_updated", handleUpdate);
       window.removeEventListener("BACKUP_RESTORE_COMPLETED", handleUpdate);
       window.removeEventListener("varynth_store_update", handleUpdate);
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("open-creative-orchestration" as any, handleOpenOrchestration);
     };
   }, []);
 
@@ -203,42 +325,65 @@ export default function StudioPage() {
     setAllVideos(vids);
     setAllGames(gms);
 
-    // Stale Selection Invalidation on Restore / Update
+    // Reconcile active items only if already selected
     setActiveDoc((prev) => {
-      if (!prev) return docs[0] || null;
+      if (!prev) return null;
       const found = docs.find((d) => d.artifact.id === prev.artifact.id);
-      return found || docs[0] || null;
+      return found || null;
     });
 
     setActiveWebsite((prev) => {
-      if (!prev) return webs[0] || null;
+      if (!prev) return null;
       const found = webs.find((w) => w.artifact.id === prev.artifact.id);
-      return found || webs[0] || null;
+      return found || null;
     });
 
     setActiveImage((prev) => {
-      if (!prev) return imgs[0] || null;
+      if (!prev) return null;
       const found = imgs.find((i) => i.artifact.id === prev.artifact.id);
-      return found || imgs[0] || null;
+      return found || null;
     });
 
     setActiveAudio((prev) => {
-      if (!prev) return auds[0] || null;
+      if (!prev) return null;
       const found = auds.find((a) => a.artifact.id === prev.artifact.id);
-      return found || auds[0] || null;
+      return found || null;
     });
 
     setActiveVideo((prev) => {
-      if (!prev) return vids[0] || null;
+      if (!prev) return null;
       const found = vids.find((v) => v.artifact.id === prev.artifact.id);
-      return found || vids[0] || null;
+      return found || null;
     });
 
-    setActiveGame((prev) => {
-      if (!prev) return gms[0] || null;
+    setActiveGame((prev: GameItem | null) => {
+      if (!prev) return null;
       const found = gms.find((g) => g.artifact.id === prev.artifact.id);
-      return found || gms[0] || null;
+      return found || null;
     });
+  };
+
+  const handleBackToHub = (targetStudio?: StudioType) => {
+    const nextStudio = targetStudio || activeStudio;
+    setActiveDoc(null);
+    setActiveWebsite(null);
+    setActiveImage(null);
+    setActiveAudio(null);
+    setActiveVideo(null);
+    setActiveGame(null);
+    setNotFoundArtifactId(null);
+    setActiveStudio(nextStudio);
+
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=${nextStudio}`);
+    }
+  };
+
+  const handleSwitchStudioTab = (studioType: StudioType) => {
+    setActiveStudio(studioType);
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=${studioType}`);
+    }
   };
 
   // --- Document Studio Handlers ---
@@ -263,6 +408,14 @@ export default function StudioPage() {
     }, 800);
   };
 
+  const handleSelectDocument = (doc: DocumentItem) => {
+    setActiveDoc(doc);
+    setActiveStudio("DOCUMENT");
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=DOCUMENT&id=${doc.artifact.id}`);
+    }
+  };
+
   const handleCreateNewDocument = async (template: DocumentTemplate, title: string) => {
     const res = await documentService.createDocument({
       title,
@@ -272,7 +425,7 @@ export default function StudioPage() {
     });
 
     if (res.success && res.document) {
-      setActiveDoc(res.document);
+      handleSelectDocument(res.document);
       loadData();
     }
   };
@@ -280,8 +433,12 @@ export default function StudioPage() {
   // --- Web Studio Handlers ---
   const handleSelectWebsite = (ws: WebsiteItem) => {
     setActiveWebsite(ws);
+    setActiveStudio("WEB");
     const entry = ws.files.find((f) => f.path === "index.html" || f.isEntry) || ws.files[0];
     setActiveWebFile(entry);
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=WEB&id=${ws.artifact.id}`);
+    }
   };
 
   const handleWebFileContentChange = (path: string, newContent: string) => {
@@ -340,10 +497,14 @@ export default function StudioPage() {
   // --- Image Studio Handlers ---
   const handleSelectImage = (img: ImageItem) => {
     setActiveImage(img);
+    setActiveStudio("IMAGE");
     if (img.documentState.layers.length > 0) {
       setSelectedLayerId(img.documentState.layers[0].id);
     } else {
       setSelectedLayerId(undefined);
+    }
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=IMAGE&id=${img.artifact.id}`);
     }
   };
 
@@ -386,11 +547,15 @@ export default function StudioPage() {
   // --- Audio Studio Handlers ---
   const handleSelectAudio = (aud: AudioItem) => {
     setActiveAudio(aud);
+    setActiveStudio("AUDIO");
     if (aud.documentState.tracks.length > 0) {
       setSelectedAudioTrackId(aud.documentState.tracks[0].id);
       if (aud.documentState.tracks[0].clips.length > 0) {
         setSelectedAudioClipIds([aud.documentState.tracks[0].clips[0].id]);
       }
+    }
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=AUDIO&id=${aud.artifact.id}`);
     }
   };
 
@@ -493,6 +658,14 @@ export default function StudioPage() {
     }, 800);
   };
 
+  const handleSelectVideo = (vid: VideoItem) => {
+    setActiveVideo(vid);
+    setActiveStudio("VIDEO");
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=VIDEO&id=${vid.artifact.id}`);
+    }
+  };
+
   const handleCreateNewVideo = async (
     templateId?: string,
     title?: string,
@@ -506,7 +679,7 @@ export default function StudioPage() {
     });
 
     if (res.success && res.video) {
-      setActiveVideo(res.video);
+      handleSelectVideo(res.video);
       loadData();
     }
   };
@@ -553,9 +726,18 @@ export default function StudioPage() {
   };
 
   // --- Game Studio Handlers ---
+  const handleSelectGame = (game: GameItem) => {
+    setActiveGame(game);
+    setSelectedGameSceneId(game.documentState.entrySceneId);
+    setActiveStudio("GAME");
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "", `/modules/studio?studio=GAME&id=${game.artifact.id}`);
+    }
+  };
+
   const handleUpdateGameDocumentState = (newState: GameDocumentState) => {
     if (!activeGame) return;
-    setActiveGame((prev) => (prev ? { ...prev, documentState: newState } : null));
+    setActiveGame((prev: GameItem | null) => (prev ? { ...prev, documentState: newState } : null));
     setGameSaveState("SAVING");
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
@@ -582,11 +764,41 @@ export default function StudioPage() {
     });
 
     if (res.success && res.game) {
-      setActiveGame(res.game);
-      setSelectedGameSceneId(res.game.documentState.entrySceneId);
+      handleSelectGame(res.game);
       loadData();
     }
   };
+
+  // -------------------------------------------------------------
+  // NOT FOUND STATE (When an invalid ?id= is requested)
+  // -------------------------------------------------------------
+  if (notFoundArtifactId) {
+    return (
+      <PageLayout
+        title="Artefato Não Encontrado"
+        subtitle="O item solicitado não existe ou foi excluído"
+      >
+        <div className="max-w-xl mx-auto my-16 p-8 bg-[#0d0d16] border border-rose-500/20 rounded-2xl flex flex-col items-center text-center gap-4 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+            <AlertTriangle size={28} />
+          </div>
+          <h2 className="text-xl font-bold text-white">Artefato não localizado</h2>
+          <p className="text-sm text-slate-400">
+            O artefato com identificador <code className="font-mono text-rose-300 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-500/20">{notFoundArtifactId}</code> não foi encontrado no acervo local ou foi movido para a Lixeira.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => handleBackToHub()}
+              className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-violet-500/20 transition"
+            >
+              <ArrowLeft size={16} />
+              Voltar ao Studio Hub
+            </button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   // -------------------------------------------------------------
   // HUB VIEW (When no workspace is active)
@@ -601,7 +813,7 @@ export default function StudioPage() {
           {/* Studio Selector Tabs */}
           <div className="flex items-center gap-3 border-b border-[#1c1d32] pb-3 flex-wrap">
             <button
-              onClick={() => setActiveStudio("DOCUMENT")}
+              onClick={() => handleSwitchStudioTab("DOCUMENT")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
                 activeStudio === "DOCUMENT"
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
@@ -613,10 +825,10 @@ export default function StudioPage() {
             </button>
 
             <button
-              onClick={() => setActiveStudio("WEB")}
+              onClick={() => handleSwitchStudioTab("WEB")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
                 activeStudio === "WEB"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  ? "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
               }`}
             >
@@ -625,10 +837,10 @@ export default function StudioPage() {
             </button>
 
             <button
-              onClick={() => setActiveStudio("IMAGE")}
+              onClick={() => handleSwitchStudioTab("IMAGE")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
                 activeStudio === "IMAGE"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
               }`}
             >
@@ -637,10 +849,10 @@ export default function StudioPage() {
             </button>
 
             <button
-              onClick={() => setActiveStudio("AUDIO")}
+              onClick={() => handleSwitchStudioTab("AUDIO")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
                 activeStudio === "AUDIO"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  ? "bg-amber-600 text-white shadow-lg shadow-amber-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
               }`}
             >
@@ -649,10 +861,10 @@ export default function StudioPage() {
             </button>
 
             <button
-              onClick={() => setActiveStudio("VIDEO")}
+              onClick={() => handleSwitchStudioTab("VIDEO")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
                 activeStudio === "VIDEO"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  ? "bg-rose-600 text-white shadow-lg shadow-rose-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
               }`}
             >
@@ -661,7 +873,7 @@ export default function StudioPage() {
             </button>
 
             <button
-              onClick={() => setActiveStudio("GAME")}
+              onClick={() => handleSwitchStudioTab("GAME")}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
                 activeStudio === "GAME"
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
@@ -670,6 +882,15 @@ export default function StudioPage() {
             >
               <Gamepad2 size={16} />
               Game Studio (Studio 6)
+            </button>
+
+            <button
+              onClick={() => setIsOrchestrationModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-2 bg-gradient-to-r from-indigo-950/60 to-violet-950/60 hover:from-indigo-900/60 hover:to-violet-900/60 text-indigo-300 border border-indigo-500/30 ml-auto transition shadow-md shadow-indigo-500/10"
+              title="Visualizar e coordenar planos criativos acíclicos através dos 6 Studios"
+            >
+              <Network size={15} className="text-indigo-400" />
+              Orquestração Multi-Estúdio
             </button>
           </div>
 
@@ -712,7 +933,7 @@ export default function StudioPage() {
                     {allDocs.map((doc) => (
                       <div
                         key={doc.artifact.id}
-                        onClick={() => setActiveDoc(doc)}
+                        onClick={() => handleSelectDocument(doc)}
                         className="p-5 bg-[#0e0e18] hover:bg-[#131322] border border-[#1e1e30] hover:border-blue-500/40 rounded-xl cursor-pointer transition flex flex-col justify-between gap-4 group"
                       >
                         <div>
@@ -1180,6 +1401,12 @@ export default function StudioPage() {
           onClose={() => setIsGameTemplateOpen(false)}
           onSelectTemplate={handleCreateNewGame}
         />
+
+        <CreativeOrchestrationModal
+          isOpen={isOrchestrationModalOpen}
+          planId={orchestrationPlanId}
+          onClose={() => setIsOrchestrationModalOpen(false)}
+        />
       </PageLayout>
     );
   }
@@ -1188,8 +1415,8 @@ export default function StudioPage() {
   // ACTIVE GAME STUDIO WORKSPACE
   // -------------------------------------------------------------
   if (activeGame) {
-    const currentScene = activeGame.documentState.scenes.find((s) => s.id === (selectedGameSceneId || activeGame.documentState.entrySceneId)) || activeGame.documentState.scenes[0];
-    const selectedEntity = activeGame.documentState.entities.find((e) => e.id === selectedGameEntityId);
+    const currentScene = activeGame.documentState.scenes.find((s: GameScene) => s.id === (selectedGameSceneId || activeGame.documentState.entrySceneId)) || activeGame.documentState.scenes[0];
+    const selectedEntity = activeGame.documentState.entities.find((e: GameEntity) => e.id === selectedGameEntityId);
 
     return (
       <div className="h-screen flex flex-col overflow-hidden">
@@ -1201,6 +1428,7 @@ export default function StudioPage() {
           onViewModeChange={() => {}}
           activeSidebarTab={gameSidebarTab}
           onSidebarTabChange={setGameSidebarTab}
+          onBackToHub={() => handleBackToHub("GAME")}
           onCreateVersion={async () => {
             const label =
               prompt(
@@ -1255,12 +1483,12 @@ export default function StudioPage() {
                 onDeleteEntity={(entId) => {
                   handleUpdateGameDocumentState({
                     ...activeGame.documentState,
-                    entities: activeGame.documentState.entities.filter((e) => e.id !== entId),
+                    entities: activeGame.documentState.entities.filter((e: GameEntity) => e.id !== entId),
                   });
                   if (selectedGameEntityId === entId) setSelectedGameEntityId(undefined);
                 }}
                 onToggleEntityActive={(entId) => {
-                  const updated = activeGame.documentState.entities.map((e) =>
+                  const updated = activeGame.documentState.entities.map((e: GameEntity) =>
                     e.id === entId ? { ...e, active: !e.active } : e
                   );
                   handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
@@ -1275,6 +1503,24 @@ export default function StudioPage() {
                   if (res.success && res.game) {
                     setActiveGame(res.game);
                   }
+                }}
+              />
+            ) : gameSidebarTab === "ASSETS" ? (
+              <StudioAssetPanel
+                artifact={activeGame.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = gameService.getGame(updated.id);
+                  if (ref) setActiveGame(ref);
+                  loadData();
+                }}
+              />
+            ) : gameSidebarTab === "RELATIONS" ? (
+              <StudioRelationsPanel
+                artifact={activeGame.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = gameService.getGame(updated.id);
+                  if (ref) setActiveGame(ref);
+                  loadData();
                 }}
               />
             ) : gameSidebarTab === "ATHENA" ? (
@@ -1296,7 +1542,7 @@ export default function StudioPage() {
                 )}
               </div>
             ) : (
-              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum painel selecionado.</div>
             )
           }
           mainContent={
@@ -1337,9 +1583,9 @@ export default function StudioPage() {
                     selectedEntityId={selectedGameEntityId}
                     onSelectEntity={(entId) => setSelectedGameEntityId(entId)}
                     onUpdateEntityTransform={(entId, x, y) => {
-                      const updated = activeGame.documentState.entities.map((e) => {
+                      const updated = activeGame.documentState.entities.map((e: GameEntity) => {
                         if (e.id === entId) {
-                          const comps = e.components.map((c) =>
+                          const comps = e.components.map((c: GameComponent) =>
                             c.type === "TRANSFORM" ? { ...c, x, y } : c
                           );
                           return { ...e, components: comps };
@@ -1355,21 +1601,21 @@ export default function StudioPage() {
                   <GameInspector
                     selectedEntity={selectedEntity}
                     onUpdateEntity={(entId, updates) => {
-                      const updated = activeGame.documentState.entities.map((e) =>
+                      const updated = activeGame.documentState.entities.map((e: GameEntity) =>
                         e.id === entId ? { ...e, ...updates } : e
                       );
                       handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
                     }}
                     onAddComponent={(entId, component) => {
-                      const updated = activeGame.documentState.entities.map((e) =>
+                      const updated = activeGame.documentState.entities.map((e: GameEntity) =>
                         e.id === entId ? { ...e, components: [...e.components, component] } : e
                       );
                       handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
                     }}
                     onRemoveComponent={(entId, compType) => {
-                      const updated = activeGame.documentState.entities.map((e) =>
+                      const updated = activeGame.documentState.entities.map((e: GameEntity) =>
                         e.id === entId
-                          ? { ...e, components: e.components.filter((c) => c.type !== compType) }
+                          ? { ...e, components: e.components.filter((c: GameComponent) => c.type !== compType) }
                           : e
                       );
                       handleUpdateGameDocumentState({ ...activeGame.documentState, entities: updated });
@@ -1383,6 +1629,22 @@ export default function StudioPage() {
                 <GameRulesPanel
                   rules={activeGame.documentState.rules}
                   variables={activeGame.documentState.variables}
+                  canUndo={true}
+                  canRedo={true}
+                  onUndo={() => {
+                    const prev = gameService.undo(activeGame.artifact.id);
+                    if (prev) {
+                      setActiveGame({ ...activeGame, documentState: prev });
+                      loadData();
+                    }
+                  }}
+                  onRedo={() => {
+                    const next = gameService.redo(activeGame.artifact.id);
+                    if (next) {
+                      setActiveGame({ ...activeGame, documentState: next });
+                      loadData();
+                    }
+                  }}
                   onAddRule={() => {
                     const newRule = athenaGameActions.createRule(
                       `Regra ${activeGame.documentState.rules.length + 1}`,
@@ -1396,7 +1658,7 @@ export default function StudioPage() {
                     });
                   }}
                   onToggleRule={(ruleId) => {
-                    const updated = activeGame.documentState.rules.map((r) =>
+                    const updated = activeGame.documentState.rules.map((r: GameRule) =>
                       r.id === ruleId ? { ...r, enabled: !r.enabled } : r
                     );
                     handleUpdateGameDocumentState({ ...activeGame.documentState, rules: updated });
@@ -1404,7 +1666,7 @@ export default function StudioPage() {
                   onDeleteRule={(ruleId) => {
                     handleUpdateGameDocumentState({
                       ...activeGame.documentState,
-                      rules: activeGame.documentState.rules.filter((r) => r.id !== ruleId),
+                      rules: activeGame.documentState.rules.filter((r: GameRule) => r.id !== ruleId),
                     });
                   }}
                   onAddVariable={(name, type, initialValue) => {
@@ -1417,7 +1679,7 @@ export default function StudioPage() {
                   onDeleteVariable={(varId) => {
                     handleUpdateGameDocumentState({
                       ...activeGame.documentState,
-                      variables: activeGame.documentState.variables.filter((v) => v.id !== varId),
+                      variables: activeGame.documentState.variables.filter((v: GameVariable) => v.id !== varId),
                     });
                   }}
                   onOpenAthena={() => setGameSidebarTab("ATHENA")}
@@ -1486,6 +1748,7 @@ export default function StudioPage() {
           onViewModeChange={() => {}}
           activeSidebarTab={videoSidebarTab}
           onSidebarTabChange={setVideoSidebarTab}
+          onBackToHub={() => handleBackToHub("VIDEO")}
           onCreateVersion={async () => {
             const label =
               prompt(
@@ -1554,6 +1817,24 @@ export default function StudioPage() {
                   }
                 }}
               />
+            ) : videoSidebarTab === "ASSETS" ? (
+              <StudioAssetPanel
+                artifact={activeVideo.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = videoService.getVideo(updated.id);
+                  if (ref) setActiveVideo(ref);
+                  loadData();
+                }}
+              />
+            ) : videoSidebarTab === "RELATIONS" ? (
+              <StudioRelationsPanel
+                artifact={activeVideo.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = videoService.getVideo(updated.id);
+                  if (ref) setActiveVideo(ref);
+                  loadData();
+                }}
+              />
             ) : videoSidebarTab === "ATHENA" ? (
               <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
                 <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
@@ -1573,7 +1854,7 @@ export default function StudioPage() {
                 )}
               </div>
             ) : (
-              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum painel selecionado.</div>
             )
           }
           mainContent={
@@ -1586,6 +1867,22 @@ export default function StudioPage() {
                 frameRate={activeVideo.documentState.timeline.frameRate}
                 zoom={videoZoom}
                 snapToGrid={activeVideo.documentState.timeline.snapToGrid}
+                canUndo={true}
+                canRedo={true}
+                onUndo={() => {
+                  const prev = videoService.undo(activeVideo.artifact.id);
+                  if (prev) {
+                    setActiveVideo({ ...activeVideo, documentState: prev });
+                    loadData();
+                  }
+                }}
+                onRedo={() => {
+                  const next = videoService.redo(activeVideo.artifact.id);
+                  if (next) {
+                    setActiveVideo({ ...activeVideo, documentState: next });
+                    loadData();
+                  }
+                }}
                 onPlay={handlePlayVideo}
                 onPause={handlePauseVideo}
                 onStop={handleStopVideo}
@@ -1807,6 +2104,7 @@ export default function StudioPage() {
           onViewModeChange={() => {}}
           activeSidebarTab={audioSidebarTab}
           onSidebarTabChange={setAudioSidebarTab}
+          onBackToHub={() => handleBackToHub("AUDIO")}
           onCreateVersion={async () => {
             const label =
               prompt(
@@ -1864,6 +2162,24 @@ export default function StudioPage() {
                   }
                 }}
               />
+            ) : audioSidebarTab === "ASSETS" ? (
+              <StudioAssetPanel
+                artifact={activeAudio.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = audioService.getAudio(updated.id);
+                  if (ref) setActiveAudio(ref);
+                  loadData();
+                }}
+              />
+            ) : audioSidebarTab === "RELATIONS" ? (
+              <StudioRelationsPanel
+                artifact={activeAudio.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = audioService.getAudio(updated.id);
+                  if (ref) setActiveAudio(ref);
+                  loadData();
+                }}
+              />
             ) : audioSidebarTab === "ATHENA" ? (
               <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
                 <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
@@ -1883,7 +2199,7 @@ export default function StudioPage() {
                 )}
               </div>
             ) : (
-              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum painel selecionado.</div>
             )
           }
           mainContent={
@@ -1895,6 +2211,22 @@ export default function StudioPage() {
                 totalDurationMs={activeAudio.documentState.timeline.durationMs}
                 zoom={audioZoom}
                 snapToGrid={activeAudio.documentState.timeline.snapToGrid}
+                canUndo={true}
+                canRedo={true}
+                onUndo={() => {
+                  const prev = audioService.undo(activeAudio.artifact.id);
+                  if (prev) {
+                    setActiveAudio({ ...activeAudio, documentState: prev });
+                    loadData();
+                  }
+                }}
+                onRedo={() => {
+                  const next = audioService.redo(activeAudio.artifact.id);
+                  if (next) {
+                    setActiveAudio({ ...activeAudio, documentState: next });
+                    loadData();
+                  }
+                }}
                 onPlay={handlePlayAudio}
                 onPause={handlePauseAudio}
                 onStop={handleStopAudio}
@@ -2094,6 +2426,7 @@ export default function StudioPage() {
           onViewModeChange={setDocViewMode}
           activeSidebarTab={docSidebarTab}
           onSidebarTabChange={setDocSidebarTab}
+          onBackToHub={() => handleBackToHub("DOCUMENT")}
           onCreateVersion={async () => {
             const label = prompt("Descrição da nova versão:", `Versão manual v${(activeDoc.artifact.versions?.length || 0) + 1}`) || "Versão manual";
             const res = await documentService.createManualVersion(activeDoc.artifact.id, label, "USER");
@@ -2123,6 +2456,24 @@ export default function StudioPage() {
                   if (res.success && res.document) setActiveDoc(res.document);
                 }}
               />
+            ) : docSidebarTab === "ASSETS" ? (
+              <StudioAssetPanel
+                artifact={activeDoc.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = documentService.getDocument(updated.id);
+                  if (ref) setActiveDoc(ref);
+                  loadData();
+                }}
+              />
+            ) : docSidebarTab === "RELATIONS" ? (
+              <StudioRelationsPanel
+                artifact={activeDoc.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = documentService.getDocument(updated.id);
+                  if (ref) setActiveDoc(ref);
+                  loadData();
+                }}
+              />
             ) : docSidebarTab === "ATHENA" ? (
               <DocumentSuggestionPanel
                 suggestions={documentService.getSuggestions(activeDoc.artifact.id)}
@@ -2138,7 +2489,7 @@ export default function StudioPage() {
                 }}
               />
             ) : (
-              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum painel selecionado.</div>
             )
           }
           mainContent={
@@ -2196,6 +2547,7 @@ export default function StudioPage() {
           onViewModeChange={setWebViewMode}
           activeSidebarTab={webSidebarTab}
           onSidebarTabChange={setWebSidebarTab}
+          onBackToHub={() => handleBackToHub("WEB")}
           onCreateVersion={async () => {
             const label = prompt("Descrição da nova versão do website:", `Versão manual v${(activeWebsite.artifact.versions?.length || 0) + 1}`) || "Versão manual";
             const res = await webService.createManualVersion(activeWebsite.artifact.id, label, "USER");
@@ -2260,6 +2612,24 @@ export default function StudioPage() {
                   }
                 }}
               />
+            ) : webSidebarTab === "ASSETS" ? (
+              <StudioAssetPanel
+                artifact={activeWebsite.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = webService.getWebsite(updated.id);
+                  if (ref) setActiveWebsite(ref);
+                  loadData();
+                }}
+              />
+            ) : webSidebarTab === "RELATIONS" ? (
+              <StudioRelationsPanel
+                artifact={activeWebsite.artifact}
+                onUpdateArtifact={(updated) => {
+                  const ref = webService.getWebsite(updated.id);
+                  if (ref) setActiveWebsite(ref);
+                  loadData();
+                }}
+              />
             ) : webSidebarTab === "ATHENA" ? (
               <div className="p-4 flex flex-col h-full text-xs text-slate-300">
                 <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30] mb-3">
@@ -2279,7 +2649,7 @@ export default function StudioPage() {
                 )}
               </div>
             ) : (
-              <div className="p-4 text-xs text-slate-500 italic">Nenhum asset ou relação vinculado.</div>
+              <div className="p-4 text-xs text-slate-500 italic">Nenhum painel selecionado.</div>
             )
           }
           mainContent={
@@ -2355,6 +2725,7 @@ export default function StudioPage() {
         onViewModeChange={setImageViewMode}
         activeSidebarTab={imageSidebarTab}
         onSidebarTabChange={setImageSidebarTab}
+        onBackToHub={() => handleBackToHub("IMAGE")}
         onCreateVersion={async () => {
           const label =
             prompt(
@@ -2448,6 +2819,24 @@ export default function StudioPage() {
                 }
               }}
             />
+          ) : imageSidebarTab === "ASSETS" ? (
+            <StudioAssetPanel
+              artifact={activeImage!.artifact}
+              onUpdateArtifact={(updated) => {
+                const ref = imageService.getImage(updated.id);
+                if (ref) setActiveImage(ref);
+                loadData();
+              }}
+            />
+          ) : imageSidebarTab === "RELATIONS" ? (
+            <StudioRelationsPanel
+              artifact={activeImage!.artifact}
+              onUpdateArtifact={(updated) => {
+                const ref = imageService.getImage(updated.id);
+                if (ref) setActiveImage(ref);
+                loadData();
+              }}
+            />
           ) : imageSidebarTab === "ATHENA" ? (
             <div className="p-4 flex flex-col h-full text-xs text-slate-300 space-y-3">
               <div className="flex items-center gap-2 font-semibold text-white pb-2 border-b border-[#1c1d30]">
@@ -2467,7 +2856,7 @@ export default function StudioPage() {
               )}
             </div>
           ) : (
-            <div className="p-4 text-xs text-slate-500 italic">Nenhum asset vinculado no momento.</div>
+            <div className="p-4 text-xs text-slate-500 italic">Nenhum painel selecionado.</div>
           )
         }
         mainContent={

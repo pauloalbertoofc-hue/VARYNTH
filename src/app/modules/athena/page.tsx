@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
@@ -24,8 +24,15 @@ import {
   Layers,
   Cpu,
   RefreshCw,
+  AlertTriangle,
+  ListChecks,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AthenaMessageText } from "@/components/athena/AthenaMessageText";
+import { analyzeAthenaState } from "@/lib/athena/insights/global-intelligence";
+import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
+import { AthenaGovernanceCenter } from "@/components/athena/AthenaGovernanceCenter";
 
 const SCOPES: { id: AthenaScope; label: string; icon: React.ElementType; color: string }[] = [
   { id: "geral", label: "Visão Geral (OS)", icon: Layers, color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
@@ -70,6 +77,7 @@ const INITIAL_MESSAGES: AthenaMessage[] = [
 
 export default function AthenaHubPage() {
   const store = useVarynthStore();
+  const proactive = useMemo(() => analyzeAthenaState(store), [store.projects, store.tasks]);
   const engineStatus = useAthenaEngineStatus();
   const [messages, setMessages] = useState<AthenaMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
@@ -81,7 +89,8 @@ export default function AthenaHubPage() {
     try {
       const saved = localStorage.getItem("varynth_athena_messages");
       if (saved) {
-        setMessages(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setMessages(parsed);
       }
     } catch {
       // ignore
@@ -119,10 +128,19 @@ export default function AthenaHubPage() {
     setIsTyping(true);
 
     try {
-      const response = await processAthenaQueryAsync(raw, scope, store, undefined, "global-athena-session");
+      const sessionId = "global-athena-session";
+      const response = await processAthenaQueryAsync(raw, scope, store, undefined, sessionId);
+      athenaContextualMemory.recordInteraction(raw, response.text, store, sessionId);
       saveMessages([...updated, response]);
     } catch {
-      // fallback
+      const failure: AthenaMessage = {
+        id: "ath-error-" + Date.now(),
+        sender: "athena",
+        text: "Não consegui concluir essa solicitação agora. Nenhuma ação foi aplicada ao VARYNTH. Tente novamente; se o problema continuar, verifique o estado do motor local.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        scope,
+      };
+      saveMessages([...updated, failure]);
     } finally {
       setIsTyping(false);
     }
@@ -134,15 +152,15 @@ export default function AthenaHubPage() {
 
   return (
     <PageLayout title="Athena AI" subtitle="Inteligência artificial transversal e command center">
-      <div className="space-y-6 max-w-5xl mx-auto animate-fade-in">
+      <div className="w-full min-w-0 max-w-5xl mx-auto space-y-6 overflow-x-hidden animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 glow-accent">
                 <Bot size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              <h1 className="min-w-0 text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
                 Athena Command Center
                 <Sparkles size={16} className="text-violet-400" />
               </h1>
@@ -153,10 +171,10 @@ export default function AthenaHubPage() {
           </div>
 
           {/* Engine Status Badge with Auto-detection */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex max-w-full min-w-0 items-center gap-2 flex-wrap">
             <div
               className={cn(
-                "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition-all",
+                "flex max-w-full min-w-0 items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition-all",
                 engineStatus.isLocalNeuralActive
                   ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                   : "bg-slate-800/80 border-slate-700 text-slate-300"
@@ -172,7 +190,7 @@ export default function AthenaHubPage() {
                 )}
               />
               <Cpu size={13} className="opacity-70" />
-              <span>
+              <span className="truncate">
                 {engineStatus.isLocalNeuralActive
                   ? `Local: ${engineStatus.activeModel}`
                   : "Núcleo Determinístico Offline"}
@@ -203,7 +221,7 @@ export default function AthenaHubPage() {
         </div>
 
         {/* Scope Selector */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex w-full min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain pb-1">
           {SCOPES.map((sc) => {
             const Icon = sc.icon;
             const isSelected = scope === sc.id;
@@ -225,8 +243,38 @@ export default function AthenaHubPage() {
           })}
         </div>
 
+        <section className="rounded-2xl border border-[#1e1e30] bg-[#0f0f1a] p-3 sm:p-4" aria-label="Sugestões proativas da Athena">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
+                <Sparkles size={14} className="text-violet-400" /> Percepção proativa
+              </h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">Leitura local dos seus dados, sem alterações automáticas.</p>
+            </div>
+            <button onClick={() => handleSend("Faça um diagnóstico geral do meu sistema")} className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1.5 text-[11px] font-bold text-violet-300 hover:bg-violet-500/20">
+              Ver diagnóstico
+            </button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <button onClick={() => handleSend("Quais tarefas estão atrasadas? Faça um diagnóstico")} className="flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-left hover:bg-rose-500/10">
+              <AlertTriangle size={16} className="text-rose-400" />
+              <span><strong className="block text-sm text-slate-100">{proactive.overdueTasks.length + proactive.overdueProjects.length}</strong><span className="text-[11px] text-slate-400">prazos vencidos</span></span>
+            </button>
+            <button onClick={() => handleSend("O que preciso cuidar hoje?")} className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left hover:bg-amber-500/10">
+              <ListChecks size={16} className="text-amber-400" />
+              <span><strong className="block text-sm text-slate-100">{proactive.dueSoonTasks.length}</strong><span className="text-[11px] text-slate-400">prazos em 7 dias</span></span>
+            </button>
+            <button onClick={() => setInput("Encontre ")} className="flex items-center gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-left hover:bg-cyan-500/10">
+              <Search size={16} className="text-cyan-400" />
+              <span><strong className="block text-sm text-slate-100">Busca global</strong><span className="text-[11px] text-slate-400">projetos, tarefas e notas</span></span>
+            </button>
+          </div>
+        </section>
+
+        <AthenaGovernanceCenter store={store} onPrompt={(prompt) => handleSend(prompt)} />
+
         {/* Main Terminal Window */}
-        <div className="flex flex-col h-[560px] rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner shadow-2xl">
+        <div className="flex w-full min-w-0 flex-col h-[560px] rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner shadow-2xl">
           {/* Terminal Titlebar */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#0a0a0f] border-b border-[#1e1e30] text-xs text-slate-400">
             <div className="flex items-center gap-2">
@@ -235,7 +283,7 @@ export default function AthenaHubPage() {
                 ATHENA CORE v4.0 · MODO: {scope.toUpperCase()}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-slate-500 font-mono">
+            <div className="hidden sm:flex items-center gap-3 text-[10px] text-slate-500 font-mono">
               <span>PROJETOS: {store.projects.length}</span>
               <span>VAULT: {store.vaultItems.length}</span>
               <span>ARENA: {store.theses.length}</span>
@@ -243,7 +291,7 @@ export default function AthenaHubPage() {
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-4">
             {messages.map((msg) => {
               const isAthena = msg.sender === "athena";
 
@@ -251,7 +299,7 @@ export default function AthenaHubPage() {
                 <div
                   key={msg.id}
                   className={cn(
-                    "flex gap-3 max-w-3xl",
+                    "flex w-full min-w-0 gap-2 sm:gap-3",
                     isAthena ? "items-start mr-auto" : "items-start ml-auto flex-row-reverse"
                   )}
                 >
@@ -268,16 +316,16 @@ export default function AthenaHubPage() {
                   </div>
 
                   {/* Bubble */}
-                  <div className="space-y-2 max-w-2xl">
+                  <div className="min-w-0 max-w-[calc(100%-2.5rem)] sm:max-w-2xl space-y-2">
                     <div
                       className={cn(
-                        "p-4 rounded-2xl text-xs leading-relaxed space-y-2",
+                        "max-w-full overflow-hidden p-3 sm:p-4 rounded-2xl text-xs leading-relaxed space-y-2",
                         isAthena
                           ? "bg-[#14141f] border border-[#2d2d4a] text-slate-200"
                           : "bg-violet-600 text-white rounded-tr-sm shadow-md"
                       )}
                     >
-                      <div className="whitespace-pre-wrap font-sans">{msg.text}</div>
+                      <AthenaMessageText text={msg.text} />
 
                       {/* Action Card executed by Athena */}
                       {msg.actionCard && (
@@ -331,7 +379,7 @@ export default function AthenaHubPage() {
           </div>
 
           {/* Quick Prompt Chips */}
-          <div className="px-4 py-2 bg-[#0a0a0f]/60 border-t border-[#1e1e30] flex items-center gap-1.5 overflow-x-auto">
+          <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain border-t border-[#1e1e30] bg-[#0a0a0f]/60 px-3 sm:px-4 py-2">
             {PROMPT_CHIPS[scope].map((chip, idx) => (
               <button
                 key={idx}
@@ -350,9 +398,9 @@ export default function AthenaHubPage() {
                 e.preventDefault();
                 handleSend();
               }}
-              className="flex items-center gap-2"
+              className="flex min-w-0 items-center gap-2"
             >
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <input
                   type="text"
                   placeholder="Pergunte algo ou dê uma ordem (ex: 'Crie uma tarefa para...', 'Quais meus prazos?')..."
@@ -365,6 +413,7 @@ export default function AthenaHubPage() {
               <button
                 type="submit"
                 disabled={!input.trim()}
+                aria-label="Enviar mensagem para a Athena"
                 className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white glow-accent transition-all"
               >
                 <Send size={15} />

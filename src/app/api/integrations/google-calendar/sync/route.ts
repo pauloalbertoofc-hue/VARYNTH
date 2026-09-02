@@ -1,0 +1,4 @@
+import { fetchCalendarEvents, oauthConfig } from "@/lib/athena/integrations/google-calendar-oauth-server";
+export const runtime = "nodejs";
+function sameOrigin(request: Request) { const origin = request.headers.get("origin"); return !origin || origin === new URL(request.url).origin; }
+export async function POST(request: Request) { if (!sameOrigin(request)) return Response.json({ error: "Origem inválida." }, { status: 403 }); if (!oauthConfig().configured) return Response.json({ error: "OAuth não configurado." }, { status: 503 }); try { const body = await request.json().catch(() => ({})) as { windowDays?: number }; const events = await fetchCalendarEvents(body.windowDays); return Response.json({ events, syncedAt: new Date().toISOString() }); } catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Falha na sincronização." }, { status: 502 }); } }

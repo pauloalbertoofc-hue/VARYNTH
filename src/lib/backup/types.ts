@@ -13,6 +13,11 @@ import {
   ForgeFile,
   TrashItem,
   ActivityLog,
+  ProjectFile,
+  ProjectReference,
+  ProjectTimelineEvent,
+  HistoricalMilestone,
+  GraveyardItem,
 } from "../types";
 import { Artifact, AssetFile, AssetUsageRecord } from "../artifacts/types";
 import { DocumentationReviewItem, DocumentationAuditRecord } from "../athena/guardian/types";
@@ -44,6 +49,12 @@ export interface VarynthBackupManifest {
     notifications: number;
     assets?: number;
     assetUsages?: number;
+    // Schema v2 extensions
+    files?: number;
+    references?: number;
+    timelineEvents?: number;
+    historicalMilestones?: number;
+    graveyardItems?: number;
   };
 }
 
@@ -71,6 +82,12 @@ export interface VarynthBackupPayload {
     assets?: AssetFile[];
     assetUsages?: AssetUsageRecord[];
     assetBlobs?: Record<string, { base64Data: string; mimeType: string; checksum?: string }>;
+    // Schema v2 extensions
+    files?: ProjectFile[];
+    references?: ProjectReference[];
+    timelineEvents?: ProjectTimelineEvent[];
+    historicalMilestones?: HistoricalMilestone[];
+    graveyardItems?: GraveyardItem[];
   };
 }
 
@@ -82,4 +99,3 @@ export interface BackupValidationResult {
   warnings: string[];
   manifest?: VarynthBackupManifest;
 }
-

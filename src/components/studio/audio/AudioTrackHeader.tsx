@@ -42,29 +42,29 @@ export function AudioTrackHeader({
       style={{
         borderLeftColor: track.color || "#3b82f6",
       }}
-      className={`w-60 h-24 border-l-4 border-b border-r border-[#1e2038] p-2.5 flex flex-col justify-between select-none cursor-pointer transition ${
+      className={`w-28 sm:w-60 h-24 border-l-4 border-b border-r border-[#1e2038] p-1.5 sm:p-2.5 flex flex-col justify-between select-none cursor-pointer transition ${
         isSelected
           ? "bg-[#141628] border-blue-500/50 shadow-inner"
           : "bg-[#0c0d18] hover:bg-[#101120]"
       }`}
     >
       {/* Top Row: Track Name & Type */}
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 overflow-hidden">
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1 overflow-hidden min-w-0">
           {getTrackIcon()}
-          <span className="font-semibold text-xs text-white truncate max-w-[120px]">
+          <span className="font-semibold text-[11px] sm:text-xs text-white truncate max-w-[50px] sm:max-w-[120px]">
             {track.name}
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {/* Mute Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggleMute();
             }}
-            className={`w-5 h-5 rounded text-[10px] font-bold transition flex items-center justify-center ${
+            className={`w-5 h-5 rounded text-[10px] font-bold transition flex items-center justify-center touch-manipulation ${
               track.muted
                 ? "bg-red-500 text-white shadow-sm"
                 : "bg-[#1a1c30] text-slate-400 hover:text-white"
@@ -80,7 +80,7 @@ export function AudioTrackHeader({
               e.stopPropagation();
               onToggleSolo();
             }}
-            className={`w-5 h-5 rounded text-[10px] font-bold transition flex items-center justify-center ${
+            className={`w-5 h-5 rounded text-[10px] font-bold transition flex items-center justify-center touch-manipulation ${
               track.solo
                 ? "bg-amber-500 text-black shadow-sm font-extrabold"
                 : "bg-[#1a1c30] text-slate-400 hover:text-white"
@@ -92,10 +92,10 @@ export function AudioTrackHeader({
         </div>
       </div>
 
-      {/* Sliders Row: Volume & Pan */}
-      <div className="space-y-1.5 text-[10px] text-slate-400">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1 text-[9px] w-8">
+      {/* Sliders Row: Volume & Pan (compact on mobile) */}
+      <div className="space-y-1 text-[10px] text-slate-400">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="hidden sm:flex items-center gap-1 text-[9px] w-8">
             <Volume2 size={10} /> Vol
           </span>
           <input
@@ -107,7 +107,7 @@ export function AudioTrackHeader({
             onClick={(e) => e.stopPropagation()}
             className="w-full accent-blue-500 h-1 bg-[#1a1c32] rounded cursor-pointer"
           />
-          <span className="font-mono text-[9px] text-slate-300 w-7 text-right">
+          <span className="font-mono text-[9px] text-slate-300 w-6 sm:w-7 text-right">
             {Math.round((track.volume ?? 1.0) * 100)}%
           </span>
         </div>

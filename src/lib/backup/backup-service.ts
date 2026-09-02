@@ -12,15 +12,21 @@ import { reviewStore } from "../athena/guardian/review-store";
 import { notificationStore } from "../notifications/notification-store";
 import { athenaEventBus } from "../athena/events/event-bus";
 import { notificationService } from "../notifications/notification-service";
+import { DURABLE_STORE_REGISTRY } from "./durable-store-registry";
 
 const STORAGE_KEYS = {
   PROJECTS: "varynth_os_projects",
   TASKS: "varynth_os_tasks",
   NOTES: "varynth_os_notes",
+  FILES: "varynth_os_files",
+  REFERENCES: "varynth_os_references",
+  TIMELINE: "varynth_os_timeline",
   VAULT: "varynth_os_vault",
   CHRONOS: "varynth_os_chronos",
+  HISTORICAL: "varynth_os_historical",
   PEOPLE: "varynth_os_people",
   LABS: "varynth_os_labs",
+  GRAVEYARD: "varynth_os_graveyard",
   THESES: "varynth_os_theses",
   RESEARCHES: "varynth_os_researches",
   EVIDENCES: "varynth_os_evidences",
@@ -51,10 +57,15 @@ export class BackupService {
     const projects = getLocal(STORAGE_KEYS.PROJECTS, []);
     const tasks = getLocal(STORAGE_KEYS.TASKS, []);
     const notes = getLocal(STORAGE_KEYS.NOTES, []);
+    const files = getLocal(STORAGE_KEYS.FILES, []);
+    const references = getLocal(STORAGE_KEYS.REFERENCES, []);
+    const timelineEvents = getLocal(STORAGE_KEYS.TIMELINE, []);
     const vault = getLocal(STORAGE_KEYS.VAULT, []);
     const chronos = getLocal(STORAGE_KEYS.CHRONOS, []);
+    const historicalMilestones = getLocal(STORAGE_KEYS.HISTORICAL, []);
     const people = getLocal(STORAGE_KEYS.PEOPLE, []);
     const labs = getLocal(STORAGE_KEYS.LABS, []);
+    const graveyardItems = getLocal(STORAGE_KEYS.GRAVEYARD, []);
     const theses = getLocal(STORAGE_KEYS.THESES, []);
     const researches = getLocal(STORAGE_KEYS.RESEARCHES, []);
     const evidences = getLocal(STORAGE_KEYS.EVIDENCES, []);
@@ -71,7 +82,7 @@ export class BackupService {
 
     const manifest: VarynthBackupManifest = {
       varynthVersion: "4.0.0",
-      schemaVersion: 1,
+      schemaVersion: 2, // Schema v2 covering 100% durable stores
       exportedAt: new Date().toISOString(),
       exportSource,
       entitiesCount: {
@@ -95,6 +106,12 @@ export class BackupService {
         notifications: notifications.length,
         assets: assets.length,
         assetUsages: assetUsages.length,
+        // Schema v2 additions
+        files: files.length,
+        references: references.length,
+        timelineEvents: timelineEvents.length,
+        historicalMilestones: historicalMilestones.length,
+        graveyardItems: graveyardItems.length,
       },
     };
 
@@ -105,10 +122,15 @@ export class BackupService {
         artifacts,
         tasks,
         notes,
+        files,
+        references,
+        timelineEvents,
         vault,
         chronos,
+        historicalMilestones,
         people,
         labs,
+        graveyardItems,
         theses,
         researches,
         evidences,
@@ -148,6 +170,9 @@ export class BackupService {
       }
       if (!payload.manifest.exportedAt) {
         warnings.push("Data de exportação ausente no manifesto.");
+      }
+      if (payload.manifest.schemaVersion === 1) {
+        warnings.push("Backup em formato Schema v1 detectado. Migração transparente para v2 será aplicada.");
       }
     }
 
@@ -209,10 +234,15 @@ export class BackupService {
       counts.projects = mergeCollection(STORAGE_KEYS.PROJECTS, payload.data.projects);
       counts.tasks = mergeCollection(STORAGE_KEYS.TASKS, payload.data.tasks);
       counts.notes = mergeCollection(STORAGE_KEYS.NOTES, payload.data.notes);
+      counts.files = mergeCollection(STORAGE_KEYS.FILES, payload.data.files || []);
+      counts.references = mergeCollection(STORAGE_KEYS.REFERENCES, payload.data.references || []);
+      counts.timelineEvents = mergeCollection(STORAGE_KEYS.TIMELINE, payload.data.timelineEvents || []);
       counts.vault = mergeCollection(STORAGE_KEYS.VAULT, payload.data.vault);
       counts.chronos = mergeCollection(STORAGE_KEYS.CHRONOS, payload.data.chronos);
+      counts.historicalMilestones = mergeCollection(STORAGE_KEYS.HISTORICAL, payload.data.historicalMilestones || []);
       counts.people = mergeCollection(STORAGE_KEYS.PEOPLE, payload.data.people);
       counts.labs = mergeCollection(STORAGE_KEYS.LABS, payload.data.labs);
+      counts.graveyardItems = mergeCollection(STORAGE_KEYS.GRAVEYARD, payload.data.graveyardItems || []);
       counts.theses = mergeCollection(STORAGE_KEYS.THESES, payload.data.theses);
       counts.researches = mergeCollection(STORAGE_KEYS.RESEARCHES, payload.data.researches);
       counts.evidences = mergeCollection(STORAGE_KEYS.EVIDENCES, payload.data.evidences);
@@ -270,7 +300,7 @@ export class BackupService {
       notificationService.create({
         type: "BACKUP_RESTORED",
         title: "Backup Restaurado com Sucesso",
-        message: `Restauração concluída no modo ${mode}. Grafo criativo e assets sincronizados.`,
+        message: `Restauração concluída no modo ${mode}. 100% dos stores duráveis foram sincronizados.`,
         severity: "SUCCESS",
         source: "SYSTEM",
       });
@@ -283,4 +313,3 @@ export class BackupService {
 }
 
 export const backupService = new BackupService();
-

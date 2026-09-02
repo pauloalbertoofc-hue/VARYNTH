@@ -2,6 +2,8 @@
 
 > Seu OS pessoal na web. Uma plataforma hub estilo gaming onde você acessa, gerencia e usa todos os seus projetos e ferramentas.
 
+**Plataforma publicada:** [https://varynth-ynqv-plum.vercel.app/dashboard](https://varynth-ynqv-plum.vercel.app/dashboard)
+
 ## Stack
 
 - **Next.js 15** + TypeScript
@@ -67,4 +69,3 @@ Edite [`src/lib/modules.ts`](src/lib/modules.ts) e adicione um novo objeto ao ar
 | LigaHub | ✅ Ativo | Sistema de gestão da Liga Acadêmica |
 | Athena | 🚧 WIP | IA pessoal integrada |
 | Studio | 📌 Em breve | Editor de código embutido |
-

@@ -70,9 +70,9 @@ export default function DashboardPage() {
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
                 Central de controle ativa. Você tem{" "}
-                <span className="text-violet-300 font-semibold">{pendingTasks.length} tarefas pendentes</span>{" "}
-                ({urgentTasks.length} prioritárias) distribuídas em{" "}
-                <span className="text-cyan-300 font-semibold">{activeProjects.length} projetos ativos</span>.
+                <span className="text-violet-300 font-semibold">{pendingTasks.length} {pendingTasks.length === 1 ? "tarefa pendente" : "tarefas pendentes"}</span>{" "}
+                ({urgentTasks.length} {urgentTasks.length === 1 ? "prioritária" : "prioritárias"}) distribuídas em{" "}
+                <span className="text-cyan-300 font-semibold">{activeProjects.length} {activeProjects.length === 1 ? "projeto ativo" : "projetos ativos"}</span>.
               </p>
             </div>
 
@@ -304,7 +304,7 @@ export default function DashboardPage() {
                           <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 font-semibold uppercase">
                             {proj.category}
                           </span>
-                          <span className="text-[10px] text-slate-500">{projTasks.length} tarefas</span>
+                          <span className="text-[10px] text-slate-500">{projTasks.length} {projTasks.length === 1 ? "tarefa" : "tarefas"}</span>
                         </div>
                         <h4 className="text-xs font-bold text-slate-100 group-hover:text-violet-300 transition-colors truncate">
                           {proj.title}

@@ -1,0 +1,3 @@
+import { createOAuthRequest, oauthConfig } from "@/lib/athena/integrations/google-calendar-oauth-server";
+export const runtime = "nodejs";
+export async function GET(request: Request) { const config = oauthConfig(); if (!config.configured) return Response.json({ error: "OAuth não configurado.", missing: config.missing }, { status: 503 }); const origin = new URL(request.url).origin; const auth = createOAuthRequest(origin); return new Response(null, { status: 302, headers: { location: auth.url, "set-cookie": `varynth_gcal_oauth=${auth.cookie}; HttpOnly; SameSite=Lax; Path=/api/integrations/google-calendar; Max-Age=600${origin.startsWith("https://") ? "; Secure" : ""}` } }); }

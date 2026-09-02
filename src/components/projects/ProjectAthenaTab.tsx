@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Project } from "@/lib/types";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { Bot, Send, Sparkles, CheckCircle2, AlertCircle, ArrowRight, User } from "lucide-react";
@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 
 import { processAthenaQueryAsync } from "@/lib/athena";
 import { useAthenaEngineStatus } from "@/lib/athena/hooks/useAthenaEngineStatus";
+import { AthenaMessageText } from "@/components/athena/AthenaMessageText";
+import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 
 interface ProjectAthenaTabProps {
   project: Project;
@@ -23,7 +25,7 @@ interface Message {
 export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
   const store = useVarynthStore();
   const engineStatus = useAthenaEngineStatus();
-  const { tasks, notes, references } = store;
+  const { tasks, notes, isLoaded } = store;
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const projectNotes = notes.filter((n) => n.projectId === project.id);
 
@@ -37,6 +39,22 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     },
   ]);
   const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const pendingCount = projectTasks.filter((task) => task.status !== "concluida").length;
+    const taskLabel = projectTasks.length === 1 ? "tarefa" : "tarefas";
+    const pendingLabel = pendingCount === 1 ? "pendente" : "pendentes";
+    const noteLabel = projectNotes.length === 1 ? "nota vinculada" : "notas vinculadas";
+    const welcomeText = `Olá, Paulo! Estou conectada à workspace do projeto **${project.title}**. Identifiquei ${projectTasks.length} ${taskLabel} (${pendingCount} ${pendingLabel}) e ${projectNotes.length} ${noteLabel}. Como posso te auxiliar neste projeto hoje?`;
+
+    setMessages((current) =>
+      current.length === 1 && current[0]?.id === "msg-1"
+        ? [{ ...current[0], text: welcomeText }]
+        : current
+    );
+  }, [isLoaded, project.title, projectTasks.length, projectNotes.length, tasks]);
 
   const promptChips = [
     "Resumir pendências e prazos",
@@ -61,13 +79,15 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     setIsTyping(true);
 
     try {
+      const sessionId = `project-${project.id}-session`;
       const response = await processAthenaQueryAsync(
         query,
         "geral",
         store,
         project.id,
-        `project-${project.id}-session`
+        sessionId
       );
+      athenaContextualMemory.recordInteraction(query, response.text, store, sessionId, project.id);
 
       setMessages((prev) => [
         ...prev,
@@ -79,7 +99,15 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
         },
       ]);
     } catch {
-      // fallback
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "ath-error-" + Date.now(),
+          sender: "athena",
+          text: "Não consegui concluir essa solicitação agora. Nenhuma ação foi aplicada ao projeto. Tente novamente; se o problema continuar, verifique o estado do motor local.",
+          timestamp: "Agora",
+        },
+      ]);
     } finally {
       setIsTyping(false);
     }
@@ -149,7 +177,7 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
                     : "bg-violet-600 text-white"
                 )}
               >
-                <div className="whitespace-pre-wrap">{m.text}</div>
+                  <AthenaMessageText text={m.text} />
                 <div
                   className={cn(
                     "text-[10px] mt-1 text-right",
@@ -202,6 +230,7 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
         <button
           type="submit"
           disabled={!input.trim()}
+          aria-label="Enviar mensagem para a Athena do projeto"
           className="p-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:hover:bg-violet-600 text-white transition-colors flex-shrink-0"
         >
           <Send size={14} />
@@ -210,4 +239,3 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
     </div>
   );
 }
-

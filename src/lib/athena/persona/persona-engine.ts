@@ -195,6 +195,27 @@ export class AthenaPersonaEngine {
     activeProjectTitle?: string,
     ctx?: AthenaEngineContext
   ): { text: string; recommendations: string[] } {
+    const clean = normalizeText(prompt);
+    const asksForImage = clean.includes("imagem") || clean.includes("foto") || clean.includes("capa") || clean.includes("banner");
+
+    if (asksForImage) {
+      const ideas = [
+        "Uma figura solitária diante de uma interface holográfica violeta, cercada por fragmentos de dados como constelações",
+        "Um labirinto tecnológico visto de cima, com um único caminho luminoso formando o símbolo do VARYNTH",
+        "Um retrato futurista dividido entre matéria orgânica e circuitos, com luz ciano e violeta sobre fundo escuro",
+      ];
+
+      return {
+        text:
+          `Consigo — aqui vão **3 ideias visuais concretas**:\n\n` +
+          `1. **Consciência digital:** ${ideas[0]}.\n` +
+          `2. **Ordem no caos:** ${ideas[1]}.\n` +
+          `3. **Humano + sistema:** ${ideas[2]}.\n\n` +
+          `Eu começaria pela **segunda**, porque ela comunica direção, complexidade e identidade de sistema sem depender de texto. Se você me disser onde a imagem será usada, eu transformo a ideia escolhida em um prompt visual completo.`,
+        recommendations: ideas,
+      };
+    }
+
     const p1 = "Observatório de Regulação de IA & Responsabilidade Civil (Direito & Inovação)";
     const p2 = "Framework de Pesquisa Empírica & Síntese Bibliográfica (Pesquisa & Ciência)";
     const p3 = "Laboratório de Automação & Ferramentas Cognitivas (Labs & Forge)";
@@ -336,6 +357,23 @@ export class AthenaPersonaEngine {
 
     // 2. Factual Query Answers via Structured keyFacts (Princípio Answer First, Detail Second)
     if (intent && intent.keyFacts.length > 0) {
+      const targetProjectTitle = intent.keyFacts.find((f) => f.key === "targetProjectTitle")?.value;
+      if (typeof targetProjectTitle === "string") {
+        const status = intent.keyFacts.find((f) => f.key === "targetProjectStatus")?.value;
+        const deadline = intent.keyFacts.find((f) => f.key === "targetProjectDeadline")?.value;
+        const pendingTitles = intent.keyFacts.find((f) => f.key === "targetProjectPendingTaskTitles")?.value;
+        const pending = typeof pendingTitles === "string" && pendingTitles
+          ? pendingTitles.split(" | ").filter(Boolean)
+          : [];
+        const pendingText = pending.length
+          ? pending.map((title, index) => `${index + 1}. ${title}`).join("\n")
+          : "Nenhuma tarefa pendente.";
+
+        return {
+          text: `O projeto **${targetProjectTitle}** está em **${String(status).replaceAll("_", " ")}** e tem prazo em **${deadline}**.\n\n**Pendências (${pending.length}):**\n${pendingText}`,
+        };
+      }
+
       const projProgressFact = intent.keyFacts.find((f) => f.key === "projectProgress");
       if (projProgressFact && typeof projProgressFact.value === "number") {
         const pct = projProgressFact.value;
@@ -404,14 +442,19 @@ export class AthenaPersonaEngine {
         };
       }
 
+      // Requests for news must be answered honestly instead of replaying a greeting.
+      if (clean.includes("novidade") || clean.includes("o que me conta")) {
+        return {
+          text: `Por enquanto, não tenho uma novidade específica registrada desde a nossa última conversa — e prefiro não inventar uma. Posso verificar agora o que mudou nos seus projetos, tarefas e prazos, ou podemos começar algo novo.`,
+        };
+      }
+
       // Social Check-in
       if (
         clean.includes("como voce esta") ||
         clean.includes("tudo bem com voce") ||
         clean.includes("como anda voce") ||
-        clean.includes("sentiu minha falta") ||
-        clean.includes("que novidade voce tem") ||
-        clean.includes("o que me conta") || clean.includes("o que me diz")
+        clean.includes("sentiu minha falta") || clean.includes("o que me diz")
       ) {
         if (activeProjectTitle) {
           return {

@@ -3,6 +3,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { QuickCreateModal } from "@/components/ui/QuickCreateModal";
 import { AthenaSidecar } from "@/components/athena/AthenaSidecar";
+import { AthenaProactiveMonitor } from "@/components/athena/AthenaProactiveMonitor";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ export function PageLayout({ children, title, subtitle, className }: PageLayoutP
       <CommandPalette />
       <QuickCreateModal />
       <AthenaSidecar />
+      <AthenaProactiveMonitor />
       <UndoToast />
     </div>
   );

@@ -145,14 +145,15 @@ async function runArtifactRegressionTests() {
   const orphans = assetManager.detectOrphanAssets(artifactService.listAll());
   assert(orphans.some((o) => o.id === unlinkedAsset.id), "ART-REG-018: Asset órfão detectado pelo AssetManager");
 
-  // ART-REG-021: Capability unavailable does not fake Artifact completion
-  const gameCreation = await creationEngineRegistry.executeCreation({
-    artifactType: "GAME",
-    name: "RPG Epistêmico",
+  // ART-REG-021: Unsupported artifact types do not fake completion.
+  // GAME is intentionally supported by the local declarative game engine.
+  const datasetCreation = await creationEngineRegistry.executeCreation({
+    artifactType: "DATASET",
+    name: "Base Epistêmica",
     actor: "ATHENA",
   });
-  assert(gameCreation.success === false, "ART-REG-021: Geração de jogo sem engine local não finge sucesso");
-  assert(gameCreation.capabilityStatus === "CAPABILITY_UNAVAILABLE", "ART-REG-021: Retorna explicitamente CAPABILITY_UNAVAILABLE");
+  assert(datasetCreation.success === false, "ART-REG-021: Tipo sem engine local não finge sucesso");
+  assert(datasetCreation.capabilityStatus === "CAPABILITY_UNAVAILABLE", "ART-REG-021: Retorna explicitamente CAPABILITY_UNAVAILABLE");
 
   // ART-REG-022: Hard delete remains denied to Athena
   const athenaHardDelete = permissionPolicyEngine.evaluate({

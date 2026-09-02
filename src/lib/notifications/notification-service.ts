@@ -57,6 +57,10 @@ export class NotificationService {
     entityId?: string;
     entityType?: string;
     targetPath?: string;
+    reason?: string;
+    evidence?: string[];
+    fingerprint?: string;
+    actions?: VarynthNotification["actions"];
   }): VarynthNotification {
     return notificationStore.add(params);
   }

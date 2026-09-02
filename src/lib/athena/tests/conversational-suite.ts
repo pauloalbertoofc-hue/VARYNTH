@@ -11,6 +11,7 @@ const mockProjects: Project[] = [
     status: "ativo",
     priority: "alta",
     description: "Sistema operacional cognitivo",
+    deadline: "2026-09-30",
     tags: ["core", "os"],
     createdAt: "2026-08-01",
     updatedAt: "2026-08-01",
@@ -149,6 +150,15 @@ export function runConversationalTestSuite(): TestResult[] {
   assert("TEST 10 — Casual Humor: Fast path sem banco", t10Parsed.interactionType === "CONVERSATION", "Não direcionou humor para CONVERSATION");
   assert("TEST 10 — Casual Humor: Resposta natural", t10Resp.text.includes("Kkkk"), "Resposta não tratou humor");
 
+  const noveltySession = "test-novelty-" + Date.now();
+  processAthenaQuery("Olá Athena", "geral", mockContext, undefined, noveltySession);
+  const noveltyResponse = processAthenaQuery("O que você me conta de novidade?", "geral", mockContext, undefined, noveltySession);
+  assert(
+    "REGRESSION — Pedido de novidade recebe resposta direta sem saudação repetida",
+    noveltyResponse.text.includes("novidade específica") && !noveltyResponse.text.includes("Por aqui tudo"),
+    "Athena repetiu a saudação em vez de responder sobre novidades"
+  );
+
   // PARAPHRASED TESTS
   const paraphrases = [
     "me dê umas ideias",
@@ -161,6 +171,38 @@ export function runConversationalTestSuite(): TestResult[] {
     const pParsed = athenaConversationManager.processMessage("para-sess-" + Math.random(), para, mockProjects);
     assert(`PARAPHRASE — "${para}"`, pParsed.intents.includes("BRAINSTORM") || pParsed.intents.includes("RECOMMEND") || pParsed.interactionType === "COGNITIVE_REQUEST", `Paráfrase "${para}" não identificou intenção cognitiva`);
   }
+
+  // Historical mobile failure: capability-shaped ideation must answer the request,
+  // never fall through to the generic operational capabilities response.
+  const imageIdeaSession = "image-idea-" + Date.now();
+  const imageIdeaPrompt = "Athenas consegue me dar ideia de uma imagem?";
+  const imageIdeaParsed = athenaConversationManager.processMessage(imageIdeaSession, imageIdeaPrompt, mockProjects);
+  const imageIdeaResponse = processAthenaQuery(imageIdeaPrompt, "geral", mockContext, undefined, imageIdeaSession);
+  assert(
+    "REGRESSION — Image ideation routes to cognitive brainstorm",
+    imageIdeaParsed.interactionType === "COGNITIVE_REQUEST" && imageIdeaParsed.intents.includes("BRAINSTORM"),
+    "Pedido de ideia visual não foi encaminhado ao brainstorming cognitivo"
+  );
+  assert(
+    "REGRESSION — Image ideation gives concrete visual concepts",
+    imageIdeaResponse.text.includes("ideias visuais concretas") && !imageIdeaResponse.text.includes("Como seu copilot digital, posso"),
+    "Pedido de ideia visual caiu no fallback genérico de capacidades"
+  );
+
+  const projectSummaryResponse = processAthenaQuery(
+    "Resuma as pendências e o prazo deste projeto.",
+    "geral",
+    mockContext,
+    "proj-1",
+    "project-summary-" + Date.now()
+  );
+  assert(
+    "REGRESSION — Resumo no workspace prioriza o projeto em contexto",
+    projectSummaryResponse.text.includes("Atualizar notas do projeto") &&
+      projectSummaryResponse.text.includes("2026-09-30") &&
+      !projectSummaryResponse.text.startsWith("Você tem **2 projetos ativos"),
+    "Athena ignorou tarefas e prazo do projeto em contexto"
+  );
 
   // ADVERSARIAL TESTS
   const adv1 = athenaConversationManager.processMessage("adv-1", "Como você está?", mockProjects);

@@ -167,6 +167,72 @@ export class AthenaResponseStrategyEngine {
 
     // 5. Fact Grounding & Status Reports (Tasks, Projects, Deadlines, Health, Jobs)
     const keyFacts: StructuredFact[] = [];
+    const isResourceStatusIntent =
+      semantic.intent === "TASK_QUERY" ||
+      semantic.intent === "PROJECT_QUERY" ||
+      semantic.intent === "ECOSYSTEM_STATUS" ||
+      semantic.intent === "ECOSYSTEM_BRIEFING";
+
+    // A workspace-scoped question must describe that project before global totals.
+    if (
+      ctx &&
+      targetProjectId &&
+      isResourceStatusIntent &&
+      (clean.includes("projeto") || clean.includes("pendent") || clean.includes("prazo") || clean.includes("resum"))
+    ) {
+      const targetProject = ctx.projects.find((project: Project) => project.id === targetProjectId);
+      if (targetProject) {
+        const pendingProjectTasks = ctx.tasks.filter(
+          (task: Task) => task.projectId === targetProjectId && task.status !== "concluida"
+        );
+        keyFacts.push(
+          {
+            key: "targetProjectTitle",
+            value: targetProject.title,
+            label: `Projeto em contexto: ${targetProject.title}`,
+            supportedBy: {
+              sourceType: "PROJECT_REPOSITORY",
+              sourceId: targetProject.id,
+              revision: targetProject.updatedAt,
+              evaluatedAt,
+            },
+          },
+          {
+            key: "targetProjectStatus",
+            value: targetProject.status,
+            label: `Status do projeto: ${targetProject.status}`,
+            supportedBy: {
+              sourceType: "PROJECT_REPOSITORY",
+              sourceId: targetProject.id,
+              revision: targetProject.updatedAt,
+              evaluatedAt,
+            },
+          },
+          {
+            key: "targetProjectDeadline",
+            value: targetProject.deadline || "sem prazo definido",
+            label: `Prazo do projeto: ${targetProject.deadline || "sem prazo definido"}`,
+            supportedBy: {
+              sourceType: "PROJECT_REPOSITORY",
+              sourceId: targetProject.id,
+              revision: targetProject.updatedAt,
+              evaluatedAt,
+            },
+          },
+          {
+            key: "targetProjectPendingTaskTitles",
+            value: pendingProjectTasks.map((task: Task) => task.title).join(" | "),
+            label: `${pendingProjectTasks.length} pendências no projeto`,
+            supportedBy: {
+              sourceType: "TASK_REPOSITORY",
+              sourceId: targetProject.id,
+              queryRef: `projectId=${targetProject.id}&status!=concluida`,
+              evaluatedAt,
+            },
+          }
+        );
+      }
+    }
 
     // Check specific project progress (e.g. ATHINT-067: "O relatório CNJ já está 100% pronto para publicação?")
     if (
@@ -209,7 +275,7 @@ export class AthenaResponseStrategyEngine {
     }
 
     // Ground general task statistics
-    if (ctx && (semantic.intent === "TASK_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("tarefa") || clean.includes("pendent") || clean.includes("fila") || clean.includes("devendo"))) {
+    if (ctx && isResourceStatusIntent && (semantic.intent === "TASK_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("tarefa") || clean.includes("pendent") || clean.includes("fila") || clean.includes("devendo"))) {
       const allTasks = targetProjectId ? ctx.tasks.filter((t: Task) => t.projectId === targetProjectId) : ctx.tasks;
       const pending = allTasks.filter((t: Task) => t.status !== "concluida");
       const urgent = pending.filter((t: Task) => t.priority === "urgente" || t.priority === "alta");
@@ -256,7 +322,7 @@ export class AthenaResponseStrategyEngine {
     }
 
     // Ground project statistics
-    if (ctx && (semantic.intent === "PROJECT_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("projeto") || clean.includes("workspace") || clean.includes("sistema"))) {
+    if (ctx && isResourceStatusIntent && (semantic.intent === "PROJECT_QUERY" || semantic.intent === "ECOSYSTEM_STATUS" || clean.includes("projeto") || clean.includes("workspace") || clean.includes("sistema"))) {
       const activeProjects = ctx.projects.filter((p: Project) => p.status === "ativo");
       keyFacts.push({
         key: "activeProjectsCount",

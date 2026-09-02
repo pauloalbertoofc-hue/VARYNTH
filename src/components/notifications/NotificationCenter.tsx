@@ -30,15 +30,17 @@ import {
   NotificationSeverity,
 } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
+import { useVarynthStore } from "@/lib/store/useVarynthStore";
+import { athenaProactiveMonitor } from "@/lib/athena/insights/proactive-monitor";
+import type { NotificationAction } from "@/lib/notifications/types";
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationFilter>("ALL");
-  const [notifications, setNotifications] = useState<VarynthNotification[]>(() =>
-    notificationStore.getAll()
-  );
+  const [notifications, setNotifications] = useState<VarynthNotification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const varynthStore = useVarynthStore();
 
   const syncNotifications = () => {
     notificationStore.reloadFromStorage();
@@ -111,6 +113,21 @@ export function NotificationCenter() {
     if (notification.targetPath) {
       router.push(notification.targetPath);
     }
+  };
+
+  const handleAction = (notification: VarynthNotification, action: NotificationAction, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (action.type === "COMPLETE_TASK" && action.payload?.taskId) {
+      varynthStore.updateTask(action.payload.taskId, { status: "concluida", completedAt: new Date().toISOString() }, "athena");
+    } else if (action.type === "CREATE_TASK" && action.payload?.title) {
+      const duplicate = varynthStore.tasks.some((task) => task.projectId === action.payload?.projectId && task.title === action.payload?.title && task.status !== "concluida");
+      if (!duplicate) varynthStore.addTask({ title: action.payload.title, projectId: action.payload.projectId, priority: notification.severity === "CRITICAL" ? "urgente" : "alta", status: "a_fazer", tags: ["athena", "notificacao"] }, "athena");
+    } else if (action.type === "SNOOZE" && action.payload?.fingerprint) {
+      athenaProactiveMonitor.snooze(action.payload.fingerprint, new Date(Date.now() + 86_400_000));
+    }
+    notificationService.markAsRead(notification.id);
+    if (action.type === "SNOOZE") notificationService.remove(notification.id);
+    syncNotifications();
   };
 
   const getSourceIcon = (source: NotificationSource) => {
@@ -322,6 +339,20 @@ export function NotificationCenter() {
                     </p>
                   </div>
 
+                  {notif.reason && (
+                    <details onClick={(event) => event.stopPropagation()} className="rounded-lg border border-[#27273b] bg-black/10 px-2.5 py-1.5 text-[10px] text-slate-400">
+                      <summary className="cursor-pointer font-semibold text-slate-300">Por que recebi isto?</summary>
+                      <p className="mt-1 leading-relaxed">{notif.reason}</p>
+                      {notif.evidence?.length ? <ul className="mt-1 list-disc pl-4 text-slate-500">{notif.evidence.map((item) => <li key={item}>{item}</li>)}</ul> : null}
+                    </details>
+                  )}
+
+                  {notif.actions?.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {notif.actions.map((action) => <button key={action.id} onClick={(event) => handleAction(notif, action, event)} className="rounded-md border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-[9px] font-bold text-violet-300 hover:bg-violet-500/20">{action.label}</button>)}
+                    </div>
+                  ) : null}
+
                   {/* ACTION FOOTER */}
                   <div className="pt-1.5 flex items-center justify-between text-[10px]">
                     {notif.targetPath ? (
@@ -333,7 +364,7 @@ export function NotificationCenter() {
                       <span className="text-slate-500">Notificação informativa</span>
                     )}
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       {!notif.read && (
                         <button
                           onClick={(e) => handleMarkAsRead(notif.id, e)}
@@ -375,4 +406,3 @@ export function NotificationCenter() {
     </div>
   );
 }
-

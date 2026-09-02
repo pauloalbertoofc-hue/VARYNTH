@@ -41,6 +41,7 @@ export * from "./tools/tool-manager";
 export * from "./tools/registry";
 
 export * from "./memory/memory-manager";
+export * from "./memory/contextual-memory";
 export * from "./memory/context-builder";
 export * from "./memory/memory-gate";
 export * from "./memory/local-rag";

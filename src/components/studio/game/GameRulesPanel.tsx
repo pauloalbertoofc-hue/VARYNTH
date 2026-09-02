@@ -2,11 +2,15 @@
 
 import React, { useState } from "react";
 import { GameRule, GameVariable } from "@/lib/studio/game/types";
-import { Cpu, Plus, Trash2, ToggleLeft, ToggleRight, Variable, Play, Sparkles } from "lucide-react";
+import { Cpu, Plus, Trash2, ToggleLeft, ToggleRight, Variable, Play, Sparkles, Undo2, Redo2 } from "lucide-react";
 
 interface GameRulesPanelProps {
   rules: GameRule[];
   variables: GameVariable[];
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onAddRule: () => void;
   onToggleRule: (ruleId: string) => void;
   onDeleteRule: (ruleId: string) => void;
@@ -18,6 +22,10 @@ interface GameRulesPanelProps {
 export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
   rules,
   variables,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onAddRule,
   onToggleRule,
   onDeleteRule,
@@ -34,10 +42,39 @@ export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
     <div className="h-full flex flex-col bg-[#0b0c16] text-slate-300 text-xs select-none">
       {/* Header & Tabs */}
       <div className="p-3 bg-[#0e0f1c] border-b border-[#1c1d30] flex items-center justify-between">
-        <div className="flex items-center gap-2 font-bold text-white uppercase text-[11px] tracking-wider">
-          <Cpu size={14} className="text-emerald-400" />
-          Lógica Declarativa & Estado
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 font-bold text-white uppercase text-[11px] tracking-wider">
+            <Cpu size={14} className="text-emerald-400" />
+            Lógica Declarativa & Estado
+          </div>
+
+          {/* Undo / Redo Buttons */}
+          {(onUndo || onRedo) && (
+            <div className="flex items-center bg-[#151628] p-0.5 rounded-lg border border-white/5">
+              {onUndo && (
+                <button
+                  onClick={onUndo}
+                  disabled={canUndo === false}
+                  className="p-1 text-slate-400 hover:text-white disabled:opacity-40 rounded transition"
+                  title="Desfazer (Ctrl+Z)"
+                >
+                  <Undo2 size={12} />
+                </button>
+              )}
+              {onRedo && (
+                <button
+                  onClick={onRedo}
+                  disabled={canRedo === false}
+                  className="p-1 text-slate-400 hover:text-white disabled:opacity-40 rounded transition"
+                  title="Refazer (Ctrl+Y)"
+                >
+                  <Redo2 size={12} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
+
         <div className="flex items-center bg-[#151628] p-0.5 rounded-lg border border-white/5 text-[11px]">
           <button
             onClick={() => setActiveTab("RULES")}

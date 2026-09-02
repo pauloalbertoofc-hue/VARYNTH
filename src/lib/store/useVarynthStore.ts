@@ -445,15 +445,18 @@ export function useVarynthStore() {
     (id: string, actorType: ActorType = "user") => {
       const current: Project[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]");
       const target = current.find((p) => p.id === id);
+      let trashItem: TrashItem | undefined;
       if (target) {
-        moveToTrash("projeto", target.id, target.title, target, {
+        trashItem = moveToTrash("projeto", target.id, target.title, target, {
           deletedByType: actorType,
+          source: actorType === "athena" ? "athena" : "manual",
           originalPath: `/projects/${target.id}`,
         });
       }
       const updated = current.filter((p) => p.id !== id);
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(updated));
       triggerStoreUpdate();
+      return trashItem;
     },
     [moveToTrash]
   );

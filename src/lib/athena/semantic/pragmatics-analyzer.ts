@@ -19,7 +19,10 @@ export interface PragmaticAnalysisResult {
 
 export class PragmaticsAnalyzer {
   static analyze(cleanText: string, hasPendingConfirmation = false): PragmaticAnalysisResult {
-    const text = cleanText.toLowerCase();
+    const text = cleanText
+      .toLowerCase()
+      .replace(/^(athena|athenas)[,.:;!?\s-]+/, "")
+      .trim();
 
     // 1. Sarcasm / Irony with positive prefix but negative intent
     // e.g. "perfeito era exatamente isso que eu nao queria", "maravilha quebrou tudo", "genial apagou o errado"
@@ -89,6 +92,7 @@ export class PragmaticsAnalyzer {
     // e.g. "voce consegue apagar isso?", "seria possivel criar um video?", "voce pode gerar um pdf?"
     const hasCapabilityInquiry =
       text.startsWith("voce consegue") ||
+      text.startsWith("consegue") ||
       text.startsWith("consegue fazer") ||
       text.startsWith("seria possivel") ||
       text.startsWith("voce sabe como") ||

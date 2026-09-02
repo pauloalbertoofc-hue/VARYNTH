@@ -2,8 +2,9 @@
 
 import { cn } from "@/lib/utils";
 import { VarynthModule } from "@/lib/types";
-import { ExternalLink, Clock, Zap } from "lucide-react";
+import { ExternalLink, Clock, Zap, Globe } from "lucide-react";
 import Link from "next/link";
+import { EXTERNAL_APP_REGISTRY } from "@/lib/external/external-app-registry";
 
 interface AppCardProps {
   module: VarynthModule;
@@ -75,6 +76,7 @@ export function AppCard({ module, className }: AppCardProps) {
 
   const isExternal = module.href.startsWith("http");
   const isDisabled = module.status === "coming-soon";
+  const externalDef = EXTERNAL_APP_REGISTRY[module.id];
 
   const cardContent = (
     <div
@@ -89,24 +91,37 @@ export function AppCard({ module, className }: AppCardProps) {
         className
       )}
     >
-      {/* Top row: icon + status */}
+      {/* Top row: icon + badges */}
       <div className="flex items-start justify-between">
         <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center text-2xl", colors.icon)}>
           {module.icon}
         </div>
-        <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium", status.className)}>
-          <StatusIcon size={10} />
-          {status.label}
+        <div className="flex items-center gap-1.5">
+          {isExternal && (
+            <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-medium flex items-center gap-1">
+              <Globe size={10} /> {externalDef?.badge || "Serviço Local"}
+            </span>
+          )}
+          {module.badge && !isExternal && (
+            <span className={cn("px-1.5 py-0.5 rounded border text-[10px] font-medium", colors.badge)}>
+              {module.badge}
+            </span>
+          )}
+          <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium", status.className)}>
+            <StatusIcon size={10} />
+            {status.label}
+          </div>
         </div>
       </div>
 
       {/* Name + description */}
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-white transition-colors">
+        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-white transition-colors flex items-center gap-1.5">
           {module.name}
           {module.version && (
-            <span className="ml-2 text-xs text-slate-500 font-normal">v{module.version}</span>
+            <span className="text-xs text-slate-500 font-normal">v{module.version}</span>
           )}
+          {isExternal && <ExternalLink size={12} className="text-slate-500" />}
         </h3>
         <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
           {module.description}
@@ -122,14 +137,6 @@ export function AppCard({ module, className }: AppCardProps) {
         ))}
       </div>
 
-      {/* External link icon */}
-      {isExternal && !isDisabled && (
-        <ExternalLink
-          size={12}
-          className="absolute top-3 right-10 text-slate-600 group-hover:text-slate-400 transition-colors"
-        />
-      )}
-
       {/* Hover corner accent */}
       <div className="absolute bottom-0 right-0 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity">
         <div className={cn("w-full h-full border-b-2 border-r-2 rounded-br-lg", `border-${module.color}-500/50`)} />
@@ -141,7 +148,12 @@ export function AppCard({ module, className }: AppCardProps) {
 
   if (isExternal) {
     return (
-      <a href={module.href} target="_blank" rel="noopener noreferrer">
+      <a
+        href={module.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={externalDef?.instructions || "Abrir integração externa"}
+      >
         {cardContent}
       </a>
     );
@@ -149,4 +161,3 @@ export function AppCard({ module, className }: AppCardProps) {
 
   return <Link href={module.href}>{cardContent}</Link>;
 }
-

@@ -4,4 +4,11 @@ node_modules/
 .env.local
 .env
 *.log
+.varynth-data/
+.npm-cache/
+.vercel-cli/
+*.tsbuildinfo
+*.bak
 
+.vercel
+.env*

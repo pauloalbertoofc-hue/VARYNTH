@@ -108,7 +108,7 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
                   <Box size={13} className={isSelected ? "text-emerald-400" : "text-slate-500"} />
                   <span className="line-clamp-1">{ent.name}</span>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                <div className="flex items-center gap-1 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

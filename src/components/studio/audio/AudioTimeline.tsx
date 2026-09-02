@@ -58,7 +58,7 @@ export function AudioTimeline({
       {/* Top Header & Time Ruler */}
       <div className="flex border-b border-[#1e2038] bg-[#0c0d1a] h-7 shrink-0">
         {/* Track Headers Placeholder */}
-        <div className="w-60 shrink-0 border-r border-[#1e2038] px-3 flex items-center text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
+        <div className="w-28 sm:w-60 shrink-0 border-r border-[#1e2038] px-2 sm:px-3 flex items-center text-[10px] uppercase font-semibold text-slate-500 tracking-wider truncate">
           Faixas ({documentState.tracks.length})
         </div>
 
@@ -97,7 +97,7 @@ export function AudioTimeline({
       {/* Main Timeline Lanes Area */}
       <div className="flex-1 flex overflow-y-auto">
         {/* Left: Track Headers Stack */}
-        <div className="w-60 shrink-0 flex flex-col">
+        <div className="w-28 sm:w-60 shrink-0 flex flex-col">
           {documentState.tracks.map((track) => (
             <AudioTrackHeader
               key={track.id}

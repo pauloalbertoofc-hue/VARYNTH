@@ -26,10 +26,18 @@ import {
   Layers,
   Code2,
   Terminal,
+  Palette,
+  Globe,
+  Image as ImageIcon,
+  Music,
+  Video as VideoIcon,
+  Gamepad2,
 } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { modules } from "@/lib/modules";
 import { cn } from "@/lib/utils";
+import { STUDIO_DEFINITIONS, getStudioByArtifactType } from "@/lib/studio/studio-registry";
+import { artifactStore } from "@/lib/artifacts/artifact-store";
 
 interface CommandItem {
   id: string;
@@ -37,6 +45,9 @@ interface CommandItem {
   description: string;
   icon: React.ElementType | string;
   category:
+    | "Studios Criativos"
+    | "Ações Criativas"
+    | "Artefatos Criativos"
     | "Ações Globais"
     | "Projetos"
     | "Tarefas"
@@ -53,6 +64,15 @@ interface CommandItem {
   keywords?: string[];
   external?: boolean;
 }
+
+const studioIconMap: Record<string, React.ElementType> = {
+  FileText,
+  Globe,
+  Image: ImageIcon,
+  Music,
+  Video: VideoIcon,
+  Gamepad2,
+};
 
 export function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
@@ -71,6 +91,8 @@ export function CommandPalette() {
     forgeFiles,
     people,
     labItems,
+    graveyardItems,
+    historicalMilestones,
     toggleTask,
   } = useVarynthStore();
 
@@ -108,7 +130,85 @@ export function CommandPalette() {
   const commands: CommandItem[] = useMemo(() => {
     const list: CommandItem[] = [];
 
-    // Global Quick Actions
+    // 1. Creative Studios (Navigation)
+    list.push({
+      id: "studio-hub",
+      title: "Studios (Hub Criativo)",
+      description: "Acessar Suíte Criativa 6-em-1 (Document, Web, Image, Audio, Video, Game)",
+      icon: Palette,
+      category: "Studios Criativos",
+      action: () => router.push("/modules/studio"),
+      keywords: ["studio", "studios", "hub", "criacao", "multimidia", "suite"],
+    });
+
+    STUDIO_DEFINITIONS.forEach((studio) => {
+      const Icon = studioIconMap[studio.iconName] || Palette;
+      list.push({
+        id: `studio-nav-${studio.type}`,
+        title: studio.label,
+        description: `Abrir ${studio.label} (${studio.badge}) · ${studio.description.slice(0, 60)}...`,
+        icon: Icon,
+        category: "Studios Criativos",
+        action: () => router.push(studio.href),
+        keywords: [studio.label.toLowerCase(), studio.type.toLowerCase(), ...studio.keywords],
+      });
+    });
+
+    // 2. Creative Actions (Quick Creation)
+    STUDIO_DEFINITIONS.forEach((studio) => {
+      const Icon = studioIconMap[studio.iconName] || Palette;
+      list.push({
+        id: `studio-action-${studio.type}`,
+        title: studio.quickActionTitle,
+        description: studio.quickActionDescription,
+        icon: Icon,
+        category: "Ações Criativas",
+        action: () => {
+          window.dispatchEvent(
+            new CustomEvent("open-quick-create", {
+              detail: { tab: studio.type.toLowerCase() },
+            })
+          );
+        },
+        keywords: [
+          "criar",
+          "novo",
+          studio.creationLabel.toLowerCase(),
+          studio.label.toLowerCase(),
+          ...studio.keywords,
+        ],
+      });
+    });
+
+    // 3. Creative Artifacts (Lightweight search from ArtifactStore)
+    try {
+      const allArtifacts = artifactStore.getAll().filter((a) => a.status !== "TRASHED");
+      allArtifacts.forEach((art) => {
+        const studioDef = getStudioByArtifactType(art.type);
+        const Icon = studioDef ? studioIconMap[studioDef.iconName] : FileText;
+        const studioType = studioDef ? studioDef.type : "DOCUMENT";
+
+        list.push({
+          id: `artifact-${art.id}`,
+          title: art.name,
+          description: `${studioDef?.label || "Artefato"} · v${art.versions?.length || 1}.0 · Status: ${art.status}`,
+          icon: Icon,
+          category: "Artefatos Criativos",
+          action: () => router.push(`/modules/studio?studio=${studioType}&id=${art.id}`),
+          keywords: [
+            art.name.toLowerCase(),
+            art.type.toLowerCase(),
+            studioDef?.label.toLowerCase() || "",
+            ...(art.tags || []),
+            art.description?.toLowerCase() || "",
+          ],
+        });
+      });
+    } catch (err) {
+      // ArtifactStore read safe fallback
+    }
+
+    // 4. Global Quick Actions
     list.push(
       {
         id: "action-new-code",
@@ -159,7 +259,7 @@ export function CommandPalette() {
       }
     );
 
-    // Forge Files
+    // 5. Forge Files
     forgeFiles.forEach((file) => {
       list.push({
         id: `forge-${file.id}`,
@@ -172,7 +272,7 @@ export function CommandPalette() {
       });
     });
 
-    // Projects
+    // 6. Projects
     projects.forEach((proj) => {
       list.push({
         id: `proj-${proj.id}`,
@@ -185,7 +285,7 @@ export function CommandPalette() {
       });
     });
 
-    // Codex Theses
+    // 7. Codex Theses
     theses.forEach((t) => {
       list.push({
         id: `thesis-${t.id}`,
@@ -198,7 +298,7 @@ export function CommandPalette() {
       });
     });
 
-    // Research Evidences
+    // 8. Research Evidences
     evidences.forEach((e) => {
       list.push({
         id: `evi-${e.id}`,
@@ -211,7 +311,7 @@ export function CommandPalette() {
       });
     });
 
-    // Opportunities
+    // 9. Opportunities
     opportunities.forEach((o) => {
       list.push({
         id: `opp-${o.id}`,
@@ -224,7 +324,7 @@ export function CommandPalette() {
       });
     });
 
-    // Vault Items
+    // 10. Vault Items
     vaultItems.forEach((v) => {
       list.push({
         id: `vault-${v.id}`,
@@ -237,7 +337,7 @@ export function CommandPalette() {
       });
     });
 
-    // Tasks
+    // 11. Tasks
     tasks.forEach((task) => {
       const isDone = task.status === "concluida";
       list.push({
@@ -257,7 +357,45 @@ export function CommandPalette() {
       });
     });
 
-    // Navigation
+    // 12. Labs & Graveyard
+    labItems.forEach((lab) => {
+      list.push({
+        id: `lab-${lab.id}`,
+        title: lab.title,
+        description: `Experimento Labs [${lab.stage.toUpperCase()}] · ${lab.category}`,
+        icon: FlaskConical,
+        category: "Labs & Ideias",
+        action: () => router.push("/modules/labs"),
+        keywords: [lab.title.toLowerCase(), lab.stage, lab.category, "labs", "experimento", "ideia"],
+      });
+    });
+
+    graveyardItems.forEach((g) => {
+      list.push({
+        id: `graveyard-${g.id}`,
+        title: `Memorial: ${g.title}`,
+        description: `Memorial Labs · Lições aprendidas (${g.originalCategory})`,
+        icon: FlaskConical,
+        category: "Labs & Ideias",
+        action: () => router.push("/modules/labs"),
+        keywords: [g.title.toLowerCase(), g.originalCategory.toLowerCase(), "memorial", "graveyard", "licoes", "labs"],
+      });
+    });
+
+    // 13. Chronos Historical Milestones
+    historicalMilestones.forEach((m) => {
+      list.push({
+        id: `milestone-${m.id}`,
+        title: `Marco: ${m.title}`,
+        description: `Chronos (${m.date}) · ${m.category}`,
+        icon: Clock,
+        category: "Vault & Conhecimento",
+        action: () => router.push("/modules/chronos"),
+        keywords: [m.title.toLowerCase(), m.category.toLowerCase(), "marco", "historico", "chronos", "data"],
+      });
+    });
+
+    // 14. Navigation
     list.push(
       {
         id: "nav-forge",
@@ -280,7 +418,20 @@ export function CommandPalette() {
     );
 
     return list;
-  }, [projects, forgeFiles, theses, evidences, opportunities, vaultItems, tasks, router, toggleTask]);
+  }, [
+    projects,
+    forgeFiles,
+    theses,
+    evidences,
+    opportunities,
+    vaultItems,
+    tasks,
+    labItems,
+    graveyardItems,
+    historicalMilestones,
+    router,
+    toggleTask,
+  ]);
 
   const filteredCommands = useMemo(() => {
     if (!query.trim()) return commands.slice(0, 16);
@@ -332,7 +483,7 @@ export function CommandPalette() {
               setSelectedIndex(0);
             }}
             onKeyDown={handleListKeyDown}
-            placeholder="Buscar projetos, código do Forge, teses, evidências, editais, tarefas..."
+            placeholder="Buscar Studios, Artefatos, Projetos, Código, Teses, Tarefas... (Ctrl+K)"
             className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
           />
           {query ? (
@@ -349,16 +500,15 @@ export function CommandPalette() {
         {/* Results List */}
         <div className="max-h-96 overflow-y-auto p-2 space-y-1">
           {filteredCommands.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-500">
-              Nenhum resultado encontrado para &quot;{query}&quot;
+            <div className="py-12 text-center text-slate-500 text-xs">
+              Nenhum comando, estúdio ou artefato encontrado para &ldquo;{query}&rdquo;.
             </div>
           ) : (
             filteredCommands.map((cmd, idx) => {
-              const isSelected = idx === selectedIndex;
               const Icon = typeof cmd.icon === "string" ? Sparkles : cmd.icon;
-
+              const isSelected = idx === selectedIndex;
               return (
-                <button
+                <div
                   key={cmd.id}
                   onClick={() => {
                     setIsOpen(false);
@@ -366,55 +516,66 @@ export function CommandPalette() {
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(
-                    "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left transition-all",
+                    "flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all",
                     isSelected
-                      ? "bg-violet-600/20 text-white border border-violet-500/40 shadow-sm"
-                      : "text-slate-300 hover:bg-white/5 border border-transparent"
+                      ? "bg-violet-600/25 border border-violet-500/40 text-slate-100"
+                      : "hover:bg-[#151524] text-slate-300 border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={cn(
                         "w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0",
-                        isSelected ? "bg-violet-600 text-white" : "bg-[#14141f] text-slate-400 border border-[#1e1e30]"
+                        cmd.category === "Studios Criativos"
+                          ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                          : cmd.category === "Ações Criativas"
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : cmd.category === "Artefatos Criativos"
+                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                          : isSelected
+                          ? "bg-violet-600/30 text-violet-300"
+                          : "bg-[#161626] text-slate-400"
                       )}
                     >
                       <Icon size={14} />
                     </div>
-                    <div className="truncate">
-                      <div className="text-xs font-semibold text-slate-200 truncate">{cmd.title}</div>
-                      <div className="text-[11px] text-slate-400 truncate">{cmd.description}</div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-medium truncate text-slate-100">{cmd.title}</span>
+                      <span className="text-[10px] text-slate-400 truncate">{cmd.description}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#14141f] text-slate-400 border border-[#1e1e30]">
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <span
+                      className={cn(
+                        "text-[9px] px-1.5 py-0.5 rounded font-medium",
+                        cmd.category === "Studios Criativos"
+                          ? "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                          : cmd.category === "Ações Criativas"
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : cmd.category === "Artefatos Criativos"
+                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                          : "bg-[#18182a] text-slate-500"
+                      )}
+                    >
                       {cmd.category}
                     </span>
                     {isSelected && <ArrowRight size={12} className="text-violet-400" />}
                   </div>
-                </button>
+                </div>
               );
             })
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0a0a0f]/80 border-t border-[#1e1e30] text-[10px] text-slate-500">
-          <div className="flex items-center gap-3">
-            <span>
-              <kbd className="bg-[#14141f] px-1 py-0.5 rounded border border-[#1e1e30]">↑</kbd>{" "}
-              <kbd className="bg-[#14141f] px-1 py-0.5 rounded border border-[#1e1e30]">↓</kbd> Navegar
-            </span>
-            <span>
-              <kbd className="bg-[#14141f] px-1 py-0.5 rounded border border-[#1e1e30]">↵</kbd> Selecionar
-            </span>
-          </div>
-          <span className="text-slate-400 font-medium">VARYNTH Universal Search</span>
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[#1e1e30] bg-[#0a0a0f]/50 text-[10px] text-slate-500">
+          <span>
+            Pressione <kbd className="bg-[#14141f] border border-[#222236] px-1 rounded">↑</kbd> <kbd className="bg-[#14141f] border border-[#222236] px-1 rounded">↓</kbd> para navegar, <kbd className="bg-[#14141f] border border-[#222236] px-1 rounded">↵</kbd> para selecionar
+          </span>
+          <span>{filteredCommands.length} resultados</span>
         </div>
       </div>
-
-      <div className="absolute inset-0 -z-10" onClick={() => setIsOpen(false)} />
     </div>
   );
 }

@@ -95,7 +95,13 @@ export class ConversationManager {
     // Check if any registered project title is explicitly in the prompt
     for (const proj of allProjects) {
       const projNorm = normalizeText(proj.title);
-      if (clean.includes(projNorm)) {
+      const projectTokens = projNorm
+        .split(" ")
+        .filter((token) => token.length > 1 && !["de", "da", "do", "das", "dos", "e"].includes(token));
+      const matchesProject =
+        clean.includes(projNorm) ||
+        (projectTokens.length >= 2 && projectTokens.every((token) => clean.split(" ").includes(token)));
+      if (matchesProject) {
         if (state.currentTopic && state.currentTopic !== proj.title) {
           if (!state.interruptedTopicStack) state.interruptedTopicStack = [];
           state.interruptedTopicStack.push({
@@ -223,16 +229,163 @@ export class ConversationManager {
     let isAmbiguous = semantic.isNoise || semantic.requiresClarification;
     let clarificationPrompt = semantic.clarificationPrompt;
 
+    const isSocialCheckIn =
+      clean.includes("como voce esta") ||
+      clean.includes("tudo bem com voce") ||
+      clean.includes("tudo bem por ai") ||
+      clean.includes("como anda voce") ||
+      clean.includes("voce esta bem") ||
+      clean.includes("sentiu minha falta") ||
+      clean.includes("que novidade voce tem") ||
+      clean.includes("o que me conta");
+    const isAthenaSelfDiagnostic =
+      semantic.intent === "ATHENA_SELF_STATUS" ||
+      clean.includes("seu kernel") ||
+      clean.includes("seu sistema") ||
+      clean.includes("seus modulos cognitivos") ||
+      clean.includes("diagnostico da athena") ||
+      clean.includes("voce esta funcionando");
+    const isExplicitMutation =
+      /^(crie|criar|adicione|adicionar|nova|novo)\s+(uma\s+|um\s+)?(tarefa|nota)\b/.test(clean) ||
+      /^(mova|mover|exclua|excluir|apague|apagar|remova|remover)\b/.test(clean);
+    const isCritiqueRequest =
+      clean.includes("critique") || clean.includes("critica") ||
+      clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
+      clean.includes("ponto cego") || clean.includes("pontos cegos") || clean.includes("riscos");
+    const isComparisonRequest =
+      clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
+      clean.includes("vale mais a pena") || clean.includes("versus");
+    const isBrainstormRequest =
+      clean.includes("ideia") || clean.includes("ideias") || clean.includes("inventar") ||
+      clean.includes("brainstorm") || clean.includes("projeto novo") || clean.includes("novo projeto") ||
+      clean.includes("que projeto") || clean.includes("qual projeto") ||
+      clean.includes("sugira") || clean.includes("sugestao") || clean.includes("recomende") ||
+      clean.includes("alguma coisa legal pra comecar") || clean.includes("pensar em");
+    const isPlanningRequest =
+      clean.includes("o que voce faria") || clean.includes("proximo passo") ||
+      clean.includes("destravar") || clean.includes("como resolver") ||
+      clean.includes("planeje") || clean.includes("plano");
+    const isDoubleNegation = clean.includes("nao precisa deixar de") || clean.includes("nao deixe de nao");
+    const isConditionalFallback =
+      clean.includes("se nao der") || clean.includes("se falhar") ||
+      clean.includes("caso nao funcione") || clean.includes("como alternativa");
+    const isProjectReadinessQuery =
+      Boolean(targetProjectId) &&
+      (clean.includes("pronto") || clean.includes("progresso") || clean.includes("100%") || clean.includes("publicacao"));
+    const isPendingTargetSelection =
+      Boolean(targetProjectTitle) &&
+      Boolean(lastUserTurn?.intents?.includes("EXECUTION_REQUEST")) &&
+      clean.split(" ").length <= 6;
+
     // A. Noise & Uncertainty
     if (semantic.isNoise || semantic.requiresClarification) {
-      interactionType = "COGNITIVE_REQUEST";
+      interactionType = "CONVERSATION";
       intents.push("CLARIFICATION_REQUIRED");
       confidence = "LOW";
       subject = "UNCERTAIN_INPUT";
       isAmbiguous = true;
       clarificationPrompt = semantic.clarificationPrompt || "Fiquei em dúvida sobre como direcionar. O que você gostaria de explorar no sistema?";
     }
-    // B. Ecosystem / Tasks / Projects Status
+    else if (isDoubleNegation) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("CLARIFICATION_REQUIRED");
+      confidence = "LOW";
+      requiresContext = false;
+      subject = "AMBIGUOUS_NEGATION";
+      isAmbiguous = true;
+      clarificationPrompt = "A frase contém uma dupla negação. Só para confirmar: você quer que eu crie a capa, ou prefere que eu não faça isso ainda?";
+    }
+    // B. Explicit conversational and cognitive speech acts outrank noun matches
+    // such as "projeto" or "sistema" from the statistical classifier.
+    else if (isSocialCheckIn) {
+      interactionType = "CONVERSATION";
+      intents.push("SOCIAL_CONVERSATION");
+      confidence = "HIGH";
+      requiresContext = false;
+      subject = "ATHENA";
+    }
+    else if (isAthenaSelfDiagnostic) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("ATHENA_SELF_STATUS");
+      confidence = "HIGH";
+      requiresContext = false;
+      subject = "ATHENA_HEALTH";
+    }
+    else if (isExplicitMutation) {
+      interactionType = "OPERATIONAL_REQUEST";
+      intents.push("EXECUTION_REQUEST");
+      confidence = "HIGH";
+      requiresAction = true;
+      requiresContext = true;
+      subject = "DATABASE_MUTATION";
+    }
+    else if (isConditionalFallback) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("PLAN");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "CONDITIONAL_FALLBACK";
+    }
+    else if (isProjectReadinessQuery) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("ECOSYSTEM_STATUS");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "PROJECT";
+    }
+    else if (isPendingTargetSelection) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("CONTINUE");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "PROJECT";
+      referencedEntityName = targetProjectTitle;
+    }
+    else if (isEllipsis && (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("EXPLAIN");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "PREVIOUS_RECOMMENDATION";
+    }
+    else if (isCritiqueRequest) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("CRITIQUE");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "CRITICAL_REVIEW";
+    }
+    else if (isComparisonRequest) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("COMPARE");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "COMPARISON";
+    }
+    else if (isPlanningRequest) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("RECOMMEND");
+      intents.push("PLAN");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "ENGINEERING_PLAN";
+    }
+    else if (isBrainstormRequest) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("BRAINSTORM");
+      confidence = "HIGH";
+      if (
+        clean.includes("projeto") || clean.includes("recomende") || clean.includes("sugira") ||
+        clean.includes("comecar") || clean.includes("alguma coisa legal")
+      ) {
+        intents.push("RECOMMEND");
+      }
+      requiresContext = true;
+      subject = clean.includes("imagem") || clean.includes("foto") || clean.includes("capa")
+        ? "CREATIVE_STUDIO"
+        : "GENERAL_TOPIC";
+    }
+    // C. Ecosystem / Tasks / Projects Status
     else if (
       semantic.intent === "TASK_QUERY" ||
       semantic.intent === "PROJECT_QUERY" ||
@@ -255,21 +408,35 @@ export class ConversationManager {
       subject = semantic.intent === "TASK_QUERY" ? "USER_RESOURCES" : semantic.intent === "PROJECT_QUERY" ? "PROJECT" : "USER_RESOURCES";
       requiresContext = true;
     }
-    // C. Ecosystem Briefing
+    // D. Ecosystem Briefing
     else if (semantic.intent === "ECOSYSTEM_BRIEFING") {
       interactionType = "COGNITIVE_REQUEST";
       intents.push("ECOSYSTEM_BRIEFING");
       subject = "SYSTEM_ECOSYSTEM";
       requiresContext = true;
     }
-    // D. Athena Self Diagnostic
+    // E. Athena Self Diagnostic
     else if (semantic.intent === "ATHENA_SELF_STATUS") {
       interactionType = "COGNITIVE_REQUEST";
       intents.push("ATHENA_SELF_STATUS");
       subject = "ATHENA_HEALTH";
       requiresContext = false;
     }
-    // E. Operational Mutation (Strictly affirmative, not negated)
+    // F. Capability-shaped ideation is still a cognitive request, not a mutation.
+    // Example: "Athena, consegue me dar uma ideia de imagem?"
+    else if (
+      semantic.trace.pragmaticFlags.includes("CAPABILITY_INQUIRY") &&
+      (clean.includes("ideia") || clean.includes("ideias") || clean.includes("brainstorm") || clean.includes("sugestao"))
+    ) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("BRAINSTORM");
+      confidence = "HIGH";
+      requiresContext = false;
+      subject = clean.includes("imagem") || clean.includes("foto") || clean.includes("capa")
+        ? "CREATIVE_STUDIO"
+        : "GENERAL_TOPIC";
+    }
+    // G. Operational Mutation (Strictly affirmative, not negated)
     else if (
       (semantic.intent === "EXECUTION_REQUEST" || semantic.intent === "CREATIVE_INTENT") &&
       semantic.polarity !== "NEGATED" &&
@@ -281,14 +448,14 @@ export class ConversationManager {
       requiresContext = true;
       subject = semantic.intent === "CREATIVE_INTENT" ? "CREATIVE_STUDIO" : "DATABASE_MUTATION";
     }
-    // F. Epistemic Concepts & Explanations
+    // H. Epistemic Concepts & Explanations
     else if (semantic.intent === "EPISTEMIC_QUERY") {
       interactionType = "COGNITIVE_REQUEST";
       intents.push("EXPLAIN");
       subject = "EPISTEMIC_CONCEPT";
       requiresContext = false;
     }
-    // G. Pragmatic Feedback (Sarcasm, Venting, Scolding)
+    // I. Pragmatic Feedback (Sarcasm, Venting, Scolding)
     else if (
       semantic.trace.pragmaticFlags.includes("SARCASM_OR_IRONY") ||
       semantic.trace.pragmaticFlags.includes("EMOTIONAL_VENTING") ||
@@ -298,7 +465,7 @@ export class ConversationManager {
       intents.push("SOCIAL_CONVERSATION");
       requiresContext = false;
     }
-    // H. Cognitive Requests (Critique, Compare, Ideas, Recommend, Analyze, Explain, Plan)
+    // J. Cognitive Requests (Critique, Compare, Ideas, Recommend, Analyze, Explain, Plan)
     else if (
       clean.includes("critique") || clean.includes("critica") ||
       clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
@@ -392,7 +559,7 @@ export class ConversationManager {
         intents.push("EXPLORE");
       }
     }
-    // H. Default: Social Conversation & Fast Chit-Chat
+    // K. Default: Social Conversation & Fast Chit-Chat
     else {
       interactionType = "CONVERSATION";
       intents.push("SOCIAL_CONVERSATION");

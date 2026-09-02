@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
+import { forgeSandboxBridge } from "@/lib/forge/forge-sandbox-bridge";
+import { ForgeExecutionSession } from "@/lib/forge/types";
 
 const FORGE_TEMPLATES: ForgeTemplate[] = [
   {
@@ -111,12 +113,97 @@ export default function ForgeStudioPage() {
   const [isSaved, setIsSaved] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"terminal" | "preview">("terminal");
 
+  const [sandboxSrcDoc, setSandboxSrcDoc] = useState<string>("");
+  const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const activeSessionRef = useRef<ForgeExecutionSession | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sandboxIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const pendingCodeRef = useRef<string | null>(null);
+
   // Execution result
   const [execResult, setExecResult] = useState<ForgeExecutionResult>({
     status: "idle",
     logs: ["Forge Studio pronto. Pressione '▶ Executar Código' ou Ctrl+Enter para rodar."],
     executionTimeMs: 0,
   });
+
+  // Listen to postMessage from sandboxed iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const activeSession = activeSessionRef.current;
+      if (!activeSession) return;
+
+      const validation = forgeSandboxBridge.validateMessage(event.data, event.origin, activeSession);
+      if (!validation.valid || !validation.envelope) return;
+
+      const env = validation.envelope;
+
+      if (env.type === "SANDBOX_READY") {
+        const iframe = sandboxIframeRef.current;
+        if (iframe && iframe.contentWindow && pendingCodeRef.current !== null) {
+          iframe.contentWindow.postMessage({
+            schemaVersion: 1,
+            sessionId: activeSession.sessionId,
+            channelToken: activeSession.channelToken,
+            type: "RUN_REQUEST",
+            timestamp: new Date().toISOString(),
+            payload: { code: pendingCodeRef.current }
+          }, "*");
+        }
+        return;
+      }
+
+      if (env.type === "EXECUTION_RESULT") {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        const logs = env.payload.logs && env.payload.logs.length > 0
+          ? [...env.payload.logs]
+          : ["[INFO] Execução concluída no sandbox isolado sem chamadas de console."];
+
+        if (env.payload.returnValue !== undefined) {
+          logs.push(`[RETURN] => ${env.payload.returnValue}`);
+        }
+
+        setExecResult({
+          status: "success",
+          logs,
+          executionTimeMs: env.payload.durationMs || 0,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+        forgeSandboxBridge.invalidateSession(activeSession.sessionId);
+        activeSessionRef.current = null;
+        pendingCodeRef.current = null;
+        setIsExecuting(false);
+        setActiveTab("terminal");
+      } else if (env.type === "RUNTIME_ERROR") {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        setExecResult({
+          status: "error",
+          logs: env.payload.logs && env.payload.logs.length > 0
+            ? env.payload.logs
+            : [`[RUNTIME ERROR] ${env.payload.error || "Erro desconhecido em tempo de execução."}`],
+          executionTimeMs: env.payload.durationMs || 0,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+        forgeSandboxBridge.invalidateSession(activeSession.sessionId);
+        activeSessionRef.current = null;
+        pendingCodeRef.current = null;
+        setIsExecuting(false);
+        setActiveTab("terminal");
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   // New File Modal
   const [isNewFileModalOpen, setIsNewFileModalOpen] = useState(false);
@@ -197,58 +284,56 @@ export default function ForgeStudioPage() {
   };
 
   const handleRun = () => {
-    if (!activeFile) return;
+    if (!activeFile || isExecuting) return;
     handleSave();
 
-    const startTime = performance.now();
     const logs: string[] = [];
 
     if (activeFile.language === "javascript" || activeFile.language === "typescript") {
-      try {
-        const customConsole = {
-          log: (...args: unknown[]) => logs.push("[LOG] " + args.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ")),
-          warn: (...args: unknown[]) => logs.push("[WARN] " + args.map((a) => String(a)).join(" ")),
-          error: (...args: unknown[]) => logs.push("[ERROR] " + args.map((a) => String(a)).join(" ")),
-        };
-
-        // Transpile/strip TS types simply for eval or execute JS directly
-        const cleanJS = editorContent
-          .replace(/:\s*(string|number|boolean|any|void|Record<[^>]+>|ToolInput|ModelCost)(\[\])?/g, "")
-          .replace(/interface\s+[^{]+\{[^}]+\}/g, "");
-
-        const runFn = new Function("console", cleanJS);
-        const result = runFn(customConsole);
-
-        const endTime = performance.now();
-        const timeMs = Math.round(endTime - startTime);
-
-        if (logs.length === 0) {
-          logs.push("[INFO] Código executado com sucesso sem chamadas de console.log.");
-        }
-        if (result !== undefined) {
-          logs.push(`[RETURN] => ${typeof result === "object" ? JSON.stringify(result, null, 2) : String(result)}`);
-        }
-
-        setExecResult({
-          status: "success",
-          logs,
-          executionTimeMs: timeMs,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-        setActiveTab("terminal");
-      } catch (err: unknown) {
-        const endTime = performance.now();
-        const timeMs = Math.round(endTime - startTime);
-        const errorMsg = err instanceof Error ? err.message : String(err);
-
-        setExecResult({
-          status: "error",
-          logs: [`[RUNTIME ERROR] ${errorMsg}`],
-          executionTimeMs: timeMs,
-          timestamp: new Date().toLocaleTimeString(),
-        });
-        setActiveTab("terminal");
+      // 1. Invalidate previous session and cancel timers
+      if (activeSessionRef.current) {
+        forgeSandboxBridge.invalidateSession(activeSessionRef.current.sessionId);
       }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      // 2. Transpile/strip TS types for sandbox JS execution
+      const cleanJS = editorContent
+        .replace(/:\s*(string|number|boolean|any|void|Record<[^>]+>|ToolInput|ModelCost)(\[\])?/g, "")
+        .replace(/interface\s+[^{]+\{[^}]+\}/g, "");
+
+      // 3. Create cryptographically randomized session
+      const session = forgeSandboxBridge.createSession(4000);
+      activeSessionRef.current = session;
+      pendingCodeRef.current = cleanJS;
+      setIsExecuting(true);
+
+      // 4. Generate immutable static bootstrap document (ZERO raw code concatenation in HTML)
+      const doc = forgeSandboxBridge.getStaticBootstrapDocument(session);
+      setSandboxSrcDoc(doc);
+
+      // 5. Arm timeout guard (4000ms) for infinite loops (e.g. while(true){})
+      timeoutRef.current = setTimeout(() => {
+        if (activeSessionRef.current?.sessionId === session.sessionId) {
+          forgeSandboxBridge.invalidateSession(session.sessionId);
+          activeSessionRef.current = null;
+          setSandboxSrcDoc(""); // Reset iframe to terminate hung thread
+          setIsExecuting(false);
+          setExecResult({
+            status: "error",
+            logs: [
+              "[TIMEOUT ERROR] A execução foi interrompida após 4000ms.",
+              "[INFO] Causa provável: Loop infinito (ex: while(true)) ou operação síncrona bloqueante no código.",
+              "[SECURITY] O sandbox opaco foi reciclado com sucesso e a interface do VARYNTH permanece protegida e responsiva.",
+            ],
+            executionTimeMs: 4000,
+            timestamp: new Date().toLocaleTimeString(),
+          });
+          setActiveTab("terminal");
+        }
+      }, 4000);
     } else if (activeFile.language === "python") {
       // Smart Simulated Python Runner
       setTimeout(() => {
@@ -381,10 +466,10 @@ export default function ForgeStudioPage() {
                         e.stopPropagation();
                         setFileToDelete(file);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-opacity"
+                      className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
                       title="Mover para a Lixeira (10 dias)"
                     >
-                      <Trash2 size={11} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 );
@@ -637,6 +722,15 @@ export default function ForgeStudioPage() {
             itemType="Arquivo de Código"
           />
         )}
+
+        {/* Hidden Sandboxed Execution Frame (Opaque Origin) */}
+        <iframe
+          ref={sandboxIframeRef}
+          srcDoc={sandboxSrcDoc}
+          sandbox="allow-scripts"
+          title="VARYNTH Forge Sandboxed Execution"
+          className="hidden w-0 h-0 border-0 pointer-events-none"
+        />
       </div>
     </PageLayout>
   );

@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+const root = process.cwd();
+const server = fs.readFileSync(path.join(root, "src/lib/athena/integrations/google-calendar-oauth-server.ts"), "utf8");
+const connect = fs.readFileSync(path.join(root, "src/app/api/integrations/google-calendar/connect/route.ts"), "utf8");
+const callback = fs.readFileSync(path.join(root, "src/app/api/integrations/google-calendar/callback/route.ts"), "utf8");
+const sync = fs.readFileSync(path.join(root, "src/app/api/integrations/google-calendar/sync/route.ts"), "utf8");
+let passed = 0; const test = (name: string, run: () => void) => { run(); passed += 1; console.log(`✓ ${name}`); };
+test("usa somente escopo de leitura", () => { assert.ok(server.includes("calendar.readonly")); assert.ok(!server.includes("auth/calendar\"")); });
+test("tokens são protegidos com AES-GCM", () => { assert.ok(server.includes("aes-256-gcm")); assert.ok(server.includes("getAuthTag")); assert.ok(server.includes("setAuthTag")); });
+test("fluxo usa state e PKCE", () => { assert.ok(server.includes("code_challenge_method: \"S256\"")); assert.ok(callback.includes("safeStateEqual")); assert.ok(server.includes("code_verifier")); });
+test("cookie temporário é HttpOnly e SameSite", () => { assert.ok(connect.includes("HttpOnly")); assert.ok(connect.includes("SameSite=Lax")); assert.ok(connect.includes("Max-Age=600")); });
+test("sincronização valida mesma origem", () => { assert.ok(sync.includes("sameOrigin")); assert.ok(sync.includes("status: 403")); });
+test("segredos vêm apenas do ambiente", () => { assert.ok(server.includes("process.env.GOOGLE_CALENDAR_CLIENT_ID")); assert.ok(server.includes("process.env.GOOGLE_CALENDAR_CLIENT_SECRET")); assert.ok(server.includes("process.env.VARYNTH_TOKEN_ENCRYPTION_KEY")); });
+test("arquivo de tokens fica fora do versionamento", () => { assert.ok(fs.readFileSync(path.join(root, ".gitignore"), "utf8").includes(".varynth-data/")); });
+test("retorno OAuth usa a origem pública configurada", () => { assert.ok(server.includes("getVarynthOrigin(origin)")); assert.ok(callback.includes("getVarynthOrigin(url.origin)")); });
+console.log(`\n${passed}/8 verificações de segurança OAuth passaram.`);
