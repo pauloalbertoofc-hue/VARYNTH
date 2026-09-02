@@ -30,6 +30,8 @@ export interface CapabilityPlanDiagnostic {
   recoverable: boolean;
 }
 
+const activePlanOperations = new Set<string>();
+
 export class CapabilityPlanRuntime {
   constructor(private readonly store: CapabilityPlanStore = capabilityPlanStore) {
     this.recoverInterruptedPlans();
@@ -73,6 +75,12 @@ export class CapabilityPlanRuntime {
   }
 
   async execute(planId: string, context: AthenaContext, storeContext: AthenaEngineContext): Promise<CapabilityPlanExecutionResult> {
+    const lockKey = `execute:${planId}`;
+    if (activePlanOperations.has(lockKey) || activePlanOperations.has(`revert:${planId}`)) {
+      throw new Error(`[CAPABILITY_PLAN_CONCURRENT_OPERATION] O plano ${planId} já possui uma operação em andamento.`);
+    }
+    activePlanOperations.add(lockKey);
+    try {
     const plan = this.store.get(planId);
     if (!plan) throw new Error(`[CAPABILITY_PLAN_NOT_FOUND] ${planId}`);
     const reconciliation = this.reconcile(plan);
@@ -111,6 +119,9 @@ export class CapabilityPlanRuntime {
       details: { completedStepIds: result.summary.completedStepIds, failedStepIds: result.summary.failedStepIds, blockedStepIds: result.summary.blockedStepIds },
     });
     return result;
+    } finally {
+      activePlanOperations.delete(lockKey);
+    }
   }
 
   pause(planId: string): CapabilityExecutionPlan {
@@ -138,6 +149,9 @@ export class CapabilityPlanRuntime {
     const step = plan.steps.find((candidate) => candidate.id === stepId);
     if (!step || !step.requiresConfirmation || step.capabilityKind !== "TOOL") {
       throw new Error(`[CAPABILITY_STEP_CONFIRMATION_NOT_REQUIRED] ${stepId}`);
+    }
+    if (step.confirmation) {
+      throw new Error(`[CAPABILITY_STEP_ALREADY_CONFIRMED] ${stepId}`);
     }
     const confirmation = athenaToolManager.prepareConfirmation(
       step.capabilityId as import("../domain/action").ActionType,
@@ -192,6 +206,12 @@ export class CapabilityPlanRuntime {
     planId: string,
     undoStep: (step: CapabilityExecutionPlan["steps"][number]) => void | Promise<void>
   ): Promise<CapabilityExecutionPlan> {
+    const lockKey = `revert:${planId}`;
+    if (activePlanOperations.has(lockKey) || activePlanOperations.has(`execute:${planId}`)) {
+      throw new Error(`[CAPABILITY_PLAN_CONCURRENT_OPERATION] O plano ${planId} já possui uma operação em andamento.`);
+    }
+    activePlanOperations.add(lockKey);
+    try {
     let plan = this.require(planId);
     const reversible = [...plan.steps].reverse().filter((step) => step.status === "COMPLETED" && step.authority === "MUTATE_GOVERNED");
     if (reversible.some((step) => !step.supportsUndo)) {
@@ -203,6 +223,9 @@ export class CapabilityPlanRuntime {
     const reverted = this.store.save(plan);
     athenaObservabilityJournal.record({ category: "PLAN", type: "PLAN_REVERTED", status: "REVERTED", message: "Mutações reversíveis restauradas em ordem inversa.", planId, taskId: plan.taskId, details: { stepIds: reversible.map((step) => step.id) } });
     return reverted;
+    } finally {
+      activePlanOperations.delete(lockKey);
+    }
   }
 
   async revertWithRegisteredUndo(planId: string, storeContext: AthenaEngineContext): Promise<CapabilityExecutionPlan> {

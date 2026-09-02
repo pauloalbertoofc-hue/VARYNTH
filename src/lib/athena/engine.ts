@@ -24,7 +24,6 @@ import { InteractionDebugInfo } from "./domain/conversation";
 import { AthenaResponseStrategyEngine } from "./strategy/response-strategy-engine";
 import { FactLockValidator } from "./strategy/fact-lock-validator";
 import { SemanticInterpretation } from "./semantic/types";
-import { athenaProjectOperations } from "./operations/project-operations";
 import { athenaGlobalIntelligence } from "./insights/global-intelligence";
 import { athenaContextualMemory } from "./memory/contextual-memory";
 import { athenaProjectPlanManager } from "./planning/project-plan-manager";
@@ -97,13 +96,6 @@ function tryLegacyGateway(
     },
   ];
 
-  if (legacyOperationsCompatibilityEnabled()) {
-    handlers.unshift({
-      decision: decisionForContract("USE_TOOL", "legacy.project-operations.compatibility"),
-      handle: () => athenaProjectOperations.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
-    });
-  }
-
   for (const handler of handlers) {
     const response = athenaInteractionContractGateway.execute(handler.decision, handler.handle);
     if (response) {
@@ -112,15 +104,6 @@ function tryLegacyGateway(
     }
   }
   return undefined;
-}
-
-function legacyOperationsCompatibilityEnabled(): boolean {
-  if (typeof window === "undefined" || !window.localStorage) return false;
-  try {
-    return window.localStorage.getItem("varynth_athena_legacy_operations_compat") === "enabled";
-  } catch {
-    return false;
-  }
 }
 
 function operationalMessage(text: string, scope: AthenaScope, plan?: import("./domain/capability-plan").CapabilityExecutionPlan): AthenaMessage {

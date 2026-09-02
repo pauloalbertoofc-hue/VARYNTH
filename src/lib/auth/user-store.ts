@@ -1,0 +1,21 @@
+import "server-only";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+
+const scrypt = promisify(scryptCallback);
+const USERS_KEY = "varynth:auth:users:v1";
+const LOCAL_FILE = path.join(process.cwd(), ".varynth-data", "users.json");
+export interface VarynthUser { id: string; name: string; email: string; passwordHash?: string; provider: "credentials" | "google"; role: "owner" | "member"; createdAt: string; }
+function redisConfig() { return { url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN }; }
+async function redis(command: string[]) { const { url, token } = redisConfig(); if (!url || !token) throw new Error("Banco de usuários não configurado."); const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(command), cache: "no-store" }); if (!response.ok) throw new Error("Banco de usuários indisponível."); const data = await response.json() as { result?: unknown; error?: string }; if (data.error) throw new Error("Banco de usuários recusou a operação."); return data.result; }
+async function readUsers(): Promise<VarynthUser[]> { const { url, token } = redisConfig(); if (url && token) { const raw = await redis(["GET", USERS_KEY]); return typeof raw === "string" ? JSON.parse(raw) : []; } if (process.env.VERCEL) throw new Error("Banco persistente obrigatório na Vercel."); try { return JSON.parse(await readFile(LOCAL_FILE, "utf8")); } catch { return []; } }
+async function writeUsers(users: VarynthUser[]) { const { url, token } = redisConfig(); if (url && token) { await redis(["SET", USERS_KEY, JSON.stringify(users)]); return; } if (process.env.VERCEL) throw new Error("Banco persistente obrigatório na Vercel."); await mkdir(path.dirname(LOCAL_FILE), { recursive: true }); await writeFile(LOCAL_FILE, JSON.stringify(users, null, 2), { encoding: "utf8", mode: 0o600 }); }
+function emailKey(email: string) { return email.trim().toLowerCase(); }
+export async function findUserByEmail(email: string) { return (await readUsers()).find((user) => user.email === emailKey(email)); }
+export async function hashPassword(password: string) { const salt = randomBytes(16); const derived = await scrypt(password, salt, 64) as Buffer; return `${salt.toString("base64url")}.${derived.toString("base64url")}`; }
+export async function verifyPassword(password: string, stored: string) { const [saltRaw, hashRaw] = stored.split("."); if (!saltRaw || !hashRaw) return false; const expected = Buffer.from(hashRaw, "base64url"); const actual = await scrypt(password, Buffer.from(saltRaw, "base64url"), expected.length) as Buffer; return expected.length === actual.length && timingSafeEqual(expected, actual); }
+export function isAllowedGoogleEmail(email: string) { return (process.env.VARYNTH_ALLOWED_EMAILS || "").split(",").map(emailKey).filter(Boolean).includes(emailKey(email)); }
+export async function createCredentialUser(input: { name: string; email: string; password: string }) { const users = await readUsers(); const email = emailKey(input.email); if (users.some((user) => user.email === email)) throw new Error("Já existe uma conta com este e-mail."); const user: VarynthUser = { id: randomBytes(16).toString("hex"), name: input.name.trim(), email, passwordHash: await hashPassword(input.password), provider: "credentials", role: users.length ? "member" : "owner", createdAt: new Date().toISOString() }; await writeUsers([...users, user]); return user; }
+export async function upsertGoogleUser(input: { name?: string | null; email: string }) { const users = await readUsers(); const email = emailKey(input.email); const existing = users.find((user) => user.email === email); if (existing) return existing; const user: VarynthUser = { id: randomBytes(16).toString("hex"), name: input.name?.trim() || email.split("@")[0], email, provider: "google", role: users.length ? "member" : "owner", createdAt: new Date().toISOString() }; await writeUsers([...users, user]); return user; }

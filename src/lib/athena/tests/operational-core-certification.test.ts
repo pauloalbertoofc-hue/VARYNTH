@@ -1,10 +1,14 @@
 import type { Project, Task } from "@/lib/types";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { processAthenaQueryAsync, type AthenaEngineContext } from "../engine";
 import { athenaContextBuilder } from "../memory/context-builder";
 import { athenaObservabilityJournal } from "../observability/local-observability-journal";
 import { capabilityPlanRuntime } from "../runtime/capability-plan-runtime";
 import { capabilityPlanStore } from "../runtime/capability-plan-store";
 import { CapabilityPlanStore } from "../runtime/capability-plan-store";
+import { executableCapabilityRegistry } from "../kernel/executable-capability-registry";
+import { registeredTools } from "../tools/registry";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -40,6 +44,16 @@ async function confirmExecute(response: Awaited<ReturnType<typeof processAthenaQ
 }
 
 async function run(): Promise<void> {
+  assert(!existsSync(resolve(process.cwd(), "src/lib/athena/operations/project-operations.ts")), "Removed legacy operations adapter must not return to the source tree");
+  const engineSource = readFileSync(resolve(process.cwd(), "src/lib/athena/engine.ts"), "utf8");
+  const workflowExecutorSource = readFileSync(resolve(process.cwd(), "src/lib/athena/runtime/workflow-executor.ts"), "utf8");
+  assert(!engineSource.includes("AthenaProjectOperations") && !engineSource.includes("legacyOperationsCompatibilityEnabled"), "No parallel operational executor or compatibility switch may exist");
+  assert(workflowExecutorSource.includes("athenaToolManager.executeTool"), "Operational workflows must cross the ToolManager boundary");
+  for (const capability of executableCapabilityRegistry.list()) {
+    if (capability.kind === "AGENT") assert(!capability.mutatesData && capability.authority === "PROPOSE", `Agent ${capability.id} must never own mutations`);
+    if (capability.mutatesData) assert(capability.kind === "TOOL" && Boolean(registeredTools[capability.id as keyof typeof registeredTools]), `Mutation ${capability.id} must be a registered tool`);
+    if (capability.supportsUndo) assert(Boolean(registeredTools[capability.id as keyof typeof registeredTools]?.undo), `Reversible capability ${capability.id} must expose concrete undo`);
+  }
   capabilityPlanStore.clear();
   athenaObservabilityJournal.clear();
   const ctx = createContext();
@@ -89,9 +103,44 @@ async function run(): Promise<void> {
   const cancelled = await processAthenaQueryAsync("cancelar", "geral", ctx, "project-migration", "migration-cancel");
   assert(cancelled.metadata?.capabilityPlanStatus === "CANCELLED" && ctx.projects[0].priority === previousPriority, "Conversational cancellation must preserve state");
 
+  const concurrentPlanResponse = await processAthenaQueryAsync("Altere a prioridade do projeto para alta", "geral", ctx, "project-migration", "certification-concurrency");
+  const concurrentPlan = capabilityPlanStore.get(concurrentPlanResponse.metadata?.capabilityPlanId as string)!;
+  capabilityPlanRuntime.confirmStep(concurrentPlan.id, concurrentPlan.steps[0].id);
+  let duplicateConfirmationRejected = false;
+  try { capabilityPlanRuntime.confirmStep(concurrentPlan.id, concurrentPlan.steps[0].id); } catch (error) { duplicateConfirmationRejected = String(error).includes("CAPABILITY_STEP_ALREADY_CONFIRMED"); }
+  assert(duplicateConfirmationRejected, "A sensitive step must reject duplicate confirmation receipts");
+  const concurrentContext = athenaContextBuilder.buildContext(concurrentPlan.sourceTask, "geral", ctx, concurrentPlan.projectId);
+  const concurrentResults = await Promise.allSettled([
+    capabilityPlanRuntime.execute(concurrentPlan.id, concurrentContext, ctx),
+    capabilityPlanRuntime.execute(concurrentPlan.id, concurrentContext, ctx),
+  ]);
+  assert(concurrentResults.filter((result) => result.status === "fulfilled").length === 1 && concurrentResults.some((result) => result.status === "rejected" && String(result.reason).includes("CAPABILITY_PLAN_CONCURRENT_OPERATION")), "Concurrent execution of the same plan must fail closed");
+
+  const isolatedA = await processAthenaQueryAsync("Altere a prioridade do projeto para baixa", "geral", ctx, "project-migration", "certification-session-a");
+  const isolatedB = await processAthenaQueryAsync("Atualize o prazo do projeto para 20/12/2026", "geral", ctx, "project-migration", "certification-session-b");
+  await processAthenaQueryAsync("confirmar", "geral", ctx, "project-migration", "certification-session-a");
+  assert(capabilityPlanStore.get(isolatedA.metadata?.capabilityPlanId as string)?.status === "COMPLETED", "Confirmation must execute the matching session plan");
+  assert(capabilityPlanStore.get(isolatedB.metadata?.capabilityPlanId as string)?.status === "APPROVED" && String(ctx.projects[0].deadline) !== "2026-12-20", "A confirmation must not cross session boundaries");
+
+  const validPersistedPlan = capabilityPlanStore.get(isolatedB.metadata?.capabilityPlanId as string)!;
+  const previousWindow = (globalThis as typeof globalThis & { window?: unknown }).window;
+  Object.defineProperty(globalThis, "window", { configurable: true, writable: true, value: {
+    localStorage: { getItem: () => JSON.stringify([validPersistedPlan, { id: "corrupted-plan" }]), setItem: () => undefined },
+    dispatchEvent: () => undefined,
+  } });
+  const partiallyRecovered = new CapabilityPlanStore();
+  assert(partiallyRecovered.list().length === 1 && !partiallyRecovered.getLoadHealth().healthy && partiallyRecovered.getLoadHealth().rejectedEntries === 1, "Partial local corruption must preserve only structurally valid plans");
+  Object.defineProperty(globalThis, "window", { configurable: true, writable: true, value: {
+    localStorage: { getItem: () => "{invalid-json", setItem: () => undefined }, dispatchEvent: () => undefined,
+  } });
+  const fullyCorrupted = new CapabilityPlanStore();
+  assert(fullyCorrupted.list().length === 0 && !fullyCorrupted.getLoadHealth().healthy, "Fully corrupted local storage must recover empty and fail closed");
+  if (previousWindow === undefined) Reflect.deleteProperty(globalThis, "window");
+  else Object.defineProperty(globalThis, "window", { configurable: true, writable: true, value: previousWindow });
+
   assert(!athenaObservabilityJournal.list().some((entry) => entry.type === "LEGACY_FALLBACK_USED" && String(entry.details?.source).includes("project-operations")), "No active project command may depend on the legacy operations adapter");
 
-  console.log("✓ Canonical plan controls, composite transaction, session recovery, mutation, undo and legacy shutdown verified");
+  console.log("✓ Operational core certified: invariants, concurrency, isolation, recovery, undo and single execution boundary verified");
 }
 
 run().catch((error) => {

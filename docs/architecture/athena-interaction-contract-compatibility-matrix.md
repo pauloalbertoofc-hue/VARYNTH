@@ -42,16 +42,15 @@ Esta matriz consolida o roteamento público da Athena em três contratos canôni
 
 O `InteractionContractGateway` é a fronteira comum dos executores `AnswerSelfExecutor`, `UseAgentExecutor` e `UseToolExecutor`. Ele valida ownership antes de invocar a operação e mantém telemetria local limitada aos 200 eventos mais recentes (`ROUTED`, `COMPLETED`, `SKIPPED` ou `FAILED`).
 
-Os handlers especializados anteriores ao classificador foram preservados e encapsulados:
+Os handlers especializados não operacionais anteriores ao classificador foram preservados e encapsulados:
 
 | Handler legado | Contrato do gateway | Motivo |
 | --- | --- | --- |
 | `AthenaProjectPlanManager` | `USE_TOOL` | Mantém planos e pode aplicar alterações após aprovação |
-| `AthenaProjectOperations` | `USE_TOOL` | Executa mutações determinísticas, confirmação e undo |
 | `AthenaContextualMemory` | `USE_TOOL` | Pode persistir fatos, além de consultá-los |
 | `AthenaGlobalIntelligence` | `ANSWER_SELF` | Executa somente leitura e síntese de estado local |
 
-O caminho operacional geral continua delegando chamadas concretas ao `ToolManager`, que permanece responsável por `PermissionPolicyEngine` e eventos de auditoria. Os handlers legados mantêm suas confirmações e mecanismos de undo existentes enquanto passam pelo ownership de `USE_TOOL`; sua migração futura para ferramentas registradas pode ocorrer individualmente, sem novo desvio de roteamento.
+O caminho operacional geral delega chamadas concretas exclusivamente ao `ToolManager`, que permanece responsável por `PermissionPolicyEngine` e eventos de auditoria. O antigo `AthenaProjectOperations` e seu estado paralelo de confirmação e undo foram removidos; mutações usam apenas ferramentas registradas e planos persistidos.
 
 ## Seleção por capacidades implementada
 
@@ -102,9 +101,9 @@ Os contratos consolidados são validados pela suíte `interaction-contract-e2e.t
 
 O journal unificado correlaciona contratos, sessões, projetos, planos, etapas, ferramentas e agentes. Mantém no máximo 300 eventos, remove tokens e campos sensíveis antes da persistência e oferece exportação manual sanitizada. A interface é somente-leitura: explica escolhas, bloqueios e falhas, mas não concede autoridade nem executa ações.
 
-## Migração incremental do adaptador legado
+## Remoção do adaptador operacional legado
 
-Criação de tarefas/notas, atualização de projetos/tarefas, organização composta e envio à lixeira usam capacidades governadas com mutação real e undo. Confirmação, cancelamento e reversão consultam planos persistidos por sessão/projeto. O adaptador antigo de operações fica desligado por padrão e só pode ser reativado por uma chave local explícita de compatibilidade. A matriz de paridade está em `docs/architecture/athena-legacy-capability-migration-matrix.md`.
+Criação de tarefas/notas, atualização de projetos/tarefas, organização composta e envio à lixeira usam capacidades governadas com mutação real e undo. Confirmação, cancelamento e reversão consultam planos persistidos por sessão/projeto. O adaptador antigo de operações e sua chave local de compatibilidade foram removidos definitivamente. A matriz permanente está em `docs/architecture/athena-operational-core-compatibility-matrix.md`.
 
 O painel mostra objetivo, status, progresso, hash, revisão, capacidades, autoridade, risco, confirmações, dependências do DAG, resultados, erros, journal, checkpoint e métricas. A máquina de estados determina quais ações aparecem: aprovar, executar, pausar, reconciliar e retomar, cancelar e repetir etapa.
 

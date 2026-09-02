@@ -1,7 +1,7 @@
-# Athena — matriz de migração do adaptador legado
+# Athena — matriz permanente do núcleo operacional
 
 **Data:** 2 de setembro de 2026  
-**Estratégia:** migração incremental, fail-closed e sem remoção prematura do fallback.
+**Estratégia:** consolidação concluída, fail-closed e sem fallback operacional paralelo.
 
 | Comando legado | Capacidade consolidada | Política | Mutação real | Undo concreto | Estado |
 |---|---|---|---|---|---|
@@ -20,10 +20,20 @@
 - Apenas comandos com alvo determinístico entram no runtime consolidado.
 - Mutações sensíveis permanecem persistidas e aguardam confirmação; não são executadas durante o planejamento.
 - Cada ferramenta migrada captura estado anterior e posterior.
-- O adaptador de operações legado fica desligado por padrão; a chave local `varynth_athena_legacy_operations_compat=enabled` permite rollback explícito de compatibilidade.
-- Se a compatibilidade for ativada, cada uso do fallback é marcado como `LEGACY_FALLBACK_USED` no diagnóstico local.
+- O adaptador de operações legado, sua chave de compatibilidade e seu estado paralelo de confirmação/undo foram removidos.
+- Comandos operacionais passam exclusivamente pelo plano persistido, pelo `ToolManager` e pela política de permissão.
 - Nenhuma capacidade usa API de rede.
 
-## Critério para remoção futura
+## Consolidação final
 
-As interceptações de operações de projeto foram retiradas do caminho padrão após comprovarem paridade de resultado, confirmação, recuperação após recarga, journal e undo. Outros adaptadores de leitura especializados não pertencem a essa camada de mutação e permanecem independentes.
+As interceptações e a implementação antiga de operações de projeto foram removidas após comprovarem paridade de resultado, confirmação, recuperação após recarga, journal e undo. Os adaptadores especializados de leitura, memória e planejamento não pertencem a essa camada operacional e permanecem independentes.
+
+## Invariantes permanentes
+
+- Agentes podem propor, mas nunca recebem autoridade de mutação.
+- Toda mutação operacional é uma ferramenta registrada e atravessa o `ToolManager`.
+- Operações classificadas como sensíveis exigem confirmação humana de uso único.
+- Toda capacidade declarada como reversível possui executor concreto de undo.
+- Um plano aceita somente uma execução ou reversão ativa por vez.
+- Confirmações e controles são isolados por sessão e projeto.
+- Entradas locais corrompidas são rejeitadas antes de qualquer execução.
