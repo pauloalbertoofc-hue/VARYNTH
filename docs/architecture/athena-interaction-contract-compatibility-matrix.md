@@ -88,6 +88,16 @@ Reversão nunca é presumida: somente etapas mutáveis que declaram `supportsUnd
 
 O `AthenaCapabilityPlanPanel` é um Client Component restrito à fronteira interativa, pois consome `localStorage`, eventos locais e controles. A visão completa está no Athena Command Center; o Sidecar apresenta um resumo compacto dos planos ativos.
 
+## Confirmação e reversão governadas implementadas
+
+Planos aprovados não concedem implicitamente autoridade às mutações sensíveis. Cada etapa de alto risco exige uma confirmação humana de uso único vinculada ao hash, à revisão e aos parâmetros exibidos. O executor revalida esse envelope imediatamente antes da etapa e bloqueia divergências por anti-TOCTOU.
+
+Etapas mutáveis registram estado anterior e posterior. A reversão automática só é exposta quando a ferramenta possui um executor concreto de `undo`; as demais continuam bloqueadas de forma explícita. As operações permanecem locais e não introduzem API de rede.
+
+## Validação ponta a ponta
+
+Os contratos consolidados são validados pela suíte `interaction-contract-e2e.test.ts`, da entrada do usuário até resposta, capacidade ou mutação persistida. O relatório de evidências, critérios e lacunas remanescentes está em `docs/architecture/athena-contract-e2e-validation.md`.
+
 O painel mostra objetivo, status, progresso, hash, revisão, capacidades, autoridade, risco, confirmações, dependências do DAG, resultados, erros, journal, checkpoint e métricas. A máquina de estados determina quais ações aparecem: aprovar, executar, pausar, reconciliar e retomar, cancelar e repetir etapa.
 
 Reversão sem executor concreto de undo aparece explicitamente indisponível; a interface nunca simula restauração. Toda atualização ocorre pelo evento local `varynth_capability_plans_updated`, sem `fetch`, endpoint ou API HTTP.

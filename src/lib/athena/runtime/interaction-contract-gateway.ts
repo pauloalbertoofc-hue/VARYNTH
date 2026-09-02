@@ -3,6 +3,7 @@ import type {
   InteractionContractTelemetry,
 } from "../domain/interaction-contract";
 import { contractExecutors } from "./contract-executors";
+import { athenaObservabilityJournal } from "../observability/local-observability-journal";
 
 const TELEMETRY_LIMIT = 200;
 
@@ -53,9 +54,20 @@ export class InteractionContractGateway {
       reason: decision.reason,
       timestamp: new Date().toISOString(),
     });
+    athenaObservabilityJournal.record({
+      category: "CONTRACT",
+      type: `CONTRACT_${status}`,
+      status: status === "SKIPPED" ? "INFO" : status,
+      contract: decision.contract,
+      message: decision.reason,
+      details: {
+        sourceInteractionType: decision.sourceInteractionType,
+        executor: decision.contract,
+        confidence: decision.confidence,
+      },
+    });
     if (this.telemetry.length > TELEMETRY_LIMIT) this.telemetry.shift();
   }
 }
 
 export const athenaInteractionContractGateway = new InteractionContractGateway();
-

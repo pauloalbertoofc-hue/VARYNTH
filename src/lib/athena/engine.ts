@@ -35,6 +35,7 @@ import { athenaCapabilitySelector } from "./kernel/capability-selector";
 import type { CapabilitySelectionResult } from "./domain/capability-selection";
 import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
 import { capabilityPlanRuntime } from "./runtime/capability-plan-runtime";
+import { athenaObservabilityJournal } from "./observability/local-observability-journal";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -104,6 +105,13 @@ function tryLegacyGateway(
     if (response) return withContractMetadata(response, handler.decision);
   }
   return undefined;
+}
+
+function hasCanonicalCapabilityPath(prompt: string): boolean {
+  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return /^(crie|criar|adicione|adicionar|nova)\s+(uma\s+)?tarefa\b/.test(normalized) ||
+    /^(crie|criar|adicione|adicionar)\s+(uma\s+)?nota\b/.test(normalized) ||
+    /^(anote|anotar)(\s+isso)?\b/.test(normalized);
 }
 
 function selectAgentCapability(
@@ -198,7 +206,9 @@ export async function processAthenaQueryAsync(
   sessionId = "default-session"
 ): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
-  const legacyResponse = tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
+  const legacyResponse = hasCanonicalCapabilityPath(prompt)
+    ? undefined
+    : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
   if (legacyResponse) return legacyResponse;
 
   // 1. Contextual Perception & Intent Composition
@@ -215,6 +225,7 @@ export async function processAthenaQueryAsync(
     parsed.resolvedEntities.targetProjectId,
     targetProjectId
   );
+  athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence } });
   const capabilitySelection = contractDecision.contract === "USE_AGENT"
     ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
     : undefined;
@@ -409,7 +420,9 @@ export function processAthenaQuery(
   sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
-  const legacyResponse = tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
+  const legacyResponse = hasCanonicalCapabilityPath(prompt)
+    ? undefined
+    : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
   if (legacyResponse) return legacyResponse;
   const parsed = athenaConversationManager.processMessage(
     sessionId,
@@ -424,6 +437,7 @@ export function processAthenaQuery(
     parsed.resolvedEntities.targetProjectId,
     targetProjectId
   );
+  athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence } });
   const capabilitySelection = contractDecision.contract === "USE_AGENT"
     ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
     : undefined;

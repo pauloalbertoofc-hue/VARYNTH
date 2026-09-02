@@ -98,7 +98,7 @@ async function run(): Promise<void> {
   const reversibleWorkflow: AthenaWorkflow = {
     ...workflow,
     id: "reversible",
-    steps: [{ id: "trash", name: "Trash", toolCall: { toolName: "trash.moveWithUndo", params: { title: "X", entityType: "task" } }, status: "COMPLETED", result: { success: true } }],
+    steps: [{ id: "create-reversible", name: "Create reversible", toolCall: { toolName: "tasks.create", params: { title: "X" } }, status: "COMPLETED", result: { success: true, data: { id: "created" } } }],
   };
   const reversible = capabilityPlanBuilder.approve(capabilityPlanBuilder.build({ ...task, id: "revert-task" }, reversibleWorkflow, context));
   const completedReversible = { ...reversible, status: "COMPLETED" as const, steps: reversible.steps.map((step) => ({ ...step, status: "COMPLETED" as const })) };

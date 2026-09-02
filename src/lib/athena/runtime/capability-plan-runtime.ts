@@ -7,6 +7,7 @@ import { capabilityPlanStateMachine } from "./capability-plan-state-machine";
 import { capabilityPlanStore, CapabilityPlanStore } from "./capability-plan-store";
 import { executableCapabilityRegistry } from "../kernel/executable-capability-registry";
 import { athenaToolManager } from "../tools/tool-manager";
+import { athenaObservabilityJournal } from "../observability/local-observability-journal";
 
 export interface CapabilityPlanReconciliation {
   valid: boolean;
@@ -35,7 +36,9 @@ export class CapabilityPlanRuntime {
   }
 
   register(plan: CapabilityExecutionPlan): CapabilityExecutionPlan {
-    return this.store.save(plan);
+    const saved = this.store.save(plan);
+    athenaObservabilityJournal.record({ category: "PLAN", type: "PLAN_REGISTERED", status: "INFO", message: `Plano ${plan.id} registrado com ${plan.steps.length} etapas.`, planId: plan.id, taskId: plan.taskId, details: { revision: plan.revision, planHash: plan.planHash, capabilityIds: plan.metrics.selectedCapabilityIds } });
+    return saved;
   }
 
   recoverInterruptedPlans(): CapabilityExecutionPlan[] {
@@ -97,6 +100,16 @@ export class CapabilityPlanRuntime {
       result.plan = { ...result.plan, status: controlState };
     }
     this.store.save(result.plan);
+    athenaObservabilityJournal.record({
+      category: "PLAN",
+      type: `PLAN_${result.plan.status}`,
+      status: result.plan.status === "COMPLETED" ? "COMPLETED" : result.plan.status === "BLOCKED" ? "BLOCKED" : result.plan.status === "FAILED" ? "FAILED" : "INFO",
+      message: result.summary.message,
+      planId: result.plan.id,
+      taskId: result.plan.taskId,
+      durationMs: result.plan.metrics.durationMs,
+      details: { completedStepIds: result.summary.completedStepIds, failedStepIds: result.summary.failedStepIds, blockedStepIds: result.summary.blockedStepIds },
+    });
     return result;
   }
 
@@ -132,7 +145,7 @@ export class CapabilityPlanRuntime {
       plan.revision
     );
     const now = new Date().toISOString();
-    return this.store.save({
+    const confirmed = this.store.save({
       ...plan,
       updatedAt: now,
       steps: plan.steps.map((candidate) => candidate.id === stepId ? {
@@ -148,6 +161,8 @@ export class CapabilityPlanRuntime {
       } : candidate),
       events: [...plan.events, { id: `event-${Date.now()}-confirmation`, type: "STEP_CONFIRMED", message: `${step.name}: confirmação humana vinculada à revisão ${plan.revision}.`, timestamp: now, stepId }],
     });
+    athenaObservabilityJournal.record({ category: "SECURITY", type: "STEP_CONFIRMED", status: "COMPLETED", message: `${step.name} confirmada para a revisão ${plan.revision}.`, planId, stepId, capabilityId: step.capabilityId, details: { confirmedPlanHash: plan.planHash, confirmedRevision: plan.revision, expiresAt: confirmation.expiresAt } });
+    return confirmed;
   }
 
   retryStep(planId: string, stepId: string): CapabilityExecutionPlan {
@@ -160,7 +175,7 @@ export class CapabilityPlanRuntime {
     const updated: CapabilityExecutionPlan = {
       ...plan,
       status: "APPROVED",
-      steps: plan.steps.map((candidate) => candidate.id === stepId ? { ...candidate, status: "PENDING", error: undefined } : candidate),
+      steps: plan.steps.map((candidate) => candidate.id === stepId ? { ...candidate, status: "PENDING", error: undefined, confirmation: undefined } : candidate),
       sourceWorkflow: {
         ...plan.sourceWorkflow,
         status: "PENDING",
@@ -185,7 +200,9 @@ export class CapabilityPlanRuntime {
     for (const step of reversible) await undoStep(step);
     plan = capabilityPlanStateMachine.transition(plan, "REVERTED", "Mutações reversíveis desfeitas em ordem inversa.");
     plan.metrics = { ...plan.metrics, reversalCount: plan.metrics.reversalCount + 1 };
-    return this.store.save(plan);
+    const reverted = this.store.save(plan);
+    athenaObservabilityJournal.record({ category: "PLAN", type: "PLAN_REVERTED", status: "REVERTED", message: "Mutações reversíveis restauradas em ordem inversa.", planId, taskId: plan.taskId, details: { stepIds: reversible.map((step) => step.id) } });
+    return reverted;
   }
 
   async revertWithRegisteredUndo(planId: string, storeContext: AthenaEngineContext): Promise<CapabilityExecutionPlan> {

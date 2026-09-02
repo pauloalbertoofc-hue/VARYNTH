@@ -127,6 +127,7 @@ type EventListener<T = unknown> = (event: AthenaEvent<T>) => void;
 
 class EventBus {
   private listeners: Map<AthenaEventType, Set<EventListener<any>>> = new Map();
+  private anyListeners: Set<EventListener<any>> = new Set();
 
   on<T = unknown>(type: AthenaEventType, listener: EventListener<T>): () => void {
     if (!this.listeners.has(type)) {
@@ -137,6 +138,11 @@ class EventBus {
     return () => {
       this.listeners.get(type)?.delete(listener);
     };
+  }
+
+  onAny(listener: EventListener): () => void {
+    this.anyListeners.add(listener);
+    return () => this.anyListeners.delete(listener);
   }
 
   emit<T = unknown>(type: AthenaEventType, payload: T, taskId?: string): void {
@@ -157,10 +163,18 @@ class EventBus {
         }
       });
     }
+    this.anyListeners.forEach((listener) => {
+      try {
+        listener(event);
+      } catch (err) {
+        console.error(`[EventBus] Erro ao disparar listener global para evento ${type}:`, err);
+      }
+    });
   }
 
   clear(): void {
     this.listeners.clear();
+    this.anyListeners.clear();
   }
 }
 

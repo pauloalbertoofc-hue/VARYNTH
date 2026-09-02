@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { AthenaMessageText } from "./AthenaMessageText";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaCapabilityPlanPanel } from "./AthenaCapabilityPlanPanel";
+import { AthenaObservabilityPanel } from "./AthenaObservabilityPanel";
 
 export function AthenaSidecar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -225,6 +226,7 @@ export function AthenaSidecar() {
           </div>
 
           <AthenaCapabilityPlanPanel store={store} compact />
+          <AthenaObservabilityPanel compact />
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">

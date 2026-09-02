@@ -2,6 +2,7 @@ import type { CapabilityExecutionPlan } from "../domain/capability-plan";
 
 const STORAGE_KEY = "varynth_capability_plans_v1";
 const STORAGE_EVENT = "varynth_capability_plans_updated";
+let fallbackStorage = "[]";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
@@ -42,9 +43,11 @@ export class CapabilityPlanStore {
   }
 
   reload(): void {
-    if (typeof window === "undefined" || !window.localStorage) return;
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]") as CapabilityExecutionPlan[];
+      const raw = typeof window !== "undefined" && window.localStorage
+        ? window.localStorage.getItem(STORAGE_KEY) || "[]"
+        : fallbackStorage;
+      const parsed = JSON.parse(raw) as CapabilityExecutionPlan[];
       this.plans = new Map(parsed.map((plan) => [plan.id, plan]));
     } catch {
       this.plans = new Map();
@@ -52,10 +55,14 @@ export class CapabilityPlanStore {
   }
 
   private persist(): void {
-    if (typeof window === "undefined" || !window.localStorage) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...this.plans.values()]));
-      window.dispatchEvent?.(new CustomEvent(STORAGE_EVENT));
+      const serialized = JSON.stringify([...this.plans.values()]);
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY, serialized);
+        window.dispatchEvent?.(new CustomEvent(STORAGE_EVENT));
+      } else {
+        fallbackStorage = serialized;
+      }
     } catch {
       // The in-memory copy remains authoritative for this session when durable storage is unavailable.
     }
