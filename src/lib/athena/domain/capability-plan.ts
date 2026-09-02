@@ -53,6 +53,8 @@ export interface CapabilityPlanStep {
 export interface CapabilityExecutionPlan {
   id: string;
   taskId: string;
+  sessionId?: string;
+  projectId?: string;
   objective: string;
   revision: number;
   planHash: string;

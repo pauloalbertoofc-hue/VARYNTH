@@ -12,18 +12,18 @@
 | concluir/reabrir tarefa | `tasks.update` | confirmação humana | sim | restaurar tarefa anterior | migrado |
 | excluir tarefa | `tasks.trash` | confirmação + soft delete | sim | restaurar registro da lixeira | migrado |
 | excluir projeto | `projects.trash` | confirmação + soft delete | sim | restaurar registro da lixeira | migrado |
-| organizar próximas tarefas | — | confirmação composta legada | sim | undo composto legado | fallback preservado |
-| confirmar/cancelar/desfazer ação legada | — | estado por sessão legado | conforme ação | conforme ação | fallback preservado |
+| organizar próximas tarefas | `tasks.organize` | confirmação humana | transação local | restaurar prioridades e remover criações | migrado |
+| confirmar/cancelar/desfazer | controle de plano persistido | sessão + projeto + hash | conforme plano | conforme ferramenta | migrado |
 
 ## Regras de transição
 
 - Apenas comandos com alvo determinístico entram no runtime consolidado.
 - Mutações sensíveis permanecem persistidas e aguardam confirmação; não são executadas durante o planejamento.
 - Cada ferramenta migrada captura estado anterior e posterior.
-- O fallback continua disponível para comandos sem paridade consolidada.
-- Cada uso do fallback é marcado como `LEGACY_FALLBACK_USED` no diagnóstico local.
+- O adaptador de operações legado fica desligado por padrão; a chave local `varynth_athena_legacy_operations_compat=enabled` permite rollback explícito de compatibilidade.
+- Se a compatibilidade for ativada, cada uso do fallback é marcado como `LEGACY_FALLBACK_USED` no diagnóstico local.
 - Nenhuma capacidade usa API de rede.
 
 ## Critério para remoção futura
 
-Uma interceptação legada só poderá ser removida depois que sua ferramenta consolidada possuir paridade de resultado, confirmação, recuperação após recarga, journal e undo testados.
+As interceptações de operações de projeto foram retiradas do caminho padrão após comprovarem paridade de resultado, confirmação, recuperação após recarga, journal e undo. Outros adaptadores de leitura especializados não pertencem a essa camada de mutação e permanecem independentes.

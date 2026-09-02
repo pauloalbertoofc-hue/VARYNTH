@@ -15,10 +15,12 @@ function hash(value: unknown): string {
 }
 
 export function calculateCapabilityPlanHash(
-  plan: Pick<CapabilityExecutionPlan, "taskId" | "objective" | "revision" | "steps">
+  plan: Pick<CapabilityExecutionPlan, "taskId" | "sessionId" | "projectId" | "objective" | "revision" | "steps">
 ): string {
   return hash({
     taskId: plan.taskId,
+    sessionId: plan.sessionId,
+    projectId: plan.projectId,
     objective: plan.objective,
     revision: plan.revision,
     steps: plan.steps.map(({ status: _status, result: _result, error: _error, confirmation: _confirmation, mutationRecord: _mutationRecord, ...step }) => step),
@@ -124,6 +126,8 @@ export class CapabilityPlanBuilder {
     const plan: CapabilityExecutionPlan = {
       id: `cap-plan-${task.id}`,
       taskId: task.id,
+      sessionId: task.metadata?.sessionId as string | undefined,
+      projectId: task.targetProjectId,
       objective: task.rawPrompt,
       revision: 1,
       planHash: "",

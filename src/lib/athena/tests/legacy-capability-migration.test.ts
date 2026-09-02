@@ -74,11 +74,24 @@ async function run(): Promise<void> {
   const create = await processAthenaQueryAsync("Crie uma tarefa: Validar paridade", "geral", ctx, "project-migration", "migration-create");
   assert(create.metadata?.capabilityPlanStatus === "COMPLETED" && ctx.tasks.length === createdBefore + 1, "Previously migrated task creation must retain parity");
 
-  const fallback = await processAthenaQueryAsync("Organize as próximas tarefas", "geral", ctx, "project-migration", "migration-fallback");
-  assert(fallback.metadata?.interactionContract === "USE_TOOL", "Unmigrated composite command must retain its legacy behavior");
-  assert(athenaObservabilityJournal.list().some((entry) => entry.type === "LEGACY_FALLBACK_USED" && entry.sessionId === "migration-fallback"), "Legacy fallback usage must be visible in diagnostics");
+  const beforeOrganize = ctx.tasks.map((task) => ({ ...task }));
+  const organize = await processAthenaQueryAsync("Organize as próximas tarefas", "geral", ctx, "project-migration", "migration-organize");
+  assert(organize.metadata?.capabilityPlanStatus === "APPROVED" && ctx.tasks.length === beforeOrganize.length, "Composite organization must persist without premature mutation");
+  const confirmedOrganization = await processAthenaQueryAsync("confirmar", "geral", ctx, "project-migration", "migration-organize");
+  const organizedPendingTasks = ctx.tasks.filter((task) => task.projectId === "project-migration" && task.status !== "concluida");
+  assert(confirmedOrganization.metadata?.capabilityPlanStatus === "COMPLETED" && organizedPendingTasks.length === 3, `Conversational confirmation must execute the persisted composite plan (status=${String(confirmedOrganization.metadata?.capabilityPlanStatus)}, pending=${organizedPendingTasks.length}, text=${confirmedOrganization.text})`);
+  const undoneOrganization = await processAthenaQueryAsync("desfazer", "geral", ctx, "project-migration", "migration-organize");
+  assert(undoneOrganization.metadata?.capabilityPlanStatus === "REVERTED" && ctx.tasks.length === beforeOrganize.length, "Conversational undo must reverse the persisted composite plan");
 
-  console.log("✓ Incremental legacy migration, confirmation, real mutation, undo, parity and fallback diagnostics verified");
+  const previousPriority = ctx.projects[0].priority;
+  const priorityPlan = await processAthenaQueryAsync("Altere a prioridade do projeto para alta", "geral", ctx, "project-migration", "migration-cancel");
+  assert(priorityPlan.metadata?.capabilityPlanStatus === "APPROVED", "Sensitive plan must await a persisted decision");
+  const cancelled = await processAthenaQueryAsync("cancelar", "geral", ctx, "project-migration", "migration-cancel");
+  assert(cancelled.metadata?.capabilityPlanStatus === "CANCELLED" && ctx.projects[0].priority === previousPriority, "Conversational cancellation must preserve state");
+
+  assert(!athenaObservabilityJournal.list().some((entry) => entry.type === "LEGACY_FALLBACK_USED" && String(entry.details?.source).includes("project-operations")), "No active project command may depend on the legacy operations adapter");
+
+  console.log("✓ Canonical plan controls, composite transaction, session recovery, mutation, undo and legacy shutdown verified");
 }
 
 run().catch((error) => {

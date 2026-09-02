@@ -1,5 +1,6 @@
 import { ActionType, ActionResult } from "../domain/action";
 import { AthenaEngineContext } from "@/lib/athena/engine";
+import type { Task } from "@/lib/types";
 
 export interface ToolDefinition {
   name: ActionType;
@@ -103,6 +104,38 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
       const trashId = (result.data as { trashId?: string } | undefined)?.trashId;
       if (!trashId || !ctx.restoreFromTrash) throw new Error("[TOOL_UNDO_UNAVAILABLE] Registro da lixeira ausente.");
       ctx.restoreFromTrash(trashId, "athena");
+    },
+  },
+
+  "tasks.organize": {
+    name: "tasks.organize",
+    description: "Organiza transacionalmente as três próximas tarefas de um projeto",
+    module: "projects",
+    requiresConfirmation: true,
+    captureBefore: (params, ctx) => ctx.tasks.filter((task) => task.projectId === params.projectId && task.status !== "concluida").slice(0, 3).map((task) => ({ ...task })),
+    execute: (params, ctx) => {
+      const projectId = params.projectId as string;
+      const project = ctx.projects.find((item) => item.id === projectId);
+      if (!project) return { success: false, actionType: "tasks.organize", error: "Projeto não encontrado" };
+      const existing = ctx.tasks.filter((task) => task.projectId === projectId && task.status !== "concluida").slice(0, 3);
+      if (existing.length > 0 && !ctx.updateTask) return { success: false, actionType: "tasks.organize", error: "Atualização de tarefas indisponível" };
+      const templates = ["Definir a próxima entrega verificável", "Executar a etapa prioritária do projeto", "Revisar o resultado e registrar aprendizados"];
+      const priorities = ["urgente", "alta", "media"] as const;
+      const createdTaskIds: string[] = [];
+      existing.forEach((task, index) => ctx.updateTask?.(task.id, { priority: priorities[index] }, "athena"));
+      for (let index = existing.length; index < 3; index += 1) {
+        const created = ctx.addTask({ title: templates[index], projectId, priority: priorities[index], status: "a_fazer" }, "athena");
+        createdTaskIds.push(created.id);
+      }
+      return { success: true, actionType: "tasks.organize", data: { projectId, orderedTitles: existing.map((task) => task.title).concat(templates.slice(existing.length)), createdTaskIds } };
+    },
+    undo: (params, result, ctx) => {
+      const previous = (params.__before as Task[] | undefined) || [];
+      const createdTaskIds = (result.data as { createdTaskIds?: string[] } | undefined)?.createdTaskIds || [];
+      if (previous.length > 0 && !ctx.updateTask) throw new Error("[TOOL_UNDO_UNAVAILABLE] Atualização de tarefas indisponível.");
+      if (createdTaskIds.length > 0 && !ctx.deleteTask) throw new Error("[TOOL_UNDO_UNAVAILABLE] Remoção das tarefas criadas indisponível.");
+      previous.forEach((task) => ctx.updateTask?.(task.id, task, "athena"));
+      createdTaskIds.forEach((id) => ctx.deleteTask?.(id, "athena"));
     },
   },
 

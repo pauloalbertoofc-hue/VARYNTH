@@ -27,7 +27,7 @@ const READ_ONLY_TOOLS = new Set<ActionType>([
 ]);
 
 const CONFIRMATION_TOOLS = new Set<ActionType>([
-  "tasks.toggle", "tasks.update", "tasks.trash", "projects.update", "projects.trash", "trash.moveWithUndo",
+  "tasks.toggle", "tasks.update", "tasks.trash", "tasks.organize", "projects.update", "projects.trash", "trash.moveWithUndo",
   "creative.reviewDependencyUpdate", "creative.approvePlan", "creative.executePlan",
 ]);
 
@@ -36,6 +36,7 @@ const REQUIRED_INPUTS: Partial<Record<ActionType, string[]>> = {
   "tasks.toggle": ["taskId"],
   "tasks.update": ["taskId"],
   "tasks.trash": ["taskId"],
+  "tasks.organize": ["projectId"],
   "projects.update": ["projectId"],
   "projects.trash": ["projectId"],
   "notes.create": ["content"],

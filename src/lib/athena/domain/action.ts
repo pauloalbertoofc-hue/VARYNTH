@@ -3,6 +3,7 @@ export type ActionType =
   | "tasks.toggle"
   | "tasks.update"
   | "tasks.trash"
+  | "tasks.organize"
   | "notes.create"
   | "projects.update"
   | "projects.trash"

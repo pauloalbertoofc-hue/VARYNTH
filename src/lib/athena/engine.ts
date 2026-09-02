@@ -35,6 +35,7 @@ import { athenaCapabilitySelector } from "./kernel/capability-selector";
 import type { CapabilitySelectionResult } from "./domain/capability-selection";
 import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
 import { capabilityPlanRuntime } from "./runtime/capability-plan-runtime";
+import { capabilityPlanStore } from "./runtime/capability-plan-store";
 import { athenaObservabilityJournal } from "./observability/local-observability-journal";
 
 export interface AthenaEngineContext {
@@ -87,10 +88,6 @@ function tryLegacyGateway(
       handle: () => athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId),
     },
     {
-      decision: decisionForContract("USE_TOOL", "legacy.project-operations"),
-      handle: () => athenaProjectOperations.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
-    },
-    {
       decision: decisionForContract("USE_TOOL", "legacy.contextual-memory"),
       handle: () => athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
     },
@@ -99,6 +96,13 @@ function tryLegacyGateway(
       handle: () => athenaGlobalIntelligence.tryHandle(prompt, scope, ctx, targetProjectId),
     },
   ];
+
+  if (legacyOperationsCompatibilityEnabled()) {
+    handlers.unshift({
+      decision: decisionForContract("USE_TOOL", "legacy.project-operations.compatibility"),
+      handle: () => athenaProjectOperations.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
+    });
+  }
 
   for (const handler of handlers) {
     const response = athenaInteractionContractGateway.execute(handler.decision, handler.handle);
@@ -110,12 +114,80 @@ function tryLegacyGateway(
   return undefined;
 }
 
+function legacyOperationsCompatibilityEnabled(): boolean {
+  if (typeof window === "undefined" || !window.localStorage) return false;
+  try {
+    return window.localStorage.getItem("varynth_athena_legacy_operations_compat") === "enabled";
+  } catch {
+    return false;
+  }
+}
+
+function operationalMessage(text: string, scope: AthenaScope, plan?: import("./domain/capability-plan").CapabilityExecutionPlan): AthenaMessage {
+  return {
+    id: `ath-plan-control-${Date.now()}`,
+    sender: "athena",
+    text,
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    scope,
+    metadata: plan ? { capabilityPlanId: plan.id, capabilityPlanHash: plan.planHash, capabilityPlanStatus: plan.status } : undefined,
+  };
+}
+
+async function tryCanonicalPlanControl(
+  prompt: string,
+  scope: AthenaScope,
+  ctx: AthenaEngineContext,
+  sessionId: string,
+  projectId?: string
+): Promise<AthenaMessage | undefined> {
+  const clean = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const isConfirm = /^(confirmo|confirmar|pode executar|pode fazer|sim,? execute|sim,? pode)$/.test(clean);
+  const isCancel = /^(cancelar|cancele|nao execute|nao,? cancela)$/.test(clean);
+  const isUndo = /^(desfazer|desfaca|desfaz|undo)( a ultima acao| ultima acao)?$/.test(clean);
+  if (!isConfirm && !isCancel && !isUndo) return undefined;
+
+  const plans = capabilityPlanStore.list().filter((plan) => plan.sessionId === sessionId && (!projectId || !plan.projectId || plan.projectId === projectId));
+  if (isConfirm) {
+    let plan = plans.find((candidate) => ["PLANNED", "APPROVED", "BLOCKED", "PAUSED", "INTERRUPTED"].includes(candidate.status));
+    if (!plan) return operationalMessage("Não há nenhum plano persistido aguardando confirmação nesta conversa.", scope);
+    if (["BLOCKED", "PAUSED", "INTERRUPTED"].includes(plan.status)) plan = capabilityPlanRuntime.resume(plan.id);
+    if (plan.status === "PLANNED") {
+      plan = capabilityPlanBuilder.approve(plan, "HUMAN");
+      capabilityPlanRuntime.register(plan);
+    }
+    for (const step of plan.steps.filter((candidate) => candidate.requiresConfirmation && candidate.status !== "COMPLETED")) {
+      plan = capabilityPlanRuntime.confirmStep(plan.id, step.id);
+    }
+    const context = athenaContextBuilder.buildContext(plan.sourceTask, scope, ctx, plan.projectId);
+    const result = await capabilityPlanRuntime.execute(plan.id, context, ctx);
+    return operationalMessage(result.summary.message, scope, result.plan);
+  }
+
+  if (isCancel) {
+    const plan = plans.find((candidate) => ["PLANNED", "APPROVED", "BLOCKED", "PAUSED", "INTERRUPTED", "PARTIAL", "FAILED"].includes(candidate.status));
+    if (!plan) return operationalMessage("Não há nenhum plano persistido que possa ser cancelado nesta conversa.", scope);
+    const cancelled = capabilityPlanRuntime.cancel(plan.id);
+    return operationalMessage("Plano cancelado. Nenhuma nova etapa será executada; resultados já concluídos foram preservados.", scope, cancelled);
+  }
+
+  const plan = plans.find((candidate) => ["COMPLETED", "PARTIAL", "FAILED", "CANCELLED"].includes(candidate.status) && candidate.steps.some((step) => step.status === "COMPLETED" && step.authority === "MUTATE_GOVERNED"));
+  if (!plan) return operationalMessage("Não há uma alteração reversível persistida nesta conversa.", scope);
+  try {
+    const reverted = await capabilityPlanRuntime.revertWithRegisteredUndo(plan.id, ctx);
+    return operationalMessage("A última alteração reversível desta conversa foi desfeita com segurança.", scope, reverted);
+  } catch (error) {
+    return operationalMessage(`Não foi possível desfazer com segurança: ${error instanceof Error ? error.message : "undo indisponível"}.`, scope, plan);
+  }
+}
+
 function hasCanonicalCapabilityPath(prompt: string, targetProjectId?: string): boolean {
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   return /^(crie|criar|adicione|adicionar|nova)\s+(uma\s+)?tarefa\b/.test(normalized) ||
     /^(crie|criar|adicione|adicionar)\s+(uma\s+)?nota\b/.test(normalized) ||
     /^(anote|anotar)(\s+isso)?\b/.test(normalized) ||
     Boolean(targetProjectId && (
+      (normalized.includes("organize") && normalized.includes("proxim") && normalized.includes("taref")) ||
       (normalized.includes("projeto") && (normalized.includes("arquiv") || normalized.includes("prioridade") || normalized.includes("prazo") || normalized.includes("como ativo") || normalized.includes("em espera") || normalized.includes("como concluido") || /^(excluir|apagar|remover|deletar)/.test(normalized))) ||
       (normalized.includes("tarefa") && (/\b(conclua|concluir|marque como concluida|reabra|reabrir)\b/.test(normalized) || /^(excluir|apagar|remover|deletar)/.test(normalized)))
     ));
@@ -219,6 +291,8 @@ export async function processAthenaQueryAsync(
   sessionId = "default-session"
 ): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
+  const canonicalControl = await tryCanonicalPlanControl(prompt, scope, ctx, sessionId, targetProjectId);
+  if (canonicalControl) return withContractMetadata(canonicalControl, decisionForContract("USE_TOOL", "canonical.persisted-plan-control"));
   const legacyResponse = hasCanonicalCapabilityPath(prompt, targetProjectId)
     ? undefined
     : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
@@ -310,7 +384,7 @@ export async function processAthenaQueryAsync(
     return athenaInteractionContractGateway.executeAsync(
       contractDecision,
       async () => withContractMetadata(
-        await processCapabilityPlanAsync(prompt, scope, ctx, resolvedProjectId),
+        await processCapabilityPlanAsync(prompt, scope, ctx, resolvedProjectId, sessionId),
         contractDecision
       )
     );
@@ -518,7 +592,7 @@ export function processAthenaQuery(
     athenaInteractionContractRouter.require(contractDecision, "USE_TOOL");
     return athenaInteractionContractGateway.execute(
       contractDecision,
-      () => withContractMetadata(processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId), contractDecision)
+      () => withContractMetadata(processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId, sessionId), contractDecision)
     );
   }
 
@@ -557,10 +631,11 @@ function processDeterministicWorkflow(
   prompt: string,
   scope: AthenaScope,
   ctx: AthenaEngineContext,
-  resolvedProjectId?: string
+  resolvedProjectId?: string,
+  sessionId?: string
 ): AthenaMessage {
   const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
-  task.metadata = { ...task.metadata, targetTaskId: resolveTargetTaskId(prompt, ctx, resolvedProjectId) };
+  task.metadata = { ...task.metadata, targetTaskId: resolveTargetTaskId(prompt, ctx, resolvedProjectId), sessionId };
   const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
   const workflow = athenaWorkflowBuilder.build({ ...task, type: "ACTION_FAST" });
   const capabilityPlan = capabilityPlanBuilder.approve(
@@ -646,10 +721,11 @@ async function processCapabilityPlanAsync(
   prompt: string,
   scope: AthenaScope,
   ctx: AthenaEngineContext,
-  resolvedProjectId?: string
+  resolvedProjectId?: string,
+  sessionId?: string
 ): Promise<AthenaMessage> {
   const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
-  task.metadata = { ...task.metadata, targetTaskId: resolveTargetTaskId(prompt, ctx, resolvedProjectId) };
+  task.metadata = { ...task.metadata, targetTaskId: resolveTargetTaskId(prompt, ctx, resolvedProjectId), sessionId };
   const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
   const workflow = athenaWorkflowBuilder.build({ ...task, type: "ACTION_FAST" });
   const planned = capabilityPlanBuilder.build(task, workflow, context);

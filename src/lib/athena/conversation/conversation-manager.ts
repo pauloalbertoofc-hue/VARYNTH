@@ -250,7 +250,8 @@ export class ConversationManager {
       /^(mova|mover|exclua|excluir|apague|apagar|remova|remover)\b/.test(clean) ||
       /^(atualize|atualizar|altere|alterar)\b.*\b(projeto|tarefa|prazo|prioridade|status)\b/.test(clean) ||
       /^(arquive|arquivar)\b.*\bprojeto\b/.test(clean) ||
-      /^(conclua|concluir|reabra|reabrir)\b.*\b(projeto|tarefa)\b/.test(clean);
+      /^(conclua|concluir|reabra|reabrir)\b.*\b(projeto|tarefa)\b/.test(clean) ||
+      /^organize\b.*\bproxim\w*\b.*\btaref\w*\b/.test(clean);
     const isCritiqueRequest =
       clean.includes("critique") || clean.includes("critica") ||
       clean.includes("ponto fraco") || clean.includes("pontos fracos") ||

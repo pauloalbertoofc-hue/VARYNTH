@@ -59,6 +59,8 @@ export class ToolManager {
         return { action: "MODIFY", targetDomain: "WORKSPACE_TASK" };
       case "tasks.trash":
         return { action: "DELETE_SOFT", targetDomain: "WORKSPACE_TASK" };
+      case "tasks.organize":
+        return { action: "MODIFY", targetDomain: "WORKSPACE_TASK" };
       case "projects.update":
         return { action: "MODIFY", targetDomain: "WORKSPACE_PROJECT" };
       case "projects.trash":

@@ -104,7 +104,7 @@ O journal unificado correlaciona contratos, sessões, projetos, planos, etapas, 
 
 ## Migração incremental do adaptador legado
 
-Criação de tarefas/notas, atualização de projetos/tarefas e envio de projetos/tarefas à lixeira usam capacidades governadas com mutação real e undo. Comandos compostos ainda não migrados preservam o fallback e são identificados no diagnóstico. A matriz de paridade está em `docs/architecture/athena-legacy-capability-migration-matrix.md`.
+Criação de tarefas/notas, atualização de projetos/tarefas, organização composta e envio à lixeira usam capacidades governadas com mutação real e undo. Confirmação, cancelamento e reversão consultam planos persistidos por sessão/projeto. O adaptador antigo de operações fica desligado por padrão e só pode ser reativado por uma chave local explícita de compatibilidade. A matriz de paridade está em `docs/architecture/athena-legacy-capability-migration-matrix.md`.
 
 O painel mostra objetivo, status, progresso, hash, revisão, capacidades, autoridade, risco, confirmações, dependências do DAG, resultados, erros, journal, checkpoint e métricas. A máquina de estados determina quais ações aparecem: aprovar, executar, pausar, reconciliar e retomar, cancelar e repetir etapa.
 

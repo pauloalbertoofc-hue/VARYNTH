@@ -69,6 +69,9 @@ export class SimpleActionPlanner {
     }
 
     // 3. Governed project and task mutations migrated from the legacy adapter
+    else if (projectId && normalized.includes("organize") && normalized.includes("proxim") && normalized.includes("taref")) {
+      steps.push({ id: "step-1", name: "Organizar Próximas Tarefas", toolCall: { toolName: "tasks.organize", params: { projectId } }, status: "PENDING" });
+    }
     else if (projectId && normalized.includes("arquiv") && normalized.includes("projeto")) {
       steps.push({ id: "step-1", name: "Arquivar Projeto", toolCall: { toolName: "projects.update", params: { projectId, status: "arquivado" } }, status: "PENDING" });
     }
