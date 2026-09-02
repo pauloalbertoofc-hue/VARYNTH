@@ -6,6 +6,7 @@ import { agentRegistry } from "../agents/registry";
 import { AgentResult } from "../domain/result";
 import { athenaEventBus } from "../events/event-bus";
 import { AthenaEngineContext } from "@/lib/athena/engine";
+import { athenaCapabilitySelector } from "../kernel/capability-selector";
 
 export interface WorkflowExecutionResult {
   workflowId: string;
@@ -39,6 +40,13 @@ export class WorkflowExecutor {
       try {
         // 1. Tool execution if defined
         if (step.toolCall) {
+          const selection = athenaCapabilitySelector.select({
+            kind: "TOOL",
+            actionType: step.toolCall.toolName as import("../domain/action").ActionType,
+          });
+          if (selection.status !== "SELECTED" || !selection.selected) {
+            throw new Error(`[CAPABILITY_${selection.status}] ${selection.reason}`);
+          }
           const res = await athenaToolManager.executeTool(
             step.toolCall.toolName as any,
             step.toolCall.params,
@@ -51,7 +59,16 @@ export class WorkflowExecutor {
 
         // 2. Agent execution if assigned
         if (step.assignedAgentId) {
-          const agent = agentRegistry.getAgent(step.assignedAgentId);
+          const selection = athenaCapabilitySelector.select({
+            kind: "AGENT",
+            task,
+            context,
+            preferredCapabilityId: step.assignedAgentId,
+          });
+          if (selection.status !== "SELECTED" || !selection.selected) {
+            throw new Error(`[CAPABILITY_${selection.status}] ${selection.reason}`);
+          }
+          const agent = agentRegistry.getAgent(selection.selected.id);
           if (agent) {
             const agentRes = await agent.execute(task, context);
             agentResults.push(agentRes);
@@ -95,4 +112,3 @@ export class WorkflowExecutor {
 }
 
 export const athenaWorkflowExecutor = new WorkflowExecutor();
-

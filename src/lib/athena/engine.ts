@@ -31,6 +31,10 @@ import { athenaProjectPlanManager } from "./planning/project-plan-manager";
 import { athenaInteractionContractRouter } from "./kernel/interaction-contract-router";
 import { decisionForContract, InteractionContractDecision } from "./domain/interaction-contract";
 import { athenaInteractionContractGateway } from "./runtime/interaction-contract-gateway";
+import { athenaCapabilitySelector } from "./kernel/capability-selector";
+import type { CapabilitySelectionResult } from "./domain/capability-selection";
+import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
+import { capabilityPlanExecutor } from "./runtime/capability-plan-executor";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -101,6 +105,51 @@ function tryLegacyGateway(
   return undefined;
 }
 
+function selectAgentCapability(
+  prompt: string,
+  scope: AthenaScope,
+  ctx: AthenaEngineContext,
+  targetProjectId?: string
+): CapabilitySelectionResult {
+  const task = athenaPerceptionEngine.perceive(prompt, scope, targetProjectId);
+  const context = athenaContextBuilder.buildContext(task, scope, ctx, targetProjectId);
+  return athenaCapabilitySelector.select({ kind: "AGENT", task, context });
+}
+
+function capabilityClarification(
+  selection: CapabilitySelectionResult,
+  scope: AthenaScope,
+  decision: InteractionContractDecision
+): AthenaMessage {
+  return {
+    id: `ath-capability-${Date.now()}`,
+    sender: "athena",
+    text: selection.clarificationPrompt || "Não encontrei uma capacidade segura e inequívoca para este pedido. Especifique o domínio ou o resultado esperado.",
+    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    scope,
+    metadata: {
+      interactionContract: decision.contract,
+      capabilitySelectionStatus: selection.status,
+      capabilitySelectionReason: selection.reason,
+      capabilityCandidates: selection.candidates,
+    },
+  };
+}
+
+function resolveExecutionProjectId(
+  prompt: string,
+  parsedProjectId: string | undefined,
+  explicitProjectId: string | undefined
+): string | undefined {
+  if (explicitProjectId) return parsedProjectId || explicitProjectId;
+  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const explicitlyGlobal =
+    /\b(quantos|quais|todos|todas)\s+(os\s+|as\s+)?projetos\b/.test(normalized) ||
+    normalized.includes("projetos ativos") ||
+    normalized.includes("meus projetos");
+  return explicitlyGlobal ? undefined : parsedProjectId;
+}
+
 function alignSemanticWithConversationIntent(
   semantic: SemanticInterpretation,
   parsed: ReturnType<typeof athenaConversationManager.processMessage>
@@ -160,7 +209,17 @@ export async function processAthenaQueryAsync(
   );
   const contractDecision = athenaInteractionContractRouter.route(parsed);
 
-  const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
+  const resolvedProjectId = resolveExecutionProjectId(
+    prompt,
+    parsed.resolvedEntities.targetProjectId,
+    targetProjectId
+  );
+  const capabilitySelection = contractDecision.contract === "USE_AGENT"
+    ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
+    : undefined;
+  if (capabilitySelection && capabilitySelection.status !== "SELECTED") {
+    return capabilityClarification(capabilitySelection, scope, contractDecision);
+  }
   const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
   const semantic: SemanticInterpretation = parsed.semanticInterpretation || {
     intent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
@@ -223,9 +282,12 @@ export async function processAthenaQueryAsync(
   // 4. OPERATIONAL PATH: System Mutation Commands
   if (contractDecision.contract === "USE_TOOL") {
     athenaInteractionContractRouter.require(contractDecision, "USE_TOOL");
-    return athenaInteractionContractGateway.execute(
+    return athenaInteractionContractGateway.executeAsync(
       contractDecision,
-      () => withContractMetadata(processDeterministicWorkflow(prompt, scope, ctx, resolvedProjectId), contractDecision)
+      async () => withContractMetadata(
+        await processCapabilityPlanAsync(prompt, scope, ctx, resolvedProjectId),
+        contractDecision
+      )
     );
   }
 
@@ -277,6 +339,9 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
                 selectedPath: "COGNITIVE_PATH",
                 ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
                 interactionContract: contractDecision.contract,
+                selectedCapability: capabilitySelection?.selected?.id,
+                capabilitySelectionReason: capabilitySelection?.reason,
+                capabilityCandidates: capabilitySelection?.candidates,
               } as InteractionDebugInfo,
             },
           };
@@ -324,6 +389,9 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
         selectedPath: parsed.interactionType === "CONVERSATION" ? "FAST_CONVERSATION_PATH" : "COGNITIVE_PATH",
         ellipsisResolved: parsed.ellipsisResolved?.isEllipsis,
         interactionContract: contractDecision.contract,
+        selectedCapability: capabilitySelection?.selected?.id,
+        capabilitySelectionReason: capabilitySelection?.reason,
+        capabilityCandidates: capabilitySelection?.candidates,
       } as InteractionDebugInfo,
     },
   };
@@ -350,7 +418,17 @@ export function processAthenaQuery(
   );
   const contractDecision = athenaInteractionContractRouter.route(parsed);
 
-  const resolvedProjectId = parsed.resolvedEntities.targetProjectId || targetProjectId;
+  const resolvedProjectId = resolveExecutionProjectId(
+    prompt,
+    parsed.resolvedEntities.targetProjectId,
+    targetProjectId
+  );
+  const capabilitySelection = contractDecision.contract === "USE_AGENT"
+    ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
+    : undefined;
+  if (capabilitySelection && capabilitySelection.status !== "SELECTED") {
+    return capabilityClarification(capabilitySelection, scope, contractDecision);
+  }
   const sessionState = athenaConversationManager.getOrCreateSession(sessionId);
   const semantic: SemanticInterpretation = parsed.semanticInterpretation || {
     intent: (parsed.intents[0] as any) || "SOCIAL_CONVERSATION",
@@ -440,6 +518,9 @@ export function processAthenaQuery(
     metadata: {
       interactionContract: contractDecision.contract,
       interactionType: parsed.interactionType,
+      selectedCapability: capabilitySelection?.selected?.id,
+      capabilitySelectionReason: capabilitySelection?.reason,
+      capabilityCandidates: capabilitySelection?.candidates,
     },
   };
 }
@@ -453,6 +534,10 @@ function processDeterministicWorkflow(
   const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
   const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
   const workflow = athenaWorkflowBuilder.build(task);
+  const capabilityPlan = capabilityPlanBuilder.approve(
+    capabilityPlanBuilder.build(task, workflow, context),
+    "POLICY"
+  );
 
   let workflowResult: any = undefined;
   try {
@@ -512,10 +597,47 @@ function processDeterministicWorkflow(
     };
   }
 
-  return athenaResponseBuilder.buildResponse(
+  const response = athenaResponseBuilder.buildResponse(
     task,
     context,
     workflowResult,
     deliberationResult
   );
+  response.metadata = {
+    ...response.metadata,
+    capabilityPlanId: capabilityPlan.id,
+    capabilityPlanHash: capabilityPlan.planHash,
+    capabilityPlanStatus: capabilityPlan.status,
+    capabilityPlanSteps: capabilityPlan.steps,
+  };
+  return response;
+}
+
+async function processCapabilityPlanAsync(
+  prompt: string,
+  scope: AthenaScope,
+  ctx: AthenaEngineContext,
+  resolvedProjectId?: string
+): Promise<AthenaMessage> {
+  const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
+  const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
+  const workflow = athenaWorkflowBuilder.build(task);
+  const planned = capabilityPlanBuilder.build(task, workflow, context);
+  const approved = capabilityPlanBuilder.approve(planned, "POLICY");
+  const execution = await capabilityPlanExecutor.execute(approved, context, ctx);
+  const response = athenaResponseBuilder.buildResponse(
+    task,
+    context,
+    execution.workflowResult,
+    undefined
+  );
+  response.metadata = {
+    ...response.metadata,
+    capabilityPlanId: execution.plan.id,
+    capabilityPlanHash: execution.plan.planHash,
+    capabilityPlanStatus: execution.plan.status,
+    capabilityPlanSummary: execution.summary,
+    capabilityPlanSteps: execution.plan.steps,
+  };
+  return response;
 }

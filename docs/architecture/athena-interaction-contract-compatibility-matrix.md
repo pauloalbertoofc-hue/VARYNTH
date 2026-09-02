@@ -52,3 +52,18 @@ Os handlers especializados anteriores ao classificador foram preservados e encap
 | `AthenaGlobalIntelligence` | `ANSWER_SELF` | Executa somente leitura e síntese de estado local |
 
 O caminho operacional geral continua delegando chamadas concretas ao `ToolManager`, que permanece responsável por `PermissionPolicyEngine` e eventos de auditoria. Os handlers legados mantêm suas confirmações e mecanismos de undo existentes enquanto passam pelo ownership de `USE_TOOL`; sua migração futura para ferramentas registradas pode ocorrer individualmente, sem novo desvio de roteamento.
+
+## Seleção por capacidades implementada
+
+O `ExecutableCapabilityRegistry` projeta, sem duplicar estado, os manifests ativos do `AgentRegistry` e as definições do `registeredTools`. Cada capacidade executável declara tipo, domínio, skills, custo, prioridade, autoridade, mutação, confirmação, undo e entradas obrigatórias conhecidas.
+
+O `CapabilitySelector` aplica seleção determinística:
+
+- ferramentas exigem correspondência exata de `ActionType`;
+- agentes precisam declarar `canHandle=true`;
+- prioridade e aderência de skills compõem o score;
+- empate no maior score retorna `AMBIGUOUS` e pede esclarecimento;
+- capacidade ausente ou atribuída sem competência retorna `NO_MATCH`;
+- candidatos aceitos e rejeitados permanecem disponíveis nos metadados diagnósticos.
+
+O agente `athena-generalist` é o owner explícito, local e de menor prioridade para deliberação geral. Ele substitui o fallback implícito sem competir com especialistas. Nos workflows, ferramenta e agente são revalidados pelo selector imediatamente antes do `ToolManager` ou da execução do agente.

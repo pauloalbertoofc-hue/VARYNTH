@@ -47,6 +47,8 @@ export class HybridPerceptionEngine {
       lower.includes("stf") ||
       lower.includes("stj") ||
       lower.includes("jurisprudencia") ||
+      lower.includes("hermeneutica") ||
+      lower.includes("hermenêutica") ||
       lower.includes("constitucional")
     ) {
       type = "LEGAL_ANALYSIS";

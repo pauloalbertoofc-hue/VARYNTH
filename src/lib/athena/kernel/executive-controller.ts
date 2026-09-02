@@ -20,6 +20,7 @@ import { athenaConversationManager } from "../conversation/conversation-manager"
 import { athenaPersonaEngine } from "../persona/persona-engine";
 import { athenaInteractionContractRouter } from "./interaction-contract-router";
 import { athenaInteractionContractGateway } from "../runtime/interaction-contract-gateway";
+import { athenaCapabilitySelector } from "./capability-selector";
 
 export class ExecutiveController {
   async process(
@@ -43,6 +44,32 @@ export class ExecutiveController {
     const contractDecision = athenaInteractionContractRouter.route(convContext);
 
     const resolvedProjectId = convContext.resolvedEntities.targetProjectId || targetProjectId;
+    let capabilitySelection: ReturnType<typeof athenaCapabilitySelector.select> | undefined;
+    if (contractDecision.contract === "USE_AGENT") {
+      const capabilityTask = athenaPerceptionEngine.perceive(rawPrompt, scope, resolvedProjectId);
+      const capabilityContext = athenaContextBuilder.buildContext(
+        capabilityTask, scope, storeCtx, resolvedProjectId
+      );
+      capabilitySelection = athenaCapabilitySelector.select({
+        kind: "AGENT",
+        task: capabilityTask,
+        context: capabilityContext,
+      });
+      if (capabilitySelection.status !== "SELECTED") {
+        return {
+          id: "ath-" + Date.now(),
+          sender: "athena",
+          text: capabilitySelection.clarificationPrompt || "Especifique o domínio ou resultado esperado para eu selecionar uma capacidade segura.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          scope,
+          metadata: {
+            interactionContract: contractDecision.contract,
+            capabilitySelectionStatus: capabilitySelection.status,
+            capabilityCandidates: capabilitySelection.candidates,
+          },
+        };
+      }
+    }
 
     // 2. Handle Ambiguous Reference if detected (Never guess silently)
     if (convContext.isAmbiguous && convContext.clarificationPrompt) {
@@ -85,6 +112,9 @@ export class ExecutiveController {
           intents: convContext.intents,
           resolvedProjectId,
           interactionContract: contractDecision.contract,
+          selectedCapability: capabilitySelection?.selected?.id,
+          capabilitySelectionReason: capabilitySelection?.reason,
+          capabilityCandidates: capabilitySelection?.candidates,
         },
       };
 
