@@ -17,12 +17,18 @@ export interface WorkflowExecutionResult {
   error?: string;
 }
 
+export interface WorkflowExecutionHooks {
+  beforeStep?: (step: WorkflowStep) => boolean | Promise<boolean>;
+  onStepSettled?: (step: WorkflowStep, snapshot: WorkflowExecutionResult) => void | Promise<void>;
+}
+
 export class WorkflowExecutor {
   async execute(
     workflow: AthenaWorkflow,
     task: AthenaTask,
     context: AthenaContext,
-    storeCtx: AthenaEngineContext
+    storeCtx: AthenaEngineContext,
+    hooks?: WorkflowExecutionHooks
   ): Promise<WorkflowExecutionResult> {
     athenaEventBus.emit("WORKFLOW_STARTED", { workflowId: workflow.id }, task.id);
 
@@ -34,6 +40,18 @@ export class WorkflowExecutor {
 
     for (let i = 0; i < workflow.steps.length; i++) {
       const step = workflow.steps[i];
+      if (step.status === "COMPLETED") {
+        stepResults[step.id] = step.result;
+        if (step.toolCall && step.result !== undefined) toolOutputs[step.id] = step.result;
+        continue;
+      }
+      if (hooks?.beforeStep && !(await hooks.beforeStep(step))) {
+        workflow.status = "FAILED";
+        return {
+          workflowId: workflow.id, success: false, stepResults, agentResults, toolOutputs,
+          error: "EXECUTION_INTERRUPTED_BY_CONTROL",
+        };
+      }
       step.status = "RUNNING";
       step.startedAt = new Date().toISOString();
 
@@ -81,11 +99,19 @@ export class WorkflowExecutor {
         step.completedAt = new Date().toISOString();
         stepResults[step.id] = step.result;
         athenaEventBus.emit("STEP_EXECUTED", { stepId: step.id, status: "COMPLETED" }, task.id);
+        await hooks?.onStepSettled?.(step, {
+          workflowId: workflow.id, success: true, stepResults: { ...stepResults },
+          agentResults: [...agentResults], toolOutputs: { ...toolOutputs },
+        });
       } catch (err: any) {
         step.status = "FAILED";
         step.error = err?.message || String(err);
         workflow.status = "FAILED";
         athenaEventBus.emit("ERROR_OCCURRED", { stepId: step.id, error: step.error }, task.id);
+        await hooks?.onStepSettled?.(step, {
+          workflowId: workflow.id, success: false, stepResults: { ...stepResults },
+          agentResults: [...agentResults], toolOutputs: { ...toolOutputs }, error: step.error,
+        });
 
         return {
           workflowId: workflow.id,

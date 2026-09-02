@@ -67,3 +67,19 @@ O `CapabilitySelector` aplica seleção determinística:
 - candidatos aceitos e rejeitados permanecem disponíveis nos metadados diagnósticos.
 
 O agente `athena-generalist` é o owner explícito, local e de menor prioridade para deliberação geral. Ele substitui o fallback implícito sem competir com especialistas. Nos workflows, ferramenta e agente são revalidados pelo selector imediatamente antes do `ToolManager` ou da execução do agente.
+
+## Planos compostos implementados
+
+O `CapabilityPlanBuilder` generaliza `AthenaWorkflow` como um plano inspecionável, sem introduzir um motor paralelo. Cada etapa fixa capacidade, entradas, resultado esperado, dependências, risco, autoridade, confirmação, undo e política de falha. Dependências ausentes e ciclos são rejeitados antes da aprovação.
+
+O ciclo formal é `UNDERSTAND → PLAN → APPROVE → EXECUTE`: percepção e contexto produzem a tarefa compreendida; o builder produz `PLANNED`; a aprovação vincula o hash canônico exato; e o `CapabilityPlanExecutor` recalcula esse hash e revalida capacidades antes de delegar ao `WorkflowExecutor` existente. Alteração pós-aprovação resulta em `BLOCKED`.
+
+A síntese estruturada distingue `COMPLETED`, `PARTIAL`, `BLOCKED`, `FAILED` e `REVERTED`, listando etapas concluídas, falhas, bloqueadas e ignoradas. A aprovação `POLICY` autoriza somente o envelope do plano: confirmações humanas específicas continuam no `PermissionPolicyEngine` por meio do `ToolManager`.
+
+## Persistência e recuperação implementadas
+
+O `CapabilityPlanStore` mantém planos completos no armazenamento local com fallback em memória. Plano, revisão, hashes, aprovação, etapas, resultados, erros, checkpoint, journal de eventos e métricas são gravados antes da execução e após cada etapa.
+
+O `CapabilityPlanRuntime` oferece máquina de estados, reconciliação e controles de pausa, retomada, cancelamento, retry e reversão. Na inicialização, planos `EXECUTING` tornam-se `INTERRUPTED`; a retomada exige hash aprovado válido e capacidades ainda disponíveis. O `WorkflowExecutor` ignora etapas já `COMPLETED`, garantindo idempotência após crash ou reload.
+
+Reversão nunca é presumida: somente etapas mutáveis que declaram `supportsUndo` podem ser revertidas, e o runtime exige um executor de undo explícito. O diagnóstico local apresenta progresso, próxima etapa, último evento, capacidades, confirmações, duração, falhas, bloqueios, retries e reversões sem serviços remotos.

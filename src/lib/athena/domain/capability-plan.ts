@@ -7,10 +7,13 @@ export type CapabilityPlanStatus =
   | "PLANNED"
   | "APPROVED"
   | "EXECUTING"
+  | "PAUSED"
+  | "INTERRUPTED"
   | "PARTIAL"
   | "COMPLETED"
   | "BLOCKED"
   | "FAILED"
+  | "CANCELLED"
   | "REVERTED";
 
 export type CapabilityStepFailurePolicy = "STOP_DEPENDENTS" | "CONTINUE_INDEPENDENT";
@@ -48,6 +51,33 @@ export interface CapabilityExecutionPlan {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  checkpoint?: {
+    completedStepIds: string[];
+    results: Record<string, unknown>;
+    savedAt: string;
+  };
+  events: CapabilityPlanEvent[];
+  metrics: CapabilityPlanMetrics;
+}
+
+export interface CapabilityPlanEvent {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+  stepId?: string;
+}
+
+export interface CapabilityPlanMetrics {
+  routedAt?: string;
+  startedAt?: string;
+  durationMs?: number;
+  selectedCapabilityIds: string[];
+  confirmationCount: number;
+  failureCount: number;
+  blockedCount: number;
+  retryCount: number;
+  reversalCount: number;
 }
 
 export interface CapabilityPlanExecutionSummary {
@@ -58,4 +88,3 @@ export interface CapabilityPlanExecutionSummary {
   skippedStepIds: string[];
   message: string;
 }
-

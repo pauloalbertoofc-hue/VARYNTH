@@ -40,6 +40,8 @@
     "test:athena-response-quality": "npx tsx src/lib/athena/tests/athena-response-quality.test.ts",
     "test:athena-contracts": "npx tsx src/lib/athena/tests/interaction-contract.test.ts",
     "test:athena-capabilities": "npx tsx src/lib/athena/tests/capability-selection.test.ts",
+    "test:athena-capability-plans": "npx tsx src/lib/athena/tests/capability-plan.test.ts",
+    "test:athena-plan-recovery": "npx tsx src/lib/athena/tests/capability-plan-recovery.test.ts",
     "test:athena-operations": "npx tsx src/lib/athena/tests/athena-project-operations.test.ts",
     "test:athena-global": "npx tsx src/lib/athena/tests/athena-global-intelligence.test.ts",
     "test:athena-memory": "npx tsx src/lib/athena/tests/athena-contextual-memory.test.ts",

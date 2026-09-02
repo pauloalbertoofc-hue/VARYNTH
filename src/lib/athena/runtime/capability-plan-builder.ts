@@ -14,6 +14,17 @@ function hash(value: unknown): string {
   return `cap-plan-${(result >>> 0).toString(16)}`;
 }
 
+export function calculateCapabilityPlanHash(
+  plan: Pick<CapabilityExecutionPlan, "taskId" | "objective" | "revision" | "steps">
+): string {
+  return hash({
+    taskId: plan.taskId,
+    objective: plan.objective,
+    revision: plan.revision,
+    steps: plan.steps.map(({ status: _status, result: _result, error: _error, ...step }) => step),
+  });
+}
+
 function assertDag(steps: CapabilityPlanStep[]): void {
   const ids = new Set(steps.map((step) => step.id));
   const state = new Map<string, "VISITING" | "VISITED">();
@@ -110,27 +121,45 @@ export class CapabilityPlanBuilder {
 
     assertDag(steps);
     const now = new Date().toISOString();
-    const canonical = { taskId: task.id, objective: task.rawPrompt, revision: 1, steps: steps.map(({ status: _status, ...step }) => step) };
-    return {
+    const plan: CapabilityExecutionPlan = {
       id: `cap-plan-${task.id}`,
       taskId: task.id,
       objective: task.rawPrompt,
       revision: 1,
-      planHash: hash(canonical),
+      planHash: "",
       status: "PLANNED",
       steps,
       sourceTask: task,
       sourceWorkflow: workflow,
       createdAt: now,
       updatedAt: now,
+      events: [{ id: `event-${Date.now()}-planned`, type: "PLANNED", message: "Plano composto criado e validado.", timestamp: now }],
+      metrics: {
+        routedAt: now,
+        selectedCapabilityIds: [...new Set(steps.map((step) => step.capabilityId))],
+        confirmationCount: steps.filter((step) => step.requiresConfirmation).length,
+        failureCount: 0,
+        blockedCount: 0,
+        retryCount: 0,
+        reversalCount: 0,
+      },
     };
+    plan.planHash = calculateCapabilityPlanHash(plan);
+    return plan;
   }
 
   approve(plan: CapabilityExecutionPlan, mode: "POLICY" | "HUMAN" = "POLICY"): CapabilityExecutionPlan {
     if (plan.status !== "PLANNED") throw new Error(`[CAPABILITY_PLAN_NOT_PLANNED] ${plan.status}`);
-    return { ...plan, approvedHash: plan.planHash, approvalMode: mode, status: "APPROVED", updatedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    return {
+      ...plan,
+      approvedHash: plan.planHash,
+      approvalMode: mode,
+      status: "APPROVED",
+      updatedAt: now,
+      events: [...plan.events, { id: `event-${Date.now()}-approved`, type: "APPROVED", message: `Envelope aprovado por ${mode}.`, timestamp: now }],
+    };
   }
 }
 
 export const capabilityPlanBuilder = new CapabilityPlanBuilder();
-

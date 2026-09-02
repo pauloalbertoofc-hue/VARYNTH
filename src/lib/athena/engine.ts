@@ -34,7 +34,7 @@ import { athenaInteractionContractGateway } from "./runtime/interaction-contract
 import { athenaCapabilitySelector } from "./kernel/capability-selector";
 import type { CapabilitySelectionResult } from "./domain/capability-selection";
 import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
-import { capabilityPlanExecutor } from "./runtime/capability-plan-executor";
+import { capabilityPlanRuntime } from "./runtime/capability-plan-runtime";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -624,7 +624,8 @@ async function processCapabilityPlanAsync(
   const workflow = athenaWorkflowBuilder.build(task);
   const planned = capabilityPlanBuilder.build(task, workflow, context);
   const approved = capabilityPlanBuilder.approve(planned, "POLICY");
-  const execution = await capabilityPlanExecutor.execute(approved, context, ctx);
+  capabilityPlanRuntime.register(approved);
+  const execution = await capabilityPlanRuntime.execute(approved.id, context, ctx);
   const response = athenaResponseBuilder.buildResponse(
     task,
     context,

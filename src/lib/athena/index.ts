@@ -70,6 +70,9 @@ export * from "./runtime/contract-executors";
 export * from "./runtime/interaction-contract-gateway";
 export * from "./runtime/capability-plan-builder";
 export * from "./runtime/capability-plan-executor";
+export * from "./runtime/capability-plan-store";
+export * from "./runtime/capability-plan-state-machine";
+export * from "./runtime/capability-plan-runtime";
 
 export * from "./deliberation/deliberation-engine";
 export * from "./events/event-bus";
