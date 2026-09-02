@@ -214,7 +214,8 @@ export class CapabilityPlanRuntime {
         step.capabilityId as import("../domain/action").ActionType,
         step.inputs,
         step.mutationRecord.after as import("../domain/action").ActionResult,
-        storeContext
+        storeContext,
+        step.mutationRecord.before
       );
       step.mutationRecord = { ...step.mutationRecord, revertedAt: new Date().toISOString() };
     });

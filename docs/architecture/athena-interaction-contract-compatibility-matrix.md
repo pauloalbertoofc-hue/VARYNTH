@@ -102,6 +102,10 @@ Os contratos consolidados são validados pela suíte `interaction-contract-e2e.t
 
 O journal unificado correlaciona contratos, sessões, projetos, planos, etapas, ferramentas e agentes. Mantém no máximo 300 eventos, remove tokens e campos sensíveis antes da persistência e oferece exportação manual sanitizada. A interface é somente-leitura: explica escolhas, bloqueios e falhas, mas não concede autoridade nem executa ações.
 
+## Migração incremental do adaptador legado
+
+Criação de tarefas/notas, atualização de projetos/tarefas e envio de projetos/tarefas à lixeira usam capacidades governadas com mutação real e undo. Comandos compostos ainda não migrados preservam o fallback e são identificados no diagnóstico. A matriz de paridade está em `docs/architecture/athena-legacy-capability-migration-matrix.md`.
+
 O painel mostra objetivo, status, progresso, hash, revisão, capacidades, autoridade, risco, confirmações, dependências do DAG, resultados, erros, journal, checkpoint e métricas. A máquina de estados determina quais ações aparecem: aprovar, executar, pausar, reconciliar e retomar, cancelar e repetir etapa.
 
 Reversão sem executor concreto de undo aparece explicitamente indisponível; a interface nunca simula restauração. Toda atualização ocorre pelo evento local `varynth_capability_plans_updated`, sem `fetch`, endpoint ou API HTTP.

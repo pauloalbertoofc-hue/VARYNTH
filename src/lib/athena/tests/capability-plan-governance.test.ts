@@ -28,8 +28,9 @@ async function run(): Promise<void> {
   let created = 0;
   let removed = 0;
   const engineContext = {
-    projects: [], tasks: [], vaultItems: [], chronosEvents: [], theses: [], evidences: [], opportunities: [],
+    projects: [], tasks: [{ id: "task-1", title: "Original", status: "a_fazer", priority: "media", createdAt: now }], vaultItems: [], chronosEvents: [], theses: [], evidences: [], opportunities: [],
     addTask: () => { created += 1; return { id: "task-created", title: "Criada", status: "a_fazer", priority: "media", createdAt: now }; },
+    updateTask: () => undefined,
     deleteTask: () => { removed += 1; },
     addNote: () => ({}),
   } as unknown as AthenaEngineContext;

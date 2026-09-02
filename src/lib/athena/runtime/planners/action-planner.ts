@@ -7,6 +7,9 @@ export class SimpleActionPlanner {
 
   plan(task: AthenaTask): AthenaWorkflow {
     const p = task.rawPrompt.toLowerCase();
+    const normalized = p.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const projectId = task.targetProjectId;
+    const targetTaskId = task.metadata?.targetTaskId as string | undefined;
     const steps: WorkflowStep[] = [];
 
     // 1. Task Creation
@@ -65,7 +68,36 @@ export class SimpleActionPlanner {
       });
     }
 
-    // 3. Chronos Deadlines
+    // 3. Governed project and task mutations migrated from the legacy adapter
+    else if (projectId && normalized.includes("arquiv") && normalized.includes("projeto")) {
+      steps.push({ id: "step-1", name: "Arquivar Projeto", toolCall: { toolName: "projects.update", params: { projectId, status: "arquivado" } }, status: "PENDING" });
+    }
+    else if (projectId && /^(excluir|apagar|remover|deletar).+projeto/.test(normalized)) {
+      steps.push({ id: "step-1", name: "Mover Projeto para a Lixeira", toolCall: { toolName: "projects.trash", params: { projectId } }, status: "PENDING" });
+    }
+    else if (targetTaskId && /^(excluir|apagar|remover|deletar).+tarefa/.test(normalized)) {
+      steps.push({ id: "step-1", name: "Mover Tarefa para a Lixeira", toolCall: { toolName: "tasks.trash", params: { taskId: targetTaskId } }, status: "PENDING" });
+    }
+    else if (targetTaskId && /\b(conclua|concluir|marque como concluida|reabra|reabrir)\b/.test(normalized) && normalized.includes("tarefa")) {
+      const reopening = normalized.includes("reabr");
+      steps.push({ id: "step-1", name: reopening ? "Reabrir Tarefa" : "Concluir Tarefa", toolCall: { toolName: "tasks.update", params: { taskId: targetTaskId, status: reopening ? "a_fazer" : "concluida", completedAt: reopening ? undefined : new Date().toISOString() } }, status: "PENDING" });
+    }
+    else if (projectId && (normalized.includes("prazo") || normalized.includes("data"))) {
+      const iso = task.rawPrompt.match(/\b20\d{2}-\d{2}-\d{2}\b/)?.[0];
+      const br = task.rawPrompt.match(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/);
+      const deadline = iso || (br ? `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}` : undefined);
+      if (deadline) steps.push({ id: "step-1", name: "Atualizar Prazo do Projeto", toolCall: { toolName: "projects.update", params: { projectId, deadline } }, status: "PENDING" });
+    }
+    else if (projectId && normalized.includes("prioridade") && normalized.includes("projeto")) {
+      const priority = normalized.includes("urgente") ? "urgente" : normalized.includes("alta") ? "alta" : normalized.includes("baixa") ? "baixa" : "media";
+      steps.push({ id: "step-1", name: "Atualizar Prioridade do Projeto", toolCall: { toolName: "projects.update", params: { projectId, priority } }, status: "PENDING" });
+    }
+    else if (projectId && normalized.includes("projeto") && (normalized.includes("como ativo") || normalized.includes("em espera") || normalized.includes("como concluido") || normalized.includes("conclua o projeto"))) {
+      const status = normalized.includes("ativo") ? "ativo" : normalized.includes("espera") ? "em_espera" : "concluido";
+      steps.push({ id: "step-1", name: "Atualizar Status do Projeto", toolCall: { toolName: "projects.update", params: { projectId, status } }, status: "PENDING" });
+    }
+
+    // 4. Chronos Deadlines
     else if (
       p.includes("prazo") ||
       p.includes("deadline") ||
@@ -83,7 +115,7 @@ export class SimpleActionPlanner {
       });
     }
 
-    // 4. Safe Trash Protocol
+    // 5. Safe Trash Protocol
     else if (
       p.startsWith("excluir") ||
       p.startsWith("apagar") ||
@@ -105,7 +137,7 @@ export class SimpleActionPlanner {
       });
     }
 
-    // 5. Diagnostics
+    // 6. Diagnostics
     else if (
       p.includes("diagnostico") ||
       p.includes("status") ||
@@ -145,4 +177,3 @@ export class SimpleActionPlanner {
 }
 
 export const simpleActionPlanner = new SimpleActionPlanner();
-

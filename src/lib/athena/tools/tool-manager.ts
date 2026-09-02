@@ -39,10 +39,10 @@ export class ToolManager {
     return this.tools.get(name)?.captureBefore?.(params, ctx);
   }
 
-  async undoTool(name: ActionType, params: Record<string, unknown>, result: ActionResult, ctx: AthenaEngineContext): Promise<void> {
+  async undoTool(name: ActionType, params: Record<string, unknown>, result: ActionResult, ctx: AthenaEngineContext, before?: unknown): Promise<void> {
     const undo = this.tools.get(name)?.undo;
     if (!undo) throw new Error(`[TOOL_UNDO_UNAVAILABLE] ${name}`);
-    await undo(params, result, ctx);
+    await undo({ ...params, __before: before }, result, ctx);
   }
 
   private withoutConfirmationToken(params: Record<string, unknown>): Record<string, unknown> {
@@ -57,6 +57,12 @@ export class ToolManager {
       case "tasks.update":
       case "tasks.toggle":
         return { action: "MODIFY", targetDomain: "WORKSPACE_TASK" };
+      case "tasks.trash":
+        return { action: "DELETE_SOFT", targetDomain: "WORKSPACE_TASK" };
+      case "projects.update":
+        return { action: "MODIFY", targetDomain: "WORKSPACE_PROJECT" };
+      case "projects.trash":
+        return { action: "DELETE_SOFT", targetDomain: "WORKSPACE_PROJECT" };
       case "notes.create":
         return { action: "CREATE", targetDomain: "WORKSPACE_NOTE" };
       case "vault.read":

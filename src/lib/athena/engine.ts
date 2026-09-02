@@ -53,7 +53,7 @@ export interface AthenaEngineContext {
   restoreFromTrash?: (trashId: string, actorType?: "user" | "athena" | "system") => unknown;
   toggleTask?: (id: string, actorType?: "user" | "athena" | "system") => void;
   updateTask?: (id: string, updates: Partial<Task>, actorType?: "user" | "athena" | "system") => void;
-  deleteTask?: (id: string, actorType?: "user" | "athena" | "system") => unknown;
+  deleteTask?: (id: string, actorType?: "user" | "athena" | "system") => { id: string } | void;
   deleteNote?: (id: string, actorType?: "user" | "athena" | "system") => unknown;
 }
 
@@ -102,16 +102,29 @@ function tryLegacyGateway(
 
   for (const handler of handlers) {
     const response = athenaInteractionContractGateway.execute(handler.decision, handler.handle);
-    if (response) return withContractMetadata(response, handler.decision);
+    if (response) {
+      athenaObservabilityJournal.record({ category: "SYSTEM", type: "LEGACY_FALLBACK_USED", status: "INFO", contract: handler.decision.contract, message: `Fallback legado utilizado: ${handler.decision.reason}.`, sessionId, projectId: targetProjectId, details: { source: handler.decision.reason } });
+      return withContractMetadata(response, handler.decision);
+    }
   }
   return undefined;
 }
 
-function hasCanonicalCapabilityPath(prompt: string): boolean {
+function hasCanonicalCapabilityPath(prompt: string, targetProjectId?: string): boolean {
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   return /^(crie|criar|adicione|adicionar|nova)\s+(uma\s+)?tarefa\b/.test(normalized) ||
     /^(crie|criar|adicione|adicionar)\s+(uma\s+)?nota\b/.test(normalized) ||
-    /^(anote|anotar)(\s+isso)?\b/.test(normalized);
+    /^(anote|anotar)(\s+isso)?\b/.test(normalized) ||
+    Boolean(targetProjectId && (
+      (normalized.includes("projeto") && (normalized.includes("arquiv") || normalized.includes("prioridade") || normalized.includes("prazo") || normalized.includes("como ativo") || normalized.includes("em espera") || normalized.includes("como concluido") || /^(excluir|apagar|remover|deletar)/.test(normalized))) ||
+      (normalized.includes("tarefa") && (/\b(conclua|concluir|marque como concluida|reabra|reabrir)\b/.test(normalized) || /^(excluir|apagar|remover|deletar)/.test(normalized)))
+    ));
+}
+
+function resolveTargetTaskId(prompt: string, ctx: AthenaEngineContext, projectId?: string): string | undefined {
+  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const candidates = projectId ? ctx.tasks.filter((task) => task.projectId === projectId) : ctx.tasks;
+  return candidates.find((task) => normalized.includes(task.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()))?.id || (candidates.length === 1 ? candidates[0].id : undefined);
 }
 
 function selectAgentCapability(
@@ -206,7 +219,7 @@ export async function processAthenaQueryAsync(
   sessionId = "default-session"
 ): Promise<AthenaMessage> {
   const prompt = rawPrompt.trim();
-  const legacyResponse = hasCanonicalCapabilityPath(prompt)
+  const legacyResponse = hasCanonicalCapabilityPath(prompt, targetProjectId)
     ? undefined
     : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
   if (legacyResponse) return legacyResponse;
@@ -420,7 +433,7 @@ export function processAthenaQuery(
   sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
-  const legacyResponse = hasCanonicalCapabilityPath(prompt)
+  const legacyResponse = hasCanonicalCapabilityPath(prompt, targetProjectId)
     ? undefined
     : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
   if (legacyResponse) return legacyResponse;
@@ -547,8 +560,9 @@ function processDeterministicWorkflow(
   resolvedProjectId?: string
 ): AthenaMessage {
   const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
+  task.metadata = { ...task.metadata, targetTaskId: resolveTargetTaskId(prompt, ctx, resolvedProjectId) };
   const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
-  const workflow = athenaWorkflowBuilder.build(task);
+  const workflow = athenaWorkflowBuilder.build({ ...task, type: "ACTION_FAST" });
   const capabilityPlan = capabilityPlanBuilder.approve(
     capabilityPlanBuilder.build(task, workflow, context),
     "POLICY"
@@ -635,11 +649,32 @@ async function processCapabilityPlanAsync(
   resolvedProjectId?: string
 ): Promise<AthenaMessage> {
   const task = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
+  task.metadata = { ...task.metadata, targetTaskId: resolveTargetTaskId(prompt, ctx, resolvedProjectId) };
   const context = athenaContextBuilder.buildContext(task, scope, ctx, resolvedProjectId);
-  const workflow = athenaWorkflowBuilder.build(task);
+  const workflow = athenaWorkflowBuilder.build({ ...task, type: "ACTION_FAST" });
   const planned = capabilityPlanBuilder.build(task, workflow, context);
   const approved = capabilityPlanBuilder.approve(planned, "POLICY");
   capabilityPlanRuntime.register(approved);
+  if (approved.steps.some((step) => step.requiresConfirmation)) {
+    const response = athenaResponseBuilder.buildResponse(task, context, undefined, undefined);
+    response.text = `Preparei o plano **${approved.objective}** com ${approved.steps.length} etapa(s). Nenhuma alteração foi executada: revise e confirme as mutações sensíveis no painel de planos.`;
+    response.metadata = {
+      ...response.metadata,
+      capabilityPlanId: approved.id,
+      capabilityPlanHash: approved.planHash,
+      capabilityPlanStatus: approved.status,
+      capabilityPlanSummary: {
+        status: "BLOCKED",
+        completedStepIds: [],
+        failedStepIds: [],
+        blockedStepIds: approved.steps.filter((step) => step.requiresConfirmation).map((step) => step.id),
+        skippedStepIds: [],
+        message: "Plano persistido aguardando confirmação humana das mutações sensíveis.",
+      },
+      capabilityPlanSteps: approved.steps,
+    };
+    return response;
+  }
   const execution = await capabilityPlanRuntime.execute(approved.id, context, ctx);
   const response = athenaResponseBuilder.buildResponse(
     task,

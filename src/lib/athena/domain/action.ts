@@ -2,7 +2,10 @@ export type ActionType =
   | "tasks.create"
   | "tasks.toggle"
   | "tasks.update"
+  | "tasks.trash"
   | "notes.create"
+  | "projects.update"
+  | "projects.trash"
   | "vault.search"
   | "vault.read"
   | "chronos.listDeadlines"
@@ -46,4 +49,3 @@ export interface ActionResult<T = unknown> {
   error?: string;
   auditLogId?: string;
 }
-

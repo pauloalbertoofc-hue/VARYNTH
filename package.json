@@ -41,6 +41,7 @@
     "test:athena-contracts": "npx tsx src/lib/athena/tests/interaction-contract.test.ts",
     "test:athena-contracts-e2e": "npx tsx src/lib/athena/tests/interaction-contract-e2e.test.ts",
     "test:athena-observability": "npx tsx src/lib/athena/tests/athena-observability.test.ts",
+    "test:athena-legacy-migration": "npx tsx src/lib/athena/tests/legacy-capability-migration.test.ts",
     "test:athena-capabilities": "npx tsx src/lib/athena/tests/capability-selection.test.ts",
     "test:athena-capability-plans": "npx tsx src/lib/athena/tests/capability-plan.test.ts",
     "test:athena-plan-recovery": "npx tsx src/lib/athena/tests/capability-plan-recovery.test.ts",

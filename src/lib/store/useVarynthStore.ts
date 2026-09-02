@@ -526,8 +526,9 @@ export function useVarynthStore() {
     (id: string, actorType: ActorType = "user") => {
       const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
       const target = current.find((t) => t.id === id);
+      let trashItem: TrashItem | undefined;
       if (target) {
-        moveToTrash("tarefa", target.id, target.title, target, {
+        trashItem = moveToTrash("tarefa", target.id, target.title, target, {
           deletedByType: actorType,
           originalPath: target.projectId ? `/projects/${target.projectId}` : "/dashboard",
         });
@@ -535,6 +536,7 @@ export function useVarynthStore() {
       const updated = current.filter((t) => t.id !== id);
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
       triggerStoreUpdate();
+      return trashItem;
     },
     [moveToTrash]
   );

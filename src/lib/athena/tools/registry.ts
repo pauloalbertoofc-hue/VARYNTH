@@ -49,11 +49,20 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
     name: "tasks.toggle",
     description: "Alterna o status de conclusão de uma tarefa",
     module: "projects",
+    captureBefore: (params, ctx) => ctx.tasks.find((task) => task.id === params.taskId),
     execute: (params, ctx) => {
       const taskId = params.taskId as string;
       const task = ctx.tasks.find((t) => t.id === taskId);
       if (!task) return { success: false, actionType: "tasks.toggle", error: "Tarefa não encontrada" };
-      return { success: true, actionType: "tasks.toggle", data: { taskId, updatedStatus: task.status === "concluida" ? "a_fazer" : "concluida" } };
+      if (!ctx.toggleTask) return { success: false, actionType: "tasks.toggle", error: "Atualização de tarefa indisponível" };
+      const updatedStatus = task.status === "concluida" ? "a_fazer" : "concluida";
+      ctx.toggleTask(taskId, "athena");
+      return { success: true, actionType: "tasks.toggle", data: { ...task, status: updatedStatus, completedAt: updatedStatus === "concluida" ? new Date().toISOString() : undefined } };
+    },
+    undo: (params, _result, ctx) => {
+      const previous = params.__before as any;
+      if (!previous || !ctx.updateTask) throw new Error("[TOOL_UNDO_UNAVAILABLE] Estado anterior da tarefa ausente.");
+      ctx.updateTask(previous.id, previous, "athena");
     },
   },
 
@@ -61,9 +70,80 @@ export const registeredTools: Record<ActionType, ToolDefinition> = {
     name: "tasks.update",
     description: "Atualiza campos de uma tarefa",
     module: "projects",
+    captureBefore: (params, ctx) => ctx.tasks.find((task) => task.id === params.taskId),
     execute: (params, ctx) => {
       const taskId = params.taskId as string;
-      return { success: true, actionType: "tasks.update", data: { taskId, updates: params } };
+      const task = ctx.tasks.find((item) => item.id === taskId);
+      if (!task || !ctx.updateTask) return { success: false, actionType: "tasks.update", error: "Tarefa não encontrada ou atualização indisponível" };
+      const { taskId: _taskId, confirmationToken: _token, ...updates } = params;
+      ctx.updateTask(taskId, updates, "athena");
+      return { success: true, actionType: "tasks.update", data: { ...task, ...updates } };
+    },
+    undo: (params, _result, ctx) => {
+      const previous = params.__before as any;
+      if (!previous || !ctx.updateTask) throw new Error("[TOOL_UNDO_UNAVAILABLE] Estado anterior da tarefa ausente.");
+      ctx.updateTask(previous.id, previous, "athena");
+    },
+  },
+
+  "tasks.trash": {
+    name: "tasks.trash",
+    description: "Move uma tarefa real para a Lixeira local com restauração",
+    module: "trash",
+    requiresConfirmation: true,
+    captureBefore: (params, ctx) => ctx.tasks.find((task) => task.id === params.taskId),
+    execute: (params, ctx) => {
+      const taskId = params.taskId as string;
+      const task = ctx.tasks.find((item) => item.id === taskId);
+      if (!task || !ctx.deleteTask) return { success: false, actionType: "tasks.trash", error: "Tarefa não encontrada ou lixeira indisponível" };
+      const trash = ctx.deleteTask(taskId, "athena");
+      return { success: true, actionType: "tasks.trash", data: { task, trashId: trash?.id } };
+    },
+    undo: (_params, result, ctx) => {
+      const trashId = (result.data as { trashId?: string } | undefined)?.trashId;
+      if (!trashId || !ctx.restoreFromTrash) throw new Error("[TOOL_UNDO_UNAVAILABLE] Registro da lixeira ausente.");
+      ctx.restoreFromTrash(trashId, "athena");
+    },
+  },
+
+  "projects.update": {
+    name: "projects.update",
+    description: "Atualiza prazo, prioridade ou status de um projeto local",
+    module: "projects",
+    requiresConfirmation: true,
+    captureBefore: (params, ctx) => ctx.projects.find((project) => project.id === params.projectId),
+    execute: (params, ctx) => {
+      const projectId = params.projectId as string;
+      const project = ctx.projects.find((item) => item.id === projectId);
+      if (!project || !ctx.updateProject) return { success: false, actionType: "projects.update", error: "Projeto não encontrado ou atualização indisponível" };
+      const { projectId: _projectId, confirmationToken: _token, ...updates } = params;
+      ctx.updateProject(projectId, updates, "athena");
+      return { success: true, actionType: "projects.update", data: { ...project, ...updates } };
+    },
+    undo: (params, _result, ctx) => {
+      const previous = params.__before as any;
+      if (!previous || !ctx.updateProject) throw new Error("[TOOL_UNDO_UNAVAILABLE] Estado anterior do projeto ausente.");
+      ctx.updateProject(previous.id, previous, "athena");
+    },
+  },
+
+  "projects.trash": {
+    name: "projects.trash",
+    description: "Move um projeto real para a Lixeira local com restauração",
+    module: "trash",
+    requiresConfirmation: true,
+    captureBefore: (params, ctx) => ctx.projects.find((project) => project.id === params.projectId),
+    execute: (params, ctx) => {
+      const projectId = params.projectId as string;
+      const project = ctx.projects.find((item) => item.id === projectId);
+      if (!project || !ctx.deleteProject) return { success: false, actionType: "projects.trash", error: "Projeto não encontrado ou lixeira indisponível" };
+      const trash = ctx.deleteProject(projectId, "athena");
+      return { success: true, actionType: "projects.trash", data: { project, trashId: trash?.id } };
+    },
+    undo: (_params, result, ctx) => {
+      const trashId = (result.data as { trashId?: string } | undefined)?.trashId;
+      if (!trashId || !ctx.restoreFromTrash) throw new Error("[TOOL_UNDO_UNAVAILABLE] Registro da lixeira ausente.");
+      ctx.restoreFromTrash(trashId, "athena");
     },
   },
 
