@@ -3,6 +3,7 @@ import type {
   InteractionType,
   ParsedCognitiveContext,
 } from "./conversation";
+import { CURRENT_INTERACTION_CONTRACT_VERSION } from "./contract-versions";
 
 export type InteractionContract = "ANSWER_SELF" | "USE_AGENT" | "USE_TOOL";
 
@@ -14,6 +15,7 @@ export interface InteractionContractCapabilities {
 }
 
 export interface InteractionContractDecision {
+  version: number;
   contract: InteractionContract;
   sourceInteractionType: InteractionType;
   reason: string;
@@ -22,6 +24,7 @@ export interface InteractionContractDecision {
 }
 
 export interface InteractionContractTelemetry {
+  version: number;
   contract: InteractionContract;
   sourceInteractionType: InteractionType;
   executor: InteractionContract;
@@ -72,6 +75,7 @@ export function decisionForContract(
     "OPERATIONAL_REQUEST";
 
   return Object.freeze({
+    version: CURRENT_INTERACTION_CONTRACT_VERSION,
     contract,
     sourceInteractionType,
     reason,
@@ -95,6 +99,7 @@ export function resolveInteractionContract(
 
   const intentSummary = parsed.intents.length > 0 ? parsed.intents.join(", ") : "no explicit intent";
   return Object.freeze({
+    version: CURRENT_INTERACTION_CONTRACT_VERSION,
     contract,
     sourceInteractionType: parsed.interactionType,
     reason: `${parsed.interactionType}: ${intentSummary}`,
@@ -107,6 +112,9 @@ export function assertInteractionContract(
   decision: InteractionContractDecision,
   expected: InteractionContract
 ): void {
+  if (decision.version !== CURRENT_INTERACTION_CONTRACT_VERSION) {
+    throw new Error(`[ATHENA_CONTRACT_VERSION_UNSUPPORTED] ${decision.version}`);
+  }
   if (decision.contract !== expected) {
     throw new Error(
       `[ATHENA_CONTRACT_VIOLATION] Expected ${expected}, received ${decision.contract} ` +

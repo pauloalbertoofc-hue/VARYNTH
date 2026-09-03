@@ -9,6 +9,7 @@ import { capabilityPlanStore } from "../runtime/capability-plan-store";
 import { CapabilityPlanStore } from "../runtime/capability-plan-store";
 import { executableCapabilityRegistry } from "../kernel/executable-capability-registry";
 import { registeredTools } from "../tools/registry";
+import { athenaGuardrailPolicy, REQUIRED_GUARDRAILS } from "../runtime/guardrail-policy";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -47,8 +48,10 @@ async function run(): Promise<void> {
   assert(!existsSync(resolve(process.cwd(), "src/lib/athena/operations/project-operations.ts")), "Removed legacy operations adapter must not return to the source tree");
   const engineSource = readFileSync(resolve(process.cwd(), "src/lib/athena/engine.ts"), "utf8");
   const workflowExecutorSource = readFileSync(resolve(process.cwd(), "src/lib/athena/runtime/workflow-executor.ts"), "utf8");
+  const localCoreSource = [engineSource, workflowExecutorSource, readFileSync(resolve(process.cwd(), "src/lib/athena/runtime/capability-plan-runtime.ts"), "utf8"), readFileSync(resolve(process.cwd(), "src/lib/athena/tools/tool-manager.ts"), "utf8")].join("\n");
   assert(!engineSource.includes("AthenaProjectOperations") && !engineSource.includes("legacyOperationsCompatibilityEnabled"), "No parallel operational executor or compatibility switch may exist");
   assert(workflowExecutorSource.includes("athenaToolManager.executeTool"), "Operational workflows must cross the ToolManager boundary");
+  assert(!/\bfetch\s*\(|\baxios\b|https?:\/\//.test(localCoreSource), "Certified operational core must not introduce network calls");
   for (const capability of executableCapabilityRegistry.list()) {
     if (capability.kind === "AGENT") assert(!capability.mutatesData && capability.authority === "PROPOSE", `Agent ${capability.id} must never own mutations`);
     if (capability.mutatesData) assert(capability.kind === "TOOL" && Boolean(registeredTools[capability.id as keyof typeof registeredTools]), `Mutation ${capability.id} must be a registered tool`);
@@ -115,12 +118,24 @@ async function run(): Promise<void> {
     capabilityPlanRuntime.execute(concurrentPlan.id, concurrentContext, ctx),
   ]);
   assert(concurrentResults.filter((result) => result.status === "fulfilled").length === 1 && concurrentResults.some((result) => result.status === "rejected" && String(result.reason).includes("CAPABILITY_PLAN_CONCURRENT_OPERATION")), "Concurrent execution of the same plan must fail closed");
+  const concurrentUndoResults = await Promise.allSettled([
+    capabilityPlanRuntime.revertWithRegisteredUndo(concurrentPlan.id, ctx),
+    capabilityPlanRuntime.revertWithRegisteredUndo(concurrentPlan.id, ctx),
+  ]);
+  assert(concurrentUndoResults.filter((result) => result.status === "fulfilled").length === 1 && concurrentUndoResults.some((result) => result.status === "rejected" && String(result.reason).includes("CAPABILITY_PLAN_CONCURRENT_OPERATION")), "Concurrent undo of the same plan must fail closed");
 
   const isolatedA = await processAthenaQueryAsync("Altere a prioridade do projeto para baixa", "geral", ctx, "project-migration", "certification-session-a");
   const isolatedB = await processAthenaQueryAsync("Atualize o prazo do projeto para 20/12/2026", "geral", ctx, "project-migration", "certification-session-b");
   await processAthenaQueryAsync("confirmar", "geral", ctx, "project-migration", "certification-session-a");
   assert(capabilityPlanStore.get(isolatedA.metadata?.capabilityPlanId as string)?.status === "COMPLETED", "Confirmation must execute the matching session plan");
   assert(capabilityPlanStore.get(isolatedB.metadata?.capabilityPlanId as string)?.status === "APPROVED" && String(ctx.projects[0].deadline) !== "2026-12-20", "A confirmation must not cross session boundaries");
+
+  ctx.projects.push({ ...ctx.projects[0], id: "project-isolated", title: "Projeto Isolado", priority: "media" });
+  const projectPlanA = await processAthenaQueryAsync("Altere a prioridade do projeto para alta", "geral", ctx, "project-migration", "certification-project-scope");
+  const projectPlanB = await processAthenaQueryAsync("Altere a prioridade do projeto para baixa", "geral", ctx, "project-isolated", "certification-project-scope");
+  await processAthenaQueryAsync("confirmar", "geral", ctx, "project-isolated", "certification-project-scope");
+  assert(capabilityPlanStore.get(projectPlanA.metadata?.capabilityPlanId as string)?.status === "APPROVED", "Confirmation must not cross project boundaries");
+  assert(capabilityPlanStore.get(projectPlanB.metadata?.capabilityPlanId as string)?.status === "COMPLETED" && ctx.projects.find((project) => project.id === "project-isolated")?.priority === "baixa", "Confirmation must execute only the matching project plan");
 
   const validPersistedPlan = capabilityPlanStore.get(isolatedB.metadata?.capabilityPlanId as string)!;
   const previousWindow = (globalThis as typeof globalThis & { window?: unknown }).window;
@@ -137,6 +152,12 @@ async function run(): Promise<void> {
   assert(fullyCorrupted.list().length === 0 && !fullyCorrupted.getLoadHealth().healthy, "Fully corrupted local storage must recover empty and fail closed");
   if (previousWindow === undefined) Reflect.deleteProperty(globalThis, "window");
   else Object.defineProperty(globalThis, "window", { configurable: true, writable: true, value: previousWindow });
+
+  athenaGuardrailPolicy.reset();
+  assert(athenaGuardrailPolicy.get().serializePlanOperations && athenaGuardrailPolicy.get().rejectDuplicateConfirmations, "Adjustable guardrails must be enabled by default");
+  assert(!athenaGuardrailPolicy.set("rejectDuplicateConfirmations", false).rejectDuplicateConfirmations, "User must be able to disable an adjustable guardrail locally");
+  assert(REQUIRED_GUARDRAILS.length === 4, "Mandatory guardrails must remain outside the adjustable settings");
+  athenaGuardrailPolicy.reset();
 
   assert(!athenaObservabilityJournal.list().some((entry) => entry.type === "LEGACY_FALLBACK_USED" && String(entry.details?.source).includes("project-operations")), "No active project command may depend on the legacy operations adapter");
 

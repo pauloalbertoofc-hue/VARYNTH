@@ -9,8 +9,8 @@ const SCOPES = process.env.VARYNTH_GOOGLE_WORKSPACE_ENABLED === "true"
   : ["https://www.googleapis.com/auth/calendar.readonly"];
 
 export function oauthConfig() {
-  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_AUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_AUTH_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
   const encryptionSecret = process.env.VARYNTH_TOKEN_ENCRYPTION_KEY;
   const store = tokenStoreStatus();
   return { clientId, clientSecret, encryptionSecret, store, configured: Boolean(clientId && clientSecret && encryptionSecret && store.configured), missing: [!clientId && "GOOGLE_CALENDAR_CLIENT_ID", !clientSecret && "GOOGLE_CALENDAR_CLIENT_SECRET", !encryptionSecret && "VARYNTH_TOKEN_ENCRYPTION_KEY", ...store.missing].filter(Boolean) as string[] };

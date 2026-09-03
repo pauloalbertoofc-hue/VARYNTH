@@ -47,6 +47,7 @@ export class InteractionContractGateway {
     status: InteractionContractTelemetry["status"]
   ): void {
     this.telemetry.push({
+      version: decision.version,
       contract: decision.contract,
       sourceInteractionType: decision.sourceInteractionType,
       executor: decision.contract,

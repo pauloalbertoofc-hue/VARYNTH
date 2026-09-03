@@ -34,6 +34,7 @@ import { analyzeAthenaState } from "@/lib/athena/insights/global-intelligence";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaGovernanceCenter } from "@/components/athena/AthenaGovernanceCenter";
 import { AthenaCapabilityPlanPanel } from "@/components/athena/AthenaCapabilityPlanPanel";
+import { AthenaGuardrailSettingsPanel } from "@/components/athena/AthenaGuardrailSettings";
 import { AthenaObservabilityPanel } from "@/components/athena/AthenaObservabilityPanel";
 
 const SCOPES: { id: AthenaScope; label: string; icon: React.ElementType; color: string }[] = [
@@ -276,6 +277,8 @@ export default function AthenaHubPage() {
         <AthenaGovernanceCenter store={store} onPrompt={(prompt) => handleSend(prompt)} />
 
         <AthenaCapabilityPlanPanel store={store} />
+
+        <AthenaGuardrailSettingsPanel />
 
         <AthenaObservabilityPanel />
 

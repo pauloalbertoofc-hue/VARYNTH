@@ -8,6 +8,8 @@ import { capabilityPlanStore, CapabilityPlanStore } from "./capability-plan-stor
 import { executableCapabilityRegistry } from "../kernel/executable-capability-registry";
 import { athenaToolManager } from "../tools/tool-manager";
 import { athenaObservabilityJournal } from "../observability/local-observability-journal";
+import { CURRENT_CAPABILITY_PLAN_SCHEMA_VERSION, CURRENT_INTERACTION_CONTRACT_VERSION, CURRENT_TOOL_CONTRACT_VERSION } from "../domain/contract-versions";
+import { athenaGuardrailPolicy } from "./guardrail-policy";
 
 export interface CapabilityPlanReconciliation {
   valid: boolean;
@@ -20,6 +22,10 @@ export interface CapabilityPlanReconciliation {
 
 export interface CapabilityPlanDiagnostic {
   planId: string;
+  schemaVersion: number;
+  interactionContractVersion: number;
+  toolContractVersions: Record<string, number>;
+  migration?: CapabilityExecutionPlan["migration"];
   status: CapabilityExecutionPlan["status"];
   progress: number;
   completed: number;
@@ -56,19 +62,23 @@ export class CapabilityPlanRuntime {
   }
 
   reconcile(plan: CapabilityExecutionPlan): CapabilityPlanReconciliation {
+    const versionsMatch = plan.schemaVersion === CURRENT_CAPABILITY_PLAN_SCHEMA_VERSION
+      && plan.interactionContractVersion === CURRENT_INTERACTION_CONTRACT_VERSION
+      && plan.steps.filter((step) => step.capabilityKind === "TOOL").every((step) => plan.toolContractVersions[step.capabilityId] === CURRENT_TOOL_CONTRACT_VERSION);
     const unavailableCapabilityIds = plan.steps
       .filter((step) => step.capabilityKind !== "CORE" && !executableCapabilityRegistry.get(step.capabilityId)?.enabled)
       .map((step) => step.capabilityId);
     const hashMatches = calculateCapabilityPlanHash(plan) === plan.planHash && plan.approvedHash === plan.planHash;
     const completedStepIds = plan.steps.filter((step) => step.status === "COMPLETED").map((step) => step.id);
-    const valid = hashMatches && unavailableCapabilityIds.length === 0;
+    const valid = versionsMatch && hashMatches && unavailableCapabilityIds.length === 0;
     return {
       valid,
       planId: plan.id,
       completedStepIds,
       unavailableCapabilityIds,
       hashMatches,
-      reason: valid ? "Plano reconciliado com hash, capacidades e checkpoints válidos." :
+      reason: valid ? "Plano reconciliado com versões, hash, capacidades e checkpoints válidos." :
+        !versionsMatch ? "Plano incompatível com as versões atuais dos contratos." :
         !hashMatches ? "Plano divergiu do hash aprovado." :
         `Capacidades indisponíveis: ${unavailableCapabilityIds.join(", ")}`,
     };
@@ -76,7 +86,7 @@ export class CapabilityPlanRuntime {
 
   async execute(planId: string, context: AthenaContext, storeContext: AthenaEngineContext): Promise<CapabilityPlanExecutionResult> {
     const lockKey = `execute:${planId}`;
-    if (activePlanOperations.has(lockKey) || activePlanOperations.has(`revert:${planId}`)) {
+    if (athenaGuardrailPolicy.isEnabled("serializePlanOperations") && (activePlanOperations.has(lockKey) || activePlanOperations.has(`revert:${planId}`))) {
       throw new Error(`[CAPABILITY_PLAN_CONCURRENT_OPERATION] O plano ${planId} já possui uma operação em andamento.`);
     }
     activePlanOperations.add(lockKey);
@@ -150,7 +160,7 @@ export class CapabilityPlanRuntime {
     if (!step || !step.requiresConfirmation || step.capabilityKind !== "TOOL") {
       throw new Error(`[CAPABILITY_STEP_CONFIRMATION_NOT_REQUIRED] ${stepId}`);
     }
-    if (step.confirmation) {
+    if (step.confirmation && athenaGuardrailPolicy.isEnabled("rejectDuplicateConfirmations")) {
       throw new Error(`[CAPABILITY_STEP_ALREADY_CONFIRMED] ${stepId}`);
     }
     const confirmation = athenaToolManager.prepareConfirmation(
@@ -207,7 +217,7 @@ export class CapabilityPlanRuntime {
     undoStep: (step: CapabilityExecutionPlan["steps"][number]) => void | Promise<void>
   ): Promise<CapabilityExecutionPlan> {
     const lockKey = `revert:${planId}`;
-    if (activePlanOperations.has(lockKey) || activePlanOperations.has(`execute:${planId}`)) {
+    if (athenaGuardrailPolicy.isEnabled("serializePlanOperations") && (activePlanOperations.has(lockKey) || activePlanOperations.has(`execute:${planId}`))) {
       throw new Error(`[CAPABILITY_PLAN_CONCURRENT_OPERATION] O plano ${planId} já possui uma operação em andamento.`);
     }
     activePlanOperations.add(lockKey);
@@ -250,6 +260,10 @@ export class CapabilityPlanRuntime {
     const total = plan.steps.length;
     return {
       planId,
+      schemaVersion: plan.schemaVersion,
+      interactionContractVersion: plan.interactionContractVersion,
+      toolContractVersions: { ...plan.toolContractVersions },
+      migration: plan.migration ? { ...plan.migration } : undefined,
       status: plan.status,
       progress: total === 0 ? 100 : Math.round((completed / total) * 100),
       completed,

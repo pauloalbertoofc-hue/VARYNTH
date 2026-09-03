@@ -9,7 +9,7 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [
-    GoogleProvider({ clientId: process.env.GOOGLE_AUTH_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID || "google-not-configured", clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || "google-not-configured" }),
+    GoogleProvider({ clientId: process.env.GOOGLE_AUTH_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "google-not-configured", clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "google-not-configured" }),
     CredentialsProvider({ name: "Conta VARYNTH", credentials: { email: { label: "E-mail", type: "email" }, password: { label: "Senha", type: "password" } }, async authorize(credentials) { if (!credentials?.email || !credentials.password) return null; const user = await findUserByEmail(credentials.email); if (!user?.passwordHash || !(await verifyPassword(credentials.password, user.passwordHash))) return null; return { id: user.id, name: user.name, email: user.email, role: user.role } as never; } }),
   ],
   callbacks: {

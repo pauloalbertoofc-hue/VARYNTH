@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search, Plus, Sparkles, Menu } from "lucide-react";
+import { Search, Plus, Sparkles, Menu, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { JobMonitorPopover } from "@/components/runtime/JobMonitorPopover";
@@ -90,6 +91,15 @@ export function Navbar({ title, subtitle }: NavbarProps) {
 
         {/* Notifications / Status */}
         <NotificationCenter />
+
+        <button
+          onClick={() => void signOut({ callbackUrl: "/login" })}
+          className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+          title="Sair da plataforma"
+          aria-label="Sair da plataforma"
+        >
+          <LogOut size={15} />
+        </button>
 
         {/* System Pill */}
         <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#14141f] border border-[#1e1e30] text-[10px] font-medium text-violet-300">

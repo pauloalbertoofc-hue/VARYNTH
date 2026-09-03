@@ -51,6 +51,9 @@ export interface CapabilityPlanStep {
 }
 
 export interface CapabilityExecutionPlan {
+  schemaVersion: number;
+  interactionContractVersion: number;
+  toolContractVersions: Record<string, number>;
   id: string;
   taskId: string;
   sessionId?: string;
@@ -67,6 +70,12 @@ export interface CapabilityExecutionPlan {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  migration?: {
+    fromVersion: number;
+    toVersion: number;
+    migratedAt: string;
+    preservedApproval: boolean;
+  };
   checkpoint?: {
     completedStepIds: string[];
     results: Record<string, unknown>;

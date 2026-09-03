@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run certify:athena",
     "build": "next build",
+    "certify:athena": "npx tsx src/lib/athena/tests/athena-certification-runner.ts",
     "lint": "next lint",
     "test:athena": "npx tsx src/lib/athena/regression/regression-runner.ts",
     "test:athena:conversation": "npx tsx src/lib/athena/tests/run-tests.ts",
@@ -42,6 +44,7 @@
     "test:athena-contracts-e2e": "npx tsx src/lib/athena/tests/interaction-contract-e2e.test.ts",
     "test:athena-observability": "npx tsx src/lib/athena/tests/athena-observability.test.ts",
     "test:athena-core-certification": "npx tsx src/lib/athena/tests/operational-core-certification.test.ts",
+    "test:athena-contract-versioning": "npx tsx src/lib/athena/tests/contract-versioning-certification.test.ts",
     "test:athena-capabilities": "npx tsx src/lib/athena/tests/capability-selection.test.ts",
     "test:athena-capability-plans": "npx tsx src/lib/athena/tests/capability-plan.test.ts",
     "test:athena-plan-recovery": "npx tsx src/lib/athena/tests/capability-plan-recovery.test.ts",

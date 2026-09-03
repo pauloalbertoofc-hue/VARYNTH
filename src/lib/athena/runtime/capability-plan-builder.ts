@@ -3,6 +3,7 @@ import type { AthenaTask } from "../domain/task";
 import type { AthenaWorkflow } from "../domain/workflow";
 import type { CapabilityExecutionPlan, CapabilityPlanStep } from "../domain/capability-plan";
 import { athenaCapabilitySelector } from "../kernel/capability-selector";
+import { CURRENT_CAPABILITY_PLAN_SCHEMA_VERSION, CURRENT_INTERACTION_CONTRACT_VERSION, CURRENT_TOOL_CONTRACT_VERSION } from "../domain/contract-versions";
 
 function hash(value: unknown): string {
   const raw = JSON.stringify(value);
@@ -124,6 +125,9 @@ export class CapabilityPlanBuilder {
     assertDag(steps);
     const now = new Date().toISOString();
     const plan: CapabilityExecutionPlan = {
+      schemaVersion: CURRENT_CAPABILITY_PLAN_SCHEMA_VERSION,
+      interactionContractVersion: CURRENT_INTERACTION_CONTRACT_VERSION,
+      toolContractVersions: Object.fromEntries(steps.filter((step) => step.capabilityKind === "TOOL").map((step) => [step.capabilityId, CURRENT_TOOL_CONTRACT_VERSION])),
       id: `cap-plan-${task.id}`,
       taskId: task.id,
       sessionId: task.metadata?.sessionId as string | undefined,
