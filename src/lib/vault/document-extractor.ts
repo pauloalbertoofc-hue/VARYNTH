@@ -28,8 +28,16 @@ export async function extractVaultDocument(bytes: Buffer, extension: string): Pr
     if (extension === "pdf") {
       const parser = new PDFParse({ data: bytes });
       const result = await parser.getText();
-      await parser.destroy();
       text = result.text;
+      if (!normalize(text)) {
+        const screenshots = await parser.getScreenshot({ first: 8, desiredWidth: 1600, imageDataUrl: false });
+        const worker = await createWorker("por+eng");
+        const pages = await Promise.all(screenshots.pages.map(async (page) => (await worker.recognize(Buffer.from(page.data))).data.text));
+        await worker.terminate();
+        text = pages.join("\n");
+        processing = "ocr";
+      }
+      await parser.destroy();
     } else if (extension === "docx") {
       text = (await mammoth.extractRawText({ buffer: bytes })).value;
     } else if (extension === "epub") {

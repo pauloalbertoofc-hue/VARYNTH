@@ -110,7 +110,7 @@ export default function VaultPage() {
       upload.append("file", file);
       const response = await fetch("/api/vault/upload", { method: "POST", body: upload });
       if (!response.ok) { alert((await response.json()).error || "Não foi possível enviar o arquivo."); return; }
-      const uploaded = await response.json() as { name: string; extractedText?: string; wordCount?: number };
+      const uploaded = await response.json() as { name: string; extractedText?: string; wordCount?: number; chapters?: string[]; processingStatus?: VaultItem["processingStatus"]; processingMessage?: string };
       storedFile = uploaded.name;
       if (uploaded.extractedText) setNotes((current) => current || `Índice criado automaticamente · ${uploaded.wordCount || 0} palavras.`);
       addVaultItem({
@@ -118,6 +118,7 @@ export default function VaultPage() {
         category: category.trim() || "Geral", readingStatus, notes: notes.trim() || undefined,
         tags: tagsArray.length ? tagsArray : ["conhecimento"], relatedProjectIds: relatedProject ? [relatedProject] : undefined,
         source: sourceKind + (storedFile ? ` · ${storedFile}` : ""), content: uploaded.extractedText,
+        wordCount: uploaded.wordCount, chapters: uploaded.chapters, processingStatus: uploaded.processingStatus, processingMessage: uploaded.processingMessage,
       });
       setTitle(""); setAuthor(""); setUrl(""); setNotes(""); setTags(""); setRelatedProject(""); setSourceKind("PDF / e-book"); setFileName(""); setFile(null); setIsModalOpen(false); return;
     }
@@ -324,7 +325,9 @@ export default function VaultPage() {
                           {item.notes}
                         </p>
                       )}
-                      {item.content && <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300"><CheckCircle2 size={11} /> Conteúdo indexado para busca</span>}
+                      {item.content && <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300"><CheckCircle2 size={11} /> {item.processingStatus === "ocr" ? "OCR concluído" : "Conteúdo indexado para busca"}{item.wordCount ? ` · ${item.wordCount.toLocaleString("pt-BR")} palavras` : ""}</span>}
+                      {item.chapters && item.chapters.length > 0 && <p className="text-[10px] text-slate-500">{item.chapters.length} capítulos identificados</p>}
+                      {item.processingStatus === "requer_revisao" && <span className="text-[10px] text-amber-300">{item.processingMessage || "Este arquivo precisa de revisão manual."}</span>}
                     </div>
 
                     {/* Footer Info */}

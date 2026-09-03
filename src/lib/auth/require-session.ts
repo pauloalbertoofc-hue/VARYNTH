@@ -1,4 +1,10 @@
 import "server-only";
-import { getServerSession } from "next-auth";
+import { getServerSession, type Session } from "next-auth";
 import { authOptions } from "./options";
 export async function requireSession() { const session = await getServerSession(authOptions); return session?.user ? session : undefined; }
+
+export async function requireOwner() {
+  const session = await requireSession();
+  const role = (session?.user as Session["user"] & { role?: string } | undefined)?.role;
+  return role === "owner" ? session : undefined;
+}
