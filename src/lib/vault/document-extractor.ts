@@ -6,6 +6,8 @@ import { createWorker } from "tesseract.js";
 export type ExtractedDocument = {
   text: string;
   chapters: string[];
+  pageReferences: Array<{ page: number; text: string }>;
+  summary: string;
   wordCount: number;
   processing: "indexado" | "ocr" | "requer_revisao";
   message?: string;
@@ -13,6 +15,7 @@ export type ExtractedDocument = {
 
 const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
 const chaptersOf = (text: string) => Array.from(text.matchAll(/(?:^|\n)\s*(?:cap[ií]tulo|chapter)\s+(?:\d+|[ivxlcdm]+)/gim)).map((match) => match[0].trim()).slice(0, 80);
+const summarize = (text: string) => text.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.length > 45).slice(0, 5).join(" ");
 
 async function epubText(bytes: Buffer) {
   const zip = await JSZip.loadAsync(bytes);
@@ -24,11 +27,13 @@ async function epubText(bytes: Buffer) {
 export async function extractVaultDocument(bytes: Buffer, extension: string): Promise<ExtractedDocument> {
   try {
     let text = "";
+    let pageReferences: ExtractedDocument["pageReferences"] = [];
     let processing: ExtractedDocument["processing"] = "indexado";
     if (extension === "pdf") {
       const parser = new PDFParse({ data: bytes });
       const result = await parser.getText();
       text = result.text;
+      pageReferences = result.pages.map((page) => ({ page: page.num, text: normalize(page.text) }));
       if (!normalize(text)) {
         const screenshots = await parser.getScreenshot({ desiredWidth: 1600, imageDataUrl: false });
         const worker = await createWorker("por+eng");
@@ -51,12 +56,12 @@ export async function extractVaultDocument(bytes: Buffer, extension: string): Pr
     } else if (extension === "txt") {
       text = bytes.toString("utf8");
     } else {
-      return { text: "", chapters: [], wordCount: 0, processing: "requer_revisao", message: "Formato aguardando leitor especializado." };
+      return { text: "", chapters: [], pageReferences: [], summary: "", wordCount: 0, processing: "requer_revisao", message: "Formato aguardando leitor especializado." };
     }
     text = normalize(text);
-    if (!text) return { text: "", chapters: [], wordCount: 0, processing: "requer_revisao", message: "Não foi possível encontrar texto. Em PDFs escaneados, envie as páginas como imagem para OCR." };
-    return { text, chapters: chaptersOf(text), wordCount: text.split(/\s+/).length, processing };
+    if (!text) return { text: "", chapters: [], pageReferences: [], summary: "", wordCount: 0, processing: "requer_revisao", message: "Não foi possível encontrar texto. Em PDFs escaneados, envie as páginas como imagem para OCR." };
+    return { text, chapters: chaptersOf(text), pageReferences, summary: summarize(text), wordCount: text.split(/\s+/).length, processing };
   } catch {
-    return { text: "", chapters: [], wordCount: 0, processing: "requer_revisao", message: "Não foi possível processar este arquivo automaticamente." };
+    return { text: "", chapters: [], pageReferences: [], summary: "", wordCount: 0, processing: "requer_revisao", message: "Não foi possível processar este arquivo automaticamente." };
   }
 }

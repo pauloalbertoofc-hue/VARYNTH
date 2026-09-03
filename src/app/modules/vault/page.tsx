@@ -75,6 +75,10 @@ export default function VaultPage() {
   const [sourceKind, setSourceKind] = useState("PDF / e-book");
   const [fileName, setFileName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [compiling, setCompiling] = useState(false);
+  const [compilation, setCompilation] = useState<string | null>(null);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const compileLibrary = async () => { setCompiling(true); try { const response = await fetch("/api/vault/compile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Livro de consulta - Biblioteca Viva", sourceIds: selectedSources }) }); const result = await response.json() as { content?: string; error?: string }; if (!response.ok) throw new Error(result.error || "Falha ao compilar."); setCompilation(result.content || ""); } catch (error) { alert(error instanceof Error ? error.message : "Falha ao compilar."); } finally { setCompiling(false); } };
 
   const filteredItems = useMemo(() => {
     return vaultItems.filter((item) => {
@@ -110,7 +114,7 @@ export default function VaultPage() {
       upload.append("file", file);
       const response = await fetch("/api/vault/upload", { method: "POST", body: upload });
       if (!response.ok) { alert((await response.json()).error || "Não foi possível enviar o arquivo."); return; }
-      const uploaded = await response.json() as { name: string; extractedText?: string; wordCount?: number; chapters?: string[]; processingStatus?: VaultItem["processingStatus"]; processingMessage?: string };
+      const uploaded = await response.json() as { name: string; extractedText?: string; summary?: string; wordCount?: number; chapters?: string[]; processingStatus?: VaultItem["processingStatus"]; processingMessage?: string };
       storedFile = uploaded.name;
       if (uploaded.extractedText) setNotes((current) => current || `Índice criado automaticamente · ${uploaded.wordCount || 0} palavras.`);
       addVaultItem({
@@ -119,6 +123,7 @@ export default function VaultPage() {
         tags: tagsArray.length ? tagsArray : ["conhecimento"], relatedProjectIds: relatedProject ? [relatedProject] : undefined,
         source: sourceKind + (storedFile ? ` · ${storedFile}` : ""), content: uploaded.extractedText,
         wordCount: uploaded.wordCount, chapters: uploaded.chapters, processingStatus: uploaded.processingStatus, processingMessage: uploaded.processingMessage,
+        summary: uploaded.summary,
       });
       setTitle(""); setAuthor(""); setUrl(""); setNotes(""); setTags(""); setRelatedProject(""); setSourceKind("PDF / e-book"); setFileName(""); setFile(null); setIsModalOpen(false); return;
     }
@@ -204,10 +209,13 @@ export default function VaultPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4">
           <div className="p-5 rounded-xl bg-gradient-to-br from-violet-950/40 to-[#0f0f1a] border border-violet-500/25 clip-corner">
             <div className="flex items-start gap-3"><div className="p-2 rounded-lg bg-violet-500/15 text-violet-300"><WandSparkles size={18} /></div><div><p className="text-[10px] uppercase tracking-widest text-violet-300 font-bold">Athena · Biblioteca viva</p><h2 className="text-base font-bold text-white mt-1">Transforme leitura em material de consulta</h2><p className="text-xs text-slate-400 mt-1 leading-relaxed">Reúna livros, notícias e pesquisas; depois peça à Athena um fichamento, mapa de conceitos ou um livro de consulta com fontes rastreáveis.</p></div></div>
-            <div className="flex flex-wrap gap-2 mt-4"><Link href="/modules/research" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500/20"><Newspaper size={13} /> Pesquisar notícias e estudos</Link><Link href="/modules/athena" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[11px] font-bold text-violet-300 hover:bg-violet-500/20"><WandSparkles size={13} /> Compilar com Athena</Link></div>
+            <div className="flex flex-wrap gap-2 mt-4"><Link href="/modules/research" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500/20"><Newspaper size={13} /> Pesquisar notícias e estudos</Link><button onClick={() => void compileLibrary()} disabled={compiling} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[11px] font-bold text-violet-300 hover:bg-violet-500/20 disabled:opacity-50"><WandSparkles size={13} /> {compiling ? "Compilando…" : "Compilar com Athena"}</button></div>
           </div>
           <div className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]"><div className="flex items-center gap-2 text-white text-sm font-bold"><BookMarked size={16} className="text-amber-300" /> Categorias literárias</div><p className="text-[11px] text-slate-500 mt-1">Organize por gênero, assunto ou finalidade de consulta.</p><div className="flex flex-wrap gap-2 mt-3">{LITERARY_CATEGORIES.map((item) => <button key={item} onClick={() => setSelectedCategory(item)} className={cn("px-2.5 py-1 rounded-full border text-[10px] transition-colors", selectedCategory === item ? "bg-amber-500/15 border-amber-400/40 text-amber-300" : "bg-[#14141f] border-[#29293b] text-slate-400 hover:text-white")}>{item}</button>)}</div></div>
         </div>
+
+        <section className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]"><p className="text-xs font-bold text-white">Fontes da compilação</p><div className="mt-2 flex flex-wrap gap-2">{vaultItems.filter((item) => item.content).map((item) => <label key={item.id} className="text-[10px] text-slate-300"><input type="checkbox" checked={selectedSources.includes(item.id.replace("vault-", ""))} onChange={() => setSelectedSources((current) => current.includes(item.id.replace("vault-", "")) ? current.filter((id) => id !== item.id.replace("vault-", "")) : [...current, item.id.replace("vault-", "")])} /> {item.title}</label>)}</div></section>
+        {compilation && <section className="p-5 rounded-xl bg-[#0f0f1a] border border-violet-500/25"><h2 className="text-sm font-bold text-white">Livro de consulta compilado</h2><button onClick={() => { const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([compilation],{type:"text/markdown"})); a.download="livro-de-consulta.md"; a.click(); }} className="text-xs text-violet-300">Baixar versão</button><pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-slate-300">{compilation}</pre></section>}
 
         {/* Controls and Filters */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-[#0f0f1a] rounded-xl border border-[#1e1e30]">

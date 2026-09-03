@@ -10,6 +10,8 @@ import { mnemosyneAgent } from "./council/mnemosyne";
 import { critiasAgent } from "./council/critias";
 import { archivistAgent } from "./council/archivist";
 import { athenaGeneralistAgent } from "./council/athena-generalist";
+import { bibliotecarioAgent } from "./council/bibliotecario";
+import { curadorPesquisaAgent } from "./council/curador-pesquisa";
 
 export class AgentRegistry {
   private agents: Map<string, AthenaAgent> = new Map();
@@ -23,6 +25,8 @@ export class AgentRegistry {
     this.register(mnemosyneAgent);
     this.register(critiasAgent);
     this.register(archivistAgent);
+    this.register(bibliotecarioAgent);
+    this.register(curadorPesquisaAgent);
     this.register(athenaGeneralistAgent);
   }
 

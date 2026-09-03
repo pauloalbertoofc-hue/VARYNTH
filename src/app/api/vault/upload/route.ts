@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const extraction = await extractVaultDocument(bytes, extension);
     if (extraction.processing === "requer_revisao") throw new Error(extraction.message || "O livro não pôde ser processado integralmente.");
     await writeFile(indexPath, JSON.stringify({ id, name: file.name, ...extraction }));
-    return Response.json({ id, name: file.name, size: file.size, extension, extractedText: extraction.text.slice(0, 120000), wordCount: extraction.wordCount, chapters: extraction.chapters, processingStatus: extraction.processing, processingMessage: extraction.message, indexed: Boolean(extraction.text), storedAt: new Date().toISOString() });
+    return Response.json({ id, name: file.name, size: file.size, extension, extractedText: extraction.text.slice(0, 120000), summary: extraction.summary, wordCount: extraction.wordCount, chapters: extraction.chapters, processingStatus: extraction.processing, processingMessage: extraction.message, indexed: Boolean(extraction.text), storedAt: new Date().toISOString() });
   } catch (error) {
     await Promise.all([rm(storedPath, { force: true }), rm(indexPath, { force: true })]);
     return Response.json({ error: error instanceof Error ? `${error.message} O arquivo foi removido; envie novamente.` : "Falha no processamento. O arquivo foi removido; envie novamente." }, { status: 422 });

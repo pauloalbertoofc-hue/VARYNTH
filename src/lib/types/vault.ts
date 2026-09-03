@@ -30,6 +30,7 @@ export interface VaultItem {
   chapters?: string[];
   processingStatus?: "indexado" | "ocr" | "requer_revisao";
   processingMessage?: string;
+  summary?: string;
   createdAt: string;
   updatedAt: string;
 }

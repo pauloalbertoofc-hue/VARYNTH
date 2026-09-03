@@ -42,14 +42,15 @@ export class ContextBuilder {
         ).slice(0, 15);
 
     // 3. Filter Vault items: relevant to prompt or active project tags
+    const libraryIntent = /\b(livro|livros|vault|biblioteca|capitulo|capítulo|fichamento|cite|citacao|citação|obra)\b/i.test(task.rawPrompt);
     const relevantVaultItems = vaultItems.filter((item) => {
       const matchQuery =
         rawLower.includes(item.title.toLowerCase()) ||
         item.tags?.some((t) => rawLower.includes(t.toLowerCase())) === true;
       const matchProject =
         activeProject && item.relatedProjectIds?.includes(activeProject.id);
-      return matchQuery || matchProject;
-    }).slice(0, 10);
+      return libraryIntent || matchQuery || matchProject;
+    }).slice(0, libraryIntent ? 40 : 10);
 
     // 4. Chronos Events: upcoming and active
     const relevantChronosEvents = chronosEvents
