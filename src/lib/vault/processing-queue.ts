@@ -4,3 +4,4 @@ const KEY = "varynth_vault_processing_queue";
 export function listProcessingJobs(): ProcessingJob[] { if (typeof window === "undefined") return []; try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; } }
 export function saveProcessingJobs(jobs: ProcessingJob[]) { localStorage.setItem(KEY, JSON.stringify(jobs.slice(0, 50))); }
 export function addProcessingJob(job: Omit<ProcessingJob, "id" | "createdAt">) { const next = { ...job, id: `job-${Date.now()}`, createdAt: new Date().toISOString() }; saveProcessingJobs([next, ...listProcessingJobs()]); return next; }
+export function updateProcessingJob(id: string, update: Partial<ProcessingJob>) { const jobs = listProcessingJobs().map((job) => job.id === id ? { ...job, ...update } : job); saveProcessingJobs(jobs); return jobs; }
