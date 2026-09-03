@@ -26,7 +26,10 @@ export interface VaultItem {
   relatedPeopleIds?: string[];
   readingStatus: ReadingStatus;
   notes?: string;
+  wordCount?: number;
+  chapters?: string[];
+  processingStatus?: "indexado" | "ocr" | "requer_revisao";
+  processingMessage?: string;
   createdAt: string;
   updatedAt: string;
 }
-

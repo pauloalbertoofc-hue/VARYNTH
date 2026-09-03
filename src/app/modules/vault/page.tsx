@@ -22,6 +22,10 @@ import {
   Quote,
   Layers,
   FolderKanban,
+  Upload,
+  Newspaper,
+  WandSparkles,
+  BookMarked,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
@@ -46,12 +50,15 @@ const STATUS_CONFIG: Record<ReadingStatus, { label: string; color: string }> = {
   arquivado: { label: "Arquivado", color: "text-slate-500 bg-slate-800/30 border-slate-700" },
 };
 
+const LITERARY_CATEGORIES = ["Todos", "Ficção", "Não ficção", "Poesia", "Biografia", "História", "Filosofia", "Ciência", "Direito", "Pesquisa"];
+
 export default function VaultPage() {
   const { vaultItems, projects, addVaultItem, updateVaultItem, deleteVaultItem } = useVarynthStore();
 
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string>("todos");
   const [selectedStatus, setSelectedStatus] = useState<string>("todos");
+  const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<VaultItem | null>(null);
 
@@ -65,6 +72,9 @@ export default function VaultPage() {
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState("");
   const [relatedProject, setRelatedProject] = useState("");
+  const [sourceKind, setSourceKind] = useState("PDF / e-book");
+  const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
   const filteredItems = useMemo(() => {
     return vaultItems.filter((item) => {
@@ -74,16 +84,18 @@ export default function VaultPage() {
         item.title.toLowerCase().includes(q) ||
         (item.author && item.author.toLowerCase().includes(q)) ||
         (item.notes && item.notes.toLowerCase().includes(q)) ||
+        (item.content && item.content.toLowerCase().includes(q)) ||
         item.tags.some((t) => t.toLowerCase().includes(q));
 
       const matchesType = selectedType === "todos" || item.type === selectedType;
       const matchesStatus = selectedStatus === "todos" || item.readingStatus === selectedStatus;
+      const matchesCategory = selectedCategory === "Todos" || item.category === selectedCategory;
 
-      return matchesSearch && matchesType && matchesStatus;
+      return matchesSearch && matchesType && matchesStatus && matchesCategory;
     });
-  }, [vaultItems, search, selectedType, selectedStatus]);
+  }, [vaultItems, search, selectedType, selectedStatus, selectedCategory]);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -92,6 +104,23 @@ export default function VaultPage() {
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean);
 
+    let storedFile = fileName;
+    if (file) {
+      const upload = new FormData();
+      upload.append("file", file);
+      const response = await fetch("/api/vault/upload", { method: "POST", body: upload });
+      if (!response.ok) { alert((await response.json()).error || "Não foi possível enviar o arquivo."); return; }
+      const uploaded = await response.json() as { name: string; extractedText?: string; wordCount?: number };
+      storedFile = uploaded.name;
+      if (uploaded.extractedText) setNotes((current) => current || `Índice criado automaticamente · ${uploaded.wordCount || 0} palavras.`);
+      addVaultItem({
+        title: title.trim(), author: author.trim() || undefined, type, url: url.trim() || undefined,
+        category: category.trim() || "Geral", readingStatus, notes: notes.trim() || undefined,
+        tags: tagsArray.length ? tagsArray : ["conhecimento"], relatedProjectIds: relatedProject ? [relatedProject] : undefined,
+        source: sourceKind + (storedFile ? ` · ${storedFile}` : ""), content: uploaded.extractedText,
+      });
+      setTitle(""); setAuthor(""); setUrl(""); setNotes(""); setTags(""); setRelatedProject(""); setSourceKind("PDF / e-book"); setFileName(""); setFile(null); setIsModalOpen(false); return;
+    }
     addVaultItem({
       title: title.trim(),
       author: author.trim() || undefined,
@@ -102,6 +131,7 @@ export default function VaultPage() {
       notes: notes.trim() || undefined,
       tags: tagsArray.length ? tagsArray : ["conhecimento"],
       relatedProjectIds: relatedProject ? [relatedProject] : undefined,
+      source: sourceKind + (storedFile ? ` · ${storedFile}` : ""),
     });
 
     setTitle("");
@@ -110,6 +140,9 @@ export default function VaultPage() {
     setNotes("");
     setTags("");
     setRelatedProject("");
+    setSourceKind("PDF / e-book");
+    setFileName("");
+    setFile(null);
     setIsModalOpen(false);
   };
 
@@ -165,6 +198,14 @@ export default function VaultPage() {
               {vaultItems.filter((v) => v.readingStatus === "para_ler").length}
             </p>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4">
+          <div className="p-5 rounded-xl bg-gradient-to-br from-violet-950/40 to-[#0f0f1a] border border-violet-500/25 clip-corner">
+            <div className="flex items-start gap-3"><div className="p-2 rounded-lg bg-violet-500/15 text-violet-300"><WandSparkles size={18} /></div><div><p className="text-[10px] uppercase tracking-widest text-violet-300 font-bold">Athena · Biblioteca viva</p><h2 className="text-base font-bold text-white mt-1">Transforme leitura em material de consulta</h2><p className="text-xs text-slate-400 mt-1 leading-relaxed">Reúna livros, notícias e pesquisas; depois peça à Athena um fichamento, mapa de conceitos ou um livro de consulta com fontes rastreáveis.</p></div></div>
+            <div className="flex flex-wrap gap-2 mt-4"><Link href="/modules/research" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500/20"><Newspaper size={13} /> Pesquisar notícias e estudos</Link><Link href="/modules/athena" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[11px] font-bold text-violet-300 hover:bg-violet-500/20"><WandSparkles size={13} /> Compilar com Athena</Link></div>
+          </div>
+          <div className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]"><div className="flex items-center gap-2 text-white text-sm font-bold"><BookMarked size={16} className="text-amber-300" /> Categorias literárias</div><p className="text-[11px] text-slate-500 mt-1">Organize por gênero, assunto ou finalidade de consulta.</p><div className="flex flex-wrap gap-2 mt-3">{LITERARY_CATEGORIES.map((item) => <button key={item} onClick={() => setSelectedCategory(item)} className={cn("px-2.5 py-1 rounded-full border text-[10px] transition-colors", selectedCategory === item ? "bg-amber-500/15 border-amber-400/40 text-amber-300" : "bg-[#14141f] border-[#29293b] text-slate-400 hover:text-white")}>{item}</button>)}</div></div>
         </div>
 
         {/* Controls and Filters */}
@@ -283,6 +324,7 @@ export default function VaultPage() {
                           {item.notes}
                         </p>
                       )}
+                      {item.content && <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300"><CheckCircle2 size={11} /> Conteúdo indexado para busca</span>}
                     </div>
 
                     {/* Footer Info */}
@@ -351,6 +393,12 @@ export default function VaultPage() {
               </div>
 
               <form onSubmit={handleCreate} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Categoria literária</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none">{LITERARY_CATEGORIES.slice(1).map((item) => <option key={item}>{item}</option>)}</select></div>
+                  <div><label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Origem / formato</label><select value={sourceKind} onChange={(e) => setSourceKind(e.target.value)} className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"><option>PDF / e-book</option><option>EPUB / MOBI</option><option>Kindle / Amazon (exportado)</option><option>Livro físico / OCR</option><option>Link / notícia</option><option>Áudio / transcrição</option></select></div>
+                </div>
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-violet-500/30 bg-violet-500/5 cursor-pointer hover:bg-violet-500/10"><Upload size={17} className="text-violet-300" /><span className="text-xs text-slate-300">{fileName || "Anexar PDF, EPUB, MOBI, DOCX, áudio ou imagem"}</span><input type="file" accept=".pdf,.epub,.mobi,.azw,.doc,.docx,.txt,.png,.jpg,.jpeg,.mp3,.m4a" className="hidden" onChange={(e) => { const selected = e.target.files?.[0] || null; setFile(selected); setFileName(selected?.name || ""); }} /></label>
+
                 <div>
                   <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Título da Obra / Lei / Artigo *</label>
                   <input
