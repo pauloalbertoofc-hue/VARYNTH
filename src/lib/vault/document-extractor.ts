@@ -30,7 +30,7 @@ export async function extractVaultDocument(bytes: Buffer, extension: string): Pr
       const result = await parser.getText();
       text = result.text;
       if (!normalize(text)) {
-        const screenshots = await parser.getScreenshot({ first: 8, desiredWidth: 1600, imageDataUrl: false });
+        const screenshots = await parser.getScreenshot({ desiredWidth: 1600, imageDataUrl: false });
         const worker = await createWorker("por+eng");
         const pages = await Promise.all(screenshots.pages.map(async (page) => (await worker.recognize(Buffer.from(page.data))).data.text));
         await worker.terminate();

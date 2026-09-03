@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { requireSession } from "@/lib/auth/require-session";
@@ -21,8 +21,16 @@ export async function POST(request: Request) {
   await mkdir(directory, { recursive: true });
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(directory, `${id}-${safeName}`), bytes);
-  const extraction = await extractVaultDocument(bytes, extension);
-  await writeFile(path.join(directory, `${id}.json`), JSON.stringify({ id, name: file.name, ...extraction }));
-  return Response.json({ id, name: file.name, size: file.size, extension, extractedText: extraction.text.slice(0, 120000), wordCount: extraction.wordCount, chapters: extraction.chapters, processingStatus: extraction.processing, processingMessage: extraction.message, indexed: Boolean(extraction.text), storedAt: new Date().toISOString() });
+  const storedPath = path.join(directory, `${id}-${safeName}`);
+  const indexPath = path.join(directory, `${id}.json`);
+  await writeFile(storedPath, bytes);
+  try {
+    const extraction = await extractVaultDocument(bytes, extension);
+    if (extraction.processing === "requer_revisao") throw new Error(extraction.message || "O livro não pôde ser processado integralmente.");
+    await writeFile(indexPath, JSON.stringify({ id, name: file.name, ...extraction }));
+    return Response.json({ id, name: file.name, size: file.size, extension, extractedText: extraction.text.slice(0, 120000), wordCount: extraction.wordCount, chapters: extraction.chapters, processingStatus: extraction.processing, processingMessage: extraction.message, indexed: Boolean(extraction.text), storedAt: new Date().toISOString() });
+  } catch (error) {
+    await Promise.all([rm(storedPath, { force: true }), rm(indexPath, { force: true })]);
+    return Response.json({ error: error instanceof Error ? `${error.message} O arquivo foi removido; envie novamente.` : "Falha no processamento. O arquivo foi removido; envie novamente." }, { status: 422 });
+  }
 }
