@@ -8,7 +8,7 @@ const tokens = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/
 export class BibliotecarioAgent implements AthenaAgent {
   manifest: AgentManifest = {
     id: "bibliotecario",
-    name: "Bibliotecário",
+    name: "Alexandria",
     role: "Especialista da Biblioteca Viva, Leitura e Consulta de Acervo",
     version: "1.0.0",
     description: "Localiza trechos, capítulos e relações entre todos os livros indexados no Vault.",

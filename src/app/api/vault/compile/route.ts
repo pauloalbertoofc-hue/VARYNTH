@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { requireSession } from "@/lib/auth/require-session";
+import { assessSourceGovernance } from "@/lib/athena/quality/source-governance";
 
 type Source = { id: string; name: string; text: string; summary?: string; pageReferences?: Array<{ page: number }> };
 export const runtime = "nodejs";
@@ -19,5 +20,6 @@ export async function POST(request: Request) {
   await mkdir(outputDir, { recursive: true });
   const id = randomUUID();
   await writeFile(path.join(outputDir, `${id}.md`), content, "utf8");
-  return Response.json({ id, title, content, sourceCount: books.length, createdAt: new Date().toISOString() });
+  const governance = assessSourceGovernance(content, books.map((book) => book.name));
+  return Response.json({ id, title, content, governance, sourceCount: books.length, createdAt: new Date().toISOString() });
 }

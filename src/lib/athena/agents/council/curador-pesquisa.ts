@@ -6,7 +6,7 @@ import { AgentResult } from "../../domain/result";
 export class CuradorPesquisaAgent implements AthenaAgent {
   manifest: AgentManifest = {
     id: "curador-pesquisa",
-    name: "Curador de Pesquisa",
+    name: "Lumen",
     role: "Especialista em Pesquisa, Fontes e Evidências",
     version: "1.0.0",
     description: "Organiza pesquisas recebidas pela Athena ou pelo usuário, qualifica fontes e conecta evidências ao Vault e ao Research.",

@@ -69,7 +69,9 @@
     "test:security:browser": "npx tsx src/lib/tests/forge-browser-security.test.ts"
   },
   "dependencies": {
+    "@types/pdfkit": "^0.17.6",
     "clsx": "^2.1.1",
+    "docx": "^9.7.1",
     "framer-motion": "^12.23.6",
     "jszip": "^3.10.1",
     "lucide-react": "^0.525.0",
@@ -77,6 +79,7 @@
     "next": "^16.3.3",
     "next-auth": "^4.24.11",
     "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.20.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.0",

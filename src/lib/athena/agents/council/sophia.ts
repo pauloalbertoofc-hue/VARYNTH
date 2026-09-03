@@ -2,15 +2,16 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
+import { assessSourceGovernance } from "../../quality/source-governance";
 
 export class SophiaAgent implements AthenaAgent {
   manifest: AgentManifest = {
     id: "sophia",
     name: "Sophia",
-    role: "Especialista em Redação, Comunicação & Síntese Textual",
-    version: "2.0.0",
-    description: "Clareza expositiva, fluidez argumentativa, redação acadêmica/institucional e estruturação de narrativas.",
-    skills: ["redacao", "escrita", "sintese", "revisao_textual", "comunicacao", "artigos", "ensaios"],
+    role: "Especialista em Língua Portuguesa, Semântica & Síntese Textual",
+    version: "2.1.0",
+    description: "Português brasileiro, semântica, coerência, tipologia textual, citações e estruturação de textos verificáveis.",
+    skills: ["portugues", "semantica", "tipologia_textual", "redacao", "escrita", "sintese", "revisao_textual", "citacoes", "artigos", "ensaios"],
     priority: 80,
     enabled: true,
   };
@@ -24,6 +25,9 @@ export class SophiaAgent implements AthenaAgent {
       p.includes("sintese") ||
       p.includes("resumo") ||
       p.includes("texto") ||
+      p.includes("portugues") ||
+      p.includes("semantica") ||
+      p.includes("tipo textual") ||
       p.includes("apresentacao")
     );
   }
@@ -41,6 +45,10 @@ export class SophiaAgent implements AthenaAgent {
       content += `Proposta de estrutura de redação focada em clareza, concisão e densidade de conteúdo:\n\n• **Tese Central:** Enunciado direto sem ambiguidades.\n• **Fundamentação:** Parágrafos coesos com citações precisas.\n• **Fechamento:** Síntese propositiva.`;
     }
 
+    const references = [...context.relevantVaultItems.map((item) => `${item.title}${item.chapters?.[0] ? ` — ${item.chapters[0]}` : ""}`), ...context.relevantEvidences.map((item) => item.source)].slice(0, 8);
+    if (references.length) content += `\n\n**Referências consultáveis:**\n${references.map((reference) => `- ${reference}`).join("\n")}`;
+    else content += "\n\n**Referências:** antes de afirmar fatos, registre fontes no Research ou no Vault; sem fonte, o texto deve ser tratado como rascunho interpretativo.";
+    const governance = assessSourceGovernance(content, references);
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
@@ -48,10 +56,11 @@ export class SophiaAgent implements AthenaAgent {
       success: true,
       content,
       confidence: 0.9,
-      recommendations: ["Eliminar redundâncias e prolixidade", "Usar conectivos lógicos explícitos"],
+      sources: references,
+      metadata: { sourceGovernance: governance },
+      recommendations: ["Eliminar redundâncias e prolixidade", "Usar conectivos lógicos explícitos", "Distinguir fato citado de interpretação e manter referência acessível"],
     };
   }
 }
 
 export const sophiaAgent = new SophiaAgent();
-
