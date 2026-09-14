@@ -51,11 +51,12 @@ interface NavSectionItem {
 
 const systemNavItems: NavSectionItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Início" },
+  { href: "/admin", icon: ShieldCheck, label: "Administração" },
+  { href: "/download", icon: Download, label: "Baixar aplicativo" },
   { href: "/projects", icon: FolderKanban, label: "Projetos", badge: "Principal" },
   { href: "/modules/technical-archive", icon: BookMarked, label: "Technical Docs", badge: "Oficial" },
   { href: "/modules/graph", icon: Share2, label: "Graph Rede" },
   { href: "/modules/activity", icon: Activity, label: "Histórico" },
-  { href: "/admin", icon: ShieldCheck, label: "Administração" },
   { href: "/modules/vault", icon: BookOpen, label: "Vault" },
   { href: "/modules/chronos", icon: Clock, label: "Chronos" },
   { href: "/modules/people", icon: Users, label: "People" },
@@ -203,7 +204,7 @@ function SidebarContent() {
               </p>
             )}
             <div className="space-y-1">
-              {systemNavItems.filter(({ href }) => (!clientAccount || href === "/dashboard" || href === "/modules/vault") && (href === "/dashboard" || href === "/admin" || !preferences.hiddenNavigation.includes(href as never))).map(({ href, icon: Icon, label, badge }) => {
+              {systemNavItems.filter(({ href }) => (!clientAccount || href === "/dashboard" || href === "/download" || href === "/modules/vault") && (href === "/dashboard" || href === "/admin" || href === "/download" || !preferences.hiddenNavigation.includes(href as never))).map(({ href, icon: Icon, label, badge }) => {
                 const isActive =
                   pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
                 return (
