@@ -3,9 +3,11 @@
 **Autor:** Paulo Alberto & Equipe de Engenharia Cognitiva  
 **Versão:** 4.0.0 — Cognitive Sovereignty Edition  
 **Data:** 29 de Agosto de 2026  
-**Status do Sistema:** Operacional (100% dos testes e rotas aprovados)
+**Status do Sistema:** Manual histórico com suplemento de realidade operacional. Consulte `docs/audit/documentation-audit-2026-09-06.md`, a matriz de rastreabilidade e os testes para o estado verificável do checkout.
 
 ---
+
+> **Nota de manutenção (2026-09-13):** as contagens históricas deste manual (rotas, ferramentas, agentes e testes) não devem ser usadas como contrato. O inventário atual é verificado pelo gate `npm run test:docs:regression`: 28 route handlers, 36 ferramentas nomeadas, 12 agentes registrados e 17 módulos. A arquitetura preserva `UNDERSTAND != EXECUTE != PUBLISH != DESTROY`, `SANDBOX != CORE`, `MemoryGate`, confirmação anti-replay e autoridade exclusiva do `PermissionPolicyEngine`.
 
 ## 📑 Sumário Executivo
 
@@ -214,7 +216,7 @@ A **ATHENA CONVERSATIONAL REGRESSION SUITE** (`npm run test:athena`) contém **7
 ---
 
 ## 19. Estado Atual, Performance & Limitações Conhecidas
-- **Rotas**: 20/20 rotas Next.js 16 compilam com sucesso e sem erros de tipagem.
+- **Rotas**: o build de produção verifica compilação e tipagem das rotas Next.js 16 registradas no checkout.
 - **Latência**: 0 ms no modo determinístico; 150-400 ms em inferência neural local (Ollama).
 - **Limitações Atuais**: A sincronização multi-dispositivo P2P criptografada ainda está na fase de planejamento.
 
@@ -228,4 +230,3 @@ A **ATHENA CONVERSATIONAL REGRESSION SUITE** (`npm run test:athena`) contém **7
 ---
 
 *Fim do Manual Técnico Oficial do VARYNTH OS.*
-

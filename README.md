@@ -6,10 +6,10 @@
 
 ## Stack
 
-- **Next.js 15** + TypeScript
+- **Next.js 16** + TypeScript
 - **Tailwind CSS v4** — tema dark gaming/cyberpunk
-- **FastAPI** (Python) — backend dos módulos
-- **NextAuth.js** — autenticação
+- **NextAuth.js 4** — autenticação
+- APIs internas em route handlers do Next.js; não há backend FastAPI neste repositório
 
 ## Como rodar
 
@@ -40,7 +40,7 @@ src/
 │   ├── layout/          # Sidebar, Navbar, PageLayout
 │   └── ui/              # AppCard e outros
 └── lib/
-    ├── modules.ts        # ✨ Registre novos apps aqui!
+    ├── modules.ts        # ✨ Registro de módulos navegáveis
     ├── types.ts
     └── utils.ts
 ```
@@ -66,6 +66,15 @@ Edite [`src/lib/modules.ts`](src/lib/modules.ts) e adicione um novo objeto ao ar
 
 | Módulo | Status | Descrição |
 |--------|--------|-----------|
-| LigaHub | ✅ Ativo | Sistema de gestão da Liga Acadêmica |
-| Athena | 🚧 WIP | IA pessoal integrada |
-| Studio | 📌 Em breve | Editor de código embutido |
+| Athena | ✅ Implementado | Copilot cognitivo soberano |
+| Studio | ✅ Implementado | Hub e seis studios criativos |
+| Vault | ✅ Implementado | Acervo local, ingestão e pesquisa |
+| Projects / Chronos / People / Labs / Activity / Trash / Codex / Research / Opportunities / Forge | ✅ Implementados | Módulos registrados em `src/lib/modules.ts` |
+
+## Definition of Done
+
+Uma mudança só é concluída quando o código, os testes e a documentação permanecem coerentes:
+
+`IMPLEMENTAÇÃO → TESTES → DOCUMENTAÇÃO TÉCNICA → DOCUMENTAÇÃO DE USO → ADR, quando necessário → CHANGELOG`
+
+O guard documental executado por `npm run docs:check` valida o inventário mínimo, os contratos críticos e afirmações numéricas sensíveis. Alterações de autoridade, segurança, persistência, contratos, integrações ou comportamento exigem revisão documental explícita.

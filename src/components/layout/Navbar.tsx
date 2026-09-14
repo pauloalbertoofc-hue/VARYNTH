@@ -1,7 +1,6 @@
 "use client";
 
 import { Search, Plus, Sparkles, Menu, LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { JobMonitorPopover } from "@/components/runtime/JobMonitorPopover";
@@ -12,6 +11,10 @@ interface NavbarProps {
 }
 
 export function Navbar({ title, subtitle }: NavbarProps) {
+  const handleSignOut = async () => {
+    const { signOut } = await import("next-auth/react");
+    await signOut({ callbackUrl: "/login" });
+  };
   const handleOpenSearch = () => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("open-command-palette"));
@@ -93,7 +96,7 @@ export function Navbar({ title, subtitle }: NavbarProps) {
         <NotificationCenter />
 
         <button
-          onClick={() => void signOut({ callbackUrl: "/login" })}
+          onClick={() => void handleSignOut()}
           className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
           title="Sair da plataforma"
           aria-label="Sair da plataforma"

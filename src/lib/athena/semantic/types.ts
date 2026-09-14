@@ -44,6 +44,13 @@ export type SemanticSource =
 
 export type ConfidenceBucket = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 
+export type ComprehensionStatus =
+  | "UNDERSTOOD"
+  | "PARTIALLY_UNDERSTOOD"
+  | "AMBIGUOUS"
+  | "MISSING_INFORMATION"
+  | "UNKNOWN";
+
 export interface SemanticSlotProvenance<T = unknown> {
   name: string;
   value: T;
@@ -88,6 +95,8 @@ export interface SemanticInterpretation {
   isNoise: boolean;
   requiresClarification: boolean;
   clarificationPrompt?: string;
+  comprehensionStatus: ComprehensionStatus;
+  missingInformation: string[];
   trace: SemanticObservationTrace;
 }
 
@@ -112,4 +121,3 @@ export interface SemanticFusionPolicy {
   enableLocalLMEnrichment: boolean;
   localLMTimeoutMs: number;
 }
-

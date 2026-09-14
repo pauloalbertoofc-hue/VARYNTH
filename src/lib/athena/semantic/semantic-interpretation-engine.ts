@@ -71,6 +71,8 @@ export class SemanticInterpretationEngine {
         isNoise: true,
         requiresClarification: true,
         clarificationPrompt: noiseRes.clarificationPrompt,
+        comprehensionStatus: "UNKNOWN",
+        missingInformation: ["meaning"],
         trace,
       };
     }
@@ -101,7 +103,7 @@ export class SemanticInterpretationEngine {
     const similarityMargin = simRes.margin;
 
     // 7. Layer 7: Semantic Fusion & Precedence Resolution
-    let selectedIntent: AthenaCanonicalIntent = "SOCIAL_CONVERSATION";
+    let selectedIntent: AthenaCanonicalIntent = "UNKNOWN_INPUT";
     let finalConfidence = 0.7;
     let semanticSource: SemanticSource = "SIMILARITY";
     const topSim = topCandidates[0];
@@ -144,7 +146,30 @@ export class SemanticInterpretationEngine {
       finalConfidence = pragRes.confidence;
       semanticSource = "DETERMINISTIC";
     }
-    // Rule G: Similarity Ranking & Statistical Score
+    // Rule G: explicit cognitive speech acts are meaningful even when their
+    // subject is new and therefore absent from the local similarity corpus.
+    else if (
+      /\b(analise|analisar|examine|explique|explica|critique|compare|resuma|sintetize)\b/.test(cleanText) &&
+      !/\b(projeto|workspace|tarefa|sistema|ecossistema|status)\b/.test(cleanText)
+    ) {
+      selectedIntent = "EPISTEMIC_QUERY";
+      finalConfidence = 0.9;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("EXPLICIT_COGNITIVE_SPEECH_ACT");
+    }
+    else if (/\b(ideia|ideias|inventar|brainstorm|sugira|recomende|planeje)\b/.test(cleanText)) {
+      selectedIntent = "CREATIVE_INTENT";
+      finalConfidence = 0.9;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("EXPLICIT_CREATIVE_SPEECH_ACT");
+    }
+    else if (/\b(novidade|novidades)\b/.test(cleanText)) {
+      selectedIntent = "SOCIAL_CONVERSATION";
+      finalConfidence = 0.9;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("SOCIAL_NOVELTY_REQUEST");
+    }
+    // Rule H: Similarity Ranking & Statistical Score
     else if (topSim && topSim.score >= 0.28) {
       if (topSim.intent === "CLARIFICATION_RESPONSE" && !context.hasPendingSlot) {
         selectedIntent = "SOCIAL_CONVERSATION";
@@ -154,11 +179,12 @@ export class SemanticInterpretationEngine {
         finalConfidence = Math.min(0.98, topSim.score + (similarityMargin > 0.08 ? 0.15 : 0.05));
       }
     }
-    // Rule H: Fallback
+    // Rule I: Fallback
     else {
-      selectedIntent = "SOCIAL_CONVERSATION";
-      finalConfidence = 0.5;
+      selectedIntent = "UNKNOWN_INPUT";
+      finalConfidence = 0.35;
       semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("NO_SUPPORTED_INTENT_MATCH");
     }
 
     const confidenceLevel: ConfidenceBucket =
@@ -179,6 +205,10 @@ export class SemanticInterpretationEngine {
       timestamp,
     };
 
+    const isSemanticallyAmbiguous = similarityMargin < 0.06 && (topSim?.score || 0) > 0.4;
+    const isUnknown = selectedIntent === "UNKNOWN_INPUT";
+    const requiresClarification = isUnknown || isSemanticallyAmbiguous;
+
     return {
       intent: selectedIntent,
       confidence: finalConfidence,
@@ -186,12 +216,25 @@ export class SemanticInterpretationEngine {
       slots,
       polarity: negRes.polarity,
       negatedScope: negRes.negationScope,
-      ambiguity: similarityMargin < 0.06 && (topSim?.score || 0) > 0.4 ? "SEMANTIC" : "NONE",
+      ambiguity: isSemanticallyAmbiguous ? "SEMANTIC" : "NONE",
       semanticSource,
       candidateScores: topCandidates.map((c) => ({ intent: c.intent, score: c.score })),
       margin: similarityMargin,
       isNoise: false,
-      requiresClarification: false,
+      requiresClarification,
+      clarificationPrompt: isUnknown
+        ? "Não consegui determinar com segurança o que você quer que eu faça. Pode dizer o resultado esperado em uma frase?"
+        : isSemanticallyAmbiguous
+          ? "Encontrei mais de uma interpretação possível. Qual resultado você espera obter?"
+          : undefined,
+      comprehensionStatus: isUnknown
+        ? "UNKNOWN"
+        : isSemanticallyAmbiguous
+          ? "AMBIGUOUS"
+          : confidenceLevel === "HIGH"
+            ? "UNDERSTOOD"
+            : "PARTIALLY_UNDERSTOOD",
+      missingInformation: isUnknown ? ["expectedOutcome"] : isSemanticallyAmbiguous ? ["intendedMeaning"] : [],
       trace,
     };
   }
@@ -234,4 +277,3 @@ export class SemanticInterpretationEngine {
     return syncRes;
   }
 }
-

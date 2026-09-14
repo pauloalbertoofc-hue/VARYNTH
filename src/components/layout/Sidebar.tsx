@@ -22,12 +22,14 @@ import {
   Share2,
   Trash2,
   Activity,
+  ShieldCheck,
   BookMarked,
   Palette,
   FileText,
   Globe,
   Image as ImageIcon,
   Music,
+  Download,
   Video as VideoIcon,
   Gamepad2,
   X,
@@ -36,6 +38,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { STUDIO_DEFINITIONS } from "@/lib/studio/studio-registry";
+import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
+import { isClientRole } from "@/lib/auth/client-access";
 
 interface NavSectionItem {
   href: string;
@@ -51,6 +55,7 @@ const systemNavItems: NavSectionItem[] = [
   { href: "/modules/technical-archive", icon: BookMarked, label: "Technical Docs", badge: "Oficial" },
   { href: "/modules/graph", icon: Share2, label: "Graph Rede" },
   { href: "/modules/activity", icon: Activity, label: "Histórico" },
+  { href: "/admin", icon: ShieldCheck, label: "Administração" },
   { href: "/modules/vault", icon: BookOpen, label: "Vault" },
   { href: "/modules/chronos", icon: Clock, label: "Chronos" },
   { href: "/modules/people", icon: Users, label: "People" },
@@ -60,6 +65,7 @@ const systemNavItems: NavSectionItem[] = [
 
 const personalNavItems: NavSectionItem[] = [
   { href: "/modules/athena", icon: Bot, label: "Athena AI", badge: "IA" },
+  { href: "/modules/music", icon: Music, label: "Música", badge: "1.3" },
   { href: "/modules/codex", icon: Scale, label: "Codex" },
   { href: "/modules/research", icon: GraduationCap, label: "Research" },
   { href: "/modules/opportunities", icon: Trophy, label: "Opportunities" },
@@ -77,11 +83,23 @@ const studioIconMap: Record<string, React.ElementType> = {
 };
 
 function SidebarContent() {
+  const preferences = usePlatformPreferences();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const [studiosExpanded, setStudiosExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [role, setRole] = useState<string>("owner");
+  const clientAccount = isClientRole(role);
+
+  useEffect(() => {
+    let active = true;
+    void import("next-auth/react").then(({ getSession }) => getSession()).then((session) => {
+      const nextRole = (session?.user as { role?: string } | undefined)?.role;
+      if (active && nextRole) setRole(nextRole);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const activeStudioQuery = searchParams.get("studio")?.toUpperCase();
   const isStudioPath = pathname.startsWith("/modules/studio");
@@ -156,7 +174,7 @@ function SidebarContent() {
             {(!collapsed || isMobileOpen) && (
               <div className="flex flex-col">
                 <span className="text-xs font-black tracking-[0.25em] text-slate-100 text-glow-accent uppercase">
-                  VARYNTH
+                  {preferences.appName}
                 </span>
                 <span className="text-[9px] tracking-wider text-slate-500 font-mono">
                   OS · UNIVERSE
@@ -185,7 +203,7 @@ function SidebarContent() {
               </p>
             )}
             <div className="space-y-1">
-              {systemNavItems.map(({ href, icon: Icon, label, badge }) => {
+              {systemNavItems.filter(({ href }) => (!clientAccount || href === "/dashboard" || href === "/modules/vault") && (href === "/dashboard" || href === "/admin" || !preferences.hiddenNavigation.includes(href as never))).map(({ href, icon: Icon, label, badge }) => {
                 const isActive =
                   pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
                 return (
@@ -251,7 +269,7 @@ function SidebarContent() {
 
             <div className="space-y-1">
               {/* Studio Hub Master Link */}
-              <Link
+              {(!clientAccount || !preferences.hiddenNavigation.includes("/modules/studio")) && <Link
                 href="/modules/studio"
                 onClick={() => setIsMobileOpen(false)}
                 className={cn(
@@ -280,12 +298,12 @@ function SidebarContent() {
                     HUB
                   </span>
                 )}
-              </Link>
+              </Link>}
 
               {/* Sub-Studios (Expanded View) */}
               {(studiosExpanded || collapsed) && (
                 <div className={cn("space-y-0.5", (!collapsed || isMobileOpen) && "pl-2 border-l border-[#1a1b2e] ml-3 mt-1")}>
-                  {STUDIO_DEFINITIONS.map((s) => {
+                  {STUDIO_DEFINITIONS.filter((s) => !preferences.hiddenNavigation.includes("/modules/studio" as never)).map((s) => {
                     const Icon = studioIconMap[s.iconName] || Palette;
                     const isActive = isStudioPath && activeStudioQuery === s.type;
 
@@ -332,7 +350,7 @@ function SidebarContent() {
               </p>
             )}
             <div className="space-y-1">
-              {personalNavItems.map(({ href, icon: Icon, label, badge, external }) => {
+              {personalNavItems.filter(({ href }) => (!clientAccount || href === "/modules/athena" || href === "/modules/music") && !preferences.hiddenNavigation.includes(href as never)).map(({ href, icon: Icon, label, badge, external }) => {
                 const isActive = pathname.startsWith(href);
                 return external ? (
                   <a
@@ -416,6 +434,24 @@ function SidebarContent() {
                 <span className="text-slate-200 font-semibold truncate leading-tight">Paulo</span>
                 <span className="text-[10px] text-slate-500 leading-tight">Dono do VARYNTH</span>
               </div>
+            )}
+          </Link>
+          <Link
+            href="/download"
+            onClick={() => setIsMobileOpen(false)}
+            className={cn(
+              "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-violet-500/20 bg-violet-500/[0.07] text-xs font-semibold text-violet-200 hover:bg-violet-500/15 transition min-h-[44px]",
+              pathname === "/download" && "border-violet-400/40 bg-violet-500/15",
+              collapsed && !isMobileOpen && "lg:justify-center lg:px-0"
+            )}
+            title={collapsed && !isMobileOpen ? "Instalar app" : undefined}
+          >
+            <Download size={15} className="flex-shrink-0" />
+            {(!collapsed || isMobileOpen) && (
+              <>
+                <span className="flex-1">Instalar app</span>
+                <span className="rounded-md border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 text-[9px] text-violet-200">Web App</span>
+              </>
             )}
           </Link>
         </div>

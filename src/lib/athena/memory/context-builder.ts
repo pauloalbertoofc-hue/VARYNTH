@@ -46,6 +46,9 @@ export class ContextBuilder {
     const relevantVaultItems = vaultItems.filter((item) => {
       const matchQuery =
         rawLower.includes(item.title.toLowerCase()) ||
+        Boolean(item.primarySubject && rawLower.includes(item.primarySubject.toLowerCase())) ||
+        Boolean(item.workType && rawLower.includes(item.workType.toLowerCase())) ||
+        Boolean(item.literaryCategory && rawLower.includes(item.literaryCategory.toLowerCase())) ||
         item.tags?.some((t) => rawLower.includes(t.toLowerCase())) === true;
       const matchProject =
         activeProject && item.relatedProjectIds?.includes(activeProject.id);

@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { adjacentTrackIndex, formatMusicTime, isSupportedMusicFile, musicLibrary } from "./music-library";
+import { createTrackIdentity } from "./types";
+
+assert.equal(isSupportedMusicFile({ name: "track.mp3", type: "", size: 1024 }), true);
+assert.equal(isSupportedMusicFile({ name: "track", type: "audio/flac", size: 1024 }), true);
+assert.equal(isSupportedMusicFile({ name: "notes.txt", type: "text/plain", size: 1024 }), false);
+assert.equal(isSupportedMusicFile({ name: "empty.mp3", type: "audio/mpeg", size: 0 }), false);
+assert.equal(formatMusicTime(0), "0:00");
+assert.equal(formatMusicTime(125900), "2:05");
+assert.equal(formatMusicTime(Number.NaN), "0:00");
+assert.equal(adjacentTrackIndex(-1, 3, 1), 0);
+assert.equal(adjacentTrackIndex(0, 3, -1), 2);
+assert.equal(adjacentTrackIndex(2, 3, 1), 0);
+assert.equal(adjacentTrackIndex(0, 0, 1), -1);
+const identity = createTrackIdentity({ id: "same-id", identityId: "canonical-id", name: "Title", artist: "Artist", durationMs: 0, mimeType: "audio/mp3", sizeBytes: 1, addedAt: "", storageMode: "account" });
+assert.equal(identity.id, "canonical-id"); assert.equal(identity.origins[0].kind, "account");
+assert.equal(musicLibrary.streamingUrl({ id: "abc", name: "x", artist: "y", durationMs: 1, mimeType: "audio/mp3", sizeBytes: 1, addedAt: "", storageMode: "account" }), "/api/music/tracks/abc/audio");
+assert.equal(musicLibrary.streamingUrl({ id: "local", name: "x", artist: "y", durationMs: 1, mimeType: "audio/mp3", sizeBytes: 1, addedAt: "", storageMode: "device" }), undefined);
+console.log("Music v0.1 domain regression passed.");

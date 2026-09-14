@@ -1,11 +1,5 @@
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Navbar } from "@/components/layout/Navbar";
-import { CommandPalette } from "@/components/ui/CommandPalette";
-import { QuickCreateModal } from "@/components/ui/QuickCreateModal";
-import { AthenaSidecar } from "@/components/athena/AthenaSidecar";
-import { AthenaProactiveMonitor } from "@/components/athena/AthenaProactiveMonitor";
-import { UndoToast } from "@/components/ui/UndoToast";
-import { cn } from "@/lib/utils";
+import { CustomizationProvider } from "@/components/customization/CustomizationProvider";
+import { CustomizedPageFrame } from "@/components/customization/CustomizedPageFrame";
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -16,19 +10,6 @@ interface PageLayoutProps {
 
 export function PageLayout({ children, title, subtitle, className }: PageLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0a0f] text-slate-100 font-sans">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Navbar title={title} subtitle={subtitle} />
-        <main className={cn("flex-1 overflow-y-auto grid-bg p-4 sm:p-6", className)}>
-          {children}
-        </main>
-      </div>
-      <CommandPalette />
-      <QuickCreateModal />
-      <AthenaSidecar />
-      <AthenaProactiveMonitor />
-      <UndoToast />
-    </div>
+    <CustomizationProvider><CustomizedPageFrame title={title} subtitle={subtitle} className={className}>{children}</CustomizedPageFrame></CustomizationProvider>
   );
 }

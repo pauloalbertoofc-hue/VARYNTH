@@ -17,6 +17,7 @@ import { artifactService } from "../../artifacts/artifact-service";
 import { versionManager } from "../../artifacts/version-manager";
 import { Artifact, ArtifactActor } from "../../artifacts/types";
 import { athenaEventBus } from "../../athena/events/event-bus";
+import { artifactStore } from "../../artifacts/artifact-store";
 
 export class GameService {
   private gamesStore = new Map<string, GameItem>();
@@ -85,10 +86,17 @@ export class GameService {
   }
 
   public getAllGames(): GameItem[] {
+    for (const artifact of artifactStore.getAll().filter(a => a.type === "GAME" && a.status !== "TRASHED")) this.getGame(artifact.id);
     return Array.from(this.gamesStore.values());
   }
 
   public getGame(artifactId: string): GameItem | null {
+    if (!this.gamesStore.has(artifactId) && typeof window !== "undefined") {
+      const raw = window.localStorage.getItem(`varynth_game_state_${artifactId}`);
+      if (raw) {
+        try { const item = JSON.parse(raw) as GameItem; const artifact = artifactStore.getById(artifactId); if (artifact && item.artifact.id === artifactId) this.gamesStore.set(artifactId, { ...item, artifact }); } catch { /* Preserve damaged storage for recovery. */ }
+      }
+    }
     return this.gamesStore.get(artifactId) || null;
   }
 
@@ -142,6 +150,7 @@ export class GameService {
     };
 
     this.gamesStore.set(createRes.artifact.id, gameItem);
+    if (typeof window !== "undefined") window.localStorage.setItem(`varynth_game_state_${createRes.artifact.id}`, JSON.stringify(gameItem));
     this.commandHistory.set(createRes.artifact.id, { past: [], future: [] });
 
     athenaEventBus.emit("GAME_CREATED", {
@@ -171,6 +180,7 @@ export class GameService {
     item.metadata.ruleCount = state.rules.length;
     item.metadata.entrySceneId = state.entrySceneId;
     item.artifact.updatedAt = state.updatedAt;
+    if (typeof window !== "undefined") window.localStorage.setItem(`varynth_game_state_${artifactId}`, JSON.stringify(item));
 
     return { success: true };
   }

@@ -15,6 +15,11 @@ const checks = [
   "src/lib/athena/tests/operational-core-certification.test.ts",
   "src/lib/athena/tests/contract-versioning-certification.test.ts",
   "src/lib/athena/tests/athena-observability.test.ts",
+  "src/lib/athena/tests/athena-communication-regression.test.ts",
+  "src/lib/athena/tests/athena-conversation-outcome.test.ts",
+  "src/lib/athena/tests/athena-conversation-store.test.ts",
+  "src/lib/athena/tests/athena-conversation-sync.test.ts",
+  "src/lib/athena/tests/athena-studio-generation.test.ts",
   "src/lib/permissions/permission-regression.test.ts",
 ];
 

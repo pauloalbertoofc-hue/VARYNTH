@@ -9,7 +9,12 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 
 | Módulo | Ícone | Rota | Finalidade Principal |
 | :--- | :--- | :--- | :--- |
-| **Athena** | 🦉 | `/modules/athena` | Centro de comando cognitivo, status de hardware e chat soberano |
+| **Technical Archive** | 🏛️ | `/modules/technical-archive` | Documentação oficial, ADRs e histórico de engenharia |
+| **Projects** | 📁 | `/projects` | Workspaces, tarefas, notas, arquivos, timeline e Athena contextual |
+| **Studio Hub** | 🎨 | `/modules/studio` | Hub dos studios Document, Web, Image, Audio, Video e Game |
+| **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |
+| **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
+| **Athena AI** | 🦉 | `/modules/athena` | Centro de comando cognitivo e chat soberano |
 | **Vault** | 📚 | `/modules/vault` | Acervo bibliográfico, jurisprudência, livros e artigos |
 | **Codex** | ⚖️ | `/modules/codex` | Argument Arena, dialética jurídica e matriz de teses |
 | **Research** | 🔬 | `/modules/research` | Evidence Board, síntese científica e fontes empíricas |
@@ -20,9 +25,9 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **People** | 👥 | `/modules/people` | Grafo de contatos e rede de colaboradores acadêmicos |
 | **Activity** | 📊 | `/modules/activity` | Trilha de auditoria e linha do tempo de mutações |
 | **Trash** | 🗑️ | `/modules/trash` | Lixeira segura com retenção de 10 dias e Desfazer |
+| **LigaHub** | 🏛️ | `http://localhost:8000` | Integração local para gestão de liga acadêmica; disponibilidade depende do serviço externo |
 
 ---
 
 ## 3. Contratos de Interoperabilidade com a Athena
-Todos os módulos disponibilizam métodos de consulta (`read`) e mutação (`write`/`trash`) registrados no `ToolManager` da Athena, permitindo que o copilot consulte contexto ou realize ações operacionais autorizadas.
-
+Nem todo módulo possui a mesma superfície Athena. O registro de ferramentas em `src/lib/athena/tools/registry.ts` é a fonte de verdade para ações disponíveis. Qualquer ação da Athena continua sujeita a `PermissionPolicyEngine`, confirmação humana quando aplicável e regras de sandbox; a presença do módulo não concede autoridade automática.

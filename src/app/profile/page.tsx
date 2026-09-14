@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { backupService } from "@/lib/backup/backup-service";
 import { BackupModal } from "@/components/backup/BackupModal";
+import { EnvironmentPersonalization } from "@/components/admin/EnvironmentPersonalization";
 
 export default function ProfilePage() {
   const store = useVarynthStore();
@@ -125,6 +126,10 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        <section className="rounded-2xl border border-[#292940] bg-[#11111b] p-5">
+          <EnvironmentPersonalization account allowedNavigation={["/modules/vault", "/modules/music", "/modules/athena", "/modules/studio"]} />
+        </section>
 
         {/* Badges & Achievements Grid */}
         <div className="space-y-3">

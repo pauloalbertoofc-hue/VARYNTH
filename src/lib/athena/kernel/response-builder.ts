@@ -103,7 +103,7 @@ export class ResponseBuilder {
 
     // 3. Fallback text if still empty
     if (!text) {
-      text = `Olá, Paulo! Estou conectada ao núcleo do seu **VARYNTH OS**.\n\nCompreendi sua mensagem sobre *"${task.rawPrompt}"*. Como seu copilot digital, posso:\n\n1. **Executar Ações Rápidas**: Crie tarefas, notas e marque prazos com comandos diretos.\n2. **Confrontar Teses**: Analisar argumentos na Argument Arena com Justitia.\n3. **Sintetizar Evidências**: Cruzar artigos do Vault com o Evidence Board com Logos.\n4. **Deliberar com o Conselho**: Acionar os 7 especialistas cognitivos.\n\nComo deseja que eu te ajude agora?`;
+      text = `Não consegui concluir com segurança o pedido *"${task.rawPrompt}"*. Nenhuma ação foi aplicada. Informe o resultado esperado e, se houver, o item ou projeto envolvido.`;
     }
 
     return {
@@ -119,4 +119,3 @@ export class ResponseBuilder {
 }
 
 export const athenaResponseBuilder = new ResponseBuilder();
-

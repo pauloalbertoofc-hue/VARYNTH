@@ -17,14 +17,21 @@ import {
   CheckCircle2,
   Minimize2,
   MessageSquare,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AthenaMessageText } from "./AthenaMessageText";
+import { AthenaFeedbackControls } from "./AthenaFeedbackControls";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaCapabilityPlanPanel } from "./AthenaCapabilityPlanPanel";
 import { AthenaObservabilityPanel } from "./AthenaObservabilityPanel";
+import { athenaObservabilityJournal } from "@/lib/athena/observability/local-observability-journal";
+import { athenaConversationStore, ATHENA_CONVERSATIONS_EVENT, type AthenaConversation } from "@/lib/athena/conversation/conversation-store";
+import { athenaConversationManager } from "@/lib/athena/conversation/conversation-manager";
+import { useAthenaConversationSync } from "@/lib/athena/conversation/use-athena-conversation-sync";
 
 export function AthenaSidecar() {
+  useAthenaConversationSync();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AthenaMessage[]>([
     {
@@ -35,6 +42,8 @@ export function AthenaSidecar() {
       scope: "geral",
     },
   ]);
+  const [conversations, setConversations] = useState<AthenaConversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>();
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const pathname = usePathname();
@@ -45,15 +54,15 @@ export function AthenaSidecar() {
 
   // Keyboard shortcut Alt + A
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("varynth_athena_messages");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setMessages(parsed);
-      }
-    } catch {
-      // ignore
-    }
+    const refresh = () => {
+      const active = athenaConversationStore.getActive() || athenaConversationStore.create("geral");
+      setConversations(athenaConversationStore.list());
+      setActiveConversationId(active.id);
+      if (active.messages.length) setMessages(active.messages);
+      athenaConversationManager.updateSessionWithHistory(active.id, active.messages);
+    };
+    refresh();
+    window.addEventListener(ATHENA_CONVERSATIONS_EVENT, refresh);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === "a") {
@@ -62,16 +71,14 @@ export function AthenaSidecar() {
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); window.removeEventListener(ATHENA_CONVERSATIONS_EVENT, refresh); };
   }, []);
 
   const saveMessages = (msgs: AthenaMessage[]) => {
     setMessages(msgs);
-    try {
-      localStorage.setItem("varynth_athena_messages", JSON.stringify(msgs));
-    } catch {
-      // ignore
-    }
+    if (!activeConversationId) return;
+    athenaConversationStore.saveMessages(activeConversationId, msgs, currentScope);
+    setConversations(athenaConversationStore.list());
   };
 
   useEffect(() => {
@@ -124,7 +131,7 @@ export function AthenaSidecar() {
     setIsTyping(true);
 
     try {
-      const sessionId = routeProjectId ? `project-${routeProjectId}-sidecar-session` : "global-athena-session";
+      const sessionId = activeConversationId || (routeProjectId ? `project-${routeProjectId}-sidecar-session` : "global-athena-session");
       const response = await processAthenaQueryAsync(
         raw,
         currentScope,
@@ -132,13 +139,19 @@ export function AthenaSidecar() {
         routeProjectId,
         sessionId
       );
-      athenaContextualMemory.recordInteraction(raw, response.text, store, sessionId, routeProjectId);
+      try {
+        athenaContextualMemory.recordInteraction(raw, response.text, store, sessionId, routeProjectId);
+      } catch (memoryError) {
+        athenaObservabilityJournal.record({ category: "SYSTEM", type: "CONVERSATION_MEMORY_WRITE_FAILED", status: "FAILED", message: "A resposta foi preservada, mas o histórico contextual não pôde ser atualizado.", sessionId, projectId: routeProjectId, details: { error: memoryError instanceof Error ? memoryError.message : String(memoryError) } });
+      }
       saveMessages([...updated, response]);
-    } catch {
+    } catch (error) {
+      const failureSessionId = activeConversationId || (routeProjectId ? `project-${routeProjectId}-sidecar-session` : "global-athena-session");
+      athenaObservabilityJournal.record({ category: "SYSTEM", type: "CONVERSATION_RESPONSE_FAILED", status: "FAILED", message: "Falha ao compor a resposta local da Athena.", sessionId: failureSessionId, projectId: routeProjectId, details: { error: error instanceof Error ? error.message : String(error) } });
       const failure: AthenaMessage = {
         id: "ath-error-" + Date.now(),
         sender: "athena",
-        text: "Não consegui concluir essa solicitação agora. Nenhuma ação foi aplicada ao VARYNTH. Tente novamente; se o problema continuar, verifique o estado do motor local.",
+        text: "Encontrei uma falha ao compor esta resposta local. Nenhuma ação foi aplicada. Tente novamente; se persistir, abra o Diagnóstico local para ver a causa registrada.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         scope: currentScope,
       };
@@ -204,6 +217,25 @@ export function AthenaSidecar() {
                 <span className="text-[10px] text-slate-400 font-mono">
                   Contexto: {pathname}
                 </span>
+                <div className="mt-1 flex items-center gap-1">
+                  <select
+                    aria-label="Conversa ativa"
+                    value={activeConversationId || ""}
+                    onChange={(event) => {
+                      const conversation = athenaConversationStore.activate(event.target.value);
+                      if (conversation) { setActiveConversationId(conversation.id); setMessages(conversation.messages.length ? conversation.messages : []); athenaConversationManager.updateSessionWithHistory(conversation.id, conversation.messages); setConversations(athenaConversationStore.list()); }
+                    }}
+                    className="max-w-36 rounded border border-[#25253a] bg-[#11111b] px-1 py-0.5 text-[9px] text-slate-300"
+                  >
+                    {conversations.filter((conversation) => conversation.status === "ACTIVE").map((conversation) => <option key={conversation.id} value={conversation.id}>{conversation.title}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    aria-label="Nova conversa"
+                    onClick={() => { const conversation = athenaConversationStore.create(currentScope, routeProjectId); setActiveConversationId(conversation.id); setMessages([]); setConversations(athenaConversationStore.list()); }}
+                    className="rounded border border-violet-500/30 p-1 text-violet-300 hover:bg-violet-500/10"
+                  ><Plus size={11} /></button>
+                </div>
               </div>
             </div>
 
@@ -230,7 +262,7 @@ export function AthenaSidecar() {
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map((msg) => {
+            {messages.map((msg, index) => {
               const isAthena = msg.sender === "athena";
 
               return (
@@ -262,6 +294,14 @@ export function AthenaSidecar() {
                       )}
                     >
                       <AthenaMessageText text={msg.text} />
+                      {msg.sender === "athena" && (
+                        <AthenaFeedbackControls
+                          messageId={msg.id}
+                          response={msg.text}
+                          sessionId={activeConversationId || (routeProjectId ? `project-${routeProjectId}-sidecar-session` : "global-athena-session")}
+                          prompt={messages[index - 1]?.sender === "user" ? messages[index - 1].text : undefined}
+                        />
+                      )}
 
                       {msg.actionCard && (
                         <div className="mt-2 p-2 rounded-lg bg-[#0a0a0f] border border-violet-500/30 flex items-center justify-between gap-2 text-[11px]">

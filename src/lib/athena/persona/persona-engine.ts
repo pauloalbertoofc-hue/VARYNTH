@@ -240,8 +240,15 @@ export class AthenaPersonaEngine {
   /**
    * Explains why a previous recommendation was given (Follow-up / "Por quê?").
    */
-  generateFollowUpExplanation(referent?: string): string {
-    const target = referent || "o Observatório de Regulação de IA";
+  generateFollowUpExplanation(referent?: string, previousAssistantText?: string): string {
+    if (!referent) {
+      const previous = normalizeText(previousAssistantText || "");
+      if (previous.includes("prefiro nao inventar") || previous.includes("novidade especifica")) {
+        return "Porque eu não tinha uma novidade verificada nos dados disponíveis. Inventar uma atualização pareceria útil, mas criaria informação falsa. Posso consultar projetos, tarefas e prazos e dizer apenas o que estiver realmente registrado.";
+      }
+      return "Minha resposta anterior não continha uma recomendação identificável. Posso explicar um trecho específico dela, mas não vou atribuir uma escolha ou justificativa que não apareceu na conversa.";
+    }
+    const target = referent;
     return (
       `Eu recomendei **"${target}"** por três razões estratégicas fundamentais:\n\n` +
       `1. **Densidade & Autoridade:** Essa frente aproveita diretamente os fichamentos e referências que você já possui no Vault, gerando impacto intelectual rápido.\n` +
@@ -496,11 +503,20 @@ export class AthenaPersonaEngine {
       parsed.ellipsisResolved?.isEllipsis &&
       (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("escolha") || clean.includes("justificativa"))
     ) {
-      return { text: this.generateFollowUpExplanation(parsed.ellipsisResolved.originalReferent) };
+      return { text: this.generateFollowUpExplanation(
+        parsed.ellipsisResolved.originalReferent,
+        parsed.ellipsisResolved.previousAssistantText
+      ) };
     }
 
     // E. Brainstorming & Project Recommendation
     if (parsed.intents.includes("BRAINSTORM") || parsed.intents.includes("RECOMMEND")) {
+      const selectedVisual = parsed.ellipsisResolved?.originalReferent;
+      if (selectedVisual && parsed.subject === "SELECTED_RECOMMENDATION") {
+        return {
+          text: `Perfeito — vou desenvolver a **opção escolhida**.\n\n**Prompt visual:**\n\n> ${selectedVisual}. Composição cinematográfica futurista, fundo escuro profundo, luz violeta e ciano, contraste alto, detalhes nítidos, atmosfera sofisticada, sem texto, sem marcas-d’água, formato vertical 4:5.\n\nSe você me disser onde vai usar a imagem (post, capa, apresentação ou wallpaper), eu ajusto enquadramento e proporção.` ,
+        };
+      }
       return this.generateBrainstormingResponse(prompt, activeProjectTitle, ctx);
     }
 

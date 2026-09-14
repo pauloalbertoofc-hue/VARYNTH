@@ -5,7 +5,9 @@ A **`ActionLayer`** e o **`ToolManager`** (`src/lib/athena/tools/tool-manager.ts
 
 ---
 
-## 2. Catálogo de 14 Ferramentas Determinísticas
+## 2. Catálogo derivado do registro real
+
+O catálogo canônico é `src/lib/athena/tools/registry.ts`; `ToolManager` é o executor e a política de autoridade é aplicada antes da execução. No checkout auditado há 36 definições nomeadas, incluindo ferramentas de domínio, do pipeline criativo e a criação de rascunhos nos Studios. A tabela histórica abaixo não deve ser usada como lista exaustiva: ao adicionar ou modificar uma ferramenta, atualize este documento com seu contrato, entradas, saídas, riscos, autorização e teste.
 
 | Ferramenta | Módulo Alvo | Tipo | Descrição |
 | :--- | :--- | :--- | :--- |
@@ -24,9 +26,10 @@ A **`ActionLayer`** e o **`ToolManager`** (`src/lib/athena/tools/tool-manager.ts
 | `trash.moveWithUndo` | Trash | Mutação | Move item para a lixeira de 10 dias com suporte a Undo |
 | `diagnostics.run` | Kernel / Health | Leitura | Executa diagnóstico técnico de integridade dos subsistemas |
 
+As ferramentas `creative.*` cobrem dependências, proveniência, pinning, planos, aprovação, execução, pausa, cancelamento, retry, replanning e diagnóstico de blockers. Elas não são autorização implícita para publicar ou destruir: cada etapa passa pelo plano, `ToolManager` e `PermissionPolicyEngine`.
+
 ---
 
 ## 3. Garantias de Execução
 - **Zero Mutação Espúria**: Nenhuma ferramenta é executada em diálogos classificados como `CONVERSATION`.
 - **Trilha de Auditoria Obrigatória**: Toda execução de ferramenta de escrita emite registro imutável no `AuditTrail`.
-

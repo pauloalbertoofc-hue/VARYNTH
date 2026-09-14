@@ -28,6 +28,7 @@ import {
   TrashEntityType,
 } from "../types";
 import { showUndoToast } from "@/components/ui/UndoToast";
+import { migrateVaultItem } from "@/lib/vault/taxonomy";
 
 const STORAGE_KEYS = {
   PROJECTS: "varynth_os_projects",
@@ -57,6 +58,10 @@ function triggerStoreUpdate() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(STORE_UPDATE_EVENT));
   }
+}
+
+function pushVaultItems(items: VaultItem[]) {
+  void fetch("/api/vault/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items }) }).catch(() => undefined);
 }
 
 export function useVarynthStore() {
@@ -194,7 +199,9 @@ export function useVarynthStore() {
       setProjects(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]"));
       setTasks(JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]"));
       setNotes(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]"));
-      setVaultItems(JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]"));
+      const migratedVault = (JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]") as VaultItem[]).map(migrateVaultItem);
+      localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(migratedVault));
+      setVaultItems(migratedVault);
       setChronosEvents(JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]"));
       setHistoricalMilestones(JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORICAL) || "[]"));
       setPeople(JSON.parse(localStorage.getItem(STORAGE_KEYS.PEOPLE) || "[]"));
@@ -228,6 +235,24 @@ export function useVarynthStore() {
       window.removeEventListener("storage", handleUpdate);
     };
   }, [loadData]);
+
+  useEffect(() => {
+    const synchronizeVault = async () => {
+      try {
+        const local = (JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]") as VaultItem[]).map(migrateVaultItem);
+        const response = await fetch("/api/vault/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: local }) });
+        if (!response.ok) return;
+        const result = await response.json() as { items?: VaultItem[] };
+        if (!result.items) return;
+        const migrated = result.items.map(migrateVaultItem);
+        localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(migrated));
+        setVaultItems(migrated);
+      } catch {
+        // A cópia local continua disponível quando o aparelho estiver offline.
+      }
+    };
+    void synchronizeVault();
+  }, []);
 
   // --- TRASH HUB (10-DAY RETENTION, RESILIENT RESTORE & UNDO TOAST) ---
   const restoreFromTrash = useCallback(
@@ -598,6 +623,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
       const updated = [newItem, ...current];
       localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
+      pushVaultItems(updated);
       logActivity("criou", "vault", newItem.id, newItem.title, actorType);
       triggerStoreUpdate();
       return newItem;
@@ -611,6 +637,7 @@ export function useVarynthStore() {
       item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item
     );
     localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
+    pushVaultItems(updated);
     triggerStoreUpdate();
   }, []);
 
@@ -626,6 +653,7 @@ export function useVarynthStore() {
       }
       const updated = current.filter((item) => item.id !== id);
       localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
+      void fetch(`/api/vault/sync?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
       triggerStoreUpdate();
     },
     [moveToTrash]

@@ -79,6 +79,8 @@ import { StudioRelationsPanel } from "@/components/studio/common/StudioRelations
 import { CreativeOrchestrationModal } from "@/components/studio/common/CreativeOrchestrationModal";
 import { STUDIO_DEFINITIONS, StudioType, isValidStudioType, getStudioDefinition } from "@/lib/studio/studio-registry";
 import { artifactStore } from "@/lib/artifacts/artifact-store";
+import { athenaConversationStore } from "@/lib/athena/conversation/conversation-store";
+import { generateStudioDraft } from "@/lib/studio/athena-generation";
 
 import {
   FileText,
@@ -185,11 +187,12 @@ export default function StudioPage() {
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const syncFromUrl = () => {
+  const syncFromUrl = async () => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const studioParam = params.get("studio")?.toUpperCase();
     const idParam = params.get("id");
+    const conversationId = params.get("conversation");
 
     if (studioParam && isValidStudioType(studioParam)) {
       setActiveStudio(studioParam);
@@ -198,6 +201,21 @@ export default function StudioPage() {
     if (idParam) {
       const art = artifactStore.getById(idParam);
       if (!art || art.status === "TRASHED") {
+        if (conversationId && studioParam && isValidStudioType(studioParam)) {
+          const conversation = athenaConversationStore.load().conversations.find(item => item.id === conversationId);
+          const remembered = [...(conversation?.messages || [])].reverse().map(message => message.metadata?.studioBrief as { studio?: StudioType; options?: string[]; selected?: number } | undefined).find(value => value?.studio === studioParam && Array.isArray(value.options));
+          const selectedBrief = remembered?.selected !== undefined ? remembered.options?.[remembered.selected] : undefined;
+          if (selectedBrief) {
+            try {
+              const generated = await generateStudioDraft(studioParam, selectedBrief, `${conversationId}:${studioParam}:${selectedBrief}`, conversationId);
+              window.history.replaceState({}, "", generated.href);
+              await syncFromUrl();
+              return;
+            } catch {
+              // The normal not-found panel remains visible with the original reference.
+            }
+          }
+        }
         setNotFoundArtifactId(idParam);
         setActiveDoc(null);
         setActiveWebsite(null);
@@ -283,10 +301,10 @@ export default function StudioPage() {
 
   useEffect(() => {
     loadData();
-    syncFromUrl();
+    void syncFromUrl();
 
     const handleUpdate = () => loadData();
-    const handlePopState = () => syncFromUrl();
+    const handlePopState = () => { void syncFromUrl(); };
     const handleOpenOrchestration = (e: any) => {
       if (e.detail?.planId) {
         setOrchestrationPlanId(e.detail.planId);

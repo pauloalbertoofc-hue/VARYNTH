@@ -52,11 +52,14 @@ export interface ParsedCognitiveContext {
     isEllipsis: boolean;
     originalReferent?: string;
     resolvedMeaning?: string;
+    previousAssistantText?: string;
   };
   isAmbiguous: boolean;
   ambiguityType?: "IRRELEVANT" | "RELEVANT" | "DANGEROUS";
   clarificationPrompt?: string;
   semanticInterpretation?: import("../semantic/types").SemanticInterpretation;
+  comprehensionStatus?: import("../semantic/types").ComprehensionStatus;
+  missingInformation?: string[];
 }
 
 export interface InteractionDebugInfo {
@@ -121,4 +124,9 @@ export interface ConversationState {
     attemptCount: number;
     status: "PENDING" | "RESOLVED";
   };
+  currentGoal?: string;
+  lastUnderstoodRequest?: string;
+  pendingQuestion?: string;
+  suppliedInformation: Record<string, string>;
+  correctionCount: number;
 }

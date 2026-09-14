@@ -27,9 +27,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
 
 export default function DashboardPage() {
   const { projects, tasks, notes, activities, toggleTask, isLoaded } = useVarynthStore();
+  const preferences = usePlatformPreferences();
 
   const hour = new Date().getHours();
   const greeting =
@@ -54,7 +56,7 @@ export default function DashboardPage() {
   return (
     <PageLayout title="Início" subtitle="Cockpit Operacional VARYNTH OS">
       <div className="space-y-8 max-w-7xl mx-auto animate-fade-in">
-        {/* Hero Banner with Quick Actions */}
+        {preferences.dashboard.hero && <>{/* Hero Banner with Quick Actions */}
         <div className="relative rounded-2xl border border-[#1e1e30] bg-gradient-to-br from-violet-950/40 via-[#0f0f1a] to-cyan-950/20 p-6 sm:p-8 overflow-hidden clip-corner">
           <div className="absolute top-0 right-0 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-32 w-48 h-48 bg-cyan-600/10 rounded-full blur-2xl pointer-events-none" />
@@ -63,10 +65,10 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold uppercase tracking-widest">
                 <Sparkles size={12} />
-                <span>VARYNTH OS · Universo Digital Pessoal</span>
+                <span>{preferences.appName} OS · Universo Digital Pessoal</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white text-glow-accent tracking-tight">
-                {greeting}, Paulo.
+                {greeting}, {preferences.displayName}.
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
                 Central de controle ativa. Você tem{" "}
@@ -103,11 +105,11 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div></>}
 
         {/* Real-time OS KPIs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <Link
+        {(preferences.dashboard.metricProjects || preferences.dashboard.metricTasks || preferences.dashboard.metricCompleted || preferences.dashboard.metricVault) && <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          {preferences.dashboard.metricProjects && <Link
             href="/projects"
             aria-label="Acessar painel de projetos ativos"
             className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-violet-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
@@ -118,9 +120,9 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-white mt-1">{activeProjects.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">{projects.length} no total</p>
-          </Link>
+          </Link>}
 
-          <Link
+          {preferences.dashboard.metricTasks && <Link
             href="/projects"
             aria-label={`Ver ${pendingTasks.length} tarefas pendentes nos projetos`}
             className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-amber-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
@@ -131,9 +133,9 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-amber-400 mt-1">{pendingTasks.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">{urgentTasks.length} urgentes / altas</p>
-          </Link>
+          </Link>}
 
-          <Link
+          {preferences.dashboard.metricCompleted && <Link
             href="/modules/activity"
             aria-label={`Ver histórico de ${completedTasks.length} tarefas concluídas e audit trail`}
             className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-emerald-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
@@ -144,9 +146,9 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-emerald-400 mt-1">{completedTasks.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">Histórico registrado</p>
-          </Link>
+          </Link>}
 
-          <Link
+          {preferences.dashboard.metricVault && <Link
             href="/modules/vault"
             aria-label={`Acessar ${notes.length} notas e acervo de conhecimento do Vault`}
             className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm hover:border-cyan-500/40 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
@@ -157,13 +159,14 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-cyan-400 mt-1">{notes.length}</p>
             <p className="text-[10px] text-slate-500 mt-0.5">Fichamentos salvos</p>
-          </Link>
-        </div>
+          </Link>}
+        </div>}
 
         {/* Main Cockpit Layout: 2 Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {(preferences.dashboard.priorityTasks || preferences.dashboard.deadlines || preferences.dashboard.activeProjects || preferences.dashboard.clock || preferences.dashboard.focusTimer || preferences.dashboard.scratchpad || preferences.dashboard.activity) && <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column (7 cols): Tasks, Deadlines, Active Projects */}
           <div className="lg:col-span-7 space-y-6">
+            {preferences.dashboard.priorityTasks && <>
             {/* Priority Tasks Widget */}
             <div className="p-5 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-4">
               <div className="flex items-center justify-between">
@@ -240,6 +243,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            </>}
+            {preferences.dashboard.deadlines && <>
             {/* Upcoming Deadlines (Chronos Peek) */}
             <div className="p-5 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-4">
               <div className="flex items-center justify-between">
@@ -277,6 +282,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            </>}
+            {preferences.dashboard.activeProjects && <>
             {/* Active Projects Grid */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -322,15 +329,16 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
-            </div>
+            </div></>}
           </div>
 
           {/* Right Column (5 cols): Clock, Pomodoro, Scratchpad, Audit Log */}
           <div className="lg:col-span-5 space-y-6">
-            <ClockWidget />
-            <FocusTimerWidget />
-            <ScratchpadWidget />
+            {preferences.dashboard.clock && <ClockWidget />}
+            {preferences.dashboard.focusTimer && <FocusTimerWidget />}
+            {preferences.dashboard.scratchpad && <ScratchpadWidget />}
 
+            {preferences.dashboard.activity && <>
             {/* Live Activity Feed */}
             <div className="p-5 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3">
               <div className="flex items-center justify-between">
@@ -358,12 +366,12 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div></>}
           </div>
-        </div>
+        </div>}
 
         {/* Ecosystem Módulos & Apps Grid */}
-        <div className="space-y-4 pt-4 border-t border-[#1e1e30]">
+        {preferences.dashboard.modules && <div className="space-y-4 pt-4 border-t border-[#1e1e30]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers size={16} className="text-violet-400" />
@@ -381,7 +389,7 @@ export default function DashboardPage() {
               <AppCard key={mod.id} module={mod} />
             ))}
           </div>
-        </div>
+        </div>}
       </div>
     </PageLayout>
   );

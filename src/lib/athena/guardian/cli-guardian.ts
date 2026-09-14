@@ -49,7 +49,7 @@ async function runGuardianCli() {
 
   console.log("\n===============================================================");
   if (report.score === 100) {
-    console.log("🎉 DOCUMENTAÇÃO 100% SINCRONIZADA: Zero drift detectado.");
+    console.log("🎉 CATÁLOGO DE RUNTIME SINCRONIZADO. O gate de arquivos também foi executado antes deste relatório.");
   } else {
     console.log("⚠️ ATENÇÃO: Foram identificadas divergências documentais.");
   }
@@ -60,4 +60,3 @@ runGuardianCli().catch((err) => {
   console.error("Erro fatal no Documentation Guardian:", err);
   process.exit(1);
 });
-

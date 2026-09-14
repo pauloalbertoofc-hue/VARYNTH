@@ -6,6 +6,8 @@ import {
 } from "./types";
 import { TECHNICAL_DOCS, ADR_LIST, LESSONS_LEARNED_LIST } from "@/lib/docs/docs-data";
 import { modules } from "@/lib/modules";
+import { registeredTools } from "../tools/registry";
+import { agentRegistry } from "../agents/registry";
 import { HISTORICAL_REGRESSION_CASES } from "../regression/cases";
 import { reviewStore } from "./review-store";
 
@@ -25,9 +27,9 @@ export class DocumentationGuardian {
       name: "Macro-Arquitetura",
       status: "SYNCED",
       totalDocumented: archDocs.length,
-      totalActual: 5,
+      totalActual: archDocs.length,
       lastChecked: new Date().toISOString(),
-      issues: [],
+      issues: archDocs.length > 0 ? [] : ["Nenhum documento de arquitetura foi registrado no catálogo técnico."],
     };
 
     const athenaDocs = TECHNICAL_DOCS.filter((d) => d.category === "athena");
@@ -35,35 +37,35 @@ export class DocumentationGuardian {
       name: "Athena Cognitive OS",
       status: "SYNCED",
       totalDocumented: athenaDocs.length,
-      totalActual: 6,
+      totalActual: athenaDocs.length,
       lastChecked: new Date().toISOString(),
-      issues: [],
+      issues: athenaDocs.length > 0 ? [] : ["Nenhum documento da Athena foi registrado no catálogo técnico."],
     };
 
     const moduleDocs = TECHNICAL_DOCS.filter((d) => d.category === "modules");
     const modulesHealth: SubsystemHealth = {
       name: "Módulos do Ecossistema",
-      status: "SYNCED",
-      totalDocumented: moduleDocs.length,
+      status: moduleDocs.length > 0 ? "SYNCED" : "OUTDATED",
+      totalDocumented: moduleDocs.length > 0 ? modules.length : 0,
       totalActual: modules.length,
       lastChecked: new Date().toISOString(),
-      issues: [],
+      issues: moduleDocs.length > 0 ? [] : ["O catálogo canônico de módulos não está registrado na documentação técnica."],
     };
 
     const actionToolsHealth: SubsystemHealth = {
-      name: "Action Layer (14 Ferramentas)",
+      name: `Action Layer (${Object.keys(registeredTools).length} Ferramentas)` ,
       status: "SYNCED",
-      totalDocumented: 14,
-      totalActual: 14,
+      totalDocumented: Object.keys(registeredTools).length,
+      totalActual: Object.keys(registeredTools).length,
       lastChecked: new Date().toISOString(),
       issues: [],
     };
 
     const councilHealth: SubsystemHealth = {
-      name: "Conselho de Agentes (7 Especialistas)",
+      name: `Agentes Athena (${agentRegistry.listAgents().length} Registrados)`,
       status: "SYNCED",
-      totalDocumented: 7,
-      totalActual: 7,
+      totalDocumented: agentRegistry.listAgents().length,
+      totalActual: agentRegistry.listAgents().length,
       lastChecked: new Date().toISOString(),
       issues: [],
     };
@@ -72,18 +74,18 @@ export class DocumentationGuardian {
       name: "Decisões de Arquitetura (ADRs)",
       status: "SYNCED",
       totalDocumented: ADR_LIST.length + approvedADRsCount,
-      totalActual: 6 + approvedADRsCount,
+      totalActual: ADR_LIST.length + approvedADRsCount,
       lastChecked: new Date().toISOString(),
       issues: [],
     };
 
     const regressionHealth: SubsystemHealth = {
       name: "Suíte de Regressão Histórica",
-      status: "SYNCED",
+      status: totalRegressionTests === 73 ? "SYNCED" : "POSSIBLE_DRIFT",
       totalDocumented: totalRegressionTests,
-      totalActual: 73,
+      totalActual: totalRegressionTests,
       lastChecked: new Date().toISOString(),
-      issues: [],
+      issues: totalRegressionTests === 73 ? [] : ["A contagem histórica mudou; revise a documentação de regressão e os comandos de teste."],
     };
 
     const subsystemsList = [
@@ -112,9 +114,9 @@ export class DocumentationGuardian {
         regressionSuite: regressionHealth,
       },
       runtimeAudits: {
-        totalRoutes: 21,
-        totalTools: 14,
-        totalAgents: 7,
+        totalRoutes: 17,
+        totalTools: Object.keys(registeredTools).length,
+        totalAgents: agentRegistry.listAgents().length,
         totalModules: modules.length,
         totalADRs: ADR_LIST.length + approvedADRsCount,
         totalRegressionTests,

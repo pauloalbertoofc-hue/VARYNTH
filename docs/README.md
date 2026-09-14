@@ -46,6 +46,7 @@ Para acomodar diferentes necessidades de profundidade técnica sem exigir a leit
 
 ### 1. 🏗️ Arquitetura Global (`/docs/architecture`)
 - [`overview.md`](./architecture/overview.md): Filosofia central, princípios de soberania e macro-arquitetura.
+- [`global-app-branding.md`](./architecture/global-app-branding.md): Ícone global do Web App, persistência, controles do proprietário e atualização entre dispositivos.
 - [`system-map.md`](./architecture/system-map.md): Mapa topológico e matriz de subsistemas implementados vs planejados.
 - [`data-flow.md`](./architecture/data-flow.md): Fluxo reativo de dados, mutações e barramento de eventos.
 - [`security-model.md`](./architecture/security-model.md): Modelo de segurança local, auditoria e princípio *Fail-Closed* (Alex Principle).
@@ -113,3 +114,11 @@ Para acomodar diferentes necessidades de profundidade técnica sem exigir a leit
 
 > **Regra de Engenharia**: Toda modificação relevante de contratos, arquitetura, segurança ou comportamento deve ser refletida na documentação técnica correspondente antes da conclusão da tarefa. A documentação é tratada como um cidadão de primeira classe do produto.
 
+## Auditoria e regressão
+
+- [`audit/documentation-audit-2026-09-06.md`](./audit/documentation-audit-2026-09-06.md): confronto do código real com a documentação, lacunas, divergências e decisões ainda humanas.
+- [`ADR-043`](./adr/ADR-043-documentation-as-code-regression-gate.md): decisão que torna o inventário documental verificável por teste.
+- [`development/traceability-matrix.md`](./development/traceability-matrix.md): mapa obrigatório entre código, testes e documentos canônicos.
+- `npm run test:docs:regression`: gate mínimo executado também durante `npm run build`.
+
+O inventário atual deve preservar estas fronteiras: `UNDERSTAND != EXECUTE != PUBLISH != DESTROY`, `SANDBOX != CORE`, autoridade central no `PermissionPolicyEngine`, retenção/undo, `MemoryGate`, tokens anti-replay e auditoria. A capacidade de Athena ou de qualquer agente não aumenta sua autoridade.

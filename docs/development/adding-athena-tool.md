@@ -14,8 +14,8 @@ export type AthenaToolName =
   // ...
 ```
 
-### Passo 2: Implementar a Lógica no `ToolManager`
-Em `src/lib/athena/tools/tool-manager.ts`, implemente o método correspondente garantindo carimbo no `AuditTrail`:
+### Passo 2: Registrar o contrato e implementar no `ToolManager`
+O catálogo canônico é `src/lib/athena/tools/registry.ts`. Defina entradas, saída, domínio alvo e se a operação é leitura ou mutação; então conecte a execução em `src/lib/athena/tools/tool-manager.ts`, garantindo carimbo no `AuditTrail`:
 
 ```ts
 this.registerTool({
@@ -33,3 +33,6 @@ this.registerTool({
 ### Passo 3: Adicionar Caso na Suíte de Regressão
 Adicione um teste em `src/lib/athena/regression/cases.ts` para garantir que comandos correspondentes acionem a nova ferramenta sem regressões.
 
+### Passo 4: Documentar e governar
+
+Atualize `docs/athena/tools.md`, incluindo propósito, dados recebidos/produzidos, dependências, riscos, diagnóstico e teste. A ferramenta não pode conceder a si mesma autoridade: `UNDERSTAND != EXECUTE != PUBLISH != DESTROY`; ações sensíveis devem usar `PermissionPolicyEngine`, token de confirmação vinculado ao contexto e, para código não confiável, `SANDBOX != CORE`.

@@ -1,7 +1,7 @@
 import { AthenaScope } from "./context";
 
 export interface AthenaActionCard {
-  type: "tarefa_criada" | "nota_criada" | "prazos" | "diagnostico" | "tese" | "evidencia" | "edital";
+  type: "studio_criado" | "tarefa_criada" | "nota_criada" | "prazos" | "diagnostico" | "tese" | "evidencia" | "edital";
   title: string;
   subtitle?: string;
   link?: string;
@@ -26,9 +26,9 @@ export interface AthenaResponse {
 export type AthenaMessage = AthenaResponse | {
   id: string;
   sender: "user" | "athena";
+  metadata?: Record<string, unknown>;
   text: string;
   timestamp: string;
   scope?: AthenaScope;
   actionCard?: AthenaActionCard;
 };
-

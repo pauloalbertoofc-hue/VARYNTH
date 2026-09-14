@@ -34,7 +34,7 @@ export class BibliotecarioAgent implements AthenaAgent {
     const query = tokens(task.rawPrompt);
     const matches = context.relevantVaultItems
       .map((item) => {
-        const corpus = `${item.title} ${item.author || ""} ${item.tags.join(" ")} ${item.content || ""}`.toLowerCase();
+        const corpus = `${item.title} ${item.author || ""} ${item.literaryCategory || ""} ${item.workType || ""} ${item.format || ""} ${item.primarySubject || ""} ${item.tags.join(" ")} ${item.summary || ""} ${item.content || ""}`.toLowerCase();
         const score = query.filter((term) => corpus.includes(term)).length;
         const firstTerm = query.find((term) => (item.content || "").toLowerCase().includes(term));
         const position = firstTerm ? (item.content || "").toLowerCase().indexOf(firstTerm) : 0;

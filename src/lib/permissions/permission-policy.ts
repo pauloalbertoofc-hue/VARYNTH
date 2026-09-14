@@ -77,6 +77,12 @@ export class PermissionPolicyEngine {
         rationale: "Auditor e crítico: audita e aponta falhas em modo somente leitura sem mutação silenciosa.",
       },
     ],
+    ["euterpe", {
+      agentId: "euterpe", name: "Euterpe", allowedDomains: ["MUSIC"], readOnlyDomains: [],
+      prohibitedActions: ["DELETE_HARD", "DELETE_SOFT", "EXECUTE", "PUBLISH", "SHARE", "EXPORT", "IMPORT"],
+      requiresConfirmationActions: ["CREATE", "MODIFY", "MOVE", "ARCHIVE"],
+      rationale: "Sub-IA musical: pode ler o contexto autorizado e preparar propostas; mudanças exigem aprovação explícita da pessoa.",
+    }],
   ]);
 
   /**

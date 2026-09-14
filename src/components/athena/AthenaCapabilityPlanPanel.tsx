@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   store: ReturnType<typeof useVarynthStore>;
   compact?: boolean;
+  planId?: string;
 }
 
 const STATUS_STYLE: Record<CapabilityPlanStatus, string> = {
@@ -60,12 +61,12 @@ function progressOf(plan: CapabilityExecutionPlan): number {
   return Math.round((plan.steps.filter((step) => step.status === "COMPLETED").length / plan.steps.length) * 100);
 }
 
-export function AthenaCapabilityPlanPanel({ store, compact = false }: Props) {
+export function AthenaCapabilityPlanPanel({ store, compact = false, planId }: Props) {
   const [revision, setRevision] = useState(0);
   const [selectedId, setSelectedId] = useState<string>();
   const [feedback, setFeedback] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const plans = useMemo(() => capabilityPlanStore.list(), [revision]);
+  const plans = useMemo(() => capabilityPlanStore.list().filter((plan) => !planId || plan.id === planId), [revision, planId]);
   const selected = plans.find((plan) => plan.id === selectedId) || plans[0];
 
   useEffect(() => {

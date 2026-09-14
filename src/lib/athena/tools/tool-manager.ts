@@ -52,6 +52,8 @@ export class ToolManager {
 
   private mapToolToPermission(name: ActionType): { action: VarynthAction; targetDomain: SecurityTargetDomain } {
     switch (name) {
+      case "studio.generate":
+        return { action: "CREATE", targetDomain: "ARTIFACT_DRAFT" };
       case "tasks.create":
         return { action: "CREATE", targetDomain: "WORKSPACE_TASK" };
       case "tasks.update":

@@ -43,7 +43,8 @@ export type SecurityTargetDomain =
   | "TRASH_BIN"
   | "SANDBOX_LABS"
   | "DATA_EXPORT"
-  | "PERMANENT_MEMORY";
+  | "PERMANENT_MEMORY"
+  | "MUSIC";
 
 export type AgentSpecialistId =
   | "justitia"
@@ -53,7 +54,8 @@ export type AgentSpecialistId =
   | "critias"
   | "sophia"
   | "musa"
-  | "archivist";
+  | "archivist"
+  | "euterpe";
 
 export interface ActorIdentity {
   type: ActorType;

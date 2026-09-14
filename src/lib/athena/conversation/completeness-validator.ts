@@ -4,6 +4,7 @@ export interface CompletenessValidationResult {
   isComplete: boolean;
   missingAspects: string[];
   confidence: number;
+  isGeneric: boolean;
 }
 
 export class ResponseCompletenessValidator {
@@ -17,6 +18,21 @@ export class ResponseCompletenessValidator {
     const text = responseText.trim();
     const lower = text.toLowerCase();
     const missingAspects: string[] = [];
+
+    const genericMarkers = [
+      "conectada ao seu ecossistema",
+      "conectada ao núcleo do seu",
+      "como seu copilot digital, posso",
+      "o que temos na pauta hoje",
+      "essa reflexão abre caminhos interessantes",
+      "conectar com o acervo do vault",
+      "como deseja que eu te ajude agora",
+    ];
+    const isGeneric = genericMarkers.some((marker) => lower.includes(marker));
+
+    if (isGeneric && !parsed.intents.includes("SOCIAL_CONVERSATION")) {
+      missingAspects.push("GENERIC_RESPONSE_SUBSTITUTED_FOR_ANSWER");
+    }
 
     // Check 1: Must not be empty or too trivial for cognitive requests
     if (parsed.interactionType === "COGNITIVE_REQUEST" && text.length < 30) {
@@ -106,9 +122,9 @@ export class ResponseCompletenessValidator {
       isComplete,
       missingAspects,
       confidence,
+      isGeneric,
     };
   }
 }
 
 export const responseCompletenessValidator = new ResponseCompletenessValidator();
-

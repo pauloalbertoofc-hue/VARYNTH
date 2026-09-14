@@ -1,4 +1,5 @@
 export type ActionType =
+  | "studio.generate"
   | "tasks.create"
   | "tasks.toggle"
   | "tasks.update"

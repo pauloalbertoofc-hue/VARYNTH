@@ -46,3 +46,8 @@ export class MeuNovoAgente implements AthenaAgent {
 ### Passo 2: Registrar no `AgentRegistry`
 Em `src/lib/athena/agents/registry.ts`, instancie e registre o agente na lista oficial.
 
+### Passo 3: Preservar a fronteira de autoridade
+
+Um agente é uma capacidade especializada, não uma identidade com autoridade própria. Não adicione permissões ao agente, não faça chamadas diretas de mutação e não permita que ele altere sua própria configuração. Ação, publicação, exclusão e execução passam pelo `ToolManager`, `PermissionPolicyEngine`, confirmação humana e sandbox quando aplicável.
+
+Classifique o agente no documento `docs/athena/agents.md` como **Conselho de domínio** (especialista estável), **auxiliar de recuperação/curadoria** ou **generalista de compatibilidade**. Acrescente teste de seleção e de negação de autoridade.

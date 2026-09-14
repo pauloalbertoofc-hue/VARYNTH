@@ -94,7 +94,7 @@ function globalSearch(prompt: string, ctx: AthenaEngineContext, scope: AthenaSco
   ctx.projects.filter((p) => allowedProject(p.id) && includes(p.title, p.description, p.tags)).forEach((p) => results.push({ type: "Projeto", title: p.title, context: `${p.status.replaceAll("_", " ")} · prioridade ${p.priority}`, rank: normalize(p.title).includes(needle) ? 0 : 2 }));
   ctx.tasks.filter((t) => allowedProject(t.projectId) && includes(t.title, t.description, t.tags)).forEach((t) => results.push({ type: "Tarefa", title: t.title, context: `${projectLabel(ctx, t.projectId)} · ${t.status.replaceAll("_", " ")}`, rank: normalize(t.title).includes(needle) ? 0 : 2 }));
   (ctx.notes || []).filter((n) => allowedProject(n.projectId) && includes(n.title, n.content, n.tags)).forEach((n) => results.push({ type: "Nota", title: n.title, context: projectLabel(ctx, n.projectId), rank: normalize(n.title).includes(needle) ? 0 : 3 }));
-  ctx.vaultItems.filter((v) => (!targetProjectId || v.relatedProjectIds?.includes(targetProjectId)) && includes(v.title, v.content, v.notes, v.tags, v.author)).forEach((v) => results.push({ type: "Vault", title: v.title, context: `${v.type} · ${v.readingStatus.replaceAll("_", " ")}`, rank: normalize(v.title).includes(needle) ? 1 : 3 }));
+  ctx.vaultItems.filter((v) => (!targetProjectId || v.relatedProjectIds?.includes(targetProjectId)) && includes(v.title, v.content, v.notes, v.tags, v.author, v.literaryCategory, v.workType, v.format, v.primarySubject)).forEach((v) => results.push({ type: "Vault", title: v.title, context: `${v.workType || v.type} · ${v.primarySubject || v.category} · ${v.readingStatus.replaceAll("_", " ")}`, rank: normalize(v.title).includes(needle) ? 1 : 3 }));
   ctx.opportunities.filter((o) => allowedProject(o.relatedProjectId) && includes(o.title, o.institution, o.notes, o.requirements)).forEach((o) => results.push({ type: "Oportunidade", title: o.title, context: `${o.institution} · prazo ${o.deadline}`, rank: normalize(o.title).includes(needle) ? 1 : 3 }));
   results.sort((a, b) => a.rank - b.rank || a.title.localeCompare(b.title, "pt-BR"));
   if (!results.length) return response(`Não encontrei **“${term}”** ${targetProjectId ? "neste projeto" : "em projetos, tarefas, notas, Vault ou oportunidades"}. Nenhum dado foi inventado.`, scope);
@@ -131,8 +131,9 @@ function briefing(ctx: AthenaEngineContext, scope: AthenaScope, targetProjectId?
 export class AthenaGlobalIntelligence {
   tryHandle(prompt: string, scope: AthenaScope, ctx: AthenaEngineContext, targetProjectId?: string): AthenaMessage | undefined {
     const clean = normalize(prompt);
+    const isAthenaDiagnostic = clean.includes("diagnostico da athena") || clean.includes("seu kernel") || clean.includes("seus modulos cognitivos");
     if (/^(athena[, :]*)?(busque|buscar|procure|procurar|encontre|encontrar|pesquise|onde esta|onde fica)\b/.test(clean)) return globalSearch(prompt, ctx, scope, targetProjectId);
-    if (clean.includes("diagnost") || clean.includes("inconsistencia") || clean.includes("projetos parados") || clean.includes("tarefas atrasadas")) return diagnosis(ctx, scope, targetProjectId);
+    if (!isAthenaDiagnostic && (clean.includes("diagnost") || clean.includes("inconsistencia") || clean.includes("projetos parados") || clean.includes("tarefas atrasadas"))) return diagnosis(ctx, scope, targetProjectId);
     if (clean.includes("briefing") || clean.includes("o que preciso cuidar hoje") || clean.includes("o que devo priorizar hoje") || clean.includes("quais tarefas devo priorizar hoje") || clean.includes("resumir pendencias e prazos")) return briefing(ctx, scope, targetProjectId);
     return undefined;
   }

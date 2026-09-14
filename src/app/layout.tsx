@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Seu OS pessoal soberano na web — hub de apps e projetos",
   alternates: { canonical: VARYNTH_PUBLIC_URL },
   openGraph: { title: "VARYNTH", description: "Seu OS pessoal soberano na web — hub de apps e projetos", url: VARYNTH_PUBLIC_URL, type: "website" },
-  icons: { icon: "/favicon.ico" },
+  icons: { icon: "/api/app-icon", apple: "/api/app-icon" },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

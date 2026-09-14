@@ -13,6 +13,18 @@ export interface ToolDefinition {
 }
 
 export const registeredTools: Record<ActionType, ToolDefinition> = {
+  "studio.generate": {
+    name: "studio.generate",
+    description: "Cria uma composição editável no Studio local e retorna o artefato salvo",
+    module: "studio",
+    execute: async (params) => {
+      const { STUDIO_DEFINITIONS } = await import("../../studio/studio-registry");
+      const studio = STUDIO_DEFINITIONS.find(s => s.type === params.studio)?.type;
+      if (!studio || typeof params.brief !== "string" || !params.brief.trim() || typeof params.requestId !== "string") return {success:false,actionType:"studio.generate",error:"Studio ou briefing inválido."};
+      const { generateStudioDraft } = await import("../../studio/athena-generation");
+      return {success:true,actionType:"studio.generate",data:await generateStudioDraft(studio,params.brief,params.requestId,typeof params.conversationId === "string" ? params.conversationId : undefined)};
+    },
+  },
   "tasks.create": {
     name: "tasks.create",
     description: "Cria uma nova tarefa no VARYNTH associada opcionalmente a um projeto",

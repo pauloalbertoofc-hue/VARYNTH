@@ -24,9 +24,6 @@ import { InteractionDebugInfo } from "./domain/conversation";
 import { AthenaResponseStrategyEngine } from "./strategy/response-strategy-engine";
 import { FactLockValidator } from "./strategy/fact-lock-validator";
 import { SemanticInterpretation } from "./semantic/types";
-import { athenaGlobalIntelligence } from "./insights/global-intelligence";
-import { athenaContextualMemory } from "./memory/contextual-memory";
-import { athenaProjectPlanManager } from "./planning/project-plan-manager";
 import { athenaInteractionContractRouter } from "./kernel/interaction-contract-router";
 import { decisionForContract, InteractionContractDecision } from "./domain/interaction-contract";
 import { athenaInteractionContractGateway } from "./runtime/interaction-contract-gateway";
@@ -36,6 +33,8 @@ import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
 import { capabilityPlanRuntime } from "./runtime/capability-plan-runtime";
 import { capabilityPlanStore } from "./runtime/capability-plan-store";
 import { athenaObservabilityJournal } from "./observability/local-observability-journal";
+import { processStudioConversation } from "./conversation/studio-continuity";
+import { athenaConversationFeedback } from "./conversation/quality-feedback";
 
 export interface AthenaEngineContext {
   projects: Project[];
@@ -71,41 +70,6 @@ function withContractMetadata(
   };
 }
 
-function tryLegacyGateway(
-  prompt: string,
-  scope: AthenaScope,
-  ctx: AthenaEngineContext,
-  targetProjectId: string | undefined,
-  sessionId: string
-): AthenaMessage | undefined {
-  const handlers: Array<{
-    decision: InteractionContractDecision;
-    handle: () => AthenaMessage | undefined;
-  }> = [
-    {
-      decision: decisionForContract("USE_TOOL", "legacy.project-plan-manager"),
-      handle: () => athenaProjectPlanManager.tryHandle(prompt, scope, ctx, targetProjectId),
-    },
-    {
-      decision: decisionForContract("USE_TOOL", "legacy.contextual-memory"),
-      handle: () => athenaContextualMemory.tryHandle(prompt, scope, ctx, targetProjectId, sessionId),
-    },
-    {
-      decision: decisionForContract("ANSWER_SELF", "legacy.global-intelligence"),
-      handle: () => athenaGlobalIntelligence.tryHandle(prompt, scope, ctx, targetProjectId),
-    },
-  ];
-
-  for (const handler of handlers) {
-    const response = athenaInteractionContractGateway.execute(handler.decision, handler.handle);
-    if (response) {
-      athenaObservabilityJournal.record({ category: "SYSTEM", type: "LEGACY_FALLBACK_USED", status: "INFO", contract: handler.decision.contract, message: `Fallback legado utilizado: ${handler.decision.reason}.`, sessionId, projectId: targetProjectId, details: { source: handler.decision.reason } });
-      return withContractMetadata(response, handler.decision);
-    }
-  }
-  return undefined;
-}
-
 function operationalMessage(text: string, scope: AthenaScope, plan?: import("./domain/capability-plan").CapabilityExecutionPlan): AthenaMessage {
   return {
     id: `ath-plan-control-${Date.now()}`,
@@ -115,6 +79,37 @@ function operationalMessage(text: string, scope: AthenaScope, plan?: import("./d
     scope,
     metadata: plan ? { capabilityPlanId: plan.id, capabilityPlanHash: plan.planHash, capabilityPlanStatus: plan.status } : undefined,
   };
+}
+
+function enforceResponseQuality(
+  prompt: string,
+  parsed: import("./domain/conversation").ParsedCognitiveContext,
+  candidate: string,
+  sessionId: string,
+  projectId?: string
+): string {
+  const validation = responseCompletenessValidator.validate(parsed, candidate);
+  if (validation.isComplete) return candidate;
+
+  athenaObservabilityJournal.record({
+    category: "SYSTEM",
+    type: "CONVERSATION_RESPONSE_REPAIRED",
+    status: "INFO",
+    message: "Uma resposta incompleta ou genérica foi bloqueada antes do envio.",
+    sessionId,
+    projectId,
+    details: {
+      prompt,
+      comprehensionStatus: parsed.comprehensionStatus,
+      missingAspects: validation.missingAspects,
+    },
+  });
+
+  if (parsed.clarificationPrompt) return parsed.clarificationPrompt;
+  if ((parsed.missingInformation ?? []).length > 0) {
+    return `Entendi a direção do pedido, mas ainda falta **${(parsed.missingInformation ?? []).join(", ")}**. Pode informar esse dado para eu continuar sem adivinhar?`;
+  }
+  return "Não consegui montar uma resposta suficientemente confiável para esse pedido. Diga em uma frase qual resultado você espera; vou responder diretamente a partir disso.";
 }
 
 async function tryCanonicalPlanControl(
@@ -162,18 +157,6 @@ async function tryCanonicalPlanControl(
   } catch (error) {
     return operationalMessage(`Não foi possível desfazer com segurança: ${error instanceof Error ? error.message : "undo indisponível"}.`, scope, plan);
   }
-}
-
-function hasCanonicalCapabilityPath(prompt: string, targetProjectId?: string): boolean {
-  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  return /^(crie|criar|adicione|adicionar|nova)\s+(uma\s+)?tarefa\b/.test(normalized) ||
-    /^(crie|criar|adicione|adicionar)\s+(uma\s+)?nota\b/.test(normalized) ||
-    /^(anote|anotar)(\s+isso)?\b/.test(normalized) ||
-    Boolean(targetProjectId && (
-      (normalized.includes("organize") && normalized.includes("proxim") && normalized.includes("taref")) ||
-      (normalized.includes("projeto") && (normalized.includes("arquiv") || normalized.includes("prioridade") || normalized.includes("prazo") || normalized.includes("como ativo") || normalized.includes("em espera") || normalized.includes("como concluido") || /^(excluir|apagar|remover|deletar)/.test(normalized))) ||
-      (normalized.includes("tarefa") && (/\b(conclua|concluir|marque como concluida|reabra|reabrir)\b/.test(normalized) || /^(excluir|apagar|remover|deletar)/.test(normalized)))
-    ));
 }
 
 function resolveTargetTaskId(prompt: string, ctx: AthenaEngineContext, projectId?: string): string | undefined {
@@ -260,6 +243,8 @@ function alignSemanticWithConversationIntent(
     ambiguity: "NONE",
     requiresClarification: false,
     clarificationPrompt: undefined,
+    comprehensionStatus: "UNDERSTOOD",
+    missingInformation: [],
   };
 }
 
@@ -273,14 +258,19 @@ export async function processAthenaQueryAsync(
   targetProjectId?: string,
   sessionId = "default-session"
 ): Promise<AthenaMessage> {
-  const prompt = rawPrompt.trim();
+  let prompt = rawPrompt.trim();
+  if (/^(corrija a resposta|corrija|tente novamente|nao foi isso)[.!?]*$/i.test(prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
+    const feedback = athenaConversationFeedback.latest(sessionId);
+    if (feedback) {
+      if (feedback.category === "WRONG_ACTION") return operationalMessage("Registrei que a ação foi incorreta. Não vou repeti-la automaticamente. Informe qual resultado ou item precisa ser ajustado; o histórico da ação permanece disponível.", scope);
+      if (feedback.correction) prompt = feedback.correction;
+      else return operationalMessage(`Você marcou a resposta ao pedido “${feedback.prompt || "anterior"}” como inadequada. ${feedback.category === "LOST_CONTEXT" ? "Qual escolha ou trecho devo retomar?" : "Diga o que faltou no resultado para eu corrigir sem repetir a mesma resposta."}`, scope);
+    }
+  }
+  const studioResponse = await processStudioConversation(prompt, scope, ctx, sessionId);
+  if (studioResponse) return studioResponse;
   const canonicalControl = await tryCanonicalPlanControl(prompt, scope, ctx, sessionId, targetProjectId);
   if (canonicalControl) return withContractMetadata(canonicalControl, decisionForContract("USE_TOOL", "canonical.persisted-plan-control"));
-  const legacyResponse = hasCanonicalCapabilityPath(prompt, targetProjectId)
-    ? undefined
-    : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
-  if (legacyResponse) return legacyResponse;
-
   // 1. Contextual Perception & Intent Composition
   const parsed = athenaConversationManager.processMessage(
     sessionId,
@@ -295,7 +285,7 @@ export async function processAthenaQueryAsync(
     parsed.resolvedEntities.targetProjectId,
     targetProjectId
   );
-  athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence } });
+  athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence, comprehensionStatus: parsed.comprehensionStatus, missingInformation: parsed.missingInformation, intents: parsed.intents, subject: parsed.subject, candidates: parsed.semanticInterpretation?.candidateScores.slice(0, 3) } });
   const capabilitySelection = contractDecision.contract === "USE_AGENT"
     ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
     : undefined;
@@ -312,6 +302,8 @@ export async function processAthenaQueryAsync(
     ambiguity: parsed.isAmbiguous ? "SEMANTIC" : "NONE",
     requiresClarification: Boolean(parsed.isAmbiguous),
     clarificationPrompt: parsed.clarificationPrompt,
+    comprehensionStatus: parsed.comprehensionStatus ?? "PARTIALLY_UNDERSTOOD",
+    missingInformation: parsed.missingInformation ?? [],
     slots: {},
     candidateScores: [],
     margin: 1.0,
@@ -374,7 +366,7 @@ export async function processAthenaQueryAsync(
   }
 
   // 5. COGNITIVE PATH via Local Neural Engine (when Ollama is active on 127.0.0.1:11434)
-  const isOllamaOnline = await ollamaAdapter.isAvailable();
+  const isOllamaOnline = contractDecision.contract === "USE_AGENT" && await ollamaAdapter.isAvailable();
   if (isOllamaOnline && ollamaAdapter.activeModel && contractDecision.contract === "USE_AGENT") {
     try {
       const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
@@ -401,12 +393,13 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
         const factLockCheck = FactLockValidator.validate(candidateReply, responseIntent);
 
         if (factLockCheck.isValid) {
-          athenaConversationManager.recordAssistantResponse(sessionId, candidateReply);
+          const finalReply = enforceResponseQuality(prompt, parsed, candidateReply, sessionId, resolvedProjectId);
+          athenaConversationManager.recordAssistantResponse(sessionId, finalReply);
 
           return {
             id: "ath-" + Date.now(),
             sender: "athena",
-            text: candidateReply,
+              text: finalReply,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             scope,
             metadata: {
@@ -443,13 +436,12 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
     )
   );
 
-  // Validate Completeness
-  responseCompletenessValidator.validate(parsed, result.text);
+  const finalText = enforceResponseQuality(prompt, parsed, result.text, sessionId, resolvedProjectId);
 
   // Record in History for future turns / ellipses
   athenaConversationManager.recordAssistantResponse(
     sessionId,
-    result.text,
+    finalText,
     result.recommendations,
     result.critiques
   );
@@ -457,7 +449,7 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
   return {
     id: "ath-" + Date.now(),
     sender: "athena",
-    text: result.text,
+    text: finalText,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     scope,
     metadata: {
@@ -490,10 +482,6 @@ export function processAthenaQuery(
   sessionId = "default-session"
 ): AthenaMessage {
   const prompt = rawPrompt.trim();
-  const legacyResponse = hasCanonicalCapabilityPath(prompt, targetProjectId)
-    ? undefined
-    : tryLegacyGateway(prompt, scope, ctx, targetProjectId, sessionId);
-  if (legacyResponse) return legacyResponse;
   const parsed = athenaConversationManager.processMessage(
     sessionId,
     prompt,
@@ -507,7 +495,7 @@ export function processAthenaQuery(
     parsed.resolvedEntities.targetProjectId,
     targetProjectId
   );
-  athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence } });
+  athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence, comprehensionStatus: parsed.comprehensionStatus, missingInformation: parsed.missingInformation, intents: parsed.intents, subject: parsed.subject, candidates: parsed.semanticInterpretation?.candidateScores.slice(0, 3) } });
   const capabilitySelection = contractDecision.contract === "USE_AGENT"
     ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
     : undefined;
@@ -524,6 +512,8 @@ export function processAthenaQuery(
     ambiguity: parsed.isAmbiguous ? "SEMANTIC" : "NONE",
     requiresClarification: Boolean(parsed.isAmbiguous),
     clarificationPrompt: parsed.clarificationPrompt,
+    comprehensionStatus: parsed.comprehensionStatus ?? "PARTIALLY_UNDERSTOOD",
+    missingInformation: parsed.missingInformation ?? [],
     slots: {},
     candidateScores: [],
     margin: 1.0,
@@ -587,9 +577,11 @@ export function processAthenaQuery(
     )
   );
 
+  const finalText = enforceResponseQuality(prompt, parsed, result.text, sessionId, resolvedProjectId);
+
   athenaConversationManager.recordAssistantResponse(
     sessionId,
-    result.text,
+    finalText,
     result.recommendations,
     result.critiques
   );
@@ -597,7 +589,7 @@ export function processAthenaQuery(
   return {
     id: "ath-" + Date.now(),
     sender: "athena",
-    text: result.text,
+    text: finalText,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     scope,
     metadata: {

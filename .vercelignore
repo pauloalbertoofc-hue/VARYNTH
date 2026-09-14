@@ -3,5 +3,6 @@
 .npm-cache
 .vercel-cli
 .varynth-data
+music-release-v1
 *.tsbuildinfo
 src/lib/tests/forge-browser-security.test.ts.bak

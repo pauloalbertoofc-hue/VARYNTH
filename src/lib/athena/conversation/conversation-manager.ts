@@ -39,6 +39,8 @@ export class ConversationManager {
         recentRecommendations: [],
         recentCritiques: [],
         interruptedTopicStack: [],
+        suppliedInformation: {},
+        correctionCount: 0,
       });
       this.sessionHistories.set(sessionId, []);
     }
@@ -71,6 +73,10 @@ export class ConversationManager {
 
     const lastUserTurn = [...history].reverse().find((h) => h.role === "user");
     const lastAthenaTurn = [...history].reverse().find((h) => h.role === "athena");
+
+    if (/^(nao|não)[, ]|corrigindo|na verdade|quis dizer/.test(prompt.toLowerCase())) {
+      state.correctionCount += 1;
+    }
 
     // -------------------------------------------------------------
     // 1. RESOLVE ENTITIES & ANAPHORA
@@ -211,6 +217,23 @@ export class ConversationManager {
       }
     }
 
+    // Ellipsis Case E: direct selection of a numbered option just proposed by Athena.
+    // This must be resolved before the generic social fallback ("faça a 2 então").
+    // Accept the natural forms people actually use: "faça a 2 para mim ver",
+    // "2", "opção 2" and even a pasted numbered item from the prior answer.
+    const selectedOption = clean.match(/^(?:(?:faca|quero|escolho|manda|gere?)\s+(?:a|o|opcao)?\s*)?(?:numero\s*)?(1|2|3|primeir[oa]?|segund[oa]?|terceir[oa]?)(?:[.)\s].*)?$/);
+    if (selectedOption) {
+      const token = selectedOption[1];
+      const index = token.startsWith("primeir") || token === "1" ? 0 : token.startsWith("segund") || token === "2" ? 1 : 2;
+      const selected = state.recentRecommendations?.[index];
+      if (selected && clean.split(" ").length <= 24) {
+        isEllipsis = true;
+        originalReferent = selected;
+        resolvedMeaning = `Desenvolver a opção ${index + 1} escolhida pelo usuário: "${selected}"`;
+        referencedEntityName = selected;
+      }
+    }
+
     // -------------------------------------------------------------
     // 3. SEMANTIC INTERPRETATION LAYER INTEGRATION
     // -------------------------------------------------------------
@@ -252,6 +275,10 @@ export class ConversationManager {
       /^(arquive|arquivar)\b.*\bprojeto\b/.test(clean) ||
       /^(conclua|concluir|reabra|reabrir)\b.*\b(projeto|tarefa)\b/.test(clean) ||
       /^organize\b.*\bproxim\w*\b.*\btaref\w*\b/.test(clean);
+    const isVaultSaveRequest =
+      /\b(salvar|salva|salve|guardar|guarda|guarde|arquivar|arquiva|arquive|adicionar|adiciona|adicione)\b/.test(clean) &&
+      /\b(vault|livro|arquivo|documento|pdf|obra)\b/.test(clean) &&
+      /\bvault\b/.test(clean);
     const isCritiqueRequest =
       clean.includes("critique") || clean.includes("critica") ||
       clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
@@ -280,9 +307,46 @@ export class ConversationManager {
       Boolean(targetProjectTitle) &&
       Boolean(lastUserTurn?.intents?.includes("EXECUTION_REQUEST")) &&
       clean.split(" ").length <= 6;
+    const isSelectedRecommendation = Boolean(originalReferent && selectedOption);
+    const isUnresolvedDeictic =
+      state.recentEntities.length === 0 &&
+      !targetProjectId &&
+      !isVaultSaveRequest &&
+      !isExplicitMutation &&
+      !semantic.isNoise &&
+      !semantic.trace.pragmaticFlags.includes("EMOTIONAL_VENTING") &&
+      !/\b(projeto|maluco|cansado|dificil)\b/.test(clean) &&
+      /\b(esse|essa|isso|aquele|aquela|negocio la|coisa la)\b/.test(clean);
+    const hasSupportedConversationSignal =
+      isSocialCheckIn ||
+      isAthenaSelfDiagnostic ||
+      isVaultSaveRequest ||
+      isExplicitMutation ||
+      isCritiqueRequest ||
+      isComparisonRequest ||
+      isBrainstormRequest ||
+      isPlanningRequest ||
+      isConditionalFallback ||
+      isProjectReadinessQuery ||
+      isPendingTargetSelection ||
+      isSelectedRecommendation ||
+      isEllipsis;
+
+    if (hasSupportedConversationSignal && !semantic.isNoise) {
+      isAmbiguous = false;
+      clarificationPrompt = undefined;
+    }
 
     // A. Noise & Uncertainty
-    if (semantic.isNoise || semantic.requiresClarification) {
+    if (isUnresolvedDeictic) {
+      interactionType = "CONVERSATION";
+      intents.push("CLARIFICATION_REQUIRED");
+      confidence = "LOW";
+      subject = "UNRESOLVED_REFERENCE";
+      isAmbiguous = true;
+      clarificationPrompt = "Não tenho um item anterior confiável para associar a essa referência. Qual é o nome do item ou projeto?";
+    }
+    else if (semantic.isNoise || (semantic.requiresClarification && !hasSupportedConversationSignal)) {
       interactionType = "CONVERSATION";
       intents.push("CLARIFICATION_REQUIRED");
       confidence = "LOW";
@@ -315,6 +379,15 @@ export class ConversationManager {
       requiresContext = false;
       subject = "ATHENA_HEALTH";
     }
+    else if (isVaultSaveRequest) {
+      interactionType = "CONVERSATION";
+      intents.push("CLARIFICATION_REQUIRED");
+      confidence = "LOW";
+      requiresContext = true;
+      subject = "VAULT_ITEM_REQUIRED";
+      isAmbiguous = true;
+      clarificationPrompt = "Consigo ajudar a colocar o livro no Vault, mas preciso saber qual é o item. Envie ou selecione o arquivo do livro e informe o título; não vou registrar nada antes disso.";
+    }
     else if (isExplicitMutation) {
       interactionType = "OPERATIONAL_REQUEST";
       intents.push("EXECUTION_REQUEST");
@@ -344,6 +417,13 @@ export class ConversationManager {
       requiresContext = true;
       subject = "PROJECT";
       referencedEntityName = targetProjectTitle;
+    }
+    else if (isSelectedRecommendation) {
+      interactionType = "COGNITIVE_REQUEST";
+      intents.push("BRAINSTORM");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "SELECTED_RECOMMENDATION";
     }
     else if (isEllipsis && (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))) {
       interactionType = "COGNITIVE_REQUEST";
@@ -594,6 +674,25 @@ export class ConversationManager {
     if (history.length > 20) history.shift();
     this.sessionHistories.set(sessionId, history);
 
+    const missingInformation = subject === "VAULT_ITEM_REQUIRED"
+      ? ["vaultItem"]
+      : subject === "UNRESOLVED_REFERENCE"
+        ? ["referencedItem"]
+        : semantic.missingInformation;
+    const comprehensionStatus = subject === "VAULT_ITEM_REQUIRED"
+      ? "MISSING_INFORMATION" as const
+      : isAmbiguous
+        ? (semantic.comprehensionStatus === "UNKNOWN" ? "UNKNOWN" as const : "AMBIGUOUS" as const)
+        : semantic.comprehensionStatus;
+
+    if (comprehensionStatus === "UNDERSTOOD") {
+      state.lastUnderstoodRequest = prompt;
+      state.currentGoal = subject || prompt;
+      state.pendingQuestion = undefined;
+    } else if (clarificationPrompt) {
+      state.pendingQuestion = clarificationPrompt;
+    }
+
     return {
       interactionType,
       intents,
@@ -613,11 +712,14 @@ export class ConversationManager {
             isEllipsis: true,
             originalReferent,
             resolvedMeaning,
+            previousAssistantText: lastAthenaTurn?.text,
           }
         : undefined,
       isAmbiguous,
       clarificationPrompt,
       semanticInterpretation: semantic,
+      comprehensionStatus,
+      missingInformation,
     };
   }
 
@@ -632,9 +734,12 @@ export class ConversationManager {
     this.sessionHistories.set(sessionId, history);
 
     const state = this.getOrCreateSession(sessionId);
-    if (recommendations && recommendations.length > 0) {
-      state.recentRecommendations = recommendations;
-    }
+    // Recommendations are valid only while the latest Athena turn contains them.
+    // Keeping an older list here makes a later "por quê?" explain something that
+    // was not said in the immediately preceding response.
+    state.recentRecommendations = recommendations && recommendations.length > 0
+      ? [...recommendations]
+      : [];
     if (critiques && critiques.length > 0) {
       state.recentCritiques = critiques;
     }
@@ -642,9 +747,31 @@ export class ConversationManager {
 
   updateSessionWithHistory(sessionId: string, messages: AthenaMessage[]): void {
     const state = this.getOrCreateSession(sessionId);
+    const relevant = messages.slice(-20);
+    this.sessionHistories.set(sessionId, relevant.map((message) => ({
+      role: message.sender === "athena" ? "athena" : "user",
+      text: message.text,
+      timestamp: message.timestamp,
+    })));
+
+    // Restore numbered recommendations after a page reload, device switch, or chat selection.
+    // Without this, a persisted "faça a 2" loses its referent even though the user can see it.
+    const latestAthena = [...relevant].reverse().find((message) => message.sender === "athena");
+    state.recentRecommendations = [];
+    if (latestAthena) {
+      const numbered = [...latestAthena.text.matchAll(/^\s*[1-3]\.\s+\*\*[^:]+:\*\*\s*(.+?)(?:\.)?\s*$/gm)]
+        .map((match) => match[1].trim())
+        .filter(Boolean);
+      if (numbered.length >= 2) state.recentRecommendations = numbered;
+    }
     if (messages.length >= 6) {
       state.conversationSummary = sessionSummarizer.summarize(messages);
     }
+  }
+
+  clearSession(sessionId: string): void {
+    this.sessions.delete(sessionId);
+    this.sessionHistories.delete(sessionId);
   }
 }
 

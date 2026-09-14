@@ -5,7 +5,11 @@ O **Conselho de Especialistas** (`Council of Agents`) é a estrutura de intelig�
 
 ---
 
-## 2. Os 7 Especialistas do Conselho
+## 2. Conselho clássico e registro atual
+
+O conselho de domínio clássico tem 7 especialistas. O registro de runtime em `src/lib/athena/agents/registry.ts` contém 12 agentes: os sete especialistas abaixo, `archivist`, `bibliotecario`, `curador-pesquisa`, `athena-generalist` e `euterpe`. Euterpe é a interlocutora própria do Music e consulta Athena para solicitações gerais; não acessa arquivos nem executa ferramentas. Propostas de mudança musical passam pelo domínio `MUSIC` e exigem confirmação da pessoa. `music-curator` permanece como alias de compatibilidade no lookup do registro. A seleção de agente não concede permissão.
+
+Classificação mantida: os sete agentes abaixo são o **Conselho de domínio**; `archivist`, `bibliotecario` e `curador-pesquisa` são **auxiliares de recuperação/curadoria**; `athena-generalist` é um **generalista de compatibilidade**. Todos seguem a mesma fronteira de autoridade e podem apenas propor ou analisar até que a camada de ferramentas e política autorize uma ação.
 
 ```mermaid
 graph TD
@@ -31,4 +35,3 @@ graph TD
 | **Strategos** | `council/strategos.ts` | Viabilidade operacional, priorização e prazos no Chronos | Pedidos de `RECOMMEND`, planejamento de projetos |
 | **Mnemosyne** | `council/mnemosyne.ts` | Recuperação de conhecimento, acervo do Vault e conexões | Buscas no Vault e recuperação de contexto antigo |
 | **Critias** | `council/critias.ts` | Identificação de pontos cegos, riscos metodológicos e mitigação | Tarefas `CRITIQUE`, revisões de consistência |
-

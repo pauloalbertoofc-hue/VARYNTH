@@ -50,6 +50,7 @@ export class PragmaticsAnalyzer {
     const hasHumor =
       text.includes("kkk") ||
       text.includes("hahaha") ||
+      text.includes("rsrs") ||
       text.includes("nota do") ||
       text.includes("vai la e apaga tudo kkk");
 

@@ -17,6 +17,7 @@ const AGENT_TASK_TYPES: Record<string, TaskType[]> = {
   mnemosyne: ["GENERAL_DELIBERATION"],
   archivist: ["GENERAL_DELIBERATION"],
   "athena-generalist": ["GENERAL_DELIBERATION"],
+  euterpe: ["GENERAL_DELIBERATION"],
 };
 
 const READ_ONLY_TOOLS = new Set<ActionType>([

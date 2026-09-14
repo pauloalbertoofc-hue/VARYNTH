@@ -1,7 +1,7 @@
 export type AthenaScope = "geral" | "juridico" | "pesquisa" | "produtividade";
 
 export interface AthenaActionCard {
-  type: "tarefa_criada" | "nota_criada" | "prazos" | "diagnostico" | "tese" | "evidencia" | "edital";
+  type: "studio_criado" | "tarefa_criada" | "nota_criada" | "prazos" | "diagnostico" | "tese" | "evidencia" | "edital";
   title: string;
   subtitle?: string;
   link?: string;
@@ -18,4 +18,3 @@ export interface AthenaMessage {
   actionCard?: AthenaActionCard;
   metadata?: Record<string, unknown>;
 }
-

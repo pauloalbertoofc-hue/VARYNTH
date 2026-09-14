@@ -159,6 +159,21 @@ export function runConversationalTestSuite(): TestResult[] {
     "Athena repetiu a saudação em vez de responder sobre novidades"
   );
 
+  // Historical hallucination: an old recommendation must not survive a newer
+  // response and become the invented subject of a follow-up explanation.
+  const groundedWhySession = "grounded-why-" + Date.now();
+  processAthenaQuery("Me dê ideias de projeto para começar hoje", "geral", mockContext, undefined, groundedWhySession);
+  const groundedNovelty = processAthenaQuery("Quais as novidades desse tempo horrível?", "geral", mockContext, undefined, groundedWhySession);
+  const groundedWhy = processAthenaQuery("Por que não inventar?", "geral", mockContext, undefined, groundedWhySession);
+  assert(
+    "REGRESSION — Follow-up explica a última resposta sem ressuscitar recomendação antiga",
+    groundedNovelty.text.includes("prefiro não inventar") &&
+      groundedWhy.text.includes("não tinha uma novidade verificada") &&
+      !groundedWhy.text.includes("Observatório de Regulação de IA") &&
+      !groundedWhy.text.includes("Eu recomendei"),
+    "Athena atribuiu o follow-up a uma recomendação antiga ou hardcoded"
+  );
+
   // PARAPHRASED TESTS
   const paraphrases = [
     "me dê umas ideias",

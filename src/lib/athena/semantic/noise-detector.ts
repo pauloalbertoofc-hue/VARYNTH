@@ -71,6 +71,27 @@ export class NoiseDetector {
     // 5. Random alphanumeric gibberish token without spaces or vowels (e.g. "xyz987abc", "asdklj", "qwrtyp")
     // If it's a single word without Portuguese/English syllable structure and contains no known words
     const tokens = cleanText.split(" ").filter(Boolean);
+
+    // Risadas e desabafos coloquiais curtos são conversa social válida,
+    // mesmo quando terminam em uma preposição discursiva ("em", "hein").
+    if (/\b(kkk+|haha+|rsrs+|hehe+)\b/i.test(cleanText)) {
+      return { isNoise: false, confidence: 0.0 };
+    }
+
+    // 5. Incomplete natural-language fragments must request completion instead of
+    // being mistaken for a greeting (for example: "dá ruim em").
+    if (
+      tokens.length <= 6 &&
+      (/\b(em|no|na|nos|nas|com|para|pra|de|do|da)\s*$/.test(cleanText) || /^(da|deu|ta|esta|ficou)?\s*ruim(\s+em)?$/.test(cleanText))
+    ) {
+      return {
+        isNoise: true,
+        confidence: 0.92,
+        reason: "INCOMPLETE_NATURAL_LANGUAGE_FRAGMENT",
+        clarificationPrompt: `Sua mensagem parece ter ficado incompleta em “${trimmed}”. Pode terminar a frase para eu responder ao ponto certo?`,
+      };
+    }
+
     if (tokens.length === 1) {
       const token = tokens[0];
 
@@ -104,4 +125,3 @@ export class NoiseDetector {
     return { isNoise: false, confidence: 0.0 };
   }
 }
-

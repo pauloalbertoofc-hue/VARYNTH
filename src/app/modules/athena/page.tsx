@@ -30,12 +30,19 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AthenaMessageText } from "@/components/athena/AthenaMessageText";
+import { AthenaFeedbackControls } from "@/components/athena/AthenaFeedbackControls";
 import { analyzeAthenaState } from "@/lib/athena/insights/global-intelligence";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaGovernanceCenter } from "@/components/athena/AthenaGovernanceCenter";
 import { AthenaCapabilityPlanPanel } from "@/components/athena/AthenaCapabilityPlanPanel";
 import { AthenaGuardrailSettingsPanel } from "@/components/athena/AthenaGuardrailSettings";
 import { AthenaObservabilityPanel } from "@/components/athena/AthenaObservabilityPanel";
+import { athenaObservabilityJournal } from "@/lib/athena/observability/local-observability-journal";
+import { AthenaConversationList } from "@/components/athena/AthenaConversationList";
+import { athenaConversationStore, ATHENA_CONVERSATIONS_EVENT, type AthenaConversation } from "@/lib/athena/conversation/conversation-store";
+import { athenaConversationManager } from "@/lib/athena/conversation/conversation-manager";
+import { capabilityPlanStore } from "@/lib/athena/runtime/capability-plan-store";
+import { useAthenaConversationSync } from "@/lib/athena/conversation/use-athena-conversation-sync";
 
 const SCOPES: { id: AthenaScope; label: string; icon: React.ElementType; color: string }[] = [
   { id: "geral", label: "Visão Geral (OS)", icon: Layers, color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
@@ -79,34 +86,68 @@ const INITIAL_MESSAGES: AthenaMessage[] = [
 ];
 
 export default function AthenaHubPage() {
+  const conversationSync = useAthenaConversationSync();
   const store = useVarynthStore();
   const proactive = useMemo(() => analyzeAthenaState(store), [store.projects, store.tasks]);
   const engineStatus = useAthenaEngineStatus();
   const [messages, setMessages] = useState<AthenaMessage[]>(INITIAL_MESSAGES);
+  const [conversations, setConversations] = useState<AthenaConversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>();
+  const [conversationQuery, setConversationQuery] = useState("");
   const [input, setInput] = useState("");
   const [scope, setScope] = useState<AthenaScope>("geral");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("varynth_athena_messages");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setMessages(parsed);
-      }
-    } catch {
-      // ignore
-    }
+    const refresh = () => {
+      const active = athenaConversationStore.getActive() || athenaConversationStore.create(scope);
+      setConversations(athenaConversationStore.list(true));
+      setActiveConversationId(active.id);
+      setMessages(active.messages.length ? active.messages : INITIAL_MESSAGES);
+      setScope(active.scope);
+      athenaConversationManager.updateSessionWithHistory(active.id, active.messages.length ? active.messages : INITIAL_MESSAGES);
+    };
+    refresh();
+    window.addEventListener(ATHENA_CONVERSATIONS_EVENT, refresh);
+    return () => window.removeEventListener(ATHENA_CONVERSATIONS_EVENT, refresh);
   }, []);
 
   const saveMessages = (msgs: AthenaMessage[]) => {
     setMessages(msgs);
-    try {
-      localStorage.setItem("varynth_athena_messages", JSON.stringify(msgs));
-    } catch {
-      // ignore
+    if (!activeConversationId) return;
+    athenaConversationStore.saveMessages(activeConversationId, msgs, scope);
+    setConversations(athenaConversationStore.list(true));
+  };
+
+  const createConversation = () => {
+    const conversation = athenaConversationStore.create(scope);
+    setActiveConversationId(conversation.id);
+    setMessages(INITIAL_MESSAGES);
+    setConversations(athenaConversationStore.list(true));
+  };
+
+  const selectConversation = (conversationId: string) => {
+    const conversation = athenaConversationStore.activate(conversationId);
+    if (!conversation) return;
+    setActiveConversationId(conversation.id);
+    setMessages(conversation.messages.length ? conversation.messages : INITIAL_MESSAGES);
+    setScope(conversation.scope);
+    athenaConversationManager.updateSessionWithHistory(conversation.id, conversation.messages.length ? conversation.messages : INITIAL_MESSAGES);
+    setConversations(athenaConversationStore.list(true));
+  };
+
+  const trashConversation = (conversationId: string) => {
+    const pendingPlan = capabilityPlanStore.list().find((plan) => plan.sessionId === conversationId && ["PLANNED", "APPROVED", "RUNNING", "BLOCKED", "PAUSED", "INTERRUPTED"].includes(plan.status));
+    if (pendingPlan) {
+      window.alert("Esta conversa possui um plano operacional pendente. Cancele ou conclua o plano antes de excluí-la.");
+      return;
     }
+    athenaConversationStore.trash(conversationId);
+    const active = athenaConversationStore.getActive() || athenaConversationStore.create(scope);
+    setActiveConversationId(active.id);
+    setMessages(active.messages.length ? active.messages : INITIAL_MESSAGES);
+    setConversations(athenaConversationStore.list(true));
   };
 
   useEffect(() => {
@@ -131,15 +172,20 @@ export default function AthenaHubPage() {
     setIsTyping(true);
 
     try {
-      const sessionId = "global-athena-session";
+      const sessionId = activeConversationId || "global-athena-session";
       const response = await processAthenaQueryAsync(raw, scope, store, undefined, sessionId);
-      athenaContextualMemory.recordInteraction(raw, response.text, store, sessionId);
+      try {
+        athenaContextualMemory.recordInteraction(raw, response.text, store, sessionId);
+      } catch (memoryError) {
+        athenaObservabilityJournal.record({ category: "SYSTEM", type: "CONVERSATION_MEMORY_WRITE_FAILED", status: "FAILED", message: "A resposta foi preservada, mas o histórico contextual não pôde ser atualizado.", sessionId, details: { error: memoryError instanceof Error ? memoryError.message : String(memoryError) } });
+      }
       saveMessages([...updated, response]);
-    } catch {
+    } catch (error) {
+      athenaObservabilityJournal.record({ category: "SYSTEM", type: "CONVERSATION_RESPONSE_FAILED", status: "FAILED", message: "Falha ao compor a resposta local da Athena.", sessionId: activeConversationId || "global-athena-session", details: { error: error instanceof Error ? error.message : String(error) } });
       const failure: AthenaMessage = {
         id: "ath-error-" + Date.now(),
         sender: "athena",
-        text: "Não consegui concluir essa solicitação agora. Nenhuma ação foi aplicada ao VARYNTH. Tente novamente; se o problema continuar, verifique o estado do motor local.",
+        text: "Encontrei uma falha ao compor esta resposta local. Nenhuma ação foi aplicada. Tente novamente; se persistir, abra o Diagnóstico local para ver a causa registrada.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         scope,
       };
@@ -150,11 +196,12 @@ export default function AthenaHubPage() {
   };
 
   const handleClearHistory = () => {
-    saveMessages(INITIAL_MESSAGES);
+    if (activeConversationId) athenaConversationStore.trash(activeConversationId);
+    createConversation();
   };
 
   return (
-    <PageLayout title="Athena AI" subtitle="Inteligência artificial transversal e command center">
+    <PageLayout title="Athena AI" subtitle={`Inteligência artificial transversal e command center${conversationSync === "synced" ? " · conversas sincronizadas" : conversationSync === "login_required" || conversationSync === "unavailable" ? " · histórico neste aparelho" : ""}`}>
       <div className="w-full min-w-0 max-w-5xl mx-auto space-y-6 overflow-x-hidden animate-fade-in">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -282,6 +329,47 @@ export default function AthenaHubPage() {
 
         <AthenaObservabilityPanel />
 
+        <section className="h-64 overflow-hidden rounded-2xl border border-[#1e1e30] bg-[#0f0f1a]" aria-label="Gerenciar conversas">
+          <AthenaConversationList
+            conversations={athenaConversationStore.search(conversationQuery).filter((conversation) => conversation.status === "ACTIVE")}
+            activeConversationId={activeConversationId}
+            query={conversationQuery}
+            onQueryChange={setConversationQuery}
+            onCreate={createConversation}
+            onSelect={selectConversation}
+            onArchive={(conversationId) => { athenaConversationStore.archive(conversationId); setConversations(athenaConversationStore.list(true)); if (conversationId === activeConversationId) createConversation(); }}
+            onTrash={trashConversation}
+          />
+        </section>
+
+        {conversations.some((conversation) => conversation.status === "TRASHED") && (
+          <details className="rounded-xl border border-[#30243a] bg-[#130f19] p-3">
+            <summary className="cursor-pointer text-xs font-bold text-slate-300">Lixeira de conversas ({conversations.filter((conversation) => conversation.status === "TRASHED").length})</summary>
+            <div className="mt-3 space-y-2">
+              {conversations.filter((conversation) => conversation.status === "TRASHED").map((conversation) => (
+                <div key={conversation.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#30243a] p-2">
+                  <span className="min-w-0 truncate text-xs text-slate-300">{conversation.title}</span>
+                  <span className="flex gap-2">
+                    <button onClick={() => { athenaConversationStore.restore(conversation.id); selectConversation(conversation.id); }} className="text-[11px] font-bold text-violet-300 hover:text-violet-200">Restaurar</button>
+                    <button onClick={() => { if (window.confirm(`Excluir permanentemente a conversa “${conversation.title}”?`)) { athenaConversationStore.permanentlyDelete(conversation.id); athenaConversationManager.clearSession(conversation.id); setConversations(athenaConversationStore.list(true)); } }} className="text-[11px] font-bold text-rose-300 hover:text-rose-200">Excluir definitivamente</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+
+        {conversations.some((conversation) => conversation.status === "ARCHIVED") && (
+          <details className="rounded-xl border border-[#25253a] bg-[#0f0f1a] p-3">
+            <summary className="cursor-pointer text-xs font-bold text-slate-400">Conversas arquivadas ({conversations.filter((conversation) => conversation.status === "ARCHIVED").length})</summary>
+            <div className="mt-3 space-y-2">
+              {conversations.filter((conversation) => conversation.status === "ARCHIVED").map((conversation) => (
+                <div key={conversation.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#25253a] p-2"><span className="truncate text-xs text-slate-300">{conversation.title}</span><button onClick={() => { athenaConversationStore.restore(conversation.id); selectConversation(conversation.id); }} className="text-[11px] font-bold text-violet-300">Reativar</button></div>
+              ))}
+            </div>
+          </details>
+        )}
+
         {/* Main Terminal Window */}
         <div className="flex w-full min-w-0 flex-col h-[560px] rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner shadow-2xl">
           {/* Terminal Titlebar */}
@@ -301,7 +389,7 @@ export default function AthenaHubPage() {
 
           {/* Messages Stream */}
           <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-4">
-            {messages.map((msg) => {
+            {messages.map((msg, index) => {
               const isAthena = msg.sender === "athena";
 
               return (
@@ -335,6 +423,14 @@ export default function AthenaHubPage() {
                       )}
                     >
                       <AthenaMessageText text={msg.text} />
+                      {msg.sender === "athena" && (
+                        <AthenaFeedbackControls
+                          messageId={msg.id}
+                          response={msg.text}
+                          sessionId={activeConversationId || "global-athena-session"}
+                          prompt={messages[index - 1]?.sender === "user" ? messages[index - 1].text : undefined}
+                        />
+                      )}
 
                       {/* Action Card executed by Athena */}
                       {msg.actionCard && (

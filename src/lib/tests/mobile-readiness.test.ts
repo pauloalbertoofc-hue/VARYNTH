@@ -125,25 +125,72 @@ assert(
   "Document Studio supports viewMode switching independently of persisted data"
 );
 
-// MOBILE-REG-008: PWA manifest exists, is valid JSON, and defines standalone display
-const manifestPath = path.join(PUBLIC_DIR, "manifest.json");
-let manifestValid = false;
-let manifestStandalone = false;
-if (fs.existsSync(manifestPath)) {
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-    manifestValid = true;
-    manifestStandalone = manifest.display === "standalone";
-  } catch {
-    manifestValid = false;
-  }
-}
+// MOBILE-REG-008: Runtime PWA manifest preserves standalone display and a stable app identity
+const manifestPath = path.join(SRC_DIR, "app/manifest.json/route.ts");
+const manifestContent = fs.existsSync(manifestPath) ? fs.readFileSync(manifestPath, "utf-8") : "";
+const manifestValid = manifestContent.includes("Response.json") && manifestContent.includes('display: "standalone"');
+const manifestStandalone = manifestContent.includes('id: "/dashboard"') && manifestContent.includes('start_url: "/dashboard"');
 assert(
   "MOBILE-REG-008",
-  "PWA manifest exists, is valid JSON, and defines standalone display",
+  "PWA manifest route defines a stable standalone app",
   "STATIC_CONTRACT",
   manifestValid && manifestStandalone,
-  "manifest.json is valid and specifies display: standalone"
+  "The no-store manifest route returns standalone display with a stable dashboard identity"
+);
+
+// MOBILE-REG-033: The public app page offers honest, platform-specific installation guidance
+const downloadPageContent = fs.readFileSync(path.join(SRC_DIR, "components/public/AppDownloadPage.tsx"), "utf-8");
+assert(
+  "MOBILE-REG-033",
+  "Public app page explains installation for mobile and desktop",
+  "STATIC_CONTRACT",
+  downloadPageContent.includes("Celular Android") &&
+    downloadPageContent.includes("iPhone e iPad") &&
+    downloadPageContent.includes("Computador") &&
+    downloadPageContent.includes("beforeinstallprompt") &&
+    downloadPageContent.includes("Não há arquivo APK"),
+  "The install guide covers available device families, native browser prompt, and current package availability"
+);
+
+// MOBILE-REG-034: PWA manifest references a first-party app icon
+assert(
+  "MOBILE-REG-034",
+  "PWA manifest uses the VARYNTH app icon",
+  "STATIC_CONTRACT",
+  manifestContent.includes("/api/app-icon?v=") &&
+    manifestContent.includes('sizes: "192x192 512x512"') &&
+    fs.existsSync(path.join(PUBLIC_DIR, "icons/varynth-192.png")) &&
+    fs.existsSync(path.join(PUBLIC_DIR, "icons/varynth-512.png")),
+  "The dynamic manifest versions its icon URL when the owner changes the global image"
+);
+
+// MOBILE-REG-035: The install page remains reachable from the platform sidebar
+assert(
+  "MOBILE-REG-035",
+  "Platform sidebar links back to the Web App install page",
+  "COMPONENT_DOM",
+  sidebarContent.includes('href="/download"') && sidebarContent.includes("Instalar app"),
+  "The persistent sidebar footer provides an install-page shortcut on desktop and mobile"
+);
+
+// MOBILE-REG-036: Owner-only global branding is wired to the shared Web App manifest and icon
+const adminIconRoute = fs.readFileSync(path.join(SRC_DIR, "app/api/admin/app-icon/route.ts"), "utf-8");
+const appIconRoute = fs.readFileSync(path.join(SRC_DIR, "app/api/app-icon/route.ts"), "utf-8");
+const dynamicManifestRoute = fs.readFileSync(path.join(SRC_DIR, "app/manifest.json/route.ts"), "utf-8");
+const appIconSettingsContent = fs.readFileSync(path.join(SRC_DIR, "components/admin/AppIconSettings.tsx"), "utf-8");
+assert(
+  "MOBILE-REG-036",
+  "Owner can change the shared app icon used by all installs",
+  "STATIC_CONTRACT",
+  adminIconRoute.includes("requireOwner") &&
+    adminIconRoute.includes("sameOrigin") &&
+    adminIconRoute.includes("saveAppIcon") &&
+    appIconRoute.includes("getAppIcon") &&
+    dynamicManifestRoute.includes("getAppIcon") &&
+    dynamicManifestRoute.includes('dynamic = "force-dynamic"') &&
+    dynamicManifestRoute.includes("/api/app-icon?v=") &&
+    appIconSettingsContent.includes("Aplicar para todos"),
+  "The owner-only setting persists one icon for the public icon endpoint and versioned install manifest"
 );
 
 // MOBILE-REG-009: Backup payload round-trip remains 100% agnostic across device formats

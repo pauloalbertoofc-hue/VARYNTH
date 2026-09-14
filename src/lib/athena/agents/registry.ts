@@ -12,6 +12,7 @@ import { archivistAgent } from "./council/archivist";
 import { athenaGeneralistAgent } from "./council/athena-generalist";
 import { bibliotecarioAgent } from "./council/bibliotecario";
 import { curadorPesquisaAgent } from "./council/curador-pesquisa";
+import { euterpeAgent } from "./council/music-curator";
 
 export class AgentRegistry {
   private agents: Map<string, AthenaAgent> = new Map();
@@ -28,6 +29,7 @@ export class AgentRegistry {
     this.register(bibliotecarioAgent);
     this.register(curadorPesquisaAgent);
     this.register(athenaGeneralistAgent);
+    this.register(euterpeAgent);
   }
 
   register(agent: AthenaAgent): void {
@@ -35,7 +37,7 @@ export class AgentRegistry {
   }
 
   getAgent(id: string): AthenaAgent | undefined {
-    return this.agents.get(id);
+    return this.agents.get(id === "music-curator" ? "euterpe" : id);
   }
 
   listAgents(): AthenaAgent[] {
