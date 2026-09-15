@@ -49,7 +49,7 @@ async function run(): Promise<void> {
   assert(vault.text.includes("preciso saber qual é o item") && vault.text.includes("Envie ou selecione") && !vault.text.includes("Tudo excelente por aqui"), "Vault save request without an item must ask for the missing book safely");
 
   const greeting = await processAthenaQueryAsync("Oi Athena", "geral", context, undefined, "communication-greeting");
-  assert(greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural after fragment hardening");
+  assert(!greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural without leaking another account name");
 
   console.log("✓ Image ideation, incomplete fragments, Vault handoff and genuine greetings communicate correctly");
 }

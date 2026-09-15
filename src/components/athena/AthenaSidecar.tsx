@@ -37,7 +37,7 @@ export function AthenaSidecar() {
     {
       id: "sidecar-init",
       sender: "athena",
-      text: "Olá, Paulo! Estou acompanhando sua navegação no VARYNTH OS. Posso criar tarefas, resumir dados desta página ou tirar dúvidas a qualquer momento.",
+      text: "Olá! Estou acompanhando sua navegação no VARYNTH OS. Posso criar tarefas, resumir dados desta página ou tirar dúvidas a qualquer momento.",
       timestamp: "Agora",
       scope: "geral",
     },

@@ -53,6 +53,7 @@ const STORAGE_KEYS = {
 };
 
 const STORE_UPDATE_EVENT = "varynth_store_update";
+type AccountIdentity = { key: string; name: string; role: string };
 
 function triggerStoreUpdate() {
   if (typeof window !== "undefined") {
@@ -85,6 +86,19 @@ export function useVarynthStore() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [account, setAccount] = useState<AccountIdentity>();
+  const vaultStorageKey = account ? `${STORAGE_KEYS.VAULT}:account:${account.key}` : undefined;
+
+  useEffect(() => {
+    let active = true;
+    void import("next-auth/react").then(({ getSession }) => getSession()).then((session) => {
+      if (!active) return;
+      const user = session?.user as { id?: string; email?: string; name?: string; role?: string } | undefined;
+      const raw = String(user?.id || user?.email || "local-owner").trim().toLowerCase();
+      setAccount({ key: raw.replace(/[^a-z0-9]/g, "_"), name: user?.name?.trim() || "Você", role: user?.role || "owner" });
+    }).catch(() => { if (active) setAccount({ key: "local-owner", name: "Paulo", role: "owner" }); });
+    return () => { active = false; };
+  }, []);
 
   // --- LOG ACTIVITY / AUDIT TRAIL SERVICE ---
   const logActivity = useCallback(
@@ -169,7 +183,6 @@ export function useVarynthStore() {
         STORAGE_KEYS.PROJECTS,
         STORAGE_KEYS.TASKS,
         STORAGE_KEYS.NOTES,
-        STORAGE_KEYS.VAULT,
         STORAGE_KEYS.CHRONOS,
         STORAGE_KEYS.HISTORICAL,
         STORAGE_KEYS.PEOPLE,
@@ -192,6 +205,12 @@ export function useVarynthStore() {
           localStorage.setItem(key, "[]");
         }
       });
+      if (!vaultStorageKey) return;
+      if (localStorage.getItem(vaultStorageKey) === null) {
+        const legacy = (JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]") as VaultItem[]).map(migrateVaultItem);
+        const initial = account?.role === "owner" ? legacy : legacy.filter((item) => !["Diário de Anne Frank", "As 48 Leis do Poder", "A arte da Sedução"].includes(item.title));
+        localStorage.setItem(vaultStorageKey, JSON.stringify(initial));
+      }
 
       // Run auto purge
       purgeExpiredTrashItems();
@@ -199,8 +218,8 @@ export function useVarynthStore() {
       setProjects(JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || "[]"));
       setTasks(JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]"));
       setNotes(JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || "[]"));
-      const migratedVault = (JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]") as VaultItem[]).map(migrateVaultItem);
-      localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(migratedVault));
+      const migratedVault = (JSON.parse(localStorage.getItem(vaultStorageKey) || "[]") as VaultItem[]).map(migrateVaultItem);
+      localStorage.setItem(vaultStorageKey, JSON.stringify(migratedVault));
       setVaultItems(migratedVault);
       setChronosEvents(JSON.parse(localStorage.getItem(STORAGE_KEYS.CHRONOS) || "[]"));
       setHistoricalMilestones(JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORICAL) || "[]"));
@@ -221,7 +240,7 @@ export function useVarynthStore() {
       // ignore
     }
     setIsLoaded(true);
-  }, [purgeExpiredTrashItems]);
+  }, [account?.role, purgeExpiredTrashItems, vaultStorageKey]);
 
   useEffect(() => {
     loadData();
@@ -237,22 +256,23 @@ export function useVarynthStore() {
   }, [loadData]);
 
   useEffect(() => {
+    if (!vaultStorageKey) return;
     const synchronizeVault = async () => {
       try {
-        const local = (JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]") as VaultItem[]).map(migrateVaultItem);
+        const local = (JSON.parse(localStorage.getItem(vaultStorageKey) || "[]") as VaultItem[]).map(migrateVaultItem);
         const response = await fetch("/api/vault/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: local }) });
         if (!response.ok) return;
         const result = await response.json() as { items?: VaultItem[] };
         if (!result.items) return;
         const migrated = result.items.map(migrateVaultItem);
-        localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(migrated));
+        localStorage.setItem(vaultStorageKey, JSON.stringify(migrated));
         setVaultItems(migrated);
       } catch {
         // A cópia local continua disponível quando o aparelho estiver offline.
       }
     };
     void synchronizeVault();
-  }, []);
+  }, [vaultStorageKey]);
 
   // --- TRASH HUB (10-DAY RETENTION, RESILIENT RESTORE & UNDO TOAST) ---
   const restoreFromTrash = useCallback(
@@ -291,7 +311,7 @@ export function useVarynthStore() {
           checkAndResolveCollision(STORAGE_KEYS.NOTES);
           break;
         case "vault":
-          checkAndResolveCollision(STORAGE_KEYS.VAULT);
+          checkAndResolveCollision(vaultStorageKey || STORAGE_KEYS.VAULT);
           break;
         case "tese":
           checkAndResolveCollision(STORAGE_KEYS.THESES);
@@ -620,9 +640,9 @@ export function useVarynthStore() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
+      const current = JSON.parse(localStorage.getItem(vaultStorageKey || STORAGE_KEYS.VAULT) || "[]");
       const updated = [newItem, ...current];
-      localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
+      localStorage.setItem(vaultStorageKey || STORAGE_KEYS.VAULT, JSON.stringify(updated));
       pushVaultItems(updated);
       logActivity("criou", "vault", newItem.id, newItem.title, actorType);
       triggerStoreUpdate();
@@ -632,18 +652,18 @@ export function useVarynthStore() {
   );
 
   const updateVaultItem = useCallback((id: string, updates: Partial<VaultItem>) => {
-    const current: VaultItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
+    const current: VaultItem[] = JSON.parse(localStorage.getItem(vaultStorageKey || STORAGE_KEYS.VAULT) || "[]");
     const updated = current.map((item) =>
       item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item
     );
-    localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
+    localStorage.setItem(vaultStorageKey || STORAGE_KEYS.VAULT, JSON.stringify(updated));
     pushVaultItems(updated);
     triggerStoreUpdate();
   }, []);
 
   const deleteVaultItem = useCallback(
     (id: string, actorType: ActorType = "user") => {
-      const current: VaultItem[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT) || "[]");
+      const current: VaultItem[] = JSON.parse(localStorage.getItem(vaultStorageKey || STORAGE_KEYS.VAULT) || "[]");
       const target = current.find((item) => item.id === id);
       if (target) {
         moveToTrash("vault", target.id, target.title, target, {
@@ -652,7 +672,7 @@ export function useVarynthStore() {
         });
       }
       const updated = current.filter((item) => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.VAULT, JSON.stringify(updated));
+      localStorage.setItem(vaultStorageKey || STORAGE_KEYS.VAULT, JSON.stringify(updated));
       void fetch(`/api/vault/sync?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
       triggerStoreUpdate();
     },
@@ -1138,6 +1158,7 @@ export function useVarynthStore() {
 
   return {
     isLoaded,
+    accountName: account?.name || "Você",
     projects,
     tasks,
     notes,

@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
 
 export default function DashboardPage() {
-  const { projects, tasks, notes, activities, toggleTask, isLoaded } = useVarynthStore();
+  const { projects, tasks, notes, activities, toggleTask, isLoaded, accountName } = useVarynthStore();
   const preferences = usePlatformPreferences();
 
   const hour = new Date().getHours();
@@ -68,7 +68,7 @@ export default function DashboardPage() {
                 <span>{preferences.appName} OS · Universo Digital Pessoal</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white text-glow-accent tracking-tight">
-                {greeting}, {preferences.displayName}.
+                {greeting}, {accountName}.
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
                 Central de controle ativa. Você tem{" "}

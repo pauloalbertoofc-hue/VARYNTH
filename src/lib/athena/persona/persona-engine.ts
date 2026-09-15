@@ -41,8 +41,8 @@ export class AthenaPersonaEngine {
   private selectOpening(sessionId = "default", style: "warm" | "concise" | "neutral"): string {
     const recent = this.ephemeralOpenings.get(sessionId) || [];
     const warmOpenings = [
-      "Olá, Paulo! Tudo excelente por aqui! 😊",
-      "Por aqui tudo em ordem e conectado, Paulo! 😊",
+      "Olá! Tudo excelente por aqui! 😊",
+      "Por aqui tudo em ordem e conectado! 😊",
       "Pronta por aqui para acompanhar suas ideias e pesquisas! 😊",
     ];
     const conciseOpenings = [
@@ -431,7 +431,7 @@ export class AthenaPersonaEngine {
       // Negative Sarcasm & Ironic Feedback
       if (clean.includes("nao queria") || clean.includes("apagou o errado") || clean.includes("nota do")) {
         return {
-          text: `Entendi perfeitamente a sua observação, Paulo! Vamos recalibrar a abordagem imediatamente e ajustar o resultado para ficar exatamente como você precisa.`,
+          text: `Entendi perfeitamente a sua observação. Vamos recalibrar a abordagem imediatamente e ajustar o resultado para ficar exatamente como você precisa.`,
         };
       }
 
@@ -445,7 +445,7 @@ export class AthenaPersonaEngine {
       // Venting / Desabafo
       if (clean.includes("foda") || clean.includes("dificil") || clean.includes("cansado") || clean.includes("maluco") || clean.includes("louco")) {
         return {
-          text: `Te entendo perfeitamente, Paulo! Orquestrar um ecossistema denso exige muita energia mesmo. Mas estamos avançando e refinando cada detalhe. Me diz: qual ponto específico você quer destravar agora?`,
+          text: `Te entendo perfeitamente. Orquestrar um ecossistema denso exige muita energia mesmo. Mas estamos avançando e refinando cada detalhe. Me diz: qual ponto específico você quer destravar agora?`,
         };
       }
 
@@ -465,11 +465,11 @@ export class AthenaPersonaEngine {
       ) {
         if (activeProjectTitle) {
           return {
-            text: `Por aqui tudo ótimo e em ordem, Paulo! 😊\n\nEstava aqui acompanhando a evolução do projeto **"${activeProjectTitle}"** e pronta para a gente continuar refinando as ideias. Tudo rodando estável e no controle!\n\nE com você, como foi o seu dia? O que temos na pauta hoje?`,
+            text: `Por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui acompanhando a evolução do projeto **"${activeProjectTitle}"** e pronta para a gente continuar refinando as ideias. Tudo rodando estável e no controle!\n\nE com você, como foi o seu dia? O que temos na pauta hoje?`,
           };
         }
         return {
-          text: `Por aqui tudo ótimo e em ordem, Paulo! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Tudo rodando redondo e estável!\n\nE com você, como foi o seu dia? Alguma ideia nova na mente ou quer trocar uma ideia leve?`,
+          text: `Por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Tudo rodando redondo e estável!\n\nE com você, como foi o seu dia? Alguma ideia nova na mente ou quer trocar uma ideia leve?`,
         };
       }
 
