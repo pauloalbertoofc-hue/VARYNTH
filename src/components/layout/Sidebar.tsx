@@ -91,6 +91,7 @@ function SidebarContent() {
   const [studiosExpanded, setStudiosExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [role, setRole] = useState<string>("owner");
+  const [accountName, setAccountName] = useState("Você");
   const clientAccount = isClientRole(role);
 
   useEffect(() => {
@@ -98,6 +99,8 @@ function SidebarContent() {
     void import("next-auth/react").then(({ getSession }) => getSession()).then((session) => {
       const nextRole = (session?.user as { role?: string } | undefined)?.role;
       if (active && nextRole) setRole(nextRole);
+      const nextName = session?.user?.name?.trim();
+      if (active && nextName) setAccountName(nextName);
     }).catch(() => undefined);
     return () => { active = false; };
   }, []);
@@ -432,8 +435,8 @@ function SidebarContent() {
             </div>
             {(!collapsed || isMobileOpen) && (
               <div className="flex flex-col min-w-0">
-                <span className="text-slate-200 font-semibold truncate leading-tight">Paulo</span>
-                <span className="text-[10px] text-slate-500 leading-tight">Dono do VARYNTH</span>
+                <span className="text-slate-200 font-semibold truncate leading-tight">{accountName}</span>
+                <span className="text-[10px] text-slate-500 leading-tight">{role === "owner" ? "Dono do VARYNTH" : "Conta VARYNTH"}</span>
               </div>
             )}
           </Link>
