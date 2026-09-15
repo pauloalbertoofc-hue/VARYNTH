@@ -79,7 +79,7 @@ const INITIAL_MESSAGES: AthenaMessage[] = [
   {
     id: "init-1",
     sender: "athena",
-    text: "Olá, Paulo! Sou a **Athena**, sua inteligência artificial transversal integrada ao **VARYNTH OS**.\n\nTenho visibilidade em tempo real sobre seus projetos, prazos, evidências científicas, teses da Argument Arena e editais. Você pode conversar comigo, pedir análises ou me dar ordens diretas para executar ações no sistema.",
+    text: "Olá! Sou a **Athena**, sua inteligência artificial transversal integrada ao **VARYNTH OS**.\n\nTenho visibilidade em tempo real sobre seus projetos, prazos, evidências científicas, teses da Argument Arena e editais. Você pode conversar comigo, pedir análises ou me dar ordens diretas para executar ações no sistema.",
     timestamp: "10:00",
     scope: "geral",
   },
