@@ -12,7 +12,7 @@ export const VAULT_SECTIONS = ["header", "metricTotal", "metricReading", "metric
 export type VaultSection = typeof VAULT_SECTIONS[number];
 export const NAVIGATION_ITEMS = [
   ["/projects", "Projetos"], ["/modules/technical-archive", "Technical Docs"], ["/modules/graph", "Graph Rede"],
-  ["/modules/activity", "Histórico"], ["/modules/vault", "Vault"], ["/modules/chronos", "Chronos"],
+  ["/modules/activity", "Histórico"], ["/modules/vault", "Vault"], ["/modules/knowledge", "Knowledge"], ["/modules/experience", "Experience Layer"], ["/modules/chronos", "Chronos"],
   ["/modules/people", "People"], ["/modules/labs", "Labs"], ["/modules/trash", "Lixeira"], ["/modules/music", "Música"],
   ["/modules/athena", "Athena AI"], ["/modules/codex", "Codex"], ["/modules/research", "Research"],
   ["/modules/opportunities", "Opportunities"], ["/modules/forge", "Forge"], ["/modules/studio", "Studios Criativos"],
