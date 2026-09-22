@@ -60,6 +60,16 @@ const legacyTypeFor = (workType: VaultWorkType, format: VaultFormat): VaultItemT
 export default function VaultPage() {
   const { vaultItems, projects, addVaultItem, updateVaultItem, deleteVaultItem } = useVarynthStore();
   const preferences = usePlatformPreferences();
+  const projectedVaultItems = useRef(new Map<string, string>());
+
+  useEffect(() => {
+    for (const item of vaultItems) {
+      const projectionKey = JSON.stringify([item.title, item.content, item.summary, item.primarySubject, item.tags, item.relatedProjectIds, item.updatedAt]);
+      if (projectedVaultItems.current.get(item.id) === projectionKey) continue;
+      projectedVaultItems.current.set(item.id, projectionKey);
+      void storeKnowledge(knowledgeFromVaultItem(item)).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
+    }
+  }, [vaultItems]);
 
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string>("todos");
@@ -160,7 +170,6 @@ export default function VaultPage() {
           tags: tagsArray.length ? tagsArray : ["conhecimento"], relatedProjectIds: relatedProject ? [relatedProject] : undefined,
           source: `${format} · ${storedFile}`, sourceOrigin: format, storageUrl: blob.url, processingStatus: "processando", processingMessage: "Arquivo salvo. Athena está preparando o índice para pesquisa.",
         });
-        void storeKnowledge(knowledgeFromVaultItem(pendingItem)).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
         setJobs(updateProcessingJob(uploadJob.id, { type: "indexacao", progress: 82, message: "Arquivo salvo. Preparando índice de pesquisa." }));
         setTitle(""); setAuthor(""); setUrl(""); setNotes(""); setTags(""); setRelatedProject(""); setFormat("PDF"); setWorkType("Livro"); setPrimarySubject("Conhecimento geral"); setAcceptedAthenaSuggestion(false); setFileName(""); setFile(null); setIsModalOpen(false);
         submissionLock.current = false;
@@ -182,7 +191,7 @@ export default function VaultPage() {
         return;
       }
     }
-    const createdItem = addVaultItem({
+    addVaultItem({
       title: title.trim(),
       author: author.trim() || undefined,
       type: legacyTypeFor(workType, format),
@@ -204,7 +213,6 @@ export default function VaultPage() {
       sourceOrigin: format,
       originalFileName: storedFile || undefined,
     });
-    void storeKnowledge(knowledgeFromVaultItem(createdItem)).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
 
     setTitle("");
     setAuthor("");
