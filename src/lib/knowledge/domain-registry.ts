@@ -12,8 +12,22 @@ export interface DomainDefinition {
 export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
 export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; specialists: string[]; capabilities: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
 
+const DOMAIN_REGISTRY_LOCAL_KEY = "varynth:knowledge:domains:v1";
+
 export class DomainRegistry {
   private readonly domains = new Map<string, DomainDefinition>();
+  private browserSnapshotHydrated = false;
+
+  constructor(private readonly browserPersistence = true) {}
+
+  hydrateBrowserSnapshot(): void {
+    if (!this.browserPersistence || typeof window === "undefined" || this.browserSnapshotHydrated) return;
+    this.browserSnapshotHydrated = true;
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(DOMAIN_REGISTRY_LOCAL_KEY) || "null") as unknown;
+      if (Array.isArray(stored) && stored.length) this.replaceDomains(stored as DomainDefinition[]);
+    } catch { /* Defaults remain available if the local cache is unreadable. */ }
+  }
 
   register(domain: DomainDefinition): void {
     const id = domain.id?.trim();
@@ -32,6 +46,17 @@ export class DomainRegistry {
     const specialists = normalizeStrings(domain.specialists);
     if (primaryOwner && !specialists.includes(primaryOwner)) specialists.unshift(primaryOwner);
     this.domains.set(id, { ...domain, id, primaryOwner, specialists, capabilities: normalizeStrings(domain.capabilities), relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    this.persistBrowserSnapshot();
+  }
+
+  replaceDomains(definitions: DomainDefinition[]): void {
+    if (!Array.isArray(definitions) || !definitions.length) throw new Error("[DOMAIN_REGISTRY_EMPTY] O registro precisa conter ao menos um domínio.");
+    const candidate = new DomainRegistry(false);
+    for (const definition of definitions) candidate.register(definition);
+    this.domains.clear();
+    for (const domain of candidate.domains.values()) this.domains.set(domain.id, this.cloneDomain(domain));
+    this.browserSnapshotHydrated = true;
+    this.persistBrowserSnapshot();
   }
 
   registerOwner(domainId: string, owner: string): void {
@@ -44,6 +69,7 @@ export class DomainRegistry {
     }
     domain.primaryOwner = normalizedOwner;
     if (!domain.specialists.includes(normalizedOwner)) domain.specialists.unshift(normalizedOwner);
+    this.persistBrowserSnapshot();
   }
 
   transferOwnership(domainId: string, nextOwner: string): void {
@@ -57,6 +83,7 @@ export class DomainRegistry {
     const normalizedSpecialist = typeof specialist === "string" ? specialist.trim() : "";
     if (!normalizedSpecialist) throw new Error("[DOMAIN_SPECIALIST_INVALID] Especialista obrigatório.");
     if (!domain.specialists.includes(normalizedSpecialist)) domain.specialists.push(normalizedSpecialist);
+    this.persistBrowserSnapshot();
   }
 
   registerCapability(domainId: string, capability: string): void {
@@ -64,10 +91,12 @@ export class DomainRegistry {
     const normalizedCapability = typeof capability === "string" ? capability.trim() : "";
     if (!normalizedCapability) throw new Error("[DOMAIN_CAPABILITY_INVALID] Capability obrigatória.");
     if (!domain.capabilities.includes(normalizedCapability)) domain.capabilities.push(normalizedCapability);
+    this.persistBrowserSnapshot();
   }
 
   getDomain(id: string): DomainDefinition | undefined { const domain = this.domains.get(id); return domain ? this.cloneDomain(domain) : undefined; }
   listDomains(): DomainDefinition[] { return [...this.domains.values()].filter((domain) => domain.enabled).map((domain) => this.cloneDomain(domain)); }
+  listAllDomains(): DomainDefinition[] { return [...this.domains.values()].map((domain) => this.cloneDomain(domain)); }
   resolveDomain(id: string): DomainDefinition | undefined {
     return this.getDomain(id) || this.listDomains().find((domain) => id.startsWith(`${domain.id}.`));
   }
@@ -113,10 +142,17 @@ export class DomainRegistry {
   private cloneDomain(domain: DomainDefinition): DomainDefinition {
     return { ...domain, specialists: [...domain.specialists], capabilities: [...domain.capabilities], relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
   }
+
+  private persistBrowserSnapshot(): void {
+    if (!this.browserPersistence || typeof window === "undefined") return;
+    try { window.localStorage.setItem(DOMAIN_REGISTRY_LOCAL_KEY, JSON.stringify(this.listAllDomains())); } catch { /* Server persistence remains authoritative. */ }
+  }
 }
 
 export const domainRegistry = new DomainRegistry();
-domainRegistry.register({ id: "system.orchestration", label: "System Orchestration", primaryOwner: "athena", specialists: ["athena"], capabilities: ["discoverDomain", "delegateTask"], relatedDomains: [], enabled: true });
-domainRegistry.register({ id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true });
-domainRegistry.register({ id: "legal", label: "Legal", primaryOwner: "justitia", specialists: ["justitia"], capabilities: ["legal.explainConcept", "legal.identifyRelevantDomain"], relatedDomains: ["music", "privacy"], enabled: true });
-domainRegistry.register({ id: "game-development", label: "Game Development", specialists: [], capabilities: [], relatedDomains: ["music.game-audio"], enabled: true });
+for (const domain of [
+  { id: "system.orchestration", label: "System Orchestration", primaryOwner: "athena", specialists: ["athena"], capabilities: ["discoverDomain", "delegateTask"], relatedDomains: [], enabled: true },
+  { id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true },
+  { id: "legal", label: "Legal", primaryOwner: "justitia", specialists: ["justitia"], capabilities: ["legal.explainConcept", "legal.identifyRelevantDomain"], relatedDomains: ["music", "privacy"], enabled: true },
+  { id: "game-development", label: "Game Development", specialists: [], capabilities: [], relatedDomains: ["music.game-audio"], enabled: true },
+]) if (!domainRegistry.getDomain(domain.id)) domainRegistry.register(domain);

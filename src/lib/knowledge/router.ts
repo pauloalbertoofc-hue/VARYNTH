@@ -10,6 +10,7 @@ const rules: Array<{ pattern: RegExp; domain: string; related?: string[] }> = [
 ];
 
 export function routeKnowledgeIntent(input: { task: string; currentModule?: string; projectId?: string }): DomainRoute {
+  domainRegistry.hydrateBrowserSnapshot();
   const match = rules.find((rule) => rule.pattern.test(`${input.task} ${input.currentModule || ""}`));
   if (!match) return { relatedDomains: [], specialists: [], recommendedDelegation: false, reason: "Domínio não identificado com confiança suficiente." };
   const owner = domainRegistry.resolveOwner(match.domain);

@@ -21,4 +21,7 @@ assert.ok(registry.resolveRelatedDomains("music").includes("music.game-audio"));
 assert.equal(registry.listHierarchy("music").length, 2);
 assert.throws(() => registry.register({ id: "music", label: "Cycle", parentId: "music.game-audio", specialists: [], capabilities: [], relatedDomains: [], enabled: true }), /DOMAIN_HIERARCHY_CYCLE/);
 assert.throws(() => registry.register({ id: "music.game-audio", label: "Cycle", parentId: "music.game-audio", specialists: [], capabilities: [], relatedDomains: [], enabled: true }), /DOMAIN_HIERARCHY_CYCLE/);
+const restored = new DomainRegistry(false);
+restored.replaceDomains(registry.listAllDomains());
+assert.deepEqual(restored.listAllDomains(), registry.listAllDomains());
 console.log("Domain registry tests passed");

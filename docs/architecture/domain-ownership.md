@@ -11,3 +11,9 @@ O `DomainRegistry` resolve owners e especialistas por domínio hierárquico. Ath
 - `capabilities`: operações públicas declaradas;
 - `relatedDomains`: fronteiras interdisciplinares;
 - `enabled`: disponibilidade do domínio.
+
+## Persistência e transferência
+
+O owner pode transferir ownership pela tela `/modules/knowledge`. A operação registra o owner anterior em `ownershipHistory`, remove seu acesso implícito como especialista e mantém os demais especialistas. A gravação é versionada por `revision` para rejeitar formulários obsoletos.
+
+O snapshot autoritativo usa Redis/Upstash em hospedagem quando configurado e `.varynth-data/domain-registry.json` no servidor local; no browser, `localStorage` mantém um cache offline da última configuração. Sem backend persistente na Vercel, a interface fica somente de leitura e não confirma transferências.

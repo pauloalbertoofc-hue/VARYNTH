@@ -1,9 +1,11 @@
 import { requireSession } from "@/lib/auth/require-session";
 import { discoverKnowledge } from "@/lib/knowledge";
+import { hydrateDomainRegistryFromPersistence } from "@/lib/knowledge/domain-registry-store";
 
 export async function GET(request: Request) {
   const session = await requireSession();
   if (!session) return Response.json({ error: "Autenticação necessária." }, { status: 401 });
+  try { await hydrateDomainRegistryFromPersistence(); } catch { return Response.json({ error: "Domain Registry persistente indisponível." }, { status: 503 }); }
   const url = new URL(request.url);
   const userId = (session.user as typeof session.user & { id?: string }).id;
   const requester = userId ? `user:${userId}` : "authenticated-user";

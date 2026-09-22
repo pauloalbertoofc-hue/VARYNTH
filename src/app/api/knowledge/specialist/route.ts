@@ -1,9 +1,11 @@
 import { requireSession } from "@/lib/auth/require-session";
 import { askSpecialist } from "@/lib/knowledge";
+import { hydrateDomainRegistryFromPersistence } from "@/lib/knowledge/domain-registry-store";
 
 export async function POST(request: Request) {
   const session = await requireSession();
   if (!session) return Response.json({ error: "Autenticação necessária." }, { status: 401 });
+  try { await hydrateDomainRegistryFromPersistence(); } catch { return Response.json({ error: "Domain Registry persistente indisponível." }, { status: 503 }); }
   const body = await request.json().catch(() => ({})) as { domain?: string; query?: string; purpose?: string; projectId?: string };
   if (!body.query?.trim() || !body.purpose?.trim()) return Response.json({ error: "query e purpose obrigatórios." }, { status: 400 });
   const userId = (session.user as typeof session.user & { id?: string }).id;

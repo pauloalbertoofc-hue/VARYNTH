@@ -10,10 +10,12 @@ export interface KnowledgePacket { id: string; requester: string; provider: stri
 export interface DomainResponse { domain: string; specialistAgent: string; answer: string; evidence: string[]; sources: string[]; confidence: number; assumptions: string[]; limitations: string[]; packet: KnowledgePacket; }
 
 export function listPublicCapabilities(): PublicKnowledgeCapability[] {
+  domainRegistry.hydrateBrowserSnapshot();
   return domainRegistry.listDomains().flatMap((domain) => (domain.primaryOwner ? domain.capabilities.map((id) => ({ id, agentId: domain.primaryOwner!, domain: domain.id, description: `Capability pública do domínio ${domain.label}.`, input: ["query", "purpose"], output: ["structured_context", "provenance"], public: true as const })) : []));
 }
 
 export function getPublicKnowledgeProfile(domainId: string): PublicKnowledgeProfile | undefined {
+  domainRegistry.hydrateBrowserSnapshot();
   const domain = domainRegistry.resolveDomain(domainId);
   if (!domain) return undefined;
   const policy = domainRegistry.resolveKnowledgePolicy(domain.id);
@@ -22,6 +24,7 @@ export function getPublicKnowledgeProfile(domainId: string): PublicKnowledgeProf
 }
 
 export async function requestKnowledgePacket(request: KnowledgeQuery & { provider?: string }): Promise<KnowledgePacket> {
+  domainRegistry.hydrateBrowserSnapshot();
   const domain = request.domain || "system.orchestration";
   const provider = request.provider || domainRegistry.resolveOwner(domain) || "athena";
   const items = await queryKnowledge({ ...request, domain, scope: request.scope || "PUBLIC" });
@@ -59,6 +62,7 @@ export async function requestDomainResponse(request: KnowledgeQuery & { provider
 }
 
 export async function askSpecialist(request: KnowledgeQuery): Promise<DomainResponse> {
+  domainRegistry.hydrateBrowserSnapshot();
   const domain = request.domain || "system.orchestration";
   const provider = domainRegistry.resolveOwner(domain) || "athena";
   return requestDomainResponse({ ...request, domain, provider, scope: request.scope || "PUBLIC" });

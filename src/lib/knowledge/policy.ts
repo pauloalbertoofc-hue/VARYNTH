@@ -2,6 +2,7 @@ import { KnowledgeAccessDecision, KnowledgeItem, KnowledgeQuery } from "./contra
 import { domainRegistry } from "./domain-registry";
 
 export function decideKnowledgeAccess(item: KnowledgeItem, request: KnowledgeQuery): KnowledgeAccessDecision {
+  domainRegistry.hydrateBrowserSnapshot();
   if (request.operation === "CAN_DISCOVER") return { decision: "ALLOW", reason: "Metadados podem ser descobertos; conteúdo permanece protegido." };
   if (item.visibility === "PRIVATE") return { decision: "DENY", reason: "Conhecimento privado." };
   if (item.sensitivity === "PRIVATE" && item.visibility !== "AGENT_PRIVATE") return { decision: "DENY", reason: "Conhecimento privado." };
