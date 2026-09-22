@@ -110,15 +110,31 @@ export async function discoverKnowledge(request: KnowledgeQuery): Promise<Knowle
 export async function linkKnowledge(relation: Omit<KnowledgeRelationship, "createdAt">): Promise<KnowledgeRelationship> {
   const relationshipTypes = new Set(["BELONGS_TO", "OWNED_BY", "RELATED_TO", "DERIVED_FROM", "USED_BY", "PRODUCED_BY", "REFERENCES", "SPECIALIZES_IN", "DEPENDS_ON", "APPLIES_TO"]);
   if (typeof relation.id !== "string" || typeof relation.fromId !== "string" || typeof relation.toId !== "string" || !relation.id.trim() || !relation.fromId.trim() || !relation.toId.trim() || relation.fromId === relation.toId || !relationshipTypes.has(relation.type)) throw new Error("[KNOWLEDGE_RELATION_INVALID] Relação vazia, autorreferente ou com tipo inválido.");
+  const normalized = { ...relation, id: relation.id.trim(), fromId: relation.fromId.trim(), toId: relation.toId.trim() };
+  if (normalized.fromId === normalized.toId) throw new Error("[KNOWLEDGE_RELATION_INVALID] Relação vazia, autorreferente ou com tipo inválido.");
   const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
-  const sameId = await knowledgeRelationshipRepository.getById(relation.id);
+  const sameId = await knowledgeRelationshipRepository.getById(normalized.id);
   if (sameId) {
-    if (sameId.fromId !== relation.fromId || sameId.toId !== relation.toId || sameId.type !== relation.type) throw new Error("[KNOWLEDGE_RELATION_ID_CONFLICT] O identificador já pertence a outra relação.");
+    if (sameId.fromId !== normalized.fromId || sameId.toId !== normalized.toId || sameId.type !== normalized.type) throw new Error("[KNOWLEDGE_RELATION_ID_CONFLICT] O identificador já pertence a outra relação.");
     return sameId;
   }
-  const duplicate = await knowledgeRelationshipRepository.getAll((candidate) => candidate.fromId === relation.fromId && candidate.toId === relation.toId && candidate.type === relation.type);
+  const duplicate = await knowledgeRelationshipRepository.getAll((candidate) => candidate.fromId === normalized.fromId && candidate.toId === normalized.toId && candidate.type === normalized.type);
   if (duplicate.length) return duplicate[0];
-  const stored = { ...relation, createdAt: new Date().toISOString() };
+  if (normalized.type === "DERIVED_FROM" || normalized.type === "DEPENDS_ON") {
+    const existing = await knowledgeRelationshipRepository.getAll((candidate) => candidate.type === normalized.type);
+    const outgoing = new Map<string, string[]>();
+    for (const edge of existing) outgoing.set(edge.fromId, [...(outgoing.get(edge.fromId) || []), edge.toId]);
+    const pending = [normalized.toId];
+    const visited = new Set<string>();
+    while (pending.length) {
+      const current = pending.pop()!;
+      if (current === normalized.fromId) throw new Error("[KNOWLEDGE_RELATION_CYCLE] Relações DERIVED_FROM e DEPENDS_ON devem ser acíclicas.");
+      if (visited.has(current)) continue;
+      visited.add(current);
+      pending.push(...(outgoing.get(current) || []));
+    }
+  }
+  const stored = { ...normalized, createdAt: new Date().toISOString() };
   return knowledgeRelationshipRepository.save(stored);
 }
 
