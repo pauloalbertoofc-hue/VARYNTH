@@ -7,10 +7,20 @@ let revision = 0;
 
 export async function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
   const existing = await knowledgeRepository.getById(item.id);
-  const stored = existing ? { ...item, createdAt: existing.createdAt, version: existing.version + 1, supersedesId: existing.id } : item;
+  const siblings = await knowledgeRepository.getAll((candidate) => candidate.id !== item.id && candidate.primaryDomain === item.primaryDomain && candidate.title.toLocaleLowerCase() === item.title.toLocaleLowerCase() && candidate.content !== item.content);
+  const conflictGroupId = siblings.length ? (siblings[0].conflictGroupId || `conflict-${item.primaryDomain}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`) : undefined;
+  const stored = existing ? { ...item, createdAt: existing.createdAt, version: existing.version + 1, supersedesId: existing.id, conflictGroupId: conflictGroupId || existing.conflictGroupId } : { ...item, conflictGroupId };
+  if (conflictGroupId) await knowledgeRepository.saveBatch(siblings.map((sibling) => ({ ...sibling, conflictGroupId })));
   revision += 1;
   queryCache.clear();
   return knowledgeRepository.save(stored);
+}
+
+export async function findKnowledgeConflicts(domain?: string): Promise<Array<{ groupId: string; items: KnowledgeItem[] }>> {
+  const items = await knowledgeRepository.getAll((item) => Boolean(item.conflictGroupId) && (!domain || item.primaryDomain === domain));
+  const groups = new Map<string, KnowledgeItem[]>();
+  for (const item of items) groups.set(item.conflictGroupId!, [...(groups.get(item.conflictGroupId!) || []), item]);
+  return [...groups.entries()].map(([groupId, grouped]) => ({ groupId, items: grouped }));
 }
 
 export async function queryKnowledge(request: KnowledgeQuery): Promise<KnowledgeItem[]> {
