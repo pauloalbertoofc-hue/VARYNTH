@@ -16,6 +16,8 @@ The Experience Layer separates raw observation from interpreted personalization.
 
 Current user instructions override all stored preferences. When no current instruction exists, the resolver selects applicable preferences by scope specificity, then confidence. System policies and permissions remain outside personalization and always win.
 
+Retained experiences are retrieved only for a matching scope: `GLOBAL`, the requested `DOMAIN`, or the exact `AGENT`, `MODULE`, `PROJECT`, `ARTIFACT`, or `SESSION` identifier. A missing identifier does not widen access; it hides records that require that scope. Relevance ranking and context budgets run only after this authorization filter.
+
 Agent-generated events are not learning-eligible by default. Confirmation changes provenance to `MANUAL`; rejection and forgetting remain explicit state operations.
 
 No model weights, prompts, agent identity or personality are rewritten by this layer.

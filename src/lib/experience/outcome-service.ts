@@ -26,7 +26,17 @@ export async function retainExperience(input: OutcomeInput): Promise<ExperienceR
   return experienceRepository.save(record);
 }
 
-export async function retrieveExperiences(domain?: string, projectId?: string, limit = 8): Promise<ExperienceRecord[]> {
+export interface ExperienceAudience { agentId?: string; moduleId?: string; artifactId?: string; sessionId?: string; }
+
+export async function retrieveExperiences(domain?: string, projectId?: string, limit = 8, audience: ExperienceAudience = {}): Promise<ExperienceRecord[]> {
   const records = await experienceRepository.getAll((record) => !domain || record.domain === domain);
-  return records.filter((record) => !projectId || record.scope !== "PROJECT" || record.scopeId === projectId).sort((a, b) => (b.usefulness || 0) - (a.usefulness || 0) || b.confidence - a.confidence).slice(0, Math.max(0, Math.min(limit, 50)));
+  return records.filter((record) => {
+    if (record.scope === "GLOBAL") return true;
+    if (record.scope === "DOMAIN") return !!domain && record.scopeId === domain;
+    if (record.scope === "AGENT") return !!audience.agentId && record.scopeId === audience.agentId;
+    if (record.scope === "MODULE") return !!audience.moduleId && record.scopeId === audience.moduleId;
+    if (record.scope === "PROJECT") return !!projectId && record.scopeId === projectId;
+    if (record.scope === "ARTIFACT") return !!audience.artifactId && record.scopeId === audience.artifactId;
+    return !!audience.sessionId && record.scopeId === audience.sessionId;
+  }).sort((a, b) => (b.usefulness || 0) - (a.usefulness || 0) || b.confidence - a.confidence).slice(0, Math.max(0, Math.min(limit, 50)));
 }
