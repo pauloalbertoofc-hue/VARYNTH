@@ -32,6 +32,7 @@ import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { addProcessingJob, listProcessingJobs, updateProcessingJob } from "@/lib/vault/processing-queue";
 import { upload as uploadBlob } from "@vercel/blob/client";
 import { LITERARY_CATEGORIES, PRIMARY_SUBJECTS, VAULT_FORMATS, WORK_TYPES, suggestTaxonomy } from "@/lib/vault/taxonomy";
+import { knowledgeFromVaultItem, storeKnowledge } from "@/lib/knowledge";
 import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
 
 const TYPE_CONFIG: Record<VaultItemType, { label: string; icon: React.ElementType; color: string }> = {
@@ -159,6 +160,7 @@ export default function VaultPage() {
           tags: tagsArray.length ? tagsArray : ["conhecimento"], relatedProjectIds: relatedProject ? [relatedProject] : undefined,
           source: `${format} · ${storedFile}`, sourceOrigin: format, storageUrl: blob.url, processingStatus: "processando", processingMessage: "Arquivo salvo. Athena está preparando o índice para pesquisa.",
         });
+        void storeKnowledge(knowledgeFromVaultItem(pendingItem)).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
         setJobs(updateProcessingJob(uploadJob.id, { type: "indexacao", progress: 82, message: "Arquivo salvo. Preparando índice de pesquisa." }));
         setTitle(""); setAuthor(""); setUrl(""); setNotes(""); setTags(""); setRelatedProject(""); setFormat("PDF"); setWorkType("Livro"); setPrimarySubject("Conhecimento geral"); setAcceptedAthenaSuggestion(false); setFileName(""); setFile(null); setIsModalOpen(false);
         submissionLock.current = false;
@@ -180,7 +182,7 @@ export default function VaultPage() {
         return;
       }
     }
-    addVaultItem({
+    const createdItem = addVaultItem({
       title: title.trim(),
       author: author.trim() || undefined,
       type: legacyTypeFor(workType, format),
@@ -202,6 +204,7 @@ export default function VaultPage() {
       sourceOrigin: format,
       originalFileName: storedFile || undefined,
     });
+    void storeKnowledge(knowledgeFromVaultItem(createdItem)).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
 
     setTitle("");
     setAuthor("");
