@@ -38,6 +38,7 @@ export interface KnowledgeItem {
   relatedArtifactIds: string[];
   createdAt: string;
   updatedAt: string;
+  classification?: { confidence: number; source: "INFERRED" | "USER_CORRECTED" | "SYSTEM"; classifiedAt: string };
   conflictGroupId?: string;
   supersedesId?: string;
   invalidatedAt?: string;

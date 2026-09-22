@@ -6,3 +6,4 @@ export * from "./vault-adapter";
 export * from "./router";
 export * from "./context-assembler";
 export * from "./protocol";
+export * from "./classification";
