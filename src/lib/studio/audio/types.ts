@@ -128,6 +128,7 @@ export interface AudioDocumentState {
   settings?: { sampleRate: number; bitDepth: 16 | 24 | 32; channels: 1 | 2; bpm?: number; timeSignature?: [number, number]; metronome?: { enabled: boolean; volume: number; accentFirstBeat: boolean; countInBars?: number } };
   synthPreset?: Partial<import("./instrument-engine").SynthPreset>;
   synthPresetVersions?: Array<{ id: string; name: string; createdAt: string; preset: import("./instrument-engine").SynthPreset }>;
+  samplerDefinitions?: import("./sampler-domain").SamplerDefinition[];
   timeline: AudioTimeline;
   tracks: AudioTrack[];
   buses?: AudioBus[];
