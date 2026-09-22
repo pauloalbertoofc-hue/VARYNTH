@@ -38,6 +38,9 @@ export interface KnowledgeItem {
   relatedArtifactIds: string[];
   createdAt: string;
   updatedAt: string;
+  conflictGroupId?: string;
+  supersedesId?: string;
+  invalidatedAt?: string;
 }
 
 export type KnowledgePolicyDecision = "ALLOW" | "DENY" | "ALLOW_SUMMARY" | "ALLOW_PUBLIC_ONLY" | "REQUIRE_DELEGATION";
