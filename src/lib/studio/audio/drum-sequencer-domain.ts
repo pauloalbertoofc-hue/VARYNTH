@@ -1,7 +1,10 @@
+import { midiToPitch, tempoMapBeatsToSeconds, tempoMapSecondsToBeats, TempoPoint } from "./music-domain";
+import type { SamplerDefinition } from "./sampler-domain";
+
 export type DrumLane = "kick" | "snare" | "hat" | "clap" | "tom" | "perc";
 
 export interface DrumStep { active: boolean; velocity: number; probability: number; microtimingMs: number; }
-export interface DrumPattern { id: string; name: string; steps: number; subdivision: 4 | 8 | 16 | 32; lanes: Record<DrumLane, DrumStep[]>; swing: number; }
+export interface DrumPattern { id: string; name: string; steps: number; subdivision: 4 | 8 | 16 | 32; lanes: Record<DrumLane, DrumStep[]>; laneSamplers?: Partial<Record<DrumLane, string>>; swing: number; }
 
 const LANES: DrumLane[] = ["kick", "snare", "hat", "clap", "tom", "perc"];
 const clamp = (value: unknown, min: number, max: number, fallback: number) => Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : fallback;
@@ -19,12 +22,21 @@ export function createDrumPattern(input: Partial<DrumPattern> & Pick<DrumPattern
   }
   const name = input.name.trim();
   if (!input.id.trim() || !name) throw new Error("[DRUM_PATTERN_INVALID] ID e nome são obrigatórios.");
-  return { id: input.id.trim(), name, steps, subdivision: input.subdivision === 4 || input.subdivision === 8 || input.subdivision === 32 ? input.subdivision : 16, lanes, swing: clamp(input.swing, 0, 1, 0) };
+  const laneSamplers = Object.fromEntries(LANES.flatMap((lane) => typeof input.laneSamplers?.[lane] === "string" && input.laneSamplers[lane]?.trim() ? [[lane, input.laneSamplers[lane]!.trim()]] : [])) as Partial<Record<DrumLane, string>>;
+  return { id: input.id.trim(), name, steps, subdivision: input.subdivision === 4 || input.subdivision === 8 || input.subdivision === 32 ? input.subdivision : 16, lanes, laneSamplers, swing: clamp(input.swing, 0, 1, 0) };
 }
 
 export function stepTimeBeats(step: number, pattern: DrumPattern): number { return Math.max(0, step) * (4 / pattern.subdivision); }
 export function shouldTrigger(step: DrumStep, random = Math.random()): boolean { return step.active && random >= 0 && random < 1 && random < step.probability; }
 export function drumLanes(): DrumLane[] { return [...LANES]; }
+export function resolveDrumSampler(pattern: DrumPattern | undefined, samplers: SamplerDefinition[], lane: DrumLane): SamplerDefinition {
+  if (!pattern) throw new Error("[DRUM_PATTERN_MISSING] O padrão associado ao hit não existe no projeto.");
+  const samplerId = pattern.laneSamplers?.[lane];
+  if (!samplerId) throw new Error(`[DRUM_SAMPLE_UNASSIGNED] Configure um sample para a lane '${lane}' no padrão '${pattern.name}'.`);
+  const definition = samplers.find((sampler) => sampler.id === samplerId);
+  if (!definition) throw new Error(`[DRUM_SAMPLER_MISSING] O sampler '${samplerId}' usado pela lane '${lane}' não existe mais no projeto.`);
+  return definition;
+}
 
 const LANE_MIDI: Record<DrumLane, number> = { kick: 36, snare: 38, hat: 42, clap: 39, tom: 45, perc: 50 };
 export function drumPatternToNotes(pattern: DrumPattern, tempoMap: TempoPoint[] = [{ beat: 0, bpm: 120 }], startBeat = 0, idPrefix = pattern.id) {
@@ -36,7 +48,6 @@ export function drumPatternToNotes(pattern: DrumPattern, tempoMap: TempoPoint[] 
     const baseBeat = startBeat + index * subdivisionBeats + (index % 2 === 1 ? pattern.swing * subdivisionBeats * 0.5 : 0);
     const baseSeconds = tempoMapBeatsToSeconds(baseBeat, tempoMap);
     const position = tempoMapSecondsToBeats(Math.max(0, baseSeconds + step.microtimingMs / 1000), tempoMap);
-    return [{ id: `${idPrefix}-${lane}-${index}`, ...pitch, startBeat: Math.max(0, position), durationBeats: subdivisionBeats, velocity: step.velocity, articulation: "staccato" as const, expression: step.probability, drum: { patternId: pattern.id, lane, step: index, probability: step.probability, microtimingMs: step.microtimingMs } }];
+    return [{ id: `${idPrefix}-${lane}-${index}`, ...pitch, startBeat: Math.max(0, position), durationBeats: subdivisionBeats, velocity: step.velocity, articulation: "staccato" as const, drum: { patternId: pattern.id, lane, step: index, probability: step.probability, microtimingMs: step.microtimingMs } }];
   }));
 }
-import { midiToPitch, tempoMapBeatsToSeconds, tempoMapSecondsToBeats, TempoPoint } from "./music-domain";

@@ -1,9 +1,10 @@
 import { AudioDocumentState } from "./types";
 import { assetManager } from "../../artifacts/asset-manager";
-import { createLocalSynthInstrument, LocalSynthInstrument } from "./instrument-engine";
+import { createLocalSynthInstrument, InstrumentEngine, LocalSamplerInstrument, LocalSynthInstrument } from "./instrument-engine";
 import { effectiveNoteDurationBeats, flattenMusicNotes, pitchToMidi, tempoMapBeatsToSeconds, tempoMapSecondsToBeats } from "./music-domain";
 import { isAudioTrackAudible, isAudioTrackDirectOutputAudible, isAudioTrackSendAudible, validateAudioBusRouting } from "./audio-routing";
 import { crossfadeLoopChannels } from "./audio-loop";
+import { resolveDrumSampler } from "./drum-sequencer-domain";
 
 export interface AudioEngineSnapshot { state: "STOPPED" | "PLAYING" | "PAUSED"; positionMs: number; sampleRate?: number; }
 
@@ -22,7 +23,7 @@ export class AudioEngine {
   private recordingChunks: Blob[] = [];
   private recordingStartedAt = 0;
   private inputAnalyser: AnalyserNode | null = null;
-  private musicInstruments = new Map<string, LocalSynthInstrument>();
+  private musicInstruments = new Map<string, InstrumentEngine>();
   private musicTimers: ReturnType<typeof setTimeout>[] = [];
   private metronomeTimers: ReturnType<typeof setTimeout>[] = [];
 
@@ -108,7 +109,7 @@ export class AudioEngine {
       for (const point of panPoints) { const relative = (point.timeMs - position) / 1000; if (relative >= 0 && relative <= (clipEnd - position) / 1000) pan.pan.linearRampToValueAtTime(point.value, context.currentTime + relative); }
       this.sources.push(source);
     }
-    this.scheduleMusic(project, position, busNodes, startDelayMs);
+    await this.scheduleMusic(project, position, busNodes, startDelayMs);
     this.scheduleMetronome(project, position, startDelayMs, countInBars);
     this.startedAt = context.currentTime; this.state = "PLAYING";
   }
@@ -181,7 +182,7 @@ export class AudioEngine {
     if (type === "REVERB") { const duration = Math.max(0.05, Math.min(8, Number(p.duration ?? 1.8))); const node = context.createConvolver(); const impulse = context.createBuffer(2, Math.ceil(context.sampleRate * duration), context.sampleRate); const decay = Math.max(0.1, Number(p.decay ?? 2.5)); for (let channel = 0; channel < impulse.numberOfChannels; channel++) { const samples = impulse.getChannelData(channel); for (let index = 0; index < samples.length; index++) samples[index] = (Math.random() * 2 - 1) * Math.pow(1 - index / samples.length, decay); } node.buffer = impulse; return node; }
     return null;
   }
-  private scheduleMusic(project: AudioDocumentState, positionMs: number, busNodes: Map<string, GainNode>, startDelayMs = 0): void {
+  private async scheduleMusic(project: AudioDocumentState, positionMs: number, busNodes: Map<string, GainNode>, startDelayMs = 0): Promise<void> {
     this.clearMusic();
     if (!project.music?.notes.length && !project.music?.clips?.length) return;
     const music = project.music;
@@ -222,15 +223,38 @@ export class AudioEngine {
         if (!sendBus) throw new Error(`[AUDIO_ROUTING_INVALID] Send bus '${send.busId}' não encontrado.`);
         if (isAudioTrackSendAudible(track, send.busId, project.buses || [])) { const sendGain = this.context!.createGain(); sendGain.gain.value = send.level; (send.preFader ? preFader : analyser).connect(sendGain).connect(sendBus); }
       }
-      const instrument = createLocalSynthInstrument(this.context!, instrumentInput);
-      if (project.synthPreset) instrument.loadPreset(project.synthPreset);
-      this.musicInstruments.set(track.id, instrument);
+      const synthNotes = notes.filter((note) => !note.drum);
+      let synth: LocalSynthInstrument | undefined;
+      if (synthNotes.length) {
+        synth = createLocalSynthInstrument(this.context!, instrumentInput);
+        if (project.synthPreset) synth.loadPreset(project.synthPreset);
+        this.musicInstruments.set(`${track.id}:synth`, synth);
+      }
       for (const note of notes) {
         if (note.startBeat + effectiveNoteDurationBeats(note) <= positionBeat) continue;
         const pitch = pitchToMidi(note.pitch, note.octave, note.accidental);
+        let instrument: InstrumentEngine | undefined = synth;
+        if (note.drum) {
+          if (Math.random() >= note.drum.probability) continue;
+          const pattern = project.drumPatterns?.find((item) => item.id === note.drum!.patternId);
+          const definition = resolveDrumSampler(pattern, project.samplerDefinitions || [], note.drum.lane);
+          const key = `${track.id}:drum:${definition.id}`;
+          instrument = this.musicInstruments.get(key);
+          if (!instrument) {
+              const assetData = await assetManager.getAssetData(definition.assetId);
+              if (!assetData) throw new Error(`[DRUM_SAMPLE_UNAVAILABLE] O asset '${definition.assetId}' do sampler '${definition.name}' não está disponível.`);
+              const raw = typeof assetData === "string" ? await (await fetch(assetData)).arrayBuffer() : assetData instanceof ArrayBuffer ? assetData : await assetData.arrayBuffer();
+              const buffer = await this.context!.decodeAudioData(raw.slice(0));
+              const sampler = new LocalSamplerInstrument(definition, this.context!, instrumentInput);
+              sampler.loadBuffer(buffer);
+            this.musicInstruments.set(key, sampler);
+            instrument = sampler;
+          }
+        }
+        if (!instrument) continue;
         const delayMs = Math.max(0, (tempoMapBeatsToSeconds(note.startBeat, tempoMap) - positionSeconds) * 1000);
         const onTimer = setTimeout(() => {
-          instrument.noteOn({ midi: pitch, velocity: note.velocity, articulation: note.articulation, expression: note.expression, concertPitchHz: music.tuning.concertPitchHz });
+          instrument!.noteOn({ midi: pitch, velocity: note.velocity, articulation: note.articulation, expression: note.drum ? 1 : note.expression, concertPitchHz: music.tuning.concertPitchHz });
           const offTimer = setTimeout(() => instrument.noteOff(pitch), Math.max(10, (tempoMapBeatsToSeconds(note.startBeat + effectiveNoteDurationBeats(note), tempoMap) - tempoMapBeatsToSeconds(note.startBeat, tempoMap)) * 1000));
           this.musicTimers.push(offTimer);
         }, startDelayMs + delayMs);
