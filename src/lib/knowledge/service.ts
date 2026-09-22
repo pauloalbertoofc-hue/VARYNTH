@@ -32,6 +32,16 @@ export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
   return knowledgeRepository.save(revoked);
 }
 
+export async function publishKnowledge(id: string, requester: string, visibility: KnowledgeItem["visibility"] = "PUBLIC_TO_AGENTS"): Promise<KnowledgeItem> {
+  const current = await knowledgeRepository.getById(id);
+  if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
+  if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_PUBLISH_DENIED] Somente o owner ou sistema pode publicar conhecimento.");
+  const published = { ...current, visibility, updatedAt: new Date().toISOString(), provenance: { ...current.provenance, addedBy: requester === "system" ? "SYSTEM" as const : current.provenance.addedBy } };
+  revision += 1;
+  queryCache.clear();
+  return knowledgeRepository.save(published);
+}
+
 export async function getKnowledgeProvenance(id: string): Promise<KnowledgeItem["provenance"] | null> {
   const item = await knowledgeRepository.getById(id);
   return item?.provenance || null;
