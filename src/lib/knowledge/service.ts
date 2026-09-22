@@ -82,7 +82,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
     return { item, decision, score: authorityScore + freshnessScore + recencyScore + domainScore };
   }).filter((entry): entry is { item: KnowledgeItem; decision: ReturnType<typeof decideKnowledgeAccess>; score: number } => Boolean(entry));
   scored.sort((left, right) => right.score - left.score || left.item.title.localeCompare(right.item.title));
-  const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.item);
+  const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.decision.decision === "ALLOW_SUMMARY" ? { ...entry.item, content: `${entry.item.content.slice(0, 280)}${entry.item.content.length > 280 ? "…" : ""}` } : entry.item);
   const decision = scored.some((entry) => entry.decision.decision === "ALLOW") ? "ALLOW" : scored.length ? "ALLOW_SUMMARY" : "DENY";
   await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, operation: request.operation || "CAN_QUERY", createdAt: new Date().toISOString() });
   queryCache.set(cacheKey, { revision, items: result });
