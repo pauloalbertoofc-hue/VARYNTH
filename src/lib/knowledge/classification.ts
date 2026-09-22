@@ -10,7 +10,8 @@ export function suggestKnowledgeClassification(input: Pick<KnowledgeItem, "title
   const normalized = `${input.title} ${input.content} ${input.tags.join(" ")}`.toLocaleLowerCase();
   const inferredSubject = /m[uú]sic|[áa]udio|melodia|harmonia|licenciamento musical/.test(normalized) ? "Música" : taxonomy.primarySubject;
   const subject = input.primarySubject || inferredSubject;
-  return { primaryDomain: SUBJECT_DOMAINS[subject] || "general-knowledge", categories: [taxonomy.literaryCategory, taxonomy.workType], tags: [...new Set([...input.tags, ...taxonomy.tags])], confidence: taxonomy.confidence, source: "INFERRED" };
+  const confidence = inferredSubject !== taxonomy.primarySubject ? Math.max(taxonomy.confidence, 0.86) : taxonomy.confidence;
+  return { primaryDomain: SUBJECT_DOMAINS[subject] || "general-knowledge", categories: [taxonomy.literaryCategory, taxonomy.workType], tags: [...new Set([...input.tags, ...taxonomy.tags])], confidence, source: "INFERRED" };
 }
 
 export function applyKnowledgeClassification(item: KnowledgeItem, correction: { primaryDomain: string; categories?: string[]; tags?: string[] }): KnowledgeItem {

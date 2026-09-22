@@ -32,7 +32,7 @@ import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { addProcessingJob, listProcessingJobs, updateProcessingJob } from "@/lib/vault/processing-queue";
 import { upload as uploadBlob } from "@vercel/blob/client";
 import { LITERARY_CATEGORIES, PRIMARY_SUBJECTS, VAULT_FORMATS, WORK_TYPES, suggestTaxonomy } from "@/lib/vault/taxonomy";
-import { knowledgeFromVaultItem, storeKnowledge } from "@/lib/knowledge";
+import { revokeVaultKnowledgeItem, syncVaultKnowledgeItem } from "@/lib/knowledge";
 import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
 
 const TYPE_CONFIG: Record<VaultItemType, { label: string; icon: React.ElementType; color: string }> = {
@@ -67,7 +67,7 @@ export default function VaultPage() {
       const projectionKey = JSON.stringify([item.title, item.content, item.summary, item.primarySubject, item.tags, item.relatedProjectIds, item.updatedAt]);
       if (projectedVaultItems.current.get(item.id) === projectionKey) continue;
       projectedVaultItems.current.set(item.id, projectionKey);
-      void storeKnowledge(knowledgeFromVaultItem(item)).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
+      void syncVaultKnowledgeItem(item).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
     }
   }, [vaultItems]);
 
@@ -79,6 +79,13 @@ export default function VaultPage() {
   const [selectedSubject, setSelectedSubject] = useState("Todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<VaultItem | null>(null);
+
+  const confirmVaultDeletion = async () => {
+    if (!itemToDelete) return;
+    await syncVaultKnowledgeItem(itemToDelete);
+    await revokeVaultKnowledgeItem(itemToDelete.id);
+    deleteVaultItem(itemToDelete.id);
+  };
 
   // Form states
   const [title, setTitle] = useState("");
@@ -682,7 +689,7 @@ export default function VaultPage() {
           <ConfirmDeleteModal
             isOpen={true}
             onClose={() => setItemToDelete(null)}
-            onConfirm={() => deleteVaultItem(itemToDelete.id)}
+            onConfirm={confirmVaultDeletion}
             itemTitle={itemToDelete.title}
             itemType="Obra do Vault"
           />

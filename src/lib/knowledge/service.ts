@@ -9,7 +9,18 @@ export async function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem
   const existing = await knowledgeRepository.getById(item.id);
   const siblings = await knowledgeRepository.getAll((candidate) => candidate.id !== item.id && candidate.primaryDomain === item.primaryDomain && candidate.title.toLocaleLowerCase() === item.title.toLocaleLowerCase() && candidate.content !== item.content);
   const conflictGroupId = siblings.length ? (siblings[0].conflictGroupId || `conflict-${item.primaryDomain}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`) : undefined;
-  const stored = existing ? { ...item, createdAt: existing.createdAt, version: existing.version + 1, supersedesId: existing.id, conflictGroupId: conflictGroupId || existing.conflictGroupId } : { ...item, conflictGroupId };
+  const stored = existing ? {
+    ...item,
+    createdAt: existing.createdAt,
+    version: existing.version + 1,
+    supersedesId: existing.id,
+    conflictGroupId: conflictGroupId || existing.conflictGroupId,
+    provenance: {
+      ...item.provenance,
+      createdAt: existing.provenance.createdAt,
+      derivedFromIds: item.provenance.derivedFromIds || existing.provenance.derivedFromIds,
+    },
+  } : { ...item, conflictGroupId };
   if (conflictGroupId) await knowledgeRepository.saveBatch(siblings.map((sibling) => ({ ...sibling, conflictGroupId })));
   revision += 1;
   queryCache.clear();
@@ -37,7 +48,28 @@ export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
   const revoked = { ...current, invalidatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   revision += 1;
   queryCache.clear();
-  return knowledgeRepository.save(revoked);
+  const stored = await knowledgeRepository.save(revoked);
+  const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
+  const derivationGraph = await knowledgeRelationshipRepository.getAll((relation) => relation.type === "DERIVED_FROM");
+  const invalidatedIds = new Set([id]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const relation of derivationGraph) {
+      if (invalidatedIds.has(relation.toId) && !invalidatedIds.has(relation.fromId)) {
+        invalidatedIds.add(relation.fromId);
+        changed = true;
+      }
+    }
+  }
+  invalidatedIds.delete(id);
+  if (invalidatedIds.size) {
+    const derivedItems = await knowledgeRepository.getAll((item) => invalidatedIds.has(item.id) && !item.invalidatedAt);
+    const invalidatedAt = new Date().toISOString();
+    await knowledgeRepository.saveBatch(derivedItems.map((item) => ({ ...item, freshness: "UNKNOWN" as const, invalidatedAt, updatedAt: invalidatedAt })));
+    queryCache.clear();
+  }
+  return stored;
 }
 
 export async function publishKnowledge(id: string, requester: string, visibility: KnowledgeItem["visibility"] = "PUBLIC_TO_AGENTS"): Promise<KnowledgeItem> {

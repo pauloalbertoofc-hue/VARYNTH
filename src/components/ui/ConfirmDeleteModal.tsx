@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, Trash2, X } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, LoaderCircle, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   itemTitle: string;
   itemType: string;
   isPermanent?: boolean;
@@ -20,14 +21,31 @@ export function ConfirmDeleteModal({
   itemType,
   isPermanent = false,
 }: ConfirmDeleteModalProps) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   if (!isOpen) return null;
+
+  async function confirm() {
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      await onConfirm();
+      onClose();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Não foi possível concluir a exclusão.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div className="w-full max-w-md bg-[#0f0f1a] border border-red-500/30 rounded-2xl shadow-2xl p-6 space-y-5 clip-corner relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200"
+          disabled={pending}
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 disabled:opacity-50"
         >
           <X size={16} />
         </button>
@@ -61,11 +79,14 @@ export function ConfirmDeleteModal({
           )}
         </div>
 
+        {error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</p>}
+
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
+            disabled={pending}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-[#14141f] border border-[#1e1e30] transition-all"
           >
             Cancelar
@@ -73,23 +94,20 @@ export function ConfirmDeleteModal({
 
           <button
             type="button"
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
+            onClick={() => void confirm()}
+            disabled={pending}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-lg",
+              "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-lg disabled:cursor-wait disabled:opacity-60",
               isPermanent
                 ? "bg-red-600 hover:bg-red-500"
                 : "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500"
             )}
           >
-            <Trash2 size={13} />
-            <span>{isPermanent ? "Sim, Destruir Agora" : "Sim, Mover para Lixeira"}</span>
+            {pending ? <LoaderCircle size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            <span>{pending ? "Processando…" : isPermanent ? "Sim, Destruir Agora" : "Sim, Mover para Lixeira"}</span>
           </button>
         </div>
       </div>
     </div>
   );
 }
-
