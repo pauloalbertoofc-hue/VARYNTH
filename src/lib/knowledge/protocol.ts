@@ -26,3 +26,19 @@ export async function requestKnowledgePacket(request: KnowledgeQuery & { provide
     createdAt: new Date().toISOString(),
   };
 }
+
+export async function requestDomainResponse(request: KnowledgeQuery & { provider?: string }): Promise<DomainResponse> {
+  const packet = await requestKnowledgePacket(request);
+  const evidence = packet.facts.map((fact) => fact.knowledgeId);
+  return {
+    domain: packet.domain,
+    specialistAgent: packet.provider,
+    answer: packet.facts.length ? packet.facts.map((fact) => `${fact.title}: ${fact.content}`).join("\n") : "Nenhum conhecimento autorizado foi encontrado para esta solicitação.",
+    evidence,
+    sources: packet.provenanceIds,
+    confidence: packet.facts.length ? 0.75 : 0,
+    assumptions: packet.facts.length ? [] : ["A ausência de resultado não prova que o conhecimento não exista."],
+    limitations: ["Resposta limitada ao conhecimento autorizado e indexado."],
+    packet,
+  };
+}
