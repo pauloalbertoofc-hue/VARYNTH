@@ -6,3 +6,4 @@ export * from "./context-builder";
 export * from "./feedback-service";
 export * from "./outcome-service";
 export * from "./audio-learning-adapter";
+export * from "./game-learning-adapter";
