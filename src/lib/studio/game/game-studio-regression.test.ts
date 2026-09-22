@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { gameService } from "./game-service";
 import { gameRuntimeEngine, GameIntegrityValidator } from "./game-runtime-engine";
 import { gameRulesEngine } from "./game-rules-engine";
@@ -7,6 +8,8 @@ import { assetManager } from "../../artifacts/asset-manager";
 import { versionManager } from "../../artifacts/version-manager";
 import { jobManager } from "../../runtime/job-manager";
 import { GameDocumentState, GameEntity } from "./types";
+import { createGameAudioPackage } from "../audio/game-audio-domain";
+import { stepPhysics } from "./game-physics";
 
 async function runGameStudioRegressionTests() {
   console.log("\n===============================================================");
@@ -38,6 +41,12 @@ async function runGameStudioRegressionTests() {
     "Novo jogo cria artefato GAME em status DRAFT."
   );
   const game = createRes.game!;
+
+  // GAMEST-REG-063: Trigger colliders emit contact without blocking motion
+  const triggerBody = { id: "trigger-body", active: true, components: [{ type: "TRANSFORM", x: 0, y: 0 }, { type: "COLLIDER", shape: "RECTANGLE", width: 20, height: 20, isTrigger: true }, { type: "RIGID_BODY", mode: "DYNAMIC", velocityX: 10, velocityY: 0, gravityScale: 0 }] } as unknown as GameEntity;
+  const triggerTarget = { id: "trigger-target", active: true, components: [{ type: "TRANSFORM", x: 0, y: 0 }, { type: "COLLIDER", shape: "RECTANGLE", width: 20, height: 20 }] } as unknown as GameEntity;
+  const triggerResult = stepPhysics({ [triggerBody.id]: triggerBody, [triggerTarget.id]: triggerTarget }, 16);
+  assert(triggerResult.collisions.length === 2 && (triggerBody.components[2] as { velocityX: number }).velocityX === 10, "GAMEST-REG-063", "Sensor de colisão dispara contato sem bloquear o corpo dinâmico.");
 
   // GAMEST-REG-002: Game Artifact remains DRAFT until validation permits promotion
   assert(game.artifact.status === "DRAFT", "GAMEST-REG-002", "Artefato permanece em DRAFT durante o fluxo de edição.");
@@ -156,6 +165,20 @@ async function runGameStudioRegressionTests() {
     "USER"
   );
   assert(sfxAssetRes.asset !== undefined, "GAMEST-REG-011", "Audio Asset referenciado como AudioSource sem duplicar arquivos.");
+
+  // GAMEST-REG-041: Game Audio package persists, validates and routes a real event log
+  const gameAudioPackage = createGameAudioPackage("Sandbox Audio", [{ assetId: sfxAssetRes.asset.id, category: "SFX", tags: ["test"], mimeType: "audio/wav", durationMs: 1000 }], [], [{ id: "event-test-sfx", name: "Test SFX", assetIds: [sfxAssetRes.asset.id], trigger: "PLAY", volumeRange: [0.7, 0.7], pitchRange: [1, 1] }]);
+  const gameAudioRule = { id: "rule-test-audio-event", name: "Tocar teste sonoro", enabled: true, trigger: { type: "ON_START" as const }, conditions: [], actions: [{ type: "PLAY_AUDIO" as const, audioEventId: "event-test-sfx" }] };
+  const gameAudioState = { ...game.documentState, gameAudioPackage, rules: [...game.documentState.rules, gameAudioRule] };
+  await gameService.saveDocumentState(game.artifact.id, gameAudioState, "USER");
+  const gameAudioReloaded = gameService.getGame(game.artifact.id)!;
+  const audioPackageValidation = GameIntegrityValidator.validate(gameAudioReloaded.documentState);
+  assert(gameAudioReloaded.documentState.gameAudioPackage?.events[0]?.id === "event-test-sfx" && audioPackageValidation.valid, "GAMEST-REG-041", "Pacote Game Audio persiste no projeto, preserva asset local e passa validação de integridade.");
+  const audioEventSession = gameRuntimeEngine.startPlaySession(gameAudioReloaded.documentState, "v1.0", 765);
+  assert(audioEventSession.success && Boolean(audioEventSession.session?.logs.some((log) => log.includes("[ACTION_AUDIO_EVENT]") && log.includes("event-test-sfx"))), "GAMEST-REG-042", "A regra PLAY_AUDIO do sandbox despacha o evento importado e grava-o no log da sessão.");
+  if (audioEventSession.session) gameRuntimeEngine.stopPlaySession(audioEventSession.session.id);
+  const invalidAudioReference = { ...gameAudioReloaded.documentState, rules: [...gameAudioReloaded.documentState.rules, { ...gameAudioRule, id: "rule-missing-audio-event", actions: [{ type: "PLAY_AUDIO" as const, audioEventId: "missing-event" }] }] };
+  assert(!GameIntegrityValidator.validate(invalidAudioReference).valid, "GAMEST-REG-043", "Regra com referência a evento Game Audio inexistente é bloqueada.");
 
   // GAMEST-REG-012: Runtime session state does not mutate game definition state
   const startSessionRes = gameRuntimeEngine.startPlaySession(game.documentState, "v1.0", 555);
@@ -300,6 +323,17 @@ async function runGameStudioRegressionTests() {
 
   // GAMEST-REG-032: Build executes in Sandbox
   assert(buildRes.assetId !== undefined, "GAMEST-REG-032", "Build executado em sandbox gerando pacote de distribuição.");
+
+  // GAMEST-REG-032B: Web build is a portable ZIP with real asset payloads
+  const buildData = await assetManager.getAssetData(buildRes.assetId!);
+  if (!buildData) throw new Error("Build asset não possui dados para inspeção do ZIP.");
+  const buildRaw = buildData instanceof Blob ? await buildData.arrayBuffer() : typeof buildData === "string" ? await (await fetch(buildData)).arrayBuffer() : buildData;
+  const buildZip = await JSZip.loadAsync(buildRaw);
+  const buildManifest = JSON.parse(await buildZip.file("manifest.json")!.async("text")) as { packageFormat?: string; assetFiles?: { path: string; sha256: string }[] };
+  assert(buildManifest.packageFormat === "ZIP" && buildZip.file("index.html") !== null && buildZip.file("game-state.json") !== null, "GAMEST-REG-032B", "Build Web gera ZIP portátil com runtime, estado e manifesto.");
+  assert((buildManifest.assetFiles || []).every((file) => buildZip.file(file.path) !== null && file.sha256.length === 64), "GAMEST-REG-032C", "Build Web inclui os bytes locais dos assets e seus hashes SHA-256.");
+  const runtimeHtml = await buildZip.file("index.html")!.async("text");
+  assert(runtimeHtml.includes("createBufferSource") && runtimeHtml.includes("loopEnd") && runtimeHtml.includes("linearRampToValueAtTime") && runtimeHtml.includes("createPanner") && runtimeHtml.includes("HRTF") && runtimeHtml.includes("refDistance") && runtimeHtml.includes("playEvent") && runtimeHtml.includes("playSceneSources") && runtimeHtml.includes("loadImage") && runtimeHtml.includes("activeClip") && runtimeHtml.includes("isTrigger") && runtimeHtml.includes("ON_TIMER") && runtimeHtml.includes("ON_COLLISION") && runtimeHtml.includes("requestAnimationFrame"), "GAMEST-REG-032D", "Runtime exportado contém áudio, espacialização HRTF, fontes por cena, crossfade, imagens animadas, sensores, eventos, timers, ciclo de simulação e colisões.");
 
   // GAMEST-REG-033: Failed build never reports success
   assert(!badBuildRes.success, "GAMEST-REG-033", "Falha de compilação nunca reporta falso sucesso.");
@@ -494,4 +528,3 @@ runGameStudioRegressionTests().catch((err) => {
   console.error("Erro fatal na suíte do Game Studio:", err);
   process.exit(1);
 });
-

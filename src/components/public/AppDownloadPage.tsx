@@ -75,9 +75,13 @@ export function AppDownloadPage() {
         <section id="baixar" className="scroll-mt-8">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">Acesso e instalação</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Escolha seu dispositivo</h2></div><p className="text-sm text-slate-500">A mesma conta e experiência em todos eles.</p></div>
           <div className="grid gap-4 md:grid-cols-3">
-            <DeviceCard icon={<Smartphone size={20} />} title="Celular Android" badge="Web App" description="Use no Chrome. Quando a instalação estiver disponível, toque em Instalar; também pode usar o menu ⋮ e escolher “Instalar app” ou “Adicionar à tela inicial”." />
+            <DeviceCard icon={<Smartphone size={20} />} title="Celular Android" badge="APK de teste" description="Instale o APK de teste ou use o Web App pelo Chrome. A versão nativa abre o VARYNTH com conexão à internet." />
             <DeviceCard icon={<Smartphone size={20} />} title="iPhone e iPad" badge="Tela inicial" description="Abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”. O VARYNTH abre em uma janela própria." />
-            <DeviceCard icon={<Laptop2 size={20} />} title="Computador" badge="Windows · macOS · Linux" description="Abra no Chrome ou Edge e use o ícone de instalação na barra de endereço. Se ele não aparecer, procure “Instalar página como app” no menu do navegador." />
+            <DeviceCard icon={<Laptop2 size={20} />} title="Computador Windows" badge="Instalador de teste" description="Instale a versão Windows de teste ou use o Web App pelo Chrome e Edge." />
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <a href="/downloads/varynth-android-0.1.0-debug.apk" download className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold transition hover:bg-violet-500"><ArrowDownToLine size={17} /> Baixar APK Android de teste</a>
+            <a href="/downloads/varynth-desktop-0.1.0-x64-setup.exe" download className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-300/30 bg-violet-300/10 px-5 py-3 text-sm font-bold text-violet-100 transition hover:bg-violet-300/15"><ArrowDownToLine size={17} /> Baixar instalador Windows de teste</a>
           </div>
         </section>
 
@@ -88,7 +92,7 @@ export function AppDownloadPage() {
         </section>
 
         <section className="mt-7 flex flex-col gap-3 rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.035] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div className="flex gap-3"><CircleHelp className="mt-0.5 shrink-0 text-cyan-200" size={19} /><div><h2 className="text-sm font-bold text-slate-100">Instalação sem mistério</h2><p className="mt-1 text-sm leading-6 text-slate-400">A instalação é feita pelo próprio navegador. Não há arquivo APK ou instalador para baixar nesta versão.</p></div></div>
+          <div className="flex gap-3"><CircleHelp className="mt-0.5 shrink-0 text-cyan-200" size={19} /><div><h2 className="text-sm font-bold text-slate-100">Versões de teste</h2><p className="mt-1 text-sm leading-6 text-slate-400">Android e Windows estão disponíveis para instalação de teste. Atualizações automáticas e recursos nativos avançados serão ativados em uma versão de distribuição assinada.</p></div></div>
           <Link href="/login" className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-cyan-200 hover:text-cyan-100">Continuar para o app <ArrowRight size={15} /></Link>
         </section>
 

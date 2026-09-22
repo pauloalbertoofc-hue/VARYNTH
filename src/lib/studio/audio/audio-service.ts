@@ -9,6 +9,9 @@ import {
   AudioExportResult,
   AudioCommandHistoryState,
   AudioTimelineMarker,
+  AudioBus,
+  AudioAutomationPoint,
+  AudioStemsExportResult,
 } from "./types";
 import { artifactService } from "../../artifacts/artifact-service";
 import { artifactStore } from "../../artifacts/artifact-store";
@@ -18,8 +21,13 @@ import { audioRenderEngine } from "./audio-render-engine";
 import { athenaEventBus } from "../../athena/events/event-bus";
 import { ArtifactActor } from "../../artifacts/types";
 import { AUDIO_TEMPLATES, AudioTemplate } from "./audio-templates";
+import { migrateAudioProject, CURRENT_AUDIO_SCHEMA_VERSION } from "./audio-migrations";
+import { defaultMusicProject } from "./music-domain";
+import { validateLoop } from "./game-audio-domain";
+import { probeAudioDurationMs, readWavAudioMetadata } from "./audio-metadata";
 
 const AUDIO_STATE_STORAGE_PREFIX = "varynth_audio_state_";
+const AUDIO_HISTORY_STORAGE_PREFIX = "varynth_audio_history_";
 const MAX_UNDO_STACK_SIZE = 50;
 
 export class AudioService {
@@ -39,7 +47,7 @@ export class AudioService {
           if (key && key.startsWith(AUDIO_STATE_STORAGE_PREFIX)) {
             const raw = localStorage.getItem(key);
             if (raw) {
-              const state: AudioDocumentState = JSON.parse(raw);
+              const state: AudioDocumentState = migrateAudioProject(JSON.parse(raw));
               this.stateCache.set(state.artifactId, state);
             }
           }
@@ -47,21 +55,67 @@ export class AudioService {
       } catch (err) {
         console.warn("[AudioService] Erro ao carregar estados do localStorage:", err);
       }
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || !key.startsWith(AUDIO_HISTORY_STORAGE_PREFIX)) continue;
+          const artifactId = key.slice(AUDIO_HISTORY_STORAGE_PREFIX.length);
+          const raw = localStorage.getItem(key);
+          if (!raw || !this.stateCache.has(artifactId)) continue;
+          const parsed = JSON.parse(raw) as Partial<AudioCommandHistoryState>;
+          const normalize = (states: unknown) => Array.isArray(states) ? states.slice(-MAX_UNDO_STACK_SIZE).map((state) => migrateAudioProject(state as AudioDocumentState)) : [];
+          this.commandHistory.set(artifactId, { past: normalize(parsed.past), future: normalize(parsed.future) });
+        }
+      } catch (err) {
+        console.warn("[AudioService] Erro ao carregar histórico de áudio:", err);
+      }
     }
   }
 
-  private persistState(state: AudioDocumentState): void {
-    this.stateCache.set(state.artifactId, state);
-    if (typeof window !== "undefined" && window.localStorage) {
+  private persistHistory(artifactId: string): void {
+    if (typeof window === "undefined") return;
+    try {
+      const history = this.getOrCreateHistory(artifactId);
+      window.localStorage.setItem(`${AUDIO_HISTORY_STORAGE_PREFIX}${artifactId}`, JSON.stringify(history));
+    } catch (err) {
+      console.warn("[AudioService] Erro ao salvar histórico de áudio:", err);
+    }
+  }
+
+  private persistState(state: AudioDocumentState): boolean {
+    if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(
+        window.localStorage.setItem(
           `${AUDIO_STATE_STORAGE_PREFIX}${state.artifactId}`,
           JSON.stringify(state)
         );
+        this.stateCache.set(state.artifactId, state);
+        return true;
       } catch (err) {
         console.error("[AudioService] Erro ao salvar estado de áudio:", err);
+        return false;
       }
     }
+    this.stateCache.set(state.artifactId, state);
+    return true;
+  }
+
+  public persistPendingStateLocally(state: AudioDocumentState): { success: boolean; error?: string } {
+    const integrity = this.validateTimelineIntegrity(state);
+    if (!integrity.valid) return { success: false, error: integrity.error };
+    state.updatedAt = new Date().toISOString();
+    if (!this.persistState(state)) {
+      return { success: false, error: "[AUDIO_LOCAL_SAVE_FAILED] O armazenamento local recusou o estado pendente. Libere espaço ou exporte um backup antes de continuar." };
+    }
+    return { success: true };
+  }
+
+  /** Keeps a valid in-flight editor snapshot available to async service operations without forcing storage I/O. */
+  public stageDocumentState(state: AudioDocumentState): { success: boolean; error?: string } {
+    const integrity = this.validateTimelineIntegrity(state);
+    if (!integrity.valid) return { success: false, error: integrity.error };
+    this.stateCache.set(state.artifactId, state);
+    return { success: true };
   }
 
   /**
@@ -95,6 +149,10 @@ export class AudioService {
             error: `[INVALID_TRACK_REFERENCE] Clip '${clip.id}' referencia trackId '${clip.trackId}' incompatível com a faixa '${track.id}'.`,
           };
         }
+        if (clip.loop?.enabled) {
+          const loop = validateLoop({ startMs: clip.loop.startMs ?? clip.sourceStartMs, endMs: clip.loop.endMs ?? clip.sourceEndMs, crossfadeMs: clip.loop.crossfadeMs ?? 0, loopable: true }, clip.sourceEndMs);
+          if (!loop.valid) return { valid: false, error: `${loop.error} Clip '${clip.id}'.` };
+        }
       }
     }
 
@@ -118,7 +176,11 @@ export class AudioService {
       history.past.shift();
     }
     history.future = [];
+    this.persistHistory(state.artifactId);
   }
+
+  public canUndo(artifactId: string): boolean { return this.getOrCreateHistory(artifactId).past.length > 0; }
+  public canRedo(artifactId: string): boolean { return this.getOrCreateHistory(artifactId).future.length > 0; }
 
   public undo(artifactId: string): AudioDocumentState | null {
     const history = this.getOrCreateHistory(artifactId);
@@ -129,6 +191,7 @@ export class AudioService {
     history.future.unshift(JSON.parse(JSON.stringify(currentState)));
 
     this.persistState(previousState);
+    this.persistHistory(artifactId);
     return previousState;
   }
 
@@ -141,6 +204,7 @@ export class AudioService {
     history.past.push(JSON.parse(JSON.stringify(currentState)));
 
     this.persistState(nextState);
+    this.persistHistory(artifactId);
     return nextState;
   }
 
@@ -214,7 +278,10 @@ export class AudioService {
 
     // 2. Initialize Editable Document State
     const docState: AudioDocumentState = {
+      projectSchemaVersion: CURRENT_AUDIO_SCHEMA_VERSION,
+      music: defaultMusicProject(),
       artifactId: artRes.artifact.id,
+      settings: { sampleRate: 44100, bitDepth: 16, channels: 2 },
       timeline: {
         durationMs,
         zoom: 1.0,
@@ -223,13 +290,16 @@ export class AudioService {
         timeUnit: "ms",
       },
       tracks: initialTracks,
+      buses: [],
+      masterBus: { id: "master", name: "Master", volume: 1, pan: 0, muted: false, solo: false, effects: [] },
+      automation: [],
       selectedTrackId: initialTracks[0]?.id,
       selectedClipIds: [],
       playheadMs: 0,
       updatedAt: new Date().toISOString(),
     };
 
-    this.persistState(docState);
+    this.persistState(migrateAudioProject(docState));
     athenaEventBus.emit("AUDIO_CREATED" as any, { artifactId: artRes.artifact.id, name: params.name });
 
     return {
@@ -254,7 +324,10 @@ export class AudioService {
     actor?: ArtifactActor;
   }): Promise<{ success: boolean; audio?: AudioItem; error?: string }> {
     const actor = params.actor || "USER";
-    const approxDurationMs = params.durationMs || 15000;
+    const containerMetadata = params.data instanceof ArrayBuffer ? readWavAudioMetadata(params.data) : null;
+    const probedDurationMs = containerMetadata?.durationMs ?? await probeAudioDurationMs(params.data, params.mimeType);
+    const approxDurationMs = params.durationMs ?? probedDurationMs;
+    if (typeof approxDurationMs !== "number" || !Number.isFinite(approxDurationMs) || approxDurationMs <= 0) return { success: false, error: "[AUDIO_DURATION_UNKNOWN] Não foi possível medir a duração deste arquivo. Nenhum asset ou clip foi criado; use um codec/container legível pelo navegador." };
 
     // 1. Validate Audio Data & Memory Guard
     const validation = audioRenderEngine.validateAudioData(params.name, params.mimeType, params.data, approxDurationMs);
@@ -275,13 +348,19 @@ export class AudioService {
           isDerived: false,
           originalName: params.name,
           durationMs: approxDurationMs,
+          ...(containerMetadata ? { sampleRate: containerMetadata.sampleRate, channels: containerMetadata.channels, bitsPerSample: containerMetadata.bitsPerSample } : {}),
         },
       },
       params.data
     );
 
     // 3. Generate Waveform Peaks Cache
-    audioRenderEngine.generateWaveform(sourceAsset.id, approxDurationMs, params.data);
+    void audioRenderEngine.generateWaveformAsync(sourceAsset.id, approxDurationMs, params.data).then((waveform) => {
+      // decodeAudioData resamples to the AudioContext rate; it is not the file's source sample rate.
+      assetManager.updateAssetMetadata(sourceAsset.id, { durationMs: waveform.durationMs, channels: waveform.channels });
+    }).catch((error) => {
+      console.error("[AudioService] Falha ao gerar waveform real:", error);
+    });
 
     // 4. Create AUDIO Artifact
     const artRes = await artifactService.create(
@@ -314,7 +393,10 @@ export class AudioService {
     const clipId = `clip-${Date.now()}`;
 
     const docState: AudioDocumentState = {
+      projectSchemaVersion: CURRENT_AUDIO_SCHEMA_VERSION,
+      music: defaultMusicProject(),
       artifactId: artRes.artifact.id,
+      settings: { sampleRate: 44100, bitDepth: 16, channels: 2 },
       timeline: {
         durationMs: approxDurationMs,
         zoom: 1.0,
@@ -347,6 +429,9 @@ export class AudioService {
           ],
         },
       ],
+      buses: [],
+      masterBus: { id: "master", name: "Master", volume: 1, pan: 0, muted: false, solo: false, effects: [] },
+      automation: [],
       selectedTrackId: trackId,
       selectedClipIds: [clipId],
       playheadMs: 0,
@@ -363,6 +448,53 @@ export class AudioService {
         documentState: docState,
       },
     };
+  }
+
+  public async importAssetIntoProject(params: { artifactId: string; name: string; mimeType: string; sizeBytes: number; data: string | Blob | ArrayBuffer; trackId?: string; timelineStartMs?: number; durationMs?: number; actor?: ArtifactActor }): Promise<{ success: boolean; assetId?: string; clipId?: string; error?: string }> {
+    const audio = this.getAudio(params.artifactId); if (!audio) return { success: false, error: "Projeto de áudio não encontrado." };
+    const containerMetadata = params.data instanceof ArrayBuffer ? readWavAudioMetadata(params.data) : null;
+    const probedDurationMs = containerMetadata?.durationMs ?? await probeAudioDurationMs(params.data, params.mimeType);
+    const durationMs = params.durationMs ?? probedDurationMs;
+    if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs <= 0) return { success: false, error: "[AUDIO_DURATION_UNKNOWN] Não foi possível medir a duração deste arquivo. Nenhum asset ou clip foi criado; use um codec/container legível pelo navegador." };
+    const validation = audioRenderEngine.validateAudioData(params.name, params.mimeType, params.data, durationMs);
+    if (validation.status !== "VALID_AUDIO") return { success: false, error: validation.error };
+    const asset = await assetManager.registerAsset({ name: params.name, mimeType: params.mimeType, sizeBytes: params.sizeBytes, storageType: "INDEXEDDB_BLOB", createdBy: params.actor || "USER", artifactIds: [params.artifactId], metadata: { isSource: true, isDerived: false, originalName: params.name, durationMs, ...(containerMetadata ? { sampleRate: containerMetadata.sampleRate, channels: containerMetadata.channels, bitsPerSample: containerMetadata.bitsPerSample } : {}), tags: [], loopable: false, variationGroup: "", notes: "" } }, params.data);
+    await assetManager.linkAssetToArtifact(asset.id, params.artifactId);
+    void audioRenderEngine.generateWaveformAsync(asset.id, durationMs, params.data).then((waveform) => {
+      // Preserve a container-reported source rate; decoder context rate is processing metadata only.
+      assetManager.updateAssetMetadata(asset.id, { durationMs: waveform.durationMs, channels: waveform.channels });
+    }).catch(() => undefined);
+    const track = audio.documentState.tracks.find((item) => item.id === params.trackId) || audio.documentState.tracks[0];
+    if (!track) return { success: false, error: "Nenhuma faixa disponível." };
+    const clipId = `clip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const clip: AudioClip = { id: clipId, assetId: asset.id, trackId: track.id, name: params.name, timelineStartMs: params.timelineStartMs ?? audio.documentState.playheadMs, sourceStartMs: 0, sourceEndMs: durationMs, gain: 1, playbackRate: 1 };
+    this.pushUndoState(audio.documentState);
+    const state = { ...audio.documentState, tracks: audio.documentState.tracks.map((item) => item.id === track.id ? { ...item, clips: [...item.clips, clip] } : item), selectedTrackId: track.id, selectedClipIds: [clipId], timeline: { ...audio.documentState.timeline, durationMs: Math.max(audio.documentState.timeline.durationMs, clip.timelineStartMs + durationMs) } };
+    const saved = await this.saveDocumentState(params.artifactId, state, params.actor || "USER");
+    return saved.success ? { success: true, assetId: asset.id, clipId } : { success: false, error: saved.error };
+  }
+
+  public async insertExistingAsset(artifactId: string, assetId: string, trackId?: string, timelineStartMs?: number, actor: ArtifactActor = "USER", options: { durationMs?: number; provenance?: AudioClip["provenance"] } = {}) {
+    const audio = this.getAudio(artifactId); const asset = assetManager.getAsset(assetId); if (!audio || !asset) return { success: false, error: "Projeto ou asset não encontrado." };
+    if (!assetManager.isAssetUsable(assetId)) return { success: false, error: `[AUDIO_ASSET_UNAVAILABLE] Asset '${assetId}' não está disponível para uso.` };
+    let durationMs = Number(options.durationMs ?? asset.metadata?.durationMs);
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+      const data = await assetManager.getAssetData(assetId);
+      const probedDurationMs = data ? await probeAudioDurationMs(data, asset.mimeType) : null;
+      durationMs = Number(probedDurationMs);
+      if (Number.isFinite(durationMs) && durationMs > 0) assetManager.updateAssetMetadata(assetId, { durationMs });
+    }
+    if (!Number.isFinite(durationMs) || durationMs <= 0) return { success: false, error: "[AUDIO_DURATION_UNKNOWN] A duração deste asset não está medida e não pôde ser lida do conteúdo. Não foi criado um clip com duração estimada." };
+    const latestAudio = this.getAudio(artifactId);
+    if (!latestAudio) return { success: false, error: "Projeto não encontrado após a medição do asset." };
+    if (!assetManager.isAssetUsable(assetId)) return { success: false, error: `[AUDIO_ASSET_UNAVAILABLE] Asset '${assetId}' deixou de estar disponível durante a medição.` };
+    const latestState = latestAudio.documentState;
+    const track = latestState.tracks.find((item) => item.id === trackId) || latestState.tracks[0]; if (!track) return { success: false, error: "Nenhuma faixa disponível." };
+    const clipId = `clip-existing-${Date.now()}`;
+    const clip: AudioClip = { id: clipId, assetId, trackId: track.id, name: asset.name, timelineStartMs: timelineStartMs ?? latestState.playheadMs, sourceStartMs: 0, sourceEndMs: durationMs, gain: 1, playbackRate: 1, provenance: options.provenance };
+    this.pushUndoState(latestState);
+    const state = { ...latestState, tracks: latestState.tracks.map((item) => item.id === track.id ? { ...item, clips: [...item.clips, clip] } : item), selectedClipIds: [clipId], timeline: { ...latestState.timeline, durationMs: Math.max(latestState.timeline.durationMs, clip.timelineStartMs + durationMs) } };
+    const saved = await this.saveDocumentState(artifactId, state, actor); return saved.success ? { success: true, clipId } : saved;
   }
 
   public getAudio(artifactId: string): AudioItem | null {
@@ -425,13 +557,8 @@ export class AudioService {
     docState: AudioDocumentState,
     actor: ArtifactActor = "USER"
   ): Promise<{ success: boolean; error?: string }> {
-    const integrity = this.validateTimelineIntegrity(docState);
-    if (!integrity.valid) {
-      return { success: false, error: integrity.error };
-    }
-
-    docState.updatedAt = new Date().toISOString();
-    this.persistState(docState);
+    const persisted = this.persistPendingStateLocally(docState);
+    if (!persisted.success) return persisted;
 
     const totalClips = docState.tracks.reduce((acc, t) => acc + t.clips.length, 0);
 
@@ -452,6 +579,41 @@ export class AudioService {
     );
 
     return { success: true };
+  }
+
+  public async addBus(artifactId: string, bus: AudioBus, actor: ArtifactActor = "USER") {
+    const audio = this.getAudio(artifactId); if (!audio) return { success: false, error: "Projeto não encontrado." };
+    this.pushUndoState(audio.documentState);
+    const state = { ...audio.documentState, buses: [...(audio.documentState.buses || []), bus] };
+    return this.saveDocumentState(artifactId, state, actor);
+  }
+
+  public async duplicateClip(artifactId: string, clipId: string, actor: ArtifactActor = "USER") {
+    const audio = this.getAudio(artifactId); if (!audio) return { success: false, error: "Projeto não encontrado." };
+    const source = audio.documentState.tracks.flatMap((t) => t.clips).find((c) => c.id === clipId); if (!source) return { success: false, error: "Clip não encontrado." };
+    this.pushUndoState(audio.documentState);
+    const copy = { ...source, id: `${source.id}-copy-${Date.now()}`, name: `${source.name || "Clip"} (Cópia)`, timelineStartMs: source.timelineStartMs + (source.sourceEndMs - source.sourceStartMs) };
+    const state = { ...audio.documentState, tracks: audio.documentState.tracks.map((t) => t.id === source.trackId ? { ...t, clips: [...t.clips, copy] } : t) };
+    return this.saveDocumentState(artifactId, state, actor);
+  }
+
+  public async addCrossfade(artifactId: string, firstClipId: string, secondClipId: string, durationMs: number, actor: ArtifactActor = "USER") {
+    const audio = this.getAudio(artifactId); if (!audio) return { success: false, error: "Projeto não encontrado." };
+    const all = audio.documentState.tracks.flatMap((t) => t.clips); const first = all.find((c) => c.id === firstClipId); const second = all.find((c) => c.id === secondClipId);
+    if (!first || !second || first.trackId !== second.trackId) return { success: false, error: "Crossfade requer dois clips da mesma faixa." };
+    const firstEnd = first.timelineStartMs + first.sourceEndMs - first.sourceStartMs;
+    if (second.timelineStartMs < firstEnd - durationMs) return { success: false, error: "A duração do crossfade excede a sobreposição dos clips." };
+    this.pushUndoState(audio.documentState);
+    const state = { ...audio.documentState, tracks: audio.documentState.tracks.map((t) => ({ ...t, clips: t.clips.map((c) => c.id === firstClipId ? { ...c, fadeOutMs: durationMs } : c.id === secondClipId ? { ...c, fadeInMs: durationMs } : c) })) };
+    return this.saveDocumentState(artifactId, state, actor);
+  }
+
+  public async setAutomationPoint(artifactId: string, point: AudioAutomationPoint, actor: ArtifactActor = "USER") {
+    const audio = this.getAudio(artifactId); if (!audio) return { success: false, error: "Projeto não encontrado." };
+    this.pushUndoState(audio.documentState);
+    const points = (audio.documentState.automation || []).filter((p) => p.id !== point.id);
+    points.push(point); points.sort((a, b) => a.timeMs - b.timeMs);
+    return this.saveDocumentState(artifactId, { ...audio.documentState, automation: points }, actor);
   }
 
   /**
@@ -802,7 +964,12 @@ export class AudioService {
 
     return await audioRenderEngine.renderTimeline(audio.documentState, options, actor);
   }
+
+  public async exportStems(artifactId: string, options: AudioExportOptions, actor: ArtifactActor = "USER"): Promise<AudioStemsExportResult> {
+    const audio = this.getAudio(artifactId);
+    if (!audio) return { success: false, stems: [], error: "Projeto de áudio não encontrado." };
+    return audioRenderEngine.renderStems(audio.documentState, options, actor);
+  }
 }
 
 export const audioService = new AudioService();
-

@@ -125,9 +125,22 @@ export class GameRulesEngine {
    */
   public evaluateConditions(
     conditions: GameCondition[],
-    variables: Record<string, boolean | number | string>
+    variables: Record<string, boolean | number | string>,
+    entities: Record<string, GameEntity> = {}
   ): boolean {
     for (const cond of conditions) {
+      if (cond.type === "ENTITY_EXISTS") {
+        if (Boolean(entities[cond.entityId || ""]) !== Boolean(cond.value)) return false;
+        continue;
+      }
+      if (cond.type === "HAS_TAG") {
+        if (Boolean(entities[cond.entityId || ""]?.tags.includes(cond.tag || "")) !== Boolean(cond.value)) return false;
+        continue;
+      }
+      if (cond.type === "BOOLEAN_CHECK") {
+        if (variables[cond.variableId] !== cond.value) return false;
+        continue;
+      }
       const varVal = variables[cond.variableId];
       if (varVal === undefined) return false;
 
@@ -209,7 +222,7 @@ export class GameRulesEngine {
           return { executedRules, budgetExceeded: true };
         }
 
-        const conditionsPass = this.evaluateConditions(rule.conditions, state.variables);
+        const conditionsPass = this.evaluateConditions(rule.conditions, state.variables, state.entities);
         if (conditionsPass) {
           executedRules.push(rule.id);
           context.executedRuleIds.push(rule.id);
@@ -295,6 +308,20 @@ export class GameRulesEngine {
         }
         break;
       }
+      case "SET_POSITION": {
+        if (action.entityId && state.entities[action.entityId]) {
+          const tr = state.entities[action.entityId].components.find((component) => component.type === "TRANSFORM");
+          if (tr && tr.type === "TRANSFORM") { tr.x = action.x ?? tr.x; tr.y = action.y ?? tr.y; state.logs.push(`[ACTION] Posição de "${state.entities[action.entityId].name}" definida.`); }
+        }
+        break;
+      }
+      case "APPLY_FORCE": {
+        if (action.entityId && state.entities[action.entityId]) {
+          const body = state.entities[action.entityId].components.find((component) => component.type === "RIGID_BODY");
+          if (body && body.type === "RIGID_BODY" && body.mode === "DYNAMIC") { body.velocityX += (action.forceX || 0) / Math.max(body.mass, 0.01); body.velocityY += (action.forceY || 0) / Math.max(body.mass, 0.01); state.logs.push(`[ACTION] Força aplicada em "${state.entities[action.entityId].name}".`); }
+        }
+        break;
+      }
       case "SHOW_ENTITY": {
         if (action.entityId && state.entities[action.entityId]) {
           state.entities[action.entityId].active = true;
@@ -334,11 +361,27 @@ export class GameRulesEngine {
         break;
       }
       case "PLAY_AUDIO": {
-        if (action.assetId) {
+        if (action.audioEventId) {
+          state.logs.push(`[ACTION_AUDIO_EVENT] Reproduzindo evento de áudio "${action.audioEventId}".`);
+        } else if (action.assetId) {
           state.logs.push(`[ACTION_AUDIO] Reproduzindo asset "${action.assetId}".`);
         }
         break;
       }
+      case "EMIT_EVENT": {
+        if (action.eventType) this.queueEvent({ type: action.eventType, entityId: action.entityId, targetEntityId: action.targetEntityId } as any, { originEntityId: action.entityId, targetEntityId: action.targetEntityId, actionName: action.actionName }, 2, state.simulationClockMs);
+        state.logs.push(`[ACTION_EVENT] Evento emitido: ${action.eventType || " desconhecido"}.`);
+        break;
+      }
+      case "CREATE_ENTITY": {
+        if (action.entity?.id && !state.entities[action.entity.id]) { state.entities[action.entity.id] = JSON.parse(JSON.stringify(action.entity)); state.logs.push(`[ACTION] Entidade "${action.entity.name}" criada.`); this.queueEvent({ type: "ON_ENTITY_CREATED", entityId: action.entity.id } as any, { originEntityId: action.entity.id }, 1, state.simulationClockMs); }
+        break;
+      }
+      case "DESTROY_ENTITY": {
+        if (action.entityId && state.entities[action.entityId]) { delete state.entities[action.entityId]; state.logs.push(`[ACTION] Entidade destruída: "${action.entityId}".`); this.queueEvent({ type: "ON_ENTITY_DESTROYED", entityId: action.entityId } as any, { originEntityId: action.entityId }, 1, state.simulationClockMs); }
+        break;
+      }
+      case "WAIT": state.logs.push(`[ACTION_WAIT] ${action.durationMs || 0}ms.`); break;
     }
   }
 
@@ -348,7 +391,7 @@ export class GameRulesEngine {
       supportedComponents: ["TRANSFORM", "SPRITE", "TEXT", "AUDIO_SOURCE", "COLLIDER", "INPUT", "STATE", "VARIABLES", "SCRIPT", "UI"],
       supportedTriggers: ["ON_START", "ON_CLICK", "ON_KEY", "ON_ACTION", "ON_COLLISION", "ON_VARIABLE_CHANGED", "ON_SCENE_ENTER", "ON_TIMER"],
       supportedConditions: ["EQUALS", "NOT_EQUALS", "GREATER_THAN", "LESS_THAN", "CONTAINS"],
-      supportedActions: ["SET_VARIABLE", "ADD_VARIABLE", "MOVE_ENTITY", "SHOW_ENTITY", "HIDE_ENTITY", "PLAY_AUDIO", "CHANGE_SCENE", "SHOW_TEXT", "END_GAME"],
+      supportedActions: ["SET_VARIABLE", "ADD_VARIABLE", "MOVE_ENTITY", "SET_POSITION", "APPLY_FORCE", "SHOW_ENTITY", "HIDE_ENTITY", "PLAY_AUDIO", "CHANGE_SCENE", "SHOW_TEXT", "END_GAME", "EMIT_EVENT", "CREATE_ENTITY", "DESTROY_ENTITY", "WAIT"],
       webBuildAvailable: true,
       androidBuildAvailable: false,
       desktopBuildAvailable: false,
@@ -369,4 +412,3 @@ export class GameRulesEngine {
 }
 
 export const gameRulesEngine = new GameRulesEngine();
-

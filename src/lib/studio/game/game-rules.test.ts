@@ -119,6 +119,11 @@ async function runGameRulesTests() {
     "Ação MOVE_ENTITY atualiza as coordenadas da entidade."
   );
 
+  const audioEventRule: GameRule = { id: "rule-play-audio-event", name: "Tocar evento", enabled: true, trigger: { type: "ON_ACTION", actionName: "PLAY_FOOTSTEPS" }, conditions: [], actions: [{ type: "PLAY_AUDIO", audioEventId: "event-footstep" }] };
+  engine.queueEvent({ type: "ON_ACTION", actionName: "PLAY_FOOTSTEPS" });
+  engine.processEvents([audioEventRule], testState);
+  assert(testState.logs.some((log) => log.includes("[ACTION_AUDIO_EVENT]") && log.includes("event-footstep")), "GRULE-011", "Ação PLAY_AUDIO registra evento Game Audio estruturado para o sandbox consumidor.");
+
   // GRULE-008: Rule Storm Recursion Budget Guard (RULE_EXECUTION_BUDGET_EXCEEDED)
   // Create circular ping-pong rules: Variable A changes -> set B; Variable B changes -> set A
   const stormRules: GameRule[] = [
@@ -186,4 +191,3 @@ runGameRulesTests().catch((err) => {
   console.error("Erro fatal na suíte de regras de jogo:", err);
   process.exit(1);
 });
-

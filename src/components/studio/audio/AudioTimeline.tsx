@@ -12,12 +12,15 @@ interface AudioTimelineProps {
   selectedTrackId?: string;
   selectedClipIds: string[];
   onSelectTrack: (trackId: string) => void;
-  onSelectClip: (clipId: string) => void;
+  onSelectClip: (clipId: string, additive?: boolean) => void;
   onSeek: (timeMs: number) => void;
   onToggleTrackMute: (trackId: string) => void;
   onToggleTrackSolo: (trackId: string) => void;
   onUpdateTrackVolume: (trackId: string, volume: number) => void;
   onUpdateTrackPan: (trackId: string, pan: number) => void;
+  onMoveClip?: (clipId: string, timelineStartMs: number) => void;
+  onTrimClip?: (clipId: string, side: "start" | "end", deltaMs: number) => void;
+  onImportFiles?: (files: File[]) => void;
 }
 
 export function AudioTimeline({
@@ -32,6 +35,9 @@ export function AudioTimeline({
   onToggleTrackSolo,
   onUpdateTrackVolume,
   onUpdateTrackPan,
+  onMoveClip,
+  onTrimClip,
+  onImportFiles,
 }: AudioTimelineProps) {
   const timelineContentRef = useRef<HTMLDivElement>(null);
 
@@ -115,6 +121,8 @@ export function AudioTimeline({
         {/* Right: Interactive Clip Lanes */}
         <div
           onClick={handleRulerClick}
+          onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+          onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith("audio/")); if (files.length) onImportFiles?.(files); }}
           className="flex-1 overflow-x-auto overflow-y-hidden relative bg-[#090a16]"
         >
           <div style={{ width: `${totalTimelineWidthPx}px` }} className="relative h-full">
@@ -144,7 +152,10 @@ export function AudioTimeline({
                     trackColor={track.color}
                     zoom={zoom}
                     isSelected={selectedClipIds.includes(clip.id)}
-                    onSelect={() => onSelectClip(clip.id)}
+                    onSelect={(additive) => onSelectClip(clip.id, additive)}
+                    onMove={(timeMs) => onMoveClip?.(clip.id, documentState.timeline.snapToGrid ? Math.round(timeMs / 100) * 100 : timeMs)}
+                    onTrimStart={(deltaMs) => onTrimClip?.(clip.id, "start", deltaMs)}
+                    onTrimEnd={(deltaMs) => onTrimClip?.(clip.id, "end", deltaMs)}
                   />
                 ))}
               </div>
@@ -163,4 +174,3 @@ export function AudioTimeline({
     </div>
   );
 }
-

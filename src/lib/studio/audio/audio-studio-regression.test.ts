@@ -13,8 +13,14 @@ async function runAudioStudioTests() {
 
   let passed = 0;
   let failed = 0;
+  let skipped = 0;
 
-  function assert(condition: boolean, testId: string, desc: string) {
+  function assert(condition: boolean, testId: string, desc: string, browserOnly = false) {
+    if (browserOnly && typeof window === "undefined") {
+      console.log(`  ⏭️ SKIP: [${testId}] ${desc} (requer runtime Web Audio no navegador)`);
+      skipped++;
+      return;
+    }
     if (condition) {
       console.log(`  ✅ PASS: [${testId}] ${desc}`);
       passed++;
@@ -40,6 +46,20 @@ async function runAudioStudioTests() {
     );
 
     const artifactId = projRes.audio!.artifact.id;
+
+    // [AUDST-REG-040] Musical batch edits use one reversible state transition.
+    const historyBaseline = audioService.getAudio(artifactId)!.documentState;
+    const historyMusic = {
+      ...(historyBaseline.music || { version: 1 as const, tuning: { concertPitchHz: 440, temperament: "12-TET" as const }, tempoMap: [{ beat: 0, bpm: 120 }], timeSignature: { numerator: 4, denominator: 4 as const }, key: { tonic: "C" as const, accidental: "natural" as const, scale: "major" as const }, notes: [], rests: [], chords: [] }),
+      notes: [{ id: "history-note", pitch: "C" as const, accidental: "natural" as const, octave: 4, startBeat: 0.37, durationBeats: 1, velocity: 80 }],
+    };
+    const historyEdited = { ...historyBaseline, music: historyMusic };
+    audioService.pushUndoState(historyBaseline);
+    audioService.stageDocumentState(historyEdited);
+    const historyUndo = audioService.undo(artifactId);
+    const historyRedo = audioService.redo(artifactId);
+    assert(historyUndo?.music?.notes.length === historyBaseline.music?.notes.length && historyRedo?.music?.notes[0]?.startBeat === 0.37 && historyRedo.music.notes[0].velocity === 80, "AUDST-REG-040", "Alteração musical staged mantém Undo/Redo e restaura a nota editada sem duplicar estado.");
+    audioService.stageDocumentState(historyBaseline);
 
     // -------------------------------------------------------------
     // [AUDST-REG-002] Imported source audio remains immutable
@@ -295,7 +315,7 @@ async function runAudioStudioTests() {
     assert(
       exportRes.success && exportRes.blob !== undefined && exportRes.blob.size > 0,
       "AUDST-REG-019",
-      "Exportação gera arquivo WAV real com tamanho maior que zero e registra Derived Asset."
+      "Exportação gera arquivo WAV real com tamanho maior que zero e registra Derived Asset.", true
     );
 
     // -------------------------------------------------------------
@@ -358,7 +378,7 @@ async function runAudioStudioTests() {
     assert(
       regenWaveform.peaks.length > 0,
       "AUDST-REG-024",
-      "Waveform derivada pode ser recalculada a partir do assetId."
+      "Waveform derivada pode ser recalculada a partir do assetId.", true
     );
 
     // -------------------------------------------------------------
@@ -451,7 +471,7 @@ async function runAudioStudioTests() {
     assert(
       wf.peaks.length === 100 && typeof wf.peaks[0] === "number",
       "AUDST-REG-031",
-      "Waveform armazena apenas array numérico leve de picos sem reter buffers pesados em memória."
+      "Waveform armazena apenas array numérico leve de picos sem reter buffers pesados em memória.", true
     );
 
     // -------------------------------------------------------------
@@ -529,16 +549,41 @@ async function runAudioStudioTests() {
     assert(
       clippingExport.warnings !== undefined && Boolean(clippingExport.warnings.some((w) => w.includes("OUTPUT_CLIPPING_DETECTED"))),
       "AUDST-REG-037",
-      "Pico de amplitude superior a 0dBFS emite alerta OUTPUT_CLIPPING_DETECTED."
+      "Pico de amplitude superior a 0dBFS emite alerta OUTPUT_CLIPPING_DETECTED.", true
     );
 
+    // [AUDST-REG-038] Generated assets persist their duration and provenance on the inserted clip.
+    const generatedAsset = await assetManager.registerAsset({ name: "generated-rain.wav", mimeType: "audio/wav", sizeBytes: 16, artifactIds: [artifactId], metadata: { durationMs: 1000, isSource: false, isDerived: true } }, new ArrayBuffer(16));
+    const generatedLinked = await assetManager.linkAssetToArtifact(generatedAsset.id, artifactId);
+    const generatedTargetTrack = audioService.getAudio(artifactId)!.documentState.tracks[0];
+    const generatedInsertion = await audioService.insertExistingAsset(artifactId, generatedAsset.id, generatedTargetTrack.id, 5000, "USER", { durationMs: 2500, provenance: { origin: "GENERATED", provider: "test-provider", license: "test-license", generationDate: "2026-09-21T12:00:00.000Z", generationMetadata: { model: "fixture-v1", prompt: "rain" } } });
+    const generatedState = audioService.getAudio(artifactId)?.documentState;
+    const generatedClip = generatedState?.tracks.flatMap((track) => track.clips).find((clip) => clip.id === ("clipId" in generatedInsertion ? generatedInsertion.clipId : ""));
+    assert(generatedLinked && generatedInsertion.success && generatedClip?.sourceEndMs === 2500 && generatedClip.provenance?.origin === "GENERATED" && generatedClip.provenance.generationMetadata?.model === "fixture-v1" && (generatedState?.timeline.durationMs || 0) >= 7500, "AUDST-REG-038", "Asset gerado vincula ao projeto e persiste duração, origem, provider e metadados no clip/timeline.");
+
+    // [AUDST-REG-039] A metadata probe must not overwrite editor changes staged while it awaits asset bytes.
+    const wavBytes = new ArrayBuffer(44 + 1600);
+    const wavView = new DataView(wavBytes);
+    const writeAscii = (offset: number, value: string) => [...value].forEach((char, index) => wavView.setUint8(offset + index, char.charCodeAt(0)));
+    writeAscii(0, "RIFF"); wavView.setUint32(4, wavBytes.byteLength - 8, true); writeAscii(8, "WAVEfmt "); wavView.setUint32(16, 16, true); wavView.setUint16(20, 1, true); wavView.setUint16(22, 1, true); wavView.setUint32(24, 8000, true); wavView.setUint32(28, 16000, true); wavView.setUint16(32, 2, true); wavView.setUint16(34, 16, true); writeAscii(36, "data"); wavView.setUint32(40, 1600, true);
+    const legacyAsset = await assetManager.registerAsset({ name: "concurrent-legacy.wav", mimeType: "audio/wav", sizeBytes: wavBytes.byteLength, artifactIds: [artifactId], metadata: { isSource: true, isDerived: false } }, wavBytes);
+    const concurrencyTrack = audioService.getAudio(artifactId)!.documentState.tracks[0];
+    const concurrentInsertionPromise = audioService.insertExistingAsset(artifactId, legacyAsset.id, concurrencyTrack.id, 12000);
+    const stateWhileProbeIsPending = audioService.getAudio(artifactId)!.documentState;
+    const concurrentMarker = { id: "marker-during-asset-probe", timeMs: 11000, label: "Preserve concurrent edit", color: "#22c55e" };
+    const stagedDuringProbe = { ...stateWhileProbeIsPending, timeline: { ...stateWhileProbeIsPending.timeline, markers: [...stateWhileProbeIsPending.timeline.markers, concurrentMarker] } };
+    const stagedResult = audioService.stageDocumentState(stagedDuringProbe);
+    const concurrentInsertion = await concurrentInsertionPromise;
+    const afterConcurrentInsertion = audioService.getAudio(artifactId)?.documentState;
+    const insertedConcurrentClip = afterConcurrentInsertion?.tracks.flatMap((track) => track.clips).find((clip) => clip.assetId === legacyAsset.id);
+    assert(stagedResult.success && concurrentInsertion.success && insertedConcurrentClip?.sourceEndMs === 100 && Boolean(afterConcurrentInsertion?.timeline.markers.some((marker) => marker.id === concurrentMarker.id)), "AUDST-REG-039", "Inserção que aguarda bytes mede WAV legado e preserva edição staged durante a espera.");
   } catch (err: any) {
     console.error("  ❌ ERRO CRÍTICO NA SUÍTE:", err);
     failed++;
   }
 
   console.log("\n===============================================================");
-  console.log(`  RESULTADO: ${passed} Aprovados, ${failed} Falhas`);
+  console.log(`  RESULTADO: ${passed} Aprovados, ${failed} Falhas, ${skipped} Ignorados por ambiente`);
   console.log("===============================================================\n");
 
   if (failed > 0) {

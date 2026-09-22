@@ -1,0 +1,7 @@
+import { exportMusicXml } from "./musicxml-export";
+import { defaultMusicProject } from "./music-domain";
+const project = defaultMusicProject(); project.notes.push({ id: "c4", pitch: "C", accidental: "natural", octave: 4, startBeat: 2, durationBeats: 1, velocity: 100, voice: 2 }); project.notes.push({ id: "e4", pitch: "E", accidental: "natural", octave: 4, startBeat: 0, durationBeats: 1, velocity: 100, voice: 1 }); project.notes.push({ id: "g4", pitch: "G", accidental: "natural", octave: 4, startBeat: 0, durationBeats: 1, velocity: 100, voice: 1 });
+project.notes.push({ id: "tuplet", pitch: "D", accidental: "natural", octave: 4, startBeat: 3, durationBeats: 1, velocity: 90, tuplet: { actual: 3, normal: 2 } });
+const xml = exportMusicXml(project, "Teste");
+if (!xml.includes("score-partwise") || !xml.includes("<step>C</step>") || !xml.includes("<voice>2</voice>") || !xml.includes("<forward><duration>8</duration></forward>") || !xml.includes("<backup><duration>16</duration></backup>") || !xml.includes("<chord/>") || !xml.includes("<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>") || !xml.includes("<work-title>Teste</work-title>") || !xml.includes("<per-minute>120</per-minute>")) throw new Error("MusicXML não preservou título, offsets, tuplets, vozes, acordes, backup, notas e tempo.");
+console.log("MusicXML export tests passed: score metadata, pitch, duration and tempo.");

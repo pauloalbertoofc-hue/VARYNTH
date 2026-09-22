@@ -2,10 +2,12 @@
 
 import React from "react";
 import { GameEntity, GameComponent, ComponentType } from "@/lib/studio/game/types";
+import { gameComponentRegistry } from "@/lib/studio/game/component-registry";
 import { Box, Plus, Trash2, Sliders, Tag } from "lucide-react";
 
 interface GameInspectorProps {
   selectedEntity?: GameEntity;
+  entities: GameEntity[];
   onUpdateEntity: (entityId: string, updates: Partial<GameEntity>) => void;
   onAddComponent: (entityId: string, component: GameComponent) => void;
   onRemoveComponent: (entityId: string, componentType: ComponentType) => void;
@@ -13,6 +15,7 @@ interface GameInspectorProps {
 
 export const GameInspector: React.FC<GameInspectorProps> = ({
   selectedEntity,
+  entities,
   onUpdateEntity,
   onAddComponent,
   onRemoveComponent,
@@ -27,11 +30,19 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
     );
   }
 
+  const descendantIds = new Set<string>();
+  const collectDescendants = (parentId: string) => entities.filter((entity) => entity.parentEntityId === parentId).forEach((child) => { descendantIds.add(child.id); collectDescendants(child.id); });
+  collectDescendants(selectedEntity.id);
+  const parentCandidates = entities.filter((entity) => entity.id !== selectedEntity.id && !descendantIds.has(entity.id));
+
   const transform = selectedEntity.components.find((c) => c.type === "TRANSFORM");
   const sprite = selectedEntity.components.find((c) => c.type === "SPRITE");
   const textComp = selectedEntity.components.find((c) => c.type === "TEXT");
   const uiComp = selectedEntity.components.find((c) => c.type === "UI");
   const collider = selectedEntity.components.find((c) => c.type === "COLLIDER");
+  const rigidBody = selectedEntity.components.find((c) => c.type === "RIGID_BODY");
+  const animator = selectedEntity.components.find((c) => c.type === "ANIMATOR");
+  const camera = selectedEntity.components.find((c) => c.type === "CAMERA");
 
   return (
     <div className="h-full flex flex-col bg-[#0b0c16] text-slate-300 text-xs overflow-y-auto select-none">
@@ -70,6 +81,11 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
             </span>
           ))}
         </div>
+        <label className="text-[10px] uppercase text-slate-500 font-semibold block">Pai na hierarquia
+          <select value={selectedEntity.parentEntityId || ""} onChange={(event) => onUpdateEntity(selectedEntity.id, { parentEntityId: event.target.value || undefined })} className="mt-1 w-full px-2 py-1.5 bg-[#18192c] border border-[#272844] rounded text-white text-xs normal-case font-normal">
+            <option value="">Sem pai</option>{parentCandidates.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}</option>)}
+          </select>
+        </label>
       </div>
 
       {/* Components Container */}
@@ -112,6 +128,10 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              {[{ label: "Escala X", key: "scaleX" }, { label: "Escala Y", key: "scaleY" }, { label: "Rotação", key: "rotation" }, { label: "Z-index", key: "zIndex" }].map((field) => <label key={field.key} className="text-[10px] text-slate-500">{field.label}<input type="number" step={field.key.startsWith("scale") ? "0.1" : "1"} value={(transform as any)[field.key]} onChange={(event) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((component) => component.type === "TRANSFORM" ? { ...component, [field.key]: Number(event.target.value) || 0 } : component) })} className="mt-0.5 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white font-mono"/></label>)}
+            </div>
+            <label className="flex gap-2 items-center text-[11px]"><input type="checkbox" checked={transform.visible !== false} onChange={(event) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((component) => component.type === "TRANSFORM" ? { ...component, visible: event.target.checked } : component) })} /> Visível</label>
           </div>
         )}
 
@@ -160,8 +180,20 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
                 />
               </div>
             </div>
+            <div>
+              <label className="text-[10px] text-slate-500 block mb-0.5">Asset ID</label>
+              <input value={sprite.assetId} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "SPRITE" ? { ...c, assetId: e.target.value } : c) })} className="w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white font-mono text-[11px]" placeholder="ID do asset anexado" />
+            </div>
           </div>
         )}
+
+        {selectedEntity.components.filter((component) => component.type === "AUDIO_SOURCE").map((audio) => audio.type === "AUDIO_SOURCE" && (
+          <div key="audio-source" className="p-3 bg-[#111222] border border-[#1f2038] rounded-xl space-y-2">
+            <div className="flex justify-between text-white font-bold text-[11px]"><span>Audio Source</span><button onClick={() => onRemoveComponent(selectedEntity.id, "AUDIO_SOURCE")} className="text-rose-400"><Trash2 size={12}/></button></div>
+            <label className="text-[10px] text-slate-500 block">Asset ID<input value={audio.assetId} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, assetId: e.target.value } : c) })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white font-mono text-[11px]" placeholder="ID do áudio anexado" /></label>
+            <label className="flex gap-2 items-center"><input type="checkbox" checked={audio.loop} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, loop: e.target.checked } : c) })} /> Loop</label>
+          </div>
+        ))}
 
         {/* TEXT */}
         {textComp && textComp.type === "TEXT" && (
@@ -253,37 +285,27 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
           </div>
         )}
 
+        {rigidBody && rigidBody.type === "RIGID_BODY" && <div className="p-3 bg-[#111222] border border-[#1f2038] rounded-xl space-y-2"><div className="flex justify-between text-white font-bold text-[11px]"><span>RigidBody 2D</span><button onClick={() => onRemoveComponent(selectedEntity.id, "RIGID_BODY")} className="text-rose-400"><Trash2 size={12}/></button></div><select value={rigidBody.mode} onChange={e => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map(c => c.type === "RIGID_BODY" ? { ...c, mode: e.target.value as any } : c) })} className="w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white"><option value="STATIC">Static</option><option value="DYNAMIC">Dynamic</option><option value="KINEMATIC">Kinematic</option></select><div className="grid grid-cols-2 gap-2"><label className="text-[10px] text-slate-500">Massa<input type="number" min="0.01" step="0.1" value={rigidBody.mass} onChange={e => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map(c => c.type === "RIGID_BODY" ? { ...c, mass: Number(e.target.value) || 1 } : c) })} className="w-full px-2 py-1 bg-[#18192c] rounded text-white"/></label><label className="text-[10px] text-slate-500">Gravidade<input type="number" step="0.1" value={rigidBody.gravityScale} onChange={e => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map(c => c.type === "RIGID_BODY" ? { ...c, gravityScale: Number(e.target.value) || 0 } : c) })} className="w-full px-2 py-1 bg-[#18192c] rounded text-white"/></label></div></div>}
+        {animator && animator.type === "ANIMATOR" && <div className="p-3 bg-[#111222] border border-[#1f2038] rounded-xl space-y-2"><div className="flex justify-between text-white font-bold text-[11px]"><span>Animator ({animator.clips.length} clips)</span><button onClick={() => onRemoveComponent(selectedEntity.id, "ANIMATOR")} className="text-rose-400"><Trash2 size={12}/></button></div><label className="flex gap-2 items-center"><input type="checkbox" checked={animator.playing} onChange={e => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map(c => c.type === "ANIMATOR" ? { ...c, playing: e.target.checked } : c) })}/> Reproduzir animação</label><p className="text-[10px] text-slate-500">Clips são serializáveis e podem ser vinculados a spritesheets.</p></div>}
+        {camera && camera.type === "CAMERA" && <div className="p-3 bg-[#111222] border border-[#1f2038] rounded-xl space-y-2"><div className="flex justify-between text-white font-bold text-[11px]"><span>Camera 2D</span><button onClick={() => onRemoveComponent(selectedEntity.id, "CAMERA")} className="text-rose-400"><Trash2 size={12}/></button></div><label className="text-[10px] text-slate-500">Zoom<input type="number" min="0.1" step="0.1" value={camera.zoom} onChange={e => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map(c => c.type === "CAMERA" ? { ...c, zoom: Number(e.target.value) || 1 } : c) })} className="w-full px-2 py-1 bg-[#18192c] rounded text-white"/></label></div>}
+
         {/* Add Component Action */}
         <div className="pt-2">
           <select
             onChange={(e) => {
               const compType = e.target.value as ComponentType;
-              if (compType === "SPRITE") {
-                onAddComponent(selectedEntity.id, { type: "SPRITE", assetId: "default-sprite", width: 64, height: 64 });
-              } else if (compType === "TEXT") {
-                onAddComponent(selectedEntity.id, { type: "TEXT", text: "Novo Texto", fontSize: 18, color: "#ffffff" });
-              } else if (compType === "COLLIDER") {
-                onAddComponent(selectedEntity.id, { type: "COLLIDER", shape: "RECTANGLE", width: 64, height: 64 });
-              } else if (compType === "UI") {
-                onAddComponent(selectedEntity.id, { type: "UI", elementType: "BUTTON", text: "Clique Aqui" });
-              } else if (compType === "AUDIO_SOURCE") {
-                onAddComponent(selectedEntity.id, { type: "AUDIO_SOURCE", assetId: "sfx-default", volume: 1.0, loop: false });
-              }
+              const component = gameComponentRegistry.createDefault(compType);
+              if (component && !selectedEntity.components.some(c => c.type === compType)) onAddComponent(selectedEntity.id, component);
               e.target.value = "";
             }}
             defaultValue=""
             className="w-full px-3 py-2 bg-[#181a30] hover:bg-[#1e213d] border border-emerald-500/30 rounded-xl text-emerald-300 font-semibold cursor-pointer text-xs transition focus:outline-none"
           >
             <option value="" disabled>+ Adicionar Componente</option>
-            {!sprite && <option value="SPRITE">Sprite Visual</option>}
-            {!textComp && <option value="TEXT">Texto / Label</option>}
-            {!collider && <option value="COLLIDER">Colisor 2D</option>}
-            {!uiComp && <option value="UI">Elemento de Interface (UI)</option>}
-            <option value="AUDIO_SOURCE">Fonte Sonora (AudioSource)</option>
+            {gameComponentRegistry.all().filter(def => !selectedEntity.components.some(c => c.type === def.type)).map(def => <option key={def.type} value={def.type}>{def.label}</option>)}
           </select>
         </div>
       </div>
     </div>
   );
 };
-

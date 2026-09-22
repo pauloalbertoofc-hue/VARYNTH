@@ -41,7 +41,7 @@ export interface StorageAdapter<T extends { id: string }> {
 }
 
 export interface AssetStorageAdapter {
-  storeBlob(id: string, blob: Blob | string, metadata?: Record<string, unknown>): Promise<string>;
+  storeBlob(id: string, blob: Blob | ArrayBuffer | string, metadata?: Record<string, unknown>): Promise<string>;
   getBlob(id: string): Promise<Blob | string | null>;
   getBlobUrl(id: string): Promise<string | null>;
   deleteBlob(id: string): Promise<boolean>;

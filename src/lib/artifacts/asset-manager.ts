@@ -212,6 +212,17 @@ export class AssetManager {
     return asset ? JSON.parse(JSON.stringify(asset)) : undefined;
   }
 
+  /** Updates canonical asset facts (for example decoded duration/rate/channels).
+   * User-authored, project-specific audio labels belong on the audio document instead. */
+  public updateAssetMetadata(id: string, patch: Record<string, unknown>): AssetFile | undefined {
+    const asset = this.assets.get(id);
+    if (!asset) return undefined;
+    asset.metadata = { ...(asset.metadata || {}), ...JSON.parse(JSON.stringify(patch)) };
+    this.saveRegistry();
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("varynth:asset-metadata-updated", { detail: { assetId: id } }));
+    return JSON.parse(JSON.stringify(asset));
+  }
+
   public getAssetById(id: string): AssetFile | undefined {
     return this.getAsset(id);
   }

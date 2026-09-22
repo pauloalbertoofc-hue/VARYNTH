@@ -1,0 +1,144 @@
+VARYNTH AUDIO STUDIO
+Manual da versão estrutural
+Revisão local em 21/09/2026 — não publicada
+
+1. VISÃO GERAL
+
+O Audio Studio passou de uma interface visual para um ambiente funcional de produção de áudio. O projeto mantém uma linha do tempo não destrutiva: os arquivos originais permanecem preservados, enquanto cortes, ganhos, fades, automações e mixagens são armazenados como instruções editáveis.
+
+2. COMO ACESSAR
+
+Abra VARYNTH > Studios > Audio Studio. Também é possível abrir diretamente:
+https://varynth-ynqv-plum.vercel.app/modules/studio
+
+Crie um projeto a partir de um template ou abra um projeto existente. A estrutura é salva por projeto e os assets ficam vinculados ao artefato correto.
+
+3. IMPORTAÇÃO DE ÁUDIO
+
+Use Importar Áudio ou arraste arquivos para a timeline. Os tipos admitidos pelo motor são WAV, MP3/MPEG, OGG, AAC/M4A e WebM, conforme o suporte do navegador. FLAC não é aceito pelo validador atual.
+
+Cada arquivo importado é registrado como asset de origem imutável. Para WAV, a duração e a taxa/canais/bit depth de origem são lidos do container RIFF sem decodificar o arquivo inteiro. Outros formatos podem fornecer duração e canais pelo decoder; a taxa de origem não é inferida da taxa do `AudioContext`, pois `decodeAudioData` pode reamostrar o conteúdo. Se não houver duração explícita, no container ou no navegador, a importação falha com `[AUDIO_DURATION_UNKNOWN]` antes de registrar asset ou clip — não existe mais fallback nominal de 15 s. A waveform é calculada apenas de áudio real decodificável; nunca é inventada para arquivo ausente.
+
+4. TIMELINE E EDIÇÃO
+
+Editar: habilita a timeline e o painel de propriedades.
+Dividido: abre a visão de trabalho com o mixer.
+Preview: mantém o transporte e a reprodução, mas bloqueia alterações na timeline.
+
+Na timeline é possível selecionar faixas e clips, mover clips com snapping, ajustar início e fim, duplicar, dividir no playhead, copiar/colar, excluir e adicionar marcadores. Clips estreitos (menos de 32 px no zoom atual) não mostram alças de trim para evitar que cubram a área de seleção; use zoom ou controles de propriedades para editar. As edições não alteram destrutivamente o arquivo-fonte.
+
+Atalhos principais:
+Delete remove a seleção.
+Ctrl/Cmd+C copia o clip selecionado.
+Ctrl/Cmd+V cola no playhead.
+Ctrl/Cmd+D duplica a seleção.
+S divide o clip selecionado no playhead.
+
+5. TRANSPORTE E REPRODUÇÃO
+
+Play, Pause, Stop, início, fim, zoom, ajuste à timeline e snapping controlam a reprodução real. O motor usa Web Audio, decodifica os assets vinculados e respeita posição, duração, fades, ganho, volume, pan, mute, solo e automação.
+
+6. MIXER
+
+O Mixer apresenta uma faixa por canal, medidores de entrada e saída, volume, pan, mute e solo. Faixas podem ser armadas para gravação e associadas a um dispositivo de entrada específico. A criação de faixas oferece AUDIO, VOICE, DIALOGUE, MUSIC, INSTRUMENT, MIDI, SFX, FOLEY, AMBIENCE e REFERENCE.
+
+Buses/Aux são criados pelo botão “+ Bus/Aux”. No canal de cada faixa, escolha Master ou um bus no campo Saída. Cada bus também pode seguir para Master ou para outro bus, compondo cadeias de submix; ciclos e destinos inexistentes são rejeitados. O botão S do bus isola as faixas cuja saída ou send atravessa esse bus, sem vazamento da rota direta ao Master. Sends podem ser adicionados por faixa, escolhidos para um bus, ligados/desligados e definidos como pré-fader. Medidores de bus acompanham o sinal uma única vez depois de efeitos e pan. O pan de faixa, bus e Master e o volume do bus afetam playback e render. O Master concentra o volume final, medidor e processamento final.
+
+7. EFEITOS E AUTOMAÇÃO
+
+O painel de propriedades permite inserir efeitos por faixa, selecionar parâmetros, alterar valores, bypass e remoção. Buses e Master também possuem inserts.
+
+A lane de automação permite pontos de volume e pan. Os pontos são persistidos no documento e aplicados durante reprodução e renderização.
+
+8. GRAVAÇÃO
+
+Arme uma faixa, selecione o dispositivo no Mixer e pressione REC. O navegador solicitará permissão para o microfone. Ao parar, a gravação WebM é importada como asset, vinculada ao projeto e inserida no ponto atual do playhead.
+
+Mensagens possíveis:
+RECORDING_PERMISSION_DENIED: permita o microfone nas configurações do navegador.
+RECORDING_DEVICE_NOT_FOUND: conecte ou selecione um microfone disponível.
+RECORDING_DEVICE_BUSY: feche o aplicativo que está usando o dispositivo.
+
+9. ASSET BROWSER
+
+O painel Assets lista os arquivos vinculados ao projeto, mostra metadados, permite preview e insere um asset existente no playhead. O preview usa o blob real armazenado localmente. A biblioteca permite busca por tokens no nome, tipo e metadados e filtros por categoria, tags, personagem, BPM, tonalidade, duração mínima/máxima, taxa de amostragem e número de canais. Facetas técnicas aparecem somente quando o valor foi medido; valores desconhecidos não entram em filtros numéricos, e intervalo invertido de duração é informado como erro. “Editar metadados” grava categoria, tags, personagem, BPM, tonalidade, declaração de licença, atribuição e notas na anotação do projeto (schema 4), não no AssetFile compartilhado. Assim as anotações de um projeto não alteram outro nem mudam os bytes. A licença de origem, provider e proveniência permanecem fatos de origem somente leitura; a declaração do usuário é explicitamente não verificada juridicamente. Use “Atualizar” para reler assets e “Limpar filtros” para restaurar a lista.
+
+10. EXPORTAÇÃO E RENDER
+
+Exportar cria um novo asset derivado em WAV, preservando os assets-fonte. No navegador, o render usa OfflineAudioContext e aplica a mesma semântica de timeline, fades, efeitos, buses, sends, automação, mute, solo e Master utilizada na reprodução.
+
+O render sinaliza falhas de decodificação e limites de duração em vez de produzir um arquivo falso. O asset derivado recebe rastreabilidade do projeto de origem.
+
+Leitura de asset, decodificação e renderização offline possuem timeouts explícitos. Se o navegador ou o armazenamento não responderem, o job termina com erro estrutural (`AUDIO_ASSET_READ_TIMEOUT`, `AUDIO_DECODE_TIMEOUT` ou `AUDIO_RENDER_TIMEOUT`) em vez de permanecer indefinidamente em processamento.
+
+Exportações de stems exigem seleção explícita de pelo menos uma faixa. Exportações de região exigem fim maior que o início. Estados incompletos são bloqueados na modal para evitar arquivos gerados fora da intenção do usuário.
+
+Na exportação de stems, cada faixa selecionada gera um WAV próprio; a interface valida que todos foram produzidos, informa falhas sem sucesso falso e usa nomes de arquivo normalizados. A suíte E2E verificou dois stems reais e a rejeição da seleção vazia; o teste de camadas abaixo também verifica o stem de uma faixa AMBIENCE.
+
+O controle de loop do clip grava início/fim em tempo da fonte (source-relative), não em posição da timeline. O renderizador mantém o caminho exclusivamente baseado em áudio real e rejeita explicitamente ranges inválidos ou IDs de faixas inexistentes; o antigo sintetizador tonal de fallback foi removido.
+
+Loop musical: a barra abaixo da barra de ferramentas permite ativar um loop por compassos. Os campos definem compasso inicial e final (o final é exclusivo); a região é serializada em beats absolutos e convertida por `tempoMap`, portanto atravessa mudanças de BPM sem perder a posição temporal. Durante reprodução, o transporte volta ao início da região e recomeça o áudio no limite musical. Projetos sem essa propriedade mantêm reprodução linear.
+
+Loop de áudio: selecione um clip na timeline, ative “Loop deste clip” e ajuste início/fim da região em milissegundos relativos ao arquivo-fonte, mais “Crossfade (ms)”. A duração do crossfade é limitada a metade da região. O playback e o render aplicam mistura equal-power entre o fim e o início em um buffer temporário e encurtam o ponto de retorno; o asset importado continua intacto. Crossfade zero preserva o loop nativo. A ferramenta ainda não oferece detecção ou preview dedicado da emenda.
+
+11. PERSISTÊNCIA, VERSÕES E ATHENA
+
+O documento possui schema versionado e migração automática. Versões manuais podem ser criadas e restauradas. Athena pode propor alterações de timeline, mas a aplicação da proposta permanece sob controle do usuário.
+
+12. LIMITES ATUAIS
+
+O playback, a gravação e o render dependem de APIs Web Audio do navegador. A primeira gravação exige permissão do dispositivo. Codecs disponíveis variam entre navegadores. O armazenamento local depende do espaço disponível no navegador e os dados locais não são automaticamente sincronizados entre dispositivos.
+
+13. VERIFICAÇÃO DA VERSÃO
+
+Validação local de 21/09/2026: Audio Studio 39 aprovados, 0 falhas e 4 skips ambientais; regressões de domínio cobrem medição de WAV em Blob, preservação de edição staged, Undo/Redo musical e plano de exportação de clip individual. Roteamento passou; Game Rules 11/11 e Game Studio 71/71 na rodada de integração, incluindo sensores `isTrigger`; typecheck passou e lint focal teve 0 erros e 0 avisos na página Studio; E2E completo 26/26, incluindo reload MIDI, edição em lote, análise, loops, stems, exportação individual com WAV RIFF, presets de synth versionados, inspector de espacialização e exportação/importação Game Audio JSON/Bundle ZIP. Exportação oferece Mix completo, Região, Stems e Clip selecionado, com render restrito ao ID do clip e região source/timeline derivada. Build passou: documentação 28 rotas/36 ferramentas/12 agentes/17 módulos, Athena 15/15, TypeScript e 49 páginas; prerender em 2,5 s. Tuner requer microfone/instrumento real. Checklist manual de 49 cenários está preparado, mas ainda não executado integralmente. Checkout local; não publicado.
+
+14. RECURSOS AVANÇADOS DA PRÓXIMA VERSÃO
+
+O projeto também possui fundações para composição musical, Piano Roll, Score View, MIDI, sintetizador local, metrônomo, análise espectral, Voice Studio e identidade editorial da Euterpe, loops, variações, eventos e pacotes para Game Audio. Para usar o tuner, abra Audio Studio, escolha Analysis e pressione “Ativar microfone”; o navegador pedirá permissão somente então. A análise YIN exibe nota/frequência/cents para uma nota sustentada. “Parar microfone” encerra a captura, e sair do painel também libera o stream. Ao analisar clipes, o mesmo relatório estima pitch na janela inicial do trecho e mostra nota/frequência/cents somente quando a confiança é suficiente; acordes, ruído e sinal fraco aparecem como “sem confiança suficiente”, nunca como uma nota inventada. A validação automatizada cobre tons puros e harmônicos, silêncio, ruído e entrada inválida; ainda falta teste manual com microfone/instrumento real e fontes polifônicas.
+
+Para análise de um arquivo/trecho, selecione até 8 clipes na timeline, abra Analysis e pressione “Analisar selecionados”. A medição decodifica os bytes locais e analisa o intervalo-fonte do clipe em mono/estéreo, com LUFS integrado ponderado K e gates conforme ITU-R BS.1770. O relatório mostra peak de amostra e um pico interpolado 4× aproximado para alertar sobre inter-sample; isso não é certificação true peak. O cálculo não aplica ganho, fades ou efeitos da timeline. Trechos menores que 400 ms, silêncio abaixo do gate e multicanal acima de estéreo são explicitamente identificados sem inventar resultado. O mesmo relatório estima tempo na faixa de 40–240 BPM usando envelope de energia mono e lista transientes com confiança; material polimétrico, muito sincopado ou sem pulsos pode retornar “sem confiança suficiente”, pois não é um beat tracker avançado. O provider de geração vem desconfigurado por padrão; capabilities aparecem vazias e pedidos falham claramente, sem áudio simulado.
+
+Game Audio, exportação e consumo local: use “Game Audio Browser” na barra da timeline para inspecionar grupos, membros, eventos, ranges e estado de validação; “Exportar Game Audio” no cabeçalho descarrega JSON v1 com assets deduplicados, MIME/duração/tags, origem/licença quando armazenadas, loop e eventos `PLAY` por clip. Faixas com `variationGroup` comum geram grupo ponderado. A validação bloqueia asset ausente/quarentenado, loop fora da duração, crossfade maior que a região, pesos inválidos e referências inexistentes.
+
+“Exportar Bundle” gera um ZIP portátil local contendo `game-audio.json`, `manifest.json` e os bytes reais dos assets utilizáveis em `assets/`. O manifest registra caminho, MIME, tamanho e SHA-256 de cada arquivo para permitir verificação de integridade; assets ausentes, corrompidos ou sem dados locais interrompem a operação sem produzir um pacote parcial. “Importar Bundle” valida esses hashes, registra os bytes no Asset Manager do perfil atual, remapeia os IDs dos assets em eventos e grupos de variação e persiste o pacote para o Game Studio. O bundle também pode ser convertido em Web Build, que inclui um runtime de navegador e os arquivos de áudio; isso não equivale a um executável nativo nem à equivalência completa com uma engine externa.
+
+Para configurar variações, selecione o clip na timeline e use “Game Audio · Variações e evento” no painel de propriedades: informe um grupo igual nas faixas que formam o conjunto, um peso por clip/asset, tags específicas do projeto e a seed comum do grupo. Tags aceitam vírgula, ponto e vírgula ou barra vertical como separador; duplicatas ignorando caixa são consolidadas. Ajuste também os limites mínimo/máximo de volume e velocidade do evento. Para editar vários clips, mantenha Ctrl (Windows/Linux) ou Command (macOS) e clique nos clips adicionais; “Game Audio · lote” aplica grupo/seed às faixas envolvidas e peso/ranges/tags aos clips escolhidos. As edições preservam os valores fora da seleção e não alteram metadata global do asset. No “Game Audio Browser”, pesquise nome de grupo, tag, asset ou evento; confira seed, membros/pesos, ranges/loop e se o pacote pode ser exportado. Use “Abrir clip” no membro ou “Abrir origem” no evento para voltar à timeline e editar. Peso zero exclui a variação; o grupo precisa manter ao menos um peso positivo. Limites de volume são 0–4× e velocidade 0.05–4×; a validação do pacote rejeita ranges invertidos ou fora de faixa.
+
+Para usar no Game Studio, abra o módulo pelo Hub, crie/abra um projeto e escolha “Importar Game Audio” para JSON ou “Importar Bundle” para ZIP. O JSON valida versão, limites, IDs e referências e exige assets já disponíveis no Asset Manager. O Bundle valida manifesto, tamanho e SHA-256, registra os bytes como novos assets locais, remapeia referências de eventos/variações para os novos IDs e só então associa o pacote; qualquer falha interrompe a importação. Em ambos os casos, há confirmação se for substituir um pacote existente. Depois, no painel Regras, escolha a ação `PLAY_AUDIO` e selecione um evento importado. Abra Play Mode e execute a regra; o log confirma o evento e a reprodução do arquivo local. Eventos sem regra não tocam automaticamente; `playOnStart` toca ao iniciar a sessão.
+
+Variações elegem um asset por peso com seed determinística; volume e taxa de reprodução usam os ranges serializados. O Play Mode do Game Studio decodifica o asset local no Web Audio, aplica volume/taxa e usa a mesma emenda equal-power do Audio Studio nos loops com crossfade; Pause/Executar suspende/retoma o contexto sem reiniciar o loop. O JSON contém metadados e IDs, nunca os bytes do áudio: ele não é um pacote portátil. O Bundle resolve o transporte local dos bytes e remapeia os IDs durante a importação. O Web Build agora entrega ZIP com runtime de navegador, estado, manifesto e bins locais. O runtime exportado carrega os assets do pacote e reproduz eventos `PLAY_AUDIO` acionados por `ON_START`, `ON_CLICK`, `ON_KEY`, `ON_ACTION`, `ON_TIMER`, `ON_SCENE_ENTER`, `ON_COLLISION` e fontes de cena; ainda não executa toda a semântica avançada de entidades e transições do Play Mode. Não anunciar standalone completo de Game Audio como pronto.
+
+O tempo musical usa tempoMap, permitindo mudanças de BPM durante a composição. O playback musical, o metrônomo, o posicionamento de Music Clips e as conversões MIDI usam esse mapa. O botão “Count-in” alterna 0, 1 ou 2 compassos de preparação sincronizados ao metrônomo; nesse período apenas os pulsos são ouvidos, e o áudio/notas entram no primeiro tempo após a contagem. O parâmetro `concertPitchHz` controla a referência de afinação do synth em tempo real e do render WAV (por exemplo A4=442 Hz); o default é 440 Hz. Music Clips aplicam `transposeSemitones` no achatamento do modelo, playback e exportação. No Piano Roll, seleção múltipla permite aplicar quantização, humanização, velocity e transposição a várias notas; sem seleção, quantização/humanização atuam em todas as notas. Ao editar notas, o VARYNTH sincroniza `music.notes` com notas estruturadas por ID, preserva clips de outros tracks e segmentos do mesmo track, e coloca notas novas no clip primário ou no primeiro clip do track como fallback determinístico. Isso evita duplicar ou apagar arranjos MIDI ao salvar/recarregar. As operações são explícitas e preservam campos originais quando a função oferece reversão.
+
+Piano Roll cria notas com duplo clique. Notas existentes podem ser movidas por arraste (posição na grade e pitch vertical) e redimensionadas pela alça na borda direita; o gesto é pré-visualizado e só grava uma atualização ao soltar. Para a seleção atual, o painel inferior edita explicitamente início musical, duração e velocity; os botões duplicam, excluem e transpõem por oitava, enquanto Delete/Backspace e Ctrl/Cmd+D oferecem atalhos. O modo “Adicionar seleção” acumula notas para operações em lote. Score View cria notas por duplo clique e permite selecionar uma nota para editar início, duração, velocity, transposição cromática e exclusão; as alterações afetam o mesmo modelo exibido no Piano Roll. Ambos mantêm um Music Clip primário associado à faixa instrumental/MIDI selecionada. A importação MIDI passa pelo mesmo caminho, mantendo a edição visual e a estrutura serializada alinhadas. A criação de faixa oferece AUDIO, VOICE, DIALOGUE, MUSIC, INSTRUMENT, MIDI, SFX, FOLEY, AMBIENCE e REFERENCE; Bus/Aux são criados no Mixer.
+
+A camada MIDI mantém o caminho legado formato 0 e também oferece exportação formato 1 por faixas, com canais MIDI separados, eventos note-on/note-off, velocity e tempo. O botão Export MIDI detecta automaticamente Music Clips estruturados e escolhe a saída multifaixa; projetos legados continuam usando a exportação simples. Na importação, cada trilha MIDI gera uma nova faixa MIDI e um Music Clip correspondente, enquanto as notas também são agregadas no campo legado para manter o editor anterior funcional. O painel “MIDI físico” lista entradas Web MIDI disponíveis, permite selecionar e conectar uma porta e toca o synth local em tempo real; o preset persistido oferece onda, ganho, ataque, decay, sustain, release, detune e filtro, e é reutilizado no playback/render musical. CC 7 controla o ganho, CC 74 o filtro, CC 64 o sustain e pitch bend aplica faixa de ±2 semitons às vozes ativas. O botão “Gravar MIDI” registra Note On/Off, converte a tomada para beats conforme o BPM e acrescenta as notas ao Music Clip da faixa instrumental/MIDI selecionada; notas abertas são fechadas ao parar. Desconexões são encerradas e informadas; quando a API, a permissão ou o dispositivo não estão disponíveis, o estado é informado sem simulação. Na mixagem e exportação WAV, os eventos de Music Clips são sintetizados por faixa e passam pelo fader, efeitos, pan, bus, sends e master; exports por stem limitam os eventos musicais à faixa pedida.
+
+A ausência de provider externo é tratada como estado real de indisponibilidade. O VARYNTH não cria vozes, ambientes ou efeitos fictícios para preencher a interface. Quando provider autorizado estiver registrado e retornar um asset válido já disponível no Asset Manager, o resultado é associado ao projeto, inserido na faixa apropriada e recebe provider, data, licença e generation metadata; geração de voz também cria um Voice Take ligado ao asset. Voice aceita rascunhos editáveis sem fingir que são áudio. Os modos Voice e Analysis abrem na barra do Audio Studio; o espectro só apresenta bins quando há sinal real no engine.
+
+15. COMPATIBILIDADE E RELEASE
+
+Projetos antigos são migrados para o schema atual e recebem defaults musicais e de voz sem apagar clips ou assets existentes. A versão deve ser liberada somente após typecheck, testes de domínio, build de produção, teste de migração, teste de render em navegador com AudioContext real, teste E2E ampliado e verificação do alias público. A publicação desta versão ainda não foi executada.
+
+O backlog completo por requisito original (74 seções) está em `docs/audio/audio-studio-v2-completion-audit.md`. O checklist manual de aceite com 49 cenários, procedimento, resultado esperado e bloqueios está em `docs/audio/audio-studio-manual-acceptance-checklist.md`; sua execução integral ainda está pendente. Esta auditoria continua aberta: provider real, piano interno, seleção aleatória/sequenciamento ambiental, workflows avançados de variações/eventos, aceite auditivo de exportação individual, validação do MIDI físico com hardware, verificação jurídica de licença, análise avançada e performance em escala ainda não permitem declarar a próxima versão concluída.
+
+16. CAMADAS DE AMBIENCE
+
+Na barra de ferramentas da timeline, abra “Ambience Layers” e use “Nova camada”. Cada cartão representa uma faixa AMBIENCE persistida no mesmo projeto, não um mixer paralelo. Renomeie, ajuste volume (0–150%) e pan (-100% a +100%), escolha Master ou um bus, e opere mute/solo. O estado da camada é mantido junto com as demais configurações da faixa.
+
+Em “Assets” na camada desejada, a biblioteca mostra os assets vinculados ao projeto. “Inserir” adiciona uma referência ao asset no playhead e na faixa selecionada; a interface mostra “Inserindo…”, confirmação de sucesso ou erro. A tela salva primeiro as mudanças pendentes da sessão antes de inserir, evitando que uma camada recém-criada seja perdida pela corrida entre o autosave e a inserção. O mesmo asset continua referenciado sem duplicar seus bytes. “Timeline” retorna à edição do clip.
+
+Para automação, selecione a camada e use a lane inferior para adicionar pontos de volume/pan. Edite fades e limites de loop no clip da timeline. A exportação Stems lista faixas AMBIENCE como as demais e produz WAV individual para as faixas selecionadas. A camada não gera sons por conta própria: use somente áudio importado ou assets existentes. Seleção aleatória/sequenciamento ambiental por estado de jogo e geração por provider continuam fora deste painel; espacialização 3D é editada no painel Espacialização do clip.
+
+17. METADADOS TÉCNICOS E EDITORIAIS DOS ASSETS
+
+Na biblioteca sonora, as facetas técnicas aparecem somente se medidas: o container WAV fornece duração, sample rate original, canais e bit depth. Para formatos cujo decoder informa duração/canais mas não sample rate original, este último fica desconhecido; a taxa do AudioContext (que pode reamostrar) nunca é mostrada como se fosse a taxa da fonte. Se duração não puder ser explicitamente fornecida, encontrada no container ou determinada pelo navegador, o import é rejeitado com `[AUDIO_DURATION_UNKNOWN]` antes de criar asset/clip. Inserção de asset legado com duração desconhecida tenta medir o conteúdo real e falha explicitamente se não conseguir; quando a medição é bem-sucedida, o valor medido também atualiza a metadata técnica do asset para filtros e consultas futuras.
+
+Use filtros de duração mínima/máxima, taxa e número de canais em conjunto com busca/tag/categoria. Asset desconhecido não corresponde a um filtro técnico ativo. “Editar metadados” salva anotações categoria/tags/personagem/BPM/key/declaração de licença/atribuição/notas no estado do projeto (schema 4), portanto projetos diferentes podem classificar o mesmo asset sem sobrescrever o registro ou bytes compartilhados. “Licença de origem” e provider são somente leitura; a declaração informada pelo usuário aparece marcada como não verificada e não constitui validação jurídica. Tags comuns da biblioteca não alteram automaticamente tags específicas de eventos Game Audio.
+
+18. PRESETS E VERSIONAMENTO A/B DO SYNTH
+
+O painel MIDI oferece presets Init, Warm Pad e Bright Lead, controles manuais para criar um preset Custom e comparação A/B em memória. “Salvar versão” grava no projeto um snapshot nomeado com data, e “Restaurar” reaplica esse snapshot ao synth e ao playback/render futuros. Versões podem ser renomeadas ou excluídas com confirmação; o painel também exibe as diferenças dos parâmetros entre os dois snapshots mais recentes. “Exportar banco” produz JSON schema 1; “Importar banco” valida o schema e os campos mínimos, adicionando cópias marcadas como importadas sem sobrescrever o histórico existente.
+
+Clips de áudio podem carregar posição espacial `x/y/z`, distância de referência, distância máxima e rolloff. O painel Espacialização edita esses campos para um ou vários clips selecionados e permite remover o bloco. O Audio Engine aplica os valores com `PannerNode` HRTF e modelo inverse durante o playback; projetos antigos sem esse bloco mantêm o caminho estéreo/pan existente. A validação auditiva em múltiplos alto-falantes/fones ainda exige aceite específico.

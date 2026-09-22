@@ -5,17 +5,18 @@ import type { CSSProperties } from "react";
 type SceneEnergy = { bass: number; mids: number; treble: number; loudness: number };
 
 /** Layered, replaceable visual stage for generated art, animation and future scene providers. */
-export function VisualScene({ sceneId, background, previousBackground, accent, energy, reducedMotion }: {
+export function VisualScene({ sceneId, background, coverArtwork, previousBackground, accent, energy, reducedMotion }: {
   sceneId: string;
   background?: string;
+  coverArtwork?: string;
   previousBackground?: string;
   accent?: string;
   energy: SceneEnergy;
   reducedMotion: boolean;
 }) {
-  const image = background ? `url("${background}")` : "radial-gradient(ellipse at 50% 34%, #30204e 0%, #111321 39%, #070811 78%)";
+  const image = background ? `url("${background}")` : coverArtwork ? `url("${coverArtwork}")` : "radial-gradient(ellipse at 18% 26%, #f2bd8140, transparent 30%), radial-gradient(ellipse at 78% 68%, #9274df66, transparent 38%), radial-gradient(ellipse at 46% 54%, #243c5a 0%, #141322 38%, #090910 76%)";
   const style = { "--scene-accent": accent ?? "#a78bfa", "--scene-bass": energy.bass, "--scene-mids": energy.mids, "--scene-treble": energy.treble, "--scene-energy": energy.loudness } as CSSProperties;
-  return <div key={sceneId} data-visual-scene="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" style={style} aria-hidden="true">
+  return <div key={sceneId} data-visual-scene="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden" style={style} aria-hidden="true">
     <div data-scene-layer="BackgroundLayer" className="scene-background absolute -inset-[8%] bg-cover bg-center"><div key={background ?? "fallback"} className="scene-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: image }} />{previousBackground && <div key={previousBackground} className="scene-art-exit absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${previousBackground}")` }} />}</div>
     <div data-scene-layer="MidgroundLayer" className="scene-midground absolute -inset-[10%] bg-cover bg-center opacity-35 mix-blend-screen" style={{ backgroundImage: image }} />
     <div data-scene-layer="ForegroundLayer" className="scene-foreground absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,transparent_18%,rgba(3,4,12,.32)_68%,rgba(3,4,12,.9)_100%)]" />

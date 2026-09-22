@@ -1,0 +1,6 @@
+{
+  "appId": "com.varynth.os",
+  "appName": "VARYNTH",
+  "webDir": "../../out",
+  "server": { "url": "https://varynth-ynqv-plum.vercel.app", "cleartext": false, "androidScheme": "https" }
+}

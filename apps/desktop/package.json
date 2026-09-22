@@ -1,0 +1,6 @@
+{
+  "name": "varynth-desktop",
+  "private": true,
+  "scripts": {"build": "cargo tauri build", "dev": "cargo tauri dev"},
+  "devDependencies": {"@tauri-apps/cli": "^2.8.4"}
+}

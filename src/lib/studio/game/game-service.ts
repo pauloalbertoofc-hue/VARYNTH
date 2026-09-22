@@ -10,6 +10,7 @@ import {
   GameComponent,
   GameRule,
   GameVariable,
+  GamePrefab,
 } from "./types";
 import { GAME_TEMPLATES } from "./game-templates";
 import { GameIntegrityValidator, gameRuntimeEngine } from "./game-runtime-engine";
@@ -18,6 +19,7 @@ import { versionManager } from "../../artifacts/version-manager";
 import { Artifact, ArtifactActor } from "../../artifacts/types";
 import { athenaEventBus } from "../../athena/events/event-bus";
 import { artifactStore } from "../../artifacts/artifact-store";
+import { createPrefab, instantiatePrefab } from "./game-prefabs";
 
 export class GameService {
   private gamesStore = new Map<string, GameItem>();
@@ -179,10 +181,36 @@ export class GameService {
     item.metadata.entityCount = state.entities.length;
     item.metadata.ruleCount = state.rules.length;
     item.metadata.entrySceneId = state.entrySceneId;
+    const referencedAssetIds = [
+      ...(state.gameAudioPackage?.assets.map((asset) => asset.assetId) || []),
+      ...state.scenes.flatMap((scene) => scene.backgroundAssetId ? [scene.backgroundAssetId] : []),
+      ...state.entities.flatMap((entity) => entity.components.flatMap((component) => component.type === "SPRITE" || component.type === "AUDIO_SOURCE" ? [component.assetId] : component.type === "ANIMATOR" ? component.clips.flatMap((clip) => clip.frames.map((frame) => frame.assetId)) : [])),
+    ];
+    item.metadata.sourceAssetIds = [...new Set(referencedAssetIds)];
     item.artifact.updatedAt = state.updatedAt;
     if (typeof window !== "undefined") window.localStorage.setItem(`varynth_game_state_${artifactId}`, JSON.stringify(item));
 
     return { success: true };
+  }
+
+  public async createPrefabFromEntity(artifactId: string, entityId: string, name: string): Promise<{ success: boolean; prefab?: GamePrefab; error?: string }> {
+    const item = this.gamesStore.get(artifactId); const entity = item?.documentState.entities.find(e => e.id === entityId);
+    if (!item || !entity) return { success: false, error: "Entidade não encontrada." };
+    const prefab = createPrefab(name, entity);
+    this.pushUndoState(item.documentState);
+    item.documentState = { ...item.documentState, prefabs: [...(item.documentState.prefabs || []), prefab] };
+    await this.saveDocumentState(artifactId, item.documentState);
+    return { success: true, prefab };
+  }
+
+  public async instantiatePrefabInScene(artifactId: string, prefabId: string, sceneId: string, overrides: Partial<GameEntity> = {}): Promise<{ success: boolean; entity?: GameEntity; error?: string }> {
+    const item = this.gamesStore.get(artifactId); const prefab = item?.documentState.prefabs?.find(p => p.id === prefabId);
+    if (!item || !prefab || !item.documentState.scenes.some(s => s.id === sceneId)) return { success: false, error: "Prefab ou cena não encontrada." };
+    const entity = instantiatePrefab(prefab, sceneId, overrides); prefab.instanceIds.push(entity.id);
+    this.pushUndoState(item.documentState);
+    item.documentState = { ...item.documentState, entities: [...item.documentState.entities, entity] };
+    await this.saveDocumentState(artifactId, item.documentState);
+    return { success: true, entity };
   }
 
   /**

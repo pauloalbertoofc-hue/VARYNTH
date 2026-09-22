@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { AudioExportFormat, AudioExportOptions } from "@/lib/studio/audio/types";
+import { AudioExportFormat, AudioExportOptions, AudioTrack } from "@/lib/studio/audio/types";
 import { audioService } from "@/lib/studio/audio/audio-service";
 import { audioRenderEngine } from "@/lib/studio/audio/audio-render-engine";
 import { Download, Check, X, Sliders, Music, AlertTriangle } from "lucide-react";
@@ -11,6 +11,8 @@ interface AudioExportModalProps {
   artifactId: string;
   audioTitle: string;
   onClose: () => void;
+  tracks?: AudioTrack[];
+  selectedClipId?: string;
 }
 
 export function AudioExportModal({
@@ -18,6 +20,8 @@ export function AudioExportModal({
   artifactId,
   audioTitle,
   onClose,
+  tracks = [],
+  selectedClipId,
 }: AudioExportModalProps) {
   const [format, setFormat] = useState<AudioExportFormat>("WAV");
   const [sampleRate, setSampleRate] = useState(44100);
@@ -25,21 +29,56 @@ export function AudioExportModal({
   const [isExporting, setIsExporting] = useState(false);
   const [exported, setExported] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [targetType, setTargetType] = useState<"FULL_MIX" | "SELECTED_REGION" | "STEMS" | "CLIP">("FULL_MIX");
+  const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
+  const [startMs, setStartMs] = useState(0);
+  const [endMs, setEndMs] = useState(0);
+  const [exportError, setExportError] = useState<string>();
 
   if (!isOpen) return null;
 
   const handleExport = async () => {
     setIsExporting(true);
     setWarnings([]);
+    setExportError(undefined);
 
+    if (targetType === "STEMS" && selectedTrackIds.length === 0) {
+      setIsExporting(false);
+      setExportError("[AUDIO_EXPORT_TRACK_REQUIRED] Selecione ao menos uma faixa para exportar como stem.");
+      return;
+    }
+    if (targetType === "SELECTED_REGION" && endMs <= startMs) {
+      setIsExporting(false);
+      setExportError("[AUDIO_EXPORT_REGION_INVALID] O fim da região deve ser maior que o início.");
+      return;
+    }
+
+    const clipTarget = selectedClipId ? tracks.flatMap((track) => track.clips).find((clip) => clip.id === selectedClipId) : undefined;
     const options: AudioExportOptions = {
       format,
       sampleRate,
       normalize,
       bitDepth: 16,
       channels: 2,
+      target: targetType === "FULL_MIX" ? { type: "FULL_MIX" } : targetType === "CLIP" ? { type: "CLIP", clipId: selectedClipId } : { type: "SELECTED_REGION", startMs, endMs },
     };
 
+    if (targetType === "STEMS") {
+      try {
+        const stemResult = await audioService.exportStems(artifactId, { ...options, target: { type: "STEMS", trackIds: selectedTrackIds } }, "USER");
+        if (!stemResult.success) { setExportError(stemResult.error || "[AUDIO_STEMS_EXPORT_FAILED] A exportação de stems falhou."); return; }
+        const stems = stemResult.stems.filter((stem) => stem.result.success && stem.result.blob);
+        if (stems.length !== selectedTrackIds.length) { setExportError("[AUDIO_STEMS_INCOMPLETE] Nem todas as faixas selecionadas produziram um arquivo."); return; }
+        for (const stem of stems) {
+          const trackName = tracks.find((track) => track.id === stem.trackId)?.name || stem.trackId;
+          const safeName = trackName.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || stem.trackId;
+          const url = URL.createObjectURL(stem.result.blob!); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${audioTitle.toLowerCase().replace(/\s+/g, "-")}-${safeName}.wav`; document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        setExported(true);
+      } catch (error) { setExportError(error instanceof Error ? error.message : String(error)); }
+      finally { setIsExporting(false); }
+      return;
+    }
     const res = await audioService.exportAudio(artifactId, options, "USER");
     setIsExporting(false);
 
@@ -51,7 +90,9 @@ export function AudioExportModal({
       const url = URL.createObjectURL(res.blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${audioTitle.toLowerCase().replace(/\s+/g, "-")}.${format.toLowerCase()}`;
+      const exportName = targetType === "CLIP" && clipTarget?.name ? clipTarget.name : audioTitle;
+      const safeExportName = exportName.replace(/\.(wav|wave|mp3|ogg|m4a|aac|flac)$/i, "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "audio-export";
+      a.download = `${safeExportName}.${format.toLowerCase()}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -117,6 +158,14 @@ export function AudioExportModal({
 
           {/* Sample Rate */}
           <div>
+            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">Destino</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><button type="button" onClick={() => setTargetType("FULL_MIX")} className={`rounded-lg border p-2 text-xs ${targetType === "FULL_MIX" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400"}`}>Mix completo</button><button type="button" onClick={() => setTargetType("CLIP")} disabled={!selectedClipId} className={`rounded-lg border p-2 text-xs ${targetType === "CLIP" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400 disabled:opacity-30"}`}>Clip selecionado</button><button type="button" onClick={() => setTargetType("SELECTED_REGION")} className={`rounded-lg border p-2 text-xs ${targetType === "SELECTED_REGION" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400"}`}>Região</button><button type="button" onClick={() => setTargetType("STEMS")} className={`rounded-lg border p-2 text-xs ${targetType === "STEMS" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400"}`}>Stems</button></div>
+            {targetType === "STEMS" && <div className="mt-2 space-y-1">{tracks.map((track) => <label key={track.id} className="flex items-center gap-2 text-[10px] text-slate-400"><input type="checkbox" checked={selectedTrackIds.includes(track.id)} onChange={(event) => setSelectedTrackIds((current) => event.target.checked ? [...current, track.id] : current.filter((id) => id !== track.id))} />{track.name}</label>)}</div>}
+            {targetType === "SELECTED_REGION" && <div className="mt-2 grid grid-cols-2 gap-2"><label className="text-[10px] text-slate-500">Início (ms)<input type="number" min="0" value={startMs} onChange={(event) => setStartMs(Number(event.target.value))} className="mt-1 w-full rounded border border-[#303650] bg-[#0b0c16] p-2 text-white" /></label><label className="text-[10px] text-slate-500">Fim (ms)<input type="number" min="1" value={endMs} onChange={(event) => setEndMs(Number(event.target.value))} className="mt-1 w-full rounded border border-[#303650] bg-[#0b0c16] p-2 text-white" /></label></div>}
+          </div>
+
+          {/* Sample Rate */}
+          <div>
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
               Taxa de Amostragem (Sample Rate)
             </label>
@@ -160,6 +209,7 @@ export function AudioExportModal({
               ))}
             </div>
           )}
+          {exportError && <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-[11px] text-rose-200">{exportError}</p>}
 
           {/* Actions */}
           <div className="pt-4 border-t border-[#1e2038] flex items-center justify-end gap-2">
@@ -194,4 +244,3 @@ export function AudioExportModal({
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
 import { Artifact, ArtifactActor } from "../../artifacts/types";
+import type { GameAudioPackage } from "../audio/game-audio-domain";
 
 export type GameType =
   | "2D"
@@ -18,7 +19,13 @@ export type ComponentType =
   | "STATE"
   | "VARIABLES"
   | "SCRIPT"
-  | "UI";
+  | "UI"
+  | "RIGID_BODY"
+  | "ANIMATOR"
+  | "CAMERA";
+
+export type BodyMode = "STATIC" | "DYNAMIC" | "KINEMATIC";
+export type ColliderShape = "RECTANGLE" | "CIRCLE";
 
 export type VariableType = "BOOLEAN" | "NUMBER" | "STRING";
 
@@ -39,7 +46,9 @@ export type TriggerType =
   | "ON_COLLISION"
   | "ON_VARIABLE_CHANGED"
   | "ON_SCENE_ENTER"
-  | "ON_TIMER";
+  | "ON_TIMER"
+  | "ON_ENTITY_CREATED"
+  | "ON_ENTITY_DESTROYED";
 
 export interface GameTrigger {
   type: TriggerType;
@@ -59,21 +68,30 @@ export type ConditionOperator =
   | "CONTAINS";
 
 export interface GameCondition {
+  type?: "COMPARE_VARIABLE" | "ENTITY_EXISTS" | "HAS_TAG" | "BOOLEAN_CHECK";
   variableId: string;
   operator: ConditionOperator;
   value: boolean | number | string;
+  entityId?: string;
+  tag?: string;
 }
 
 export type ActionType =
   | "SET_VARIABLE"
   | "ADD_VARIABLE"
   | "MOVE_ENTITY"
+  | "SET_POSITION"
+  | "APPLY_FORCE"
   | "SHOW_ENTITY"
   | "HIDE_ENTITY"
   | "PLAY_AUDIO"
   | "CHANGE_SCENE"
   | "SHOW_TEXT"
-  | "END_GAME";
+  | "END_GAME"
+  | "EMIT_EVENT"
+  | "CREATE_ENTITY"
+  | "DESTROY_ENTITY"
+  | "WAIT";
 
 export interface GameAction {
   type: ActionType;
@@ -82,9 +100,19 @@ export interface GameAction {
   entityId?: string;
   deltaX?: number;
   deltaY?: number;
+  x?: number;
+  y?: number;
+  forceX?: number;
+  forceY?: number;
   assetId?: string;
+  audioEventId?: string;
   targetSceneId?: string;
+  targetEntityId?: string;
   text?: string;
+  eventType?: TriggerType;
+  actionName?: string;
+  entity?: GameEntity;
+  durationMs?: number;
 }
 
 export interface GameRule {
@@ -105,6 +133,7 @@ export interface TransformComponent {
   scaleY: number;
   rotation: number;
   zIndex: number;
+  visible?: boolean;
 }
 
 export interface SpriteComponent {
@@ -140,7 +169,16 @@ export interface ColliderComponent {
   height: number;
   radius?: number;
   isTrigger?: boolean;
+  collisionLayer?: number;
+  collisionMask?: number;
+  friction?: number;
+  restitution?: number;
 }
+
+export interface RigidBodyComponent { type: "RIGID_BODY"; mode: BodyMode; mass: number; gravityScale: number; velocityX: number; velocityY: number; }
+export interface AnimatorComponent { type: "ANIMATOR"; clips: AnimationClip[]; activeClipId?: string; playing: boolean; }
+export interface CameraComponent { type: "CAMERA"; followEntityId?: string; offsetX: number; offsetY: number; smoothing: number; zoom: number; limits?: { left: number; top: number; right: number; bottom: number }; }
+export interface AnimationClip { id: string; name: string; frames: { assetId: string; durationMs: number }[]; loop: boolean; }
 
 export interface InputComponent {
   type: "INPUT";
@@ -181,7 +219,10 @@ export type GameComponent =
   | StateComponent
   | VariablesComponent
   | ScriptComponent
-  | UIComponent;
+  | UIComponent
+  | RigidBodyComponent
+  | AnimatorComponent
+  | CameraComponent;
 
 export interface GameEntity {
   id: string;
@@ -230,10 +271,15 @@ export interface GameDocumentState {
   rules: GameRule[];
   scripts: GameScript[];
   inputActions: InputActionMapping[];
+  prefabs?: GamePrefab[];
+  /** Optional local Game Audio payload; absent in legacy projects. */
+  gameAudioPackage?: GameAudioPackage;
   selectedSceneId?: string;
   selectedEntityIds: string[];
   updatedAt: string;
 }
+
+export interface GamePrefab { id: string; name: string; sourceEntity: GameEntity; instanceIds: string[]; }
 
 export interface GameMetadata {
   gameType: GameType;
@@ -319,6 +365,8 @@ export interface GameBuildManifest {
   entrypoint: string;
   sceneCount: number;
   entityCount: number;
+  packageFormat?: "ZIP";
+  assetFiles?: { assetId: string; path: string; bytes: number; sha256: string; mimeType: string }[];
 }
 
 export interface GameBuildResult {
@@ -376,4 +424,3 @@ export interface GameCommandHistoryState {
   past: GameDocumentState[];
   future: GameDocumentState[];
 }
-

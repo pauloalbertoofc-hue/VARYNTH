@@ -1008,5 +1008,20 @@ export const TECHNICAL_DOCS: TechnicalDocItem[] = [
     relatedADRs: ["ADR-002"],
     content: `Garantia de que nenhum recurso é excluído permanentemente no ato, permitindo restauração completa em 10 dias.`,
   },
+  {
+    id: "audio-studio-version-manual",
+    slug: "audio-studio-version-manual",
+    title: "Audio Studio: Manual da Atualização Estrutural",
+    category: "handbook",
+    categoryLabel: "Manuais Operacionais",
+    icon: "🎚️",
+    status: "IMPLEMENTED",
+    lastVerified: "2026-09-15",
+    summary: "Manual completo da timeline não destrutiva, playback, mixer, gravação, automação, assets e render real do Audio Studio.",
+    sourceFilePath: "docs/audio/audio-studio-version-manual.txt",
+    tags: ["audio", "manual", "timeline", "mixer", "recording", "render", "web-audio"],
+    relatedADRs: ["ADR-017", "ADR-018", "ADR-019"],
+    relatedComponents: ["src/app/modules/studio/page.tsx", "src/lib/studio/audio/audio-engine.ts", "src/lib/studio/audio/audio-render-engine.ts"],
+    content: `Manual operacional da versão estrutural do Audio Studio. Abrange importação de arquivos reais, waveform, modos Editar/Dividido/Preview, edição não destrutiva, transporte, mixer multifaixa, buses, sends, efeitos, automação, gravação por microfone, Asset Browser, exportação WAV, persistência versionada, Athena e limites de compatibilidade do navegador.\n\nA versão foi verificada em 15/09/2026 com build de produção, TypeScript, regressão de documentação, certificação Athena 15/15 e testes E2E do Audio Studio aprovados.`,
+  },
 ];
-

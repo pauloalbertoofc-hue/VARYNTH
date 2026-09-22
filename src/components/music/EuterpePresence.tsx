@@ -1,49 +1,76 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type KeyboardEvent } from "react";
+import type { VisualQuality } from "@/lib/music/music-studio";
+import { getEuterpeCharacterAsset, type EuterpeVisualState } from "@/lib/music/euterpe-character";
+import { clampPosition, classifyEuterpeGesture, EUTERPE_DRAG_THRESHOLD, EUTERPE_POSITION_KEY, isEuterpeMotionEnabled, readEuterpePosition, saveEuterpePosition, type NormalizedPosition } from "@/lib/music/euterpe-avatar";
+import { idlePhase } from "@/lib/music/euterpe-living";
 
-export type EuterpeState = "IDLE" | "LISTENING" | "THINKING" | "SPEAKING" | "HAPPY" | "CURIOUS" | "ALERT" | "SLEEP" | "MUSIC_REACTIVE";
+export type EuterpeAudioMetrics = { bass: number; mids: number; treble: number; energy: number; calmness: number };
+const label: Record<EuterpeVisualState, string> = { IDLE:"disponível", LISTENING:"ouvindo", THINKING:"processando resposta", SPEAKING:"respondendo", HAPPY:"contente", CURIOUS:"curiosa", ALERT:"atenta", SLEEP:"em repouso", MUSIC_REACTIVE:"ouvindo música", MUSIC_PAUSED:"música pausada", TRACK_CHANGED:"faixa mudou", ATHENA_DELEGATION:"em contato com Athena" };
+const avatarSize = { width: 88, height: 116 };
 
-const stateLabel: Record<EuterpeState, string> = {
-  IDLE: "disponível", LISTENING: "ouvindo", THINKING: "pensando", SPEAKING: "respondendo",
-  HAPPY: "contente", CURIOUS: "curiosa", ALERT: "atenção", SLEEP: "em repouso", MUSIC_REACTIVE: "sentindo a música",
-};
-
-export function EuterpePresence({ state, energy, onClick }: { state: EuterpeState; energy: number; onClick: () => void }) {
-  const [reducedMotion, setReducedMotion] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedMotion(query.matches);
-    update(); query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return <button type="button" data-state={state} onClick={onClick} aria-label={`Conversar com Euterpe, ${stateLabel[state]}`} title={`Euterpe · ${stateLabel[state]}`} className="group fixed bottom-5 right-5 z-40 grid h-[76px] w-[76px] place-items-center rounded-full border border-violet-200/30 bg-[#100f1b]/80 shadow-[0_0_35px_rgba(139,92,246,0.22)] backdrop-blur-xl transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-200 sm:bottom-7 sm:right-7" style={{ ["--euterpe-energy" as string]: String(Math.max(0, Math.min(1, energy))) }}>
-    <span className={`euterpe-motion relative grid h-14 w-14 place-items-center ${reducedMotion ? "!animate-none" : ""}`}>
-      <span className="absolute inset-1 rounded-[45%] bg-gradient-to-br from-cyan-200/80 via-violet-300/55 to-fuchsia-400/70 blur-[1px] transition-transform duration-300" style={{ transform: `scale(${1 + Math.min(energy, .6) * .16})` }} />
-      <svg viewBox="0 0 64 64" aria-hidden="true" className="relative h-12 w-12 overflow-visible drop-shadow-[0_0_10px_rgba(165,180,252,0.8)]">
-        <path d="M32 7c9 8 16 15 16 25 0 12-7 21-16 24C23 53 16 44 16 32 16 22 23 14 32 7Z" fill="url(#euterpe-core)" stroke="rgba(224,231,255,.9)" strokeWidth="1.5" />
-        <path d="M23 29c2-5 5-8 9-10 4 2 7 5 9 10-4-2-6-3-9-3s-5 1-9 3Z" fill="rgba(15,18,35,.82)" />
-        <ellipse cx="27" cy="34" rx="2.5" ry="3.3" fill="#dffcff" /><ellipse cx="37" cy="34" rx="2.5" ry="3.3" fill="#dffcff" />
-        <path d="M27 42q5 4 10 0" fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="1.4" />
-        <path d="M8 34c4-3 5-7 5-11m43 11c-4-3-5-7-5-11" fill="none" stroke="rgba(165,243,252,.85)" strokeWidth="1.5" />
-        <circle cx="11" cy="19" r="1.5" fill="#c4b5fd" /><circle cx="53" cy="16" r="1.2" fill="#a5f3fc" />
-        <defs><linearGradient id="euterpe-core" x1="18" x2="47" y1="10" y2="54" gradientUnits="userSpaceOnUse"><stop stopColor="#a5f3fc" /><stop offset=".5" stopColor="#a78bfa" /><stop offset="1" stopColor="#e879f9" /></linearGradient></defs>
-      </svg>
-      <span className="absolute -bottom-1 rounded-full border border-white/10 bg-[#141321] px-2 py-0.5 text-[9px] font-medium text-violet-100">Euterpe</span>
-    </span>
-    <style jsx>{`
-      .euterpe-motion { animation: euterpe-float 4s ease-in-out infinite; }
-      button[data-state="SLEEP"] .euterpe-motion { animation-duration: 7s; opacity: .76; }
-      button[data-state="THINKING"] .euterpe-motion { animation-name: euterpe-think; animation-duration: 5s; }
-      button[data-state="LISTENING"] .euterpe-motion { animation-duration: 2.8s; }
-      button[data-state="SPEAKING"] .euterpe-motion, button[data-state="HAPPY"] .euterpe-motion { animation-duration: 1.8s; }
-      button[data-state="CURIOUS"] .euterpe-motion { animation-name: euterpe-tilt; }
-      button[data-state="ALERT"] { box-shadow: 0 0 42px rgba(251,191,36,.32); }
-      button[data-state="MUSIC_REACTIVE"] .euterpe-motion { animation-duration: calc(4s - var(--euterpe-energy) * 1.1s); }
-      @keyframes euterpe-float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
-      @keyframes euterpe-think { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-4px) rotate(3deg); } }
-      @keyframes euterpe-tilt { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(4deg) translateY(-4px); } }
-      @media (prefers-reduced-motion: reduce) { .euterpe-motion { animation: none !important; } }
-    `}</style>
-  </button>;
+/** In-page presence only; web browsers do not provide a cross-app character overlay. */
+export function EuterpePresence({ state, audio, quality, onClick, onHide, onBackToMusic, reducedMotion = false, reactiveMotion = true }: {
+  state: EuterpeVisualState; audio: EuterpeAudioMetrics; quality: VisualQuality; onClick: () => void; onHide?: () => void; onBackToMusic?: () => void; reducedMotion?: boolean; reactiveMotion?: boolean;
+}) {
+  const [smooth, setSmooth] = useState(audio);
+  const [position, setPosition] = useState<NormalizedPosition>({ x: .88, y: .78 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [left, setLeft] = useState(0); const [top, setTop] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [tapPulse, setTapPulse] = useState(false);
+  const [idleElapsed, setIdleElapsed] = useState(0);
+  const node = useRef<HTMLDivElement>(null);
+  const pointer = useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const longPressTimer = useRef<number | null>(null); const longPressed = useRef(false);
+  const activityAt = useRef(Date.now());
+  const asset = getEuterpeCharacterAsset(state);
+  const setFromNormalized = useCallback((p: NormalizedPosition) => { const bounded = clampPosition(p); setPosition(bounded); setLeft(bounded.x * Math.max(0, window.innerWidth - avatarSize.width)); setTop(bounded.y * Math.max(0, window.innerHeight - avatarSize.height)); }, []);
+  useEffect(() => { setFromNormalized(readEuterpePosition(window.localStorage) ?? { x: .88, y: .78 }); const resize = () => setFromNormalized(position); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); // normalized coordinates adapt to viewport changes
+  }, [setFromNormalized]);
+  useEffect(() => setSmooth((old) => ({ bass: old.bass*.78+audio.bass*.22, mids:old.mids*.82+audio.mids*.18, treble:old.treble*.8+audio.treble*.2, energy:old.energy*.84+audio.energy*.16, calmness:old.calmness*.9+audio.calmness*.1 })), [audio.bass,audio.mids,audio.treble,audio.energy,audio.calmness]);
+  useEffect(() => { const timer = window.setInterval(() => setIdleElapsed(Date.now() - activityAt.current), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => () => { if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current); }, []);
+  const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button[data-menu-action]")) return;
+    event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId);
+    pointer.current = { id:event.pointerId,x:event.clientX,y:event.clientY,left,top,moved:false }; longPressed.current=false;
+    longPressTimer.current=window.setTimeout(()=>{ if(pointer.current&&!pointer.current.moved){longPressed.current=true;setMenuOpen(true);} },560);
+  };
+  const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const start=pointer.current; if(!start||start.id!==event.pointerId)return;
+    const dx=event.clientX-start.x,dy=event.clientY-start.y;
+    if(!start.moved&&Math.hypot(dx,dy)>=EUTERPE_DRAG_THRESHOLD){start.moved=true;setDragging(true);setMenuOpen(false);if(longPressTimer.current!==null)window.clearTimeout(longPressTimer.current);}
+    if(start.moved){const nextLeft=Math.max(0,Math.min(window.innerWidth-avatarSize.width,start.left+dx));const nextTop=Math.max(0,Math.min(window.innerHeight-avatarSize.height,start.top+dy));setLeft(nextLeft);setTop(nextTop);const next={x:nextLeft/Math.max(1,window.innerWidth-avatarSize.width),y:nextTop/Math.max(1,window.innerHeight-avatarSize.height)};setPosition(next);}
+  };
+  const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const start=pointer.current;if(!start||start.id!==event.pointerId)return;
+    if(longPressTimer.current!==null)window.clearTimeout(longPressTimer.current);
+    if(start.moved){saveEuterpePosition(window.localStorage,position,EUTERPE_POSITION_KEY);setDragging(false);}
+    else if(classifyEuterpeGesture(start.moved,longPressed.current)==="TAP"){ activityAt.current=Date.now(); setIdleElapsed(0); setTapPulse(true); window.setTimeout(()=>setTapPulse(false),700); setMenuOpen((open)=>!open); }
+    pointer.current=null;
+  };
+  const handleKeyboard = (event: KeyboardEvent<HTMLButtonElement>) => { if(event.key==="Enter"||event.key===" "){event.preventDefault();setMenuOpen((open)=>!open);} };
+  const speed=Math.max(4.2,Math.min(8,6.5-smooth.energy*1.8+smooth.calmness));
+  const motionEnabled=isEuterpeMotionEnabled(reducedMotion,reactiveMotion);
+  const audioTransform=motionEnabled&&state==="MUSIC_REACTIVE"?`translateY(${Math.max(-2,Math.min(1,(smooth.mids-.15)*3))}px) scale(${1+Math.min(.022,smooth.bass*.022)})`:undefined;
+  const playPose=state==="MUSIC_REACTIVE"||state==="TRACK_CHANGED";
+  const phase = idlePhase(idleElapsed);
+  const phaseClass = phase === "ACTIVE_IDLE" ? "euterpe-active" : phase === "RELAXED_IDLE" ? "euterpe-relaxed" : "euterpe-rest-ready";
+  return <div ref={node} role="group" aria-label="Presença de Euterpe" data-idle-phase={phase} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} className={`fixed z-40 flex h-[116px] w-[88px] touch-none select-none items-end justify-center ${phaseClass} ${dragging?"cursor-grabbing":"cursor-grab"}`} style={{left,top,touchAction:"none"}} data-testid="euterpe-presence">
+    <span className="sr-only" aria-live="polite">Euterpe está {label[state]}.</span>
+    <button type="button" aria-label={`Euterpe, ${label[state]}. Toque para opções; segure e arraste para mover.`} aria-expanded={menuOpen} onKeyDown={handleKeyboard} className="relative z-10 flex h-full w-full items-end justify-center border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-100"><img src={playPose?"/music/euterpe/euterpe-chibi-lyre.png":asset.src} alt="" draggable={false} className={`h-auto max-h-[108px] w-auto max-w-[82px] object-contain ${motionEnabled||tapPulse?"euterpe-breathe":""}`} style={{transform:audioTransform,filter:`drop-shadow(0 2px ${5+smooth.energy*6}px rgba(232,203,159,${.18+smooth.energy*.17}))`,"--euterpe-duration":`${tapPulse?.7:speed}s`} as CSSProperties} /></button>
+    {state==="LISTENING"&&<span className="pointer-events-none absolute left-1 top-8 h-5 w-5 rounded-full border border-amber-100/65 animate-ping" aria-hidden="true"/>}
+    {state==="ATHENA_DELEGATION"&&<span className="pointer-events-none absolute right-0 top-2 rounded-full bg-[#171217]/80 px-2 py-1 text-[9px] text-amber-100">Athena</span>}
+    {playPose&&quality!=="low"&&reactiveMotion&&!reducedMotion&&smooth.treble>.12&&<span className="pointer-events-none absolute right-2 top-4 text-xs text-amber-50/80" aria-hidden="true">♪</span>}
+    {menuOpen&&<div role="group" aria-label="Opções de Euterpe" className="absolute bottom-[calc(100%-8px)] right-0 z-20 w-40 space-y-1 rounded-xl border border-amber-100/15 bg-[#17151bf2] p-2 text-left shadow-xl backdrop-blur-xl" onPointerDown={(e)=>e.stopPropagation()}>
+      <button data-menu-action type="button" onClick={onClick} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Conversar</button>
+      <button data-menu-action type="button" disabled title="Interação por voz ainda não está disponível" className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white/45">Falar · indisponível</button>
+      <button data-menu-action type="button" onClick={()=>{setMenuOpen(false);onBackToMusic?.();}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Voltar ao Music</button>
+      <button data-menu-action type="button" onClick={()=>{saveEuterpePosition(window.localStorage,{x:.88,y:.78});setFromNormalized({x:.88,y:.78});}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Redefinir posição</button>
+      <button data-menu-action type="button" onClick={()=>{setMenuOpen(false);onHide?.();}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Ocultar Euterpe</button>
+    </div>}
+    <style jsx>{`@keyframes euterpe-breathe{0%,100%{translate:0 0;rotate:-.5deg}50%{translate:0 -2px;rotate:.5deg}}@keyframes euterpe-relaxed{0%,100%{translate:0 0;rotate:-1deg}50%{translate:0 -3px;rotate:1deg}}@keyframes euterpe-lookaround{0%,70%,100%{translate:0 0;rotate:0}82%{translate:-4px -1px;rotate:-3deg}91%{translate:4px 0;rotate:3deg}}.euterpe-breathe{animation:euterpe-breathe var(--euterpe-duration) ease-in-out infinite;transform-origin:50% 90%}.euterpe-relaxed .euterpe-breathe{animation-name:euterpe-relaxed;animation-duration:8s}.euterpe-rest-ready .euterpe-breathe{animation-name:euterpe-lookaround;animation-duration:12s}@media(prefers-reduced-motion:reduce){.euterpe-breathe{animation:none}}`}</style>
+  </div>;
 }

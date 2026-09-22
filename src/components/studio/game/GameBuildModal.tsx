@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { GameDocumentState, GameBuildResult } from "@/lib/studio/game/types";
 import { gameRuntimeEngine } from "@/lib/studio/game/game-runtime-engine";
+import { assetManager } from "@/lib/artifacts/asset-manager";
 import { Package, Download, X, CheckCircle2, AlertTriangle, Globe, Smartphone, Monitor } from "lucide-react";
 
 interface GameBuildModalProps {
@@ -35,15 +36,15 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
     setIsBuilding(false);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!buildResult?.success) return;
-    const blob = new Blob([
-      `<!DOCTYPE html><html><head><title>${gameTitle}</title></head><body><h1>${gameTitle}</h1><p>VARYNTH Web Game Build Package</p></body></html>`,
-    ], { type: "text/html" });
+    const data = buildResult.assetId ? await assetManager.getAssetData(buildResult.assetId) : null;
+    if (!data) return;
+    const blob = typeof data === "string" ? await (await fetch(data)).blob() : data instanceof Blob ? data : new Blob([data], { type: "application/zip" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${gameTitle.toLowerCase().replace(/\s+/g, "-")}-web-build.html`;
+    a.download = `${gameTitle.toLowerCase().replace(/\s+/g, "-")}-web-build.zip`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -186,4 +187,3 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
     </div>
   );
 };
-

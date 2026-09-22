@@ -16,10 +16,16 @@ import { MusicTrack } from "@/lib/music/types";
 import { applyVisualDirective, createVisualProfile, visualFrameStyle, type VisualProfile } from "@/lib/music/visual-profile";
 import { authorizeEuterpeProposal, interpretEuterpeRequest, type EuterpeProposal } from "@/lib/music/euterpe";
 import { PermissionPolicyEngine } from "@/lib/permissions/permission-policy";
-import { EuterpePresence, type EuterpeState } from "@/components/music/EuterpePresence";
+import { EuterpePresence } from "@/components/music/EuterpePresence";
+import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
+import type { EuterpeVisualState } from "@/lib/music/euterpe-character";
 import { euterpeVoiceProvider } from "@/lib/music/euterpe-voice";
 import { VisualScene } from "@/components/music/VisualScene";
 import { musicSeekTimeAtPointer } from "@/lib/music/music-playback";
+import { decodeWaveform, MusicEngine } from "@/lib/music/music-engine";
+import { EuterpeAgent, visualStateForMusic, type EuterpeAgentState } from "@/lib/music/euterpe-agent";
+import { varynthEventBus, type VarynthEvent } from "@/lib/events/varynth-event-bus";
+import { CoverPresentation } from "@/components/music/CoverPresentation";
 
 const visualProvider = new LocalVisualGenerationProvider();
 const colors = ["violet", "cyan", "rose", "amber"];
@@ -28,7 +34,8 @@ const CHAT_STORAGE_KEY = "varynth_music_curator_chat_v1";
 const ATHENA_SESSION_KEY = "varynth_music_curator_athena_session_v1";
 type CuratorMessage = { id: string; sender: "user" | "curator"; text: string; createdAt: string; consultedAthena?: boolean; athenaPlanId?: string; proposal?: EuterpeProposal };
 type MusicView = "home" | "library" | "playlists" | "now-playing";
-const WELCOME: CuratorMessage = { id: "euterpe-welcome-v1", sender: "curator", text: "Oi! Eu sou Euterpe, sua sub-IA musical subordinada à Athena. Você conversa comigo aqui no Music. Quando o pedido precisar de capacidades gerais da plataforma, consulto Athena e retorno para esta conversa.", createdAt: "" };
+type VisualAssetScope = "TRACK" | "LIBRARY";
+const WELCOME: CuratorMessage = { id: "euterpe-welcome-v1", sender: "curator", text: "Euterpe online. Já estou ouvindo com você. Sou sua sub-IA musical, subordinada à Athena; quando o pedido ultrapassa o Music, consulto Athena e retorno para esta conversa.", createdAt: "" };
 
 export default function MusicPage() {
   const store = useVarynthStore();
@@ -45,7 +52,7 @@ export default function MusicPage() {
   const [message, setMessage] = useState("");
   const [quality, setQuality] = useState<VisualQuality>("balanced");
   const [spectrum, setSpectrum] = useState<number[]>(Array(32).fill(0));
-  const [waveform, setWaveform] = useState<number[]>(Array(64).fill(128));
+  const [waveform, setWaveform] = useState<number[]>([]);
   const [dna, setDna] = useState<MusicDNA | undefined>();
   const [visualProfile, setVisualProfile] = useState<VisualProfile | undefined>();
   const [previousSceneBackground, setPreviousSceneBackground] = useState<string | undefined>();
@@ -57,6 +64,8 @@ export default function MusicPage() {
   const [activePlaylist, setActivePlaylist] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [visualConcept, setVisualConcept] = useState("");
+  const [visualBusy, setVisualBusy] = useState(false);
+  const [visualAssetScope, setVisualAssetScope] = useState<VisualAssetScope>("TRACK");
   const [feedbackRating, setFeedbackRating] = useState(4);
   const [feedbackNote, setFeedbackNote] = useState("");
   const [feedbackCount, setFeedbackCount] = useState(0);
@@ -68,7 +77,12 @@ export default function MusicPage() {
   const [chatStatus, setChatStatus] = useState("");
   const [chatReady, setChatReady] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [euterpeExpression, setEuterpeExpression] = useState<EuterpeState | null>(null);
+  const [euterpeExpression, setEuterpeExpression] = useState<EuterpeVisualState | null>(null);
+  const [agentState, setAgentState] = useState<EuterpeAgentState>("IDLE");
+  const [euterpeHidden, setEuterpeHidden] = useState(false);
+  const [reactiveMotion, setReactiveMotion] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  const [reducedMotionSetting, setReducedMotionSetting] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const previousSceneTimerRef = useRef<number | null>(null);
   const athenaSessionIdRef = useRef("");
@@ -77,7 +91,10 @@ export default function MusicPage() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioCloseTimerRef = useRef<number | null>(null);
   const binsRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
-  const waveBinsRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const musicEngineRef = useRef<MusicEngine | null>(null);
+  if (!musicEngineRef.current) musicEngineRef.current = new MusicEngine();
+  const euterpeAgentRef = useRef<EuterpeAgent | null>(null);
+  if (!euterpeAgentRef.current) euterpeAgentRef.current = new EuterpeAgent();
   const dnaAccumRef = useRef({ count: 0, loudness: 0, centroid: 0, bass: 0, mids: 0, treble: 0 });
   const sectionSamplesRef = useRef<number[]>([]);
   const selectedTrack = useMemo(() => tracks.find((track) => track.id === selectedId) ?? null, [tracks, selectedId]);
@@ -85,7 +102,7 @@ export default function MusicPage() {
   useEffect(() => { visualProfileRef.current = visualProfile; }, [visualProfile]);
   const permissionEngine = useMemo(() => new PermissionPolicyEngine(), []);
   const visibleTracks = useMemo(() => { const p = playlists.find((item) => item.id === activePlaylist); return p ? tracks.filter((track) => p.trackIds.includes(track.id)) : tracks; }, [tracks, playlists, activePlaylist]);
-  const euterpeState: EuterpeState = chatBusy ? "THINKING" : playing ? "MUSIC_REACTIVE" : euterpeExpression ?? (chatOpen ? "LISTENING" : tracks.length ? "IDLE" : "SLEEP");
+  const euterpeState: EuterpeVisualState = chatBusy ? (chatStatus.includes("consultando Athena") ? "ATHENA_DELEGATION" : "THINKING") : euterpeExpression ?? (chatOpen ? "LISTENING" : agentState === "IDLE" && tracks.length ? "IDLE" : visualStateForMusic(agentState));
   useEffect(() => {
     if (!euterpeExpression) return;
     const timer = window.setTimeout(() => setEuterpeExpression(null), 1100);
@@ -105,9 +122,23 @@ export default function MusicPage() {
   }, []);
   useEffect(() => { void reloadLibrary(); }, [reloadLibrary]);
   useEffect(() => {
+    const agent = euterpeAgentRef.current!;
+    const observe = (event: VarynthEvent) => {
+      const decision = agent.observe(event);
+      if (!decision.behavior) return;
+      setAgentState(agent.visualState);
+      if (decision.behavior.durationMs > 0) window.setTimeout(() => setAgentState(agent.currentMusicState), decision.behavior.durationMs);
+    };
+    const offs = [
+      varynthEventBus.on("MUSIC.TRACK_CHANGED", (e) => observe(e)), varynthEventBus.on("MUSIC.PLAYING", (e) => observe(e)), varynthEventBus.on("MUSIC.PAUSED", (e) => observe(e)), varynthEventBus.on("MUSIC.IDLE", (e) => observe(e)),
+      varynthEventBus.on("AGENT.LISTENING", (e) => observe(e)), varynthEventBus.on("AGENT.THINKING", (e) => observe(e)), varynthEventBus.on("AGENT.RESULT", (e) => observe(e)), varynthEventBus.on("ATHENA.REQUEST", (e) => observe(e)), varynthEventBus.on("ATHENA.ENTERED_CONTEXT", (e) => observe(e)), varynthEventBus.on("AGENT.SHARED_EVENT", (e) => observe(e)),
+    ];
+    return () => offs.forEach((off) => off());
+  }, []);
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-      if (raw) { const saved: unknown = JSON.parse(raw); if (Array.isArray(saved) && saved.every((item) => item && (item.sender === "user" || item.sender === "curator") && typeof item.text === "string")) setChatMessages(saved); }
+      if (raw) { const saved: unknown = JSON.parse(raw); if (Array.isArray(saved) && saved.every((item) => item && (item.sender === "user" || item.sender === "curator") && typeof item.text === "string")) setChatMessages(saved.map((item) => item.sender === "curator" && (item.id === WELCOME.id || item.text.startsWith("Oi! Eu sou a Curadora Musical.")) ? { ...item, id: WELCOME.id, text: WELCOME.text } : item)); }
       let sessionId = localStorage.getItem(ATHENA_SESSION_KEY);
       if (!sessionId) { sessionId = `music-curator-${crypto.randomUUID()}`; localStorage.setItem(ATHENA_SESSION_KEY, sessionId); }
       athenaSessionIdRef.current = sessionId;
@@ -118,6 +149,7 @@ export default function MusicPage() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, chatBusy]);
 
   useEffect(() => {
+    musicEngineRef.current!.loadTrack(selectedTrack ? { id: selectedTrack.id, name: selectedTrack.name } : undefined);
     let cancelled = false; let nextUrl: string | null = null; let temporaryUrl = false;
     const previousBackground = visualProfileRef.current?.backgroundDataUrl;
     if (previousBackground) {
@@ -128,21 +160,33 @@ export default function MusicPage() {
     setPlaying(false); setCurrentTime(0); setDuration((selectedTrack?.durationMs ?? 0) / 1000); setAudioUrl(null); setDna(undefined); setSections([]); setVisualProfile(undefined);
     dnaAccumRef.current = { count: 0, loudness: 0, centroid: 0, bass: 0, mids: 0, treble: 0 }; sectionSamplesRef.current = [];
     if (!selectedTrack) return;
-    void Promise.all([musicStudio.getDNA(selectedTrack.id)]).then(async ([savedDNA]) => {
+    setWaveform([]);
+    void Promise.all([musicStudio.getDNA(selectedTrack.id), musicStudio.getWaveform(selectedTrack.id)]).then(async ([savedDNA, storedWaveform]) => {
       const streamingUrl = musicLibrary.streamingUrl(selectedTrack);
+      let audioBlob: Blob | undefined;
       if (streamingUrl) nextUrl = streamingUrl;
       else {
-        const blob = await musicLibrary.getAudio(selectedTrack.id, selectedTrack);
-        if (!blob) throw new Error("O arquivo desta faixa não foi encontrado no armazenamento local.");
-        nextUrl = URL.createObjectURL(blob); temporaryUrl = true;
+        audioBlob = await musicLibrary.getAudio(selectedTrack.id, selectedTrack);
+        if (!audioBlob) throw new Error("O arquivo desta faixa não foi encontrado no armazenamento local.");
+        nextUrl = URL.createObjectURL(audioBlob); temporaryUrl = true;
       }
       if (cancelled) { if (temporaryUrl) URL.revokeObjectURL(nextUrl); } else {
         setAudioUrl(nextUrl); setDna(savedDNA);
+        if (storedWaveform?.schemaVersion === 1 && storedWaveform.peaks.length > 0) setWaveform(storedWaveform.peaks);
+        else {
+          try {
+            audioBlob ??= streamingUrl ? await fetch(streamingUrl, { credentials: "include" }).then((response) => response.ok ? response.blob() : undefined) : undefined;
+            if (audioBlob) {
+              const decoded = await decodeWaveform(audioBlob, selectedTrack.id, 128, selectedTrack.durationMs / 1000);
+              if (decoded && !cancelled) { setWaveform(decoded.peaks); await musicStudio.saveWaveform(decoded); }
+            }
+          } catch { /* Unsupported or large tracks keep seek controls without inventing a waveform. */ }
+        }
         const stored = await musicStudio.getVisualProfile(selectedTrack.id) as VisualProfile | undefined;
         if (cancelled) return;
         if (stored?.schemaVersion === 1) {
-          const art = await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() });
-          const refreshed = { ...stored, coverDataUrl: art.coverDataUrl, backgroundDataUrl: art.backgroundDataUrl };
+          const art = (!stored.coverDataUrl || !stored.backgroundDataUrl) ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() }) : undefined;
+          const refreshed = { ...stored, coverDataUrl: stored.coverDataUrl ?? art?.coverDataUrl, backgroundDataUrl: stored.backgroundDataUrl ?? art?.backgroundDataUrl };
           await musicStudio.saveVisualProfile(refreshed); if (!cancelled) setVisualProfile(refreshed);
         }
         else {
@@ -168,21 +212,17 @@ export default function MusicPage() {
         const analyser = context.createAnalyser(); analyser.fftSize = MUSIC_ANALYSIS_LIMITS.fftSize.balanced;
         analyser.smoothingTimeConstant = 0.78; source.connect(analyser); analyser.connect(context.destination);
         analyzerRef.current = analyser; binsRef.current = new Uint8Array(analyser.frequencyBinCount);
-        waveBinsRef.current = new Uint8Array(analyser.fftSize);
       }
       const draw = () => {
         if (!alive) return;
         const bins = binsRef.current; const active = analyzerRef.current;
         if (bins && active && !audio.paused) {
           active.getByteFrequencyData(bins);
-          const waveBins = waveBinsRef.current;
-          if (waveBins) active.getByteTimeDomainData(waveBins);
           const step = Math.max(1, Math.floor(bins.length / 32));
           const now = performance.now();
           const f = spectralFeatures(bins);
           if (now - lastPaint >= MUSIC_ANALYSIS_LIMITS.visualUpdateIntervalMs) {
             setSpectrum(Array.from({ length: 32 }, (_, i) => bins[Math.min(bins.length - 1, i * step)] / 255));
-            if (waveBins) { const waveStep = Math.max(1, Math.floor(waveBins.length / 64)); setWaveform(Array.from({ length: 64 }, (_, i) => waveBins[Math.min(waveBins.length - 1, i * waveStep)])); }
             setAudioFrame({ bass: f.bass, mids: f.mids, treble: f.treble, loudness: f.loudness });
             lastPaint = now;
           }
@@ -197,14 +237,14 @@ export default function MusicPage() {
       alive = false; cancelAnimationFrame(frame);
       if (context && typeof window !== "undefined") audioCloseTimerRef.current = window.setTimeout(() => {
         if (audioContextRef.current === context) {
-          void context.close(); audioContextRef.current = null; analyzerRef.current = null; binsRef.current = null; waveBinsRef.current = null;
+          void context.close(); audioContextRef.current = null; analyzerRef.current = null; binsRef.current = null;
         }
       }, 250);
     };
   }, []);
   useEffect(() => {
     const analyser = analyzerRef.current;
-    if (analyser) { analyser.fftSize = MUSIC_ANALYSIS_LIMITS.fftSize[quality]; binsRef.current = new Uint8Array(analyser.frequencyBinCount); waveBinsRef.current = new Uint8Array(analyser.fftSize); }
+    if (analyser) { analyser.fftSize = MUSIC_ANALYSIS_LIMITS.fftSize[quality]; binsRef.current = new Uint8Array(analyser.frequencyBinCount); }
   }, [quality]);
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -291,17 +331,21 @@ export default function MusicPage() {
   const renamePlaylist = async (list: MusicPlaylist) => { const name = window.prompt("Novo nome da playlist", list.name)?.trim(); if (!name) return; await musicStudio.savePlaylist({ ...list, name, updatedAt: new Date().toISOString() }); setPlaylists(await musicStudio.listPlaylists()); };
   const recordFeedback = async () => { if (!selectedId) return; const item: MusicFeedback = { id: crypto.randomUUID(), trackId: selectedId, rating: feedbackRating, tags: [], note: feedbackNote.trim(), createdAt: new Date().toISOString() }; await musicStudio.saveFeedback(item); const rows = await musicStudio.listFeedback(); setFeedbackRows(rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt))); setFeedbackCount(rows.length); setFeedbackNote(""); setMessage("Avaliação guardada localmente; não altera automaticamente perfis nem recomendações."); };
   const exportFeedback = async () => { const rows = await musicStudio.listFeedback(); const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), feedback: rows }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "varynth-music-feedback.json"; link.click(); URL.revokeObjectURL(url); };
-  const generateVisualPrompt = async () => { if (!prompt.trim()) return; try { const result = await visualProvider.generate({ prompt: prompt.trim(), style: "abstrato responsivo à música", createdAt: new Date().toISOString() }); setVisualConcept(result.description); } catch (error) { setMessage(error instanceof Error ? error.message : "Provider indisponível."); } };
+  const generateVisualPrompt = async () => { if (visualBusy) return; if (!selectedTrack) { setMessage("Escolha uma faixa antes de criar o visual."); return; } const visualPrompt = prompt.trim() || selectedTrack.name; setVisualBusy(true); setVisualConcept("Euterpe está criando a identidade visual…"); setMessage("Criando capa e fundo com Euterpe…"); try { const result = await visualProvider.generate({ prompt: visualPrompt, title: selectedTrack.name, artist: selectedTrack.artist, style: "abstrato responsivo à música", createdAt: new Date().toISOString() }); const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: result.coverDataUrl, backgroundDataUrl: result.backgroundDataUrl, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: new Date().toISOString() }; await musicStudio.saveVisualProfile(next); setVisualProfile(next); setVisualConcept(result.description); setMessage("Capa e fundo criados e aplicados à faixa."); } catch (error) { const detail = error instanceof Error ? error.message : "Provider indisponível."; setVisualConcept(""); setMessage(`Erro ao criar visual: ${detail}`); } finally { setVisualBusy(false); } };
+  const uploadVisualAsset = async (event: ChangeEvent<HTMLInputElement>, kind: "cover" | "background") => { const file = event.target.files?.[0]; event.target.value = ""; if (!file || !selectedTrack || !file.type.startsWith("image/")) { if (file) setMessage("Escolha uma imagem animada ou estática válida."); return; } if (file.size > 20 * 1024 * 1024) { setMessage("A imagem pode ter no máximo 20 MB."); return; } const reader = new FileReader(); reader.onerror = () => setMessage("Não foi possível ler a imagem selecionada."); reader.onload = async () => { try { const dataUrl = String(reader.result); const stamp = new Date().toISOString(); const targets = visualAssetScope === "LIBRARY" ? tracks : [selectedTrack]; await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp }); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp }; setVisualProfile(current); const label = kind === "cover" ? "Capa" : "Fundo"; const animation = file.type === "image/gif" || file.type === "image/webp" ? " animado" : ""; setMessage(`${label}${animation} salvo ${visualAssetScope === "LIBRARY" ? "em toda a biblioteca" : "nesta faixa"}.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível salvar a imagem."); } }; reader.readAsDataURL(file); };
   const sendToCurator = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const messageText = chatInput.trim(); if (!messageText || chatBusy) return;
     const userMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "user", text: messageText, createdAt: new Date().toISOString() };
     setChatMessages((current) => [...current, userMessage]); setChatInput(""); setChatBusy(true);
+    let resultOutcome: "response" | "proposal" | "error" = "response";
     setChatStatus(musicAgentShouldConsultAthena(messageText) ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
+    varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: musicAgentShouldConsultAthena(messageText) ? "athena" : undefined });
     try {
       if (!musicAgentShouldConsultAthena(messageText)) {
         const scopeId = musicLibrary.getIdentityNamespace();
         const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
         const result = interpretEuterpeRequest(messageText, { track: selectedTrack ?? undefined, dna, preferences, memories });
+        resultOutcome = result.proposal ? "proposal" : "response";
         setEuterpeExpression(result.proposal ? "CURIOUS" : "SPEAKING");
         if (!result.proposal) window.setTimeout(() => setEuterpeExpression("HAPPY"), 800);
         setChatMessages((current) => [...current, { id: crypto.randomUUID(), sender: "curator", text: result.response, createdAt: new Date().toISOString(), proposal: result.proposal }]);
@@ -313,8 +357,11 @@ export default function MusicPage() {
         track: selectedTrack,
         dna,
         consultAthena: async (userRequest) => {
+          varynthEventBus.emit("ATHENA.ENTERED_CONTEXT", { sessionId: athenaSessionIdRef.current });
+          varynthEventBus.emit("ATHENA.REQUEST", { sessionId: athenaSessionIdRef.current });
           athenaEventBus.emit("MUSIC_AGENT_ATHENA_DELEGATED", { agentId: "euterpe", sessionId: athenaSessionIdRef.current });
           const answer = await processAthenaQueryAsync(userRequest, "geral", store, undefined, athenaSessionIdRef.current || "music-curator-session");
+          varynthEventBus.emit("ATHENA.RESPONSE", { sessionId: athenaSessionIdRef.current });
           return { text: answer.text, metadata: answer.metadata };
         },
       });
@@ -324,9 +371,10 @@ export default function MusicPage() {
       setChatMessages((current) => [...current, curatorMessage]);
       athenaEventBus.emit("MUSIC_AGENT_REPLIED", { agentId: turn.agent, delegated: turn.consultedAthena });
     } catch (error) {
+      resultOutcome = "error";
       setEuterpeExpression("ALERT");
       setChatMessages((current) => [...current, { id: crypto.randomUUID(), sender: "curator", text: `Não consegui concluir este turno${error instanceof Error ? `: ${error.message}` : ". Vou continuar disponível para tentar novamente."}`, createdAt: new Date().toISOString() }]);
-    } finally { setChatBusy(false); setChatStatus(""); }
+    } finally { varynthEventBus.emit("AGENT.RESULT", { agentId: "euterpe", outcome: resultOutcome }); setChatBusy(false); setChatStatus(""); }
   };
   const applyProposal = async (proposal: EuterpeProposal) => {
     const decision = authorizeEuterpeProposal(permissionEngine, proposal);
@@ -350,9 +398,9 @@ export default function MusicPage() {
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível aplicar a proposta."); }
   };
   const recentTracks = [...tracks].sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 6);
-  return <PageLayout title="Music" subtitle="Player, biblioteca e visualização musical">
-    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
-      <nav aria-label="Navegação Music" className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.07] bg-[#101018] p-2">{([ ["home", "Início"], ["library", "Biblioteca"], ["playlists", "Playlists"], ["now-playing", "Tocando agora"] ] as const).map(([view, label]) => <button key={view} onClick={() => setActiveView(view)} aria-current={activeView === view ? "page" : undefined} className={`rounded-lg px-4 py-2 text-sm ${activeView === view ? "bg-violet-500/20 text-violet-100" : "text-slate-400 hover:bg-white/[0.05]"}`}>{label}</button>)}<label className={`ml-auto inline-flex cursor-pointer items-center gap-2 rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white ${busy ? "pointer-events-none opacity-60" : ""}`}>{busy ? "Importando…" : "Importar músicas"}<input className="sr-only" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus,.webm" multiple onChange={importFiles} disabled={busy} /></label></nav>
+  return <PageLayout title="Music" subtitle="Player, biblioteca e visualização musical" className={activeView === "now-playing" ? "!overflow-hidden !p-0" : undefined}>
+    <div className={activeView === "now-playing" ? "relative h-full min-h-0" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6"}>
+      <nav aria-label="Navegação Music" className={`flex flex-wrap items-center gap-2 ${activeView === "now-playing" ? "absolute left-3 right-3 top-3 z-30 border border-white/10 bg-[#101018]/35 p-2 backdrop-blur-lg sm:left-6 sm:right-6 sm:top-5" : "rounded-xl border border-white/[0.07] bg-[#101018] p-2"}`}>{([ ["home", "Início"], ["library", "Biblioteca"], ["playlists", "Playlists"], ["now-playing", "Tocando agora"] ] as const).map(([view, label]) => <button key={view} onClick={() => setActiveView(view)} aria-current={activeView === view ? "page" : undefined} className={`rounded-lg px-3 py-2 text-xs sm:px-4 sm:text-sm ${activeView === view ? "bg-violet-500/20 text-violet-100" : "text-slate-300 hover:bg-white/[0.08]"}`}>{label}</button>)}<label className={`ml-auto inline-flex cursor-pointer items-center gap-2 rounded-lg bg-violet-500 px-3 py-2 text-xs font-medium text-white sm:px-4 sm:text-sm ${busy ? "pointer-events-none opacity-60" : ""}`}>{busy ? "Importando…" : "Importar músicas"}<input className="sr-only" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus,.webm" multiple onChange={importFiles} disabled={busy} /></label></nav>
       <section hidden={activeView !== "home"} className="relative overflow-hidden rounded-3xl border border-violet-400/15 bg-gradient-to-br from-[#171329] via-[#10111d] to-[#0c1118] p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
         <div className="relative grid gap-7 lg:grid-cols-[1fr_340px] lg:items-center">
@@ -362,31 +410,26 @@ export default function MusicPage() {
           </div>
           <div className="relative flex aspect-[1.45] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-500/15 via-slate-900 to-cyan-500/10 bg-cover bg-center p-4" style={{ backgroundImage: visualProfile?.backgroundDataUrl ? `linear-gradient(#08081199,#08081199),url("${visualProfile.backgroundDataUrl}")` : undefined, ...visualFrameStyle({ ...(visualProfile ?? createVisualProfile(selectedId ?? "empty", dna)), reducedMotion: reducedMotion || (visualProfile?.reducedMotion ?? false) }, { ...audioFrame, playing }) } as CSSProperties} aria-label={`Visualização musical, qualidade ${quality}`}>
             <div className="flex h-full w-full items-end justify-center gap-[3px]" aria-hidden="true">{spectrum.map((value, i) => <span key={i} className="min-h-1 flex-1 rounded-t-full bg-gradient-to-t from-violet-500 to-cyan-300 transition-[height] duration-75" style={{ height: `${Math.max(3, value * 100)}%`, opacity: playing ? 0.35 + value * 0.65 : 0.25 }} />)}</div>
-            <svg aria-hidden="true" className="pointer-events-none absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points={waveform.map((sample, i) => `${(i / (waveform.length - 1)) * 100},${50 - (sample - 128) * 0.35}`).join(" ")} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" /></svg>
+            <svg aria-hidden="true" className="pointer-events-none absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points={waveform.map((sample, i) => `${(i / Math.max(1, waveform.length - 1)) * 100},${50 - sample * 45}`).join(" ")} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" /></svg>
             <Disc3 size={45} className={`absolute text-white/60 ${playing ? "animate-spin [animation-duration:8s]" : ""}`} strokeWidth={0.8} />
           </div>
         </div>
         <div className="relative mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400">Qualidade da visualização:{(["low", "balanced", "high"] as VisualQuality[]).map((q) => <button key={q} onClick={() => setQuality(q)} aria-pressed={quality === q} className={`rounded-full border px-3 py-1 ${quality === q ? "border-violet-400 bg-violet-500/20 text-violet-100" : "border-white/10"}`}>{q === "low" ? "Econômica" : q === "high" ? "Alta" : "Equilibrada"}</button>)}<span className="ml-auto">FFT local · sem upload de áudio</span></div>
       </section>
 
-      <section hidden={activeView !== "now-playing"} className="relative isolate -mx-4 min-h-[calc(100svh-7rem)] overflow-hidden bg-[#080811] sm:-mx-6" aria-label="Tocando agora">
-        <VisualScene sceneId={selectedTrack?.id ?? "empty-scene"} background={visualProfile?.backgroundDataUrl} previousBackground={previousSceneBackground} accent={visualProfile?.accentColor} energy={audioFrame} reducedMotion={reducedMotion || (visualProfile?.reducedMotion ?? false)} />
-        {!selectedTrack ? <div className="grid min-h-[60vh] place-items-center text-center"><div><Music2 className="mx-auto mb-4 text-slate-500" size={40} /><h2 className="text-xl text-white">Sua biblioteca está pronta</h2><p className="mt-2 text-sm text-slate-400">Escolha uma faixa para abrir o player.</p><button onClick={() => setActiveView("library")} className="mt-5 rounded-lg bg-violet-500 px-4 py-2 text-sm text-white">Abrir biblioteca</button></div></div>
-          : <div className="relative mx-auto flex min-h-[calc(100svh-7rem)] max-w-[1500px] flex-col items-center justify-center px-5 py-10 text-center sm:px-12">
-            <p className="mb-5 text-[10px] uppercase tracking-[0.38em] text-violet-200/80">VARYNTH · MUSIC · NOW PLAYING</p>
-            <div className="group relative mb-8 w-[min(64vw,390px)] sm:w-[min(36vw,460px)]" style={{ transform: `perspective(900px) rotateY(${(audioFrame.mids - .5) * 5}deg) rotateX(${(audioFrame.bass - .5) * -4}deg) translateY(${playing && !reducedMotion ? Math.sin(currentTime * .55) * 7 : 0}px)` }}>
-              <div className="absolute -inset-12 rounded-[35%] opacity-50 blur-3xl transition duration-500" style={{ background: visualProfile?.accentColor ?? "#8b5cf6", opacity: .12 + audioFrame.bass * .28 }} />
-              {visualProfile?.coverDataUrl ? <img src={visualProfile.coverDataUrl} alt={`Capa visual de ${selectedTrack.name}`} className="relative aspect-square w-full rounded-[2rem] object-cover shadow-[0_35px_120px_rgba(0,0,0,.6)] ring-1 ring-white/20 transition duration-500 group-hover:scale-[1.015]" style={{ boxShadow: `0 35px 120px rgba(0,0,0,.6), 0 0 ${10 + audioFrame.bass * 34}px ${visualProfile.accentColor ?? "#a78bfa"}66` }} /> : <div className="relative grid aspect-square w-full place-items-center rounded-[2rem] bg-white/5 shadow-2xl"><Disc3 size={120} className={playing && !reducedMotion ? "animate-spin [animation-duration:12s]" : ""} /></div>}
+      <section hidden={activeView !== "now-playing"} className="absolute inset-0 isolate overflow-hidden bg-[#080811]" aria-label="Cena Tocando agora">
+        <VisualScene sceneId={selectedTrack?.id ?? "empty-scene"} background={visualProfile?.backgroundDataUrl} coverArtwork={visualProfile?.coverDataUrl} previousBackground={previousSceneBackground} accent={visualProfile?.accentColor} energy={reactiveMotion ? audioFrame : { bass: 0, mids: 0, treble: 0, loudness: 0 }} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} />
+        {!selectedTrack ? <div className="relative z-10 grid h-full place-items-center px-6 text-center"><div><Music2 className="mx-auto mb-4 text-slate-300/70" size={42} /><h2 className="text-2xl text-white">A música ainda não chegou</h2><p className="mt-2 text-sm text-white/60">Escolha uma faixa para abrir seu ambiente sonoro.</p><button onClick={() => setActiveView("library")} className="mt-5 rounded-lg bg-violet-500 px-4 py-2 text-sm text-white">Abrir biblioteca</button></div></div>
+          : <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="absolute left-[7%] top-[25%] max-w-[44%] text-left sm:top-[30%]"><p className="text-[10px] uppercase tracking-[0.38em] text-violet-100/75">VARYNTH · MUSIC · NOW PLAYING</p><p className="mt-5 text-xs uppercase tracking-[0.24em] text-violet-100">{playing ? "Em reprodução" : "Em pausa"}</p><h2 className="mt-3 break-words text-3xl font-semibold text-white drop-shadow-lg sm:text-5xl lg:text-6xl">{selectedTrack.name}</h2><p className="mt-2 text-sm text-white/75 sm:text-lg">{selectedTrack.artist}{selectedTrack.album ? ` · ${selectedTrack.album}` : ""}</p></div>
+            <div className="pointer-events-auto absolute right-[7%] top-[16%] w-[min(43vw,520px)] sm:top-[15%]"><CoverPresentation src={visualProfile?.coverDataUrl} title={selectedTrack.name} accent={visualProfile?.accentColor ?? "#b997f4"} bass={reactiveMotion ? audioFrame.bass : 0} mids={reactiveMotion ? audioFrame.mids : 0} playing={playing} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} /></div>
+            <div className="pointer-events-auto absolute bottom-5 left-[6%] right-[6%] sm:bottom-7 sm:left-[8%] sm:right-[8%]">
+              <div role="slider" aria-label={waveform.length ? "Waveform da faixa. Toque ou arraste para buscar" : "Posição na faixa. Toque ou arraste para buscar; waveform indisponível"} aria-valuemin={0} aria-valuemax={duration || 0} aria-valuenow={Math.min(currentTime, duration || 0)} tabIndex={audioUrl && duration > 0 ? 0 : -1} onKeyDown={(event) => { if (!audioRef.current || !duration) return; const next = Math.max(0, Math.min(duration, currentTime + (event.key === "ArrowLeft" ? -5 : event.key === "ArrowRight" ? 5 : 0))); audioRef.current.currentTime = next; setCurrentTime(next); }} onPointerDown={(event) => { if (!audioRef.current || !duration) return; event.currentTarget.setPointerCapture(event.pointerId); const bounds = event.currentTarget.getBoundingClientRect(); const next = musicSeekTimeAtPointer(event.clientX, bounds.left, bounds.width, duration); audioRef.current.currentTime = next; setCurrentTime(next); }} onPointerMove={(event) => { if (event.buttons === 1 && audioRef.current && duration) { const bounds = event.currentTarget.getBoundingClientRect(); const next = musicSeekTimeAtPointer(event.clientX, bounds.left, bounds.width, duration); audioRef.current.currentTime = next; setCurrentTime(next); } }} className="flex h-10 cursor-pointer items-center gap-[2px] touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300">
+                {waveform.length ? waveform.map((peak, i) => { const progress = (i + .5) / waveform.length <= (duration ? currentTime / duration : 0); return <span key={i} className={`flex-1 rounded-full transition-colors duration-150 ${progress ? "bg-cyan-100 shadow-[0_0_9px_rgba(165,243,252,.55)]" : "bg-white/40"}`} style={{ height: `${Math.max(3, peak * 100)}%`, transform: `scaleY(${1 + audioFrame.bass * .08})` }} />; }) : <span className="h-px w-full bg-white/35"><span className="block h-px bg-cyan-100" style={{ width: `${duration ? currentTime/duration*100 : 0}%` }} /></span>}
+              </div><div className="mt-1 flex justify-between text-xs text-white/60"><span>{formatMusicTime(currentTime * 1000)}</span><span>{formatMusicTime(duration * 1000)}</span></div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-5"><button aria-label="Faixa anterior" onClick={() => stepTrack(-1)}><SkipBack size={19} /></button><button aria-label={playing ? "Pausar" : "Reproduzir"} onClick={() => void togglePlayback()} disabled={!audioUrl} className="grid h-12 w-12 place-items-center rounded-full bg-white text-black disabled:opacity-40">{playing ? <Pause size={20} /> : <Play size={20} />}</button><button aria-label="Próxima faixa" onClick={() => stepTrack(1)}><SkipForward size={19} /></button><span className="ml-2 hidden text-[11px] text-white/55 sm:inline">Graves {Math.round(audioFrame.bass*100)} · médios {Math.round(audioFrame.mids*100)} · agudos {Math.round(audioFrame.treble*100)}</span></div><div className="flex items-center gap-2"><Volume2 size={16} className="text-white/65"/><input aria-label="Volume" className="w-16 accent-violet-300 sm:w-28" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e)=>setVolume(Number(e.target.value))}/><button onClick={()=>setReactiveMotion((v)=>!v)} className="rounded-full border border-white/15 px-2 py-1 text-[10px] text-white/70">{reactiveMotion?"Desativar reação":"Ativar reação"}</button><button onClick={()=>setReducedMotionSetting((v)=>!v)} className="rounded-full border border-white/15 px-2 py-1 text-[10px] text-white/70">{reducedMotion||reducedMotionSetting?"Movimento reduzido":"Reduzir movimento"}</button><button onClick={()=>setFocusMode((v)=>!v)} aria-pressed={focusMode} className="rounded-full border border-white/15 px-2 py-1 text-[10px] text-white/70">{focusMode?"Sair do foco":"Foco"}</button><button onClick={()=>setEuterpeHidden((v)=>{if(v)setFocusMode(false);return !v;})} className="rounded-full border border-white/15 px-2 py-1 text-[10px] text-white/70">{euterpeHidden?"Mostrar Euterpe":"Ocultar Euterpe"}</button></div></div>
             </div>
-            <div className="w-full max-w-3xl"><p className="text-xs uppercase tracking-[0.24em] text-violet-200">{playing ? "Em reprodução" : "Pausado"}</p><h2 className="mt-3 break-words text-3xl font-semibold text-white drop-shadow-lg sm:text-5xl">{selectedTrack.name}</h2><p className="mt-2 text-base text-slate-200/85 sm:text-lg">{selectedTrack.artist}{selectedTrack.album ? ` · ${selectedTrack.album}` : ""}</p>
-              <div className="mx-auto mt-9 max-w-2xl">
-                <div role="slider" aria-label="Forma de onda. Toque ou arraste para mudar a posição" aria-valuemin={0} aria-valuemax={duration || 0} aria-valuenow={Math.min(currentTime, duration || 0)} tabIndex={audioUrl && duration > 0 ? 0 : -1} onKeyDown={(event) => { if (!audioRef.current || !duration) return; const next = Math.max(0, Math.min(duration, currentTime + (event.key === "ArrowLeft" ? -5 : event.key === "ArrowRight" ? 5 : 0))); audioRef.current.currentTime = next; setCurrentTime(next); }} onPointerDown={(event) => { if (!audioRef.current || !duration) return; event.currentTarget.setPointerCapture(event.pointerId); const bounds = event.currentTarget.getBoundingClientRect(); const next = musicSeekTimeAtPointer(event.clientX, bounds.left, bounds.width, duration); audioRef.current.currentTime = next; setCurrentTime(next); }} onPointerMove={(event) => { if (event.buttons === 1 && audioRef.current && duration) { const bounds = event.currentTarget.getBoundingClientRect(); const next = musicSeekTimeAtPointer(event.clientX, bounds.left, bounds.width, duration); audioRef.current.currentTime = next; setCurrentTime(next); } }} className="flex h-14 cursor-pointer items-center gap-[3px] touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300" style={{ opacity: audioUrl ? 1 : .4 }}>
-                  {waveform.map((sample, i) => { const amplitude = Math.max(.08, Math.abs(sample - 128) / 128); const progress = i / waveform.length <= (duration ? currentTime / duration : 0); return <span key={i} className={`flex-1 rounded-full transition-colors duration-150 ${progress ? "bg-cyan-100 shadow-[0_0_10px_rgba(165,243,252,.65)]" : "bg-white/35"}`} style={{ height: `${12 + amplitude * 78}%`, transform: `scaleY(${1 + audioFrame.bass * .12})` }} />; })}
-                </div><div className="mt-1 flex justify-between text-xs text-white/60"><span>{formatMusicTime(currentTime * 1000)}</span><span>{formatMusicTime(duration * 1000)}</span></div></div>
-              <div className="mt-6 flex items-center justify-center gap-7"><button aria-label="Faixa anterior" onClick={() => stepTrack(-1)}><SkipBack /></button><button aria-label={playing ? "Pausar" : "Reproduzir"} onClick={() => void togglePlayback()} disabled={!audioUrl} className="grid h-16 w-16 place-items-center rounded-full bg-white text-black disabled:opacity-40">{playing ? <Pause /> : <Play />}</button><button aria-label="Próxima faixa" onClick={() => stepTrack(1)}><SkipForward /></button></div>
-              <div className="mt-6 flex items-center gap-3"><Volume2 size={18} /><input aria-label="Volume" className="w-full accent-violet-400" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></div>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-white/55"><span>Graves {Math.round(audioFrame.bass * 100)} · Médios {Math.round(audioFrame.mids * 100)} · Agudos {Math.round(audioFrame.treble * 100)}</span><span className="mx-2 h-3 border-l border-white/20" />{(["low", "balanced", "high"] as VisualQuality[]).map((q) => <button key={q} aria-pressed={quality === q} onClick={() => setQuality(q)} className={`rounded-full border px-3 py-1 ${quality === q ? "border-violet-300/60 text-violet-100" : "border-white/10"}`}>{q === "low" ? "Econômica" : q === "high" ? "Alta" : "Equilibrada"}</button>)}<button onClick={() => { if (visualProfile) { const updated = { ...visualProfile, reducedMotion: !visualProfile.reducedMotion, motionSpeed: visualProfile.reducedMotion ? 0.2 : 0 }; setVisualProfile(updated); void musicStudio.saveVisualProfile(updated); } }} className="rounded-full border border-white/10 px-3 py-1">{visualProfile?.reducedMotion || reducedMotion ? "Movimento reduzido" : "Reduzir movimento"}</button></div>
-            </div></div>}
+          </div>}
       </section>
 
       <section hidden={activeView !== "home"} className="rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><div className="mb-3 flex items-center justify-between"><div><h2 className="font-semibold text-white">Continue ouvindo</h2><p className="mt-1 text-xs text-slate-500">Adicionadas recentemente</p></div><button onClick={() => setActiveView("library")} className="text-xs text-violet-300">Abrir biblioteca</button></div>{recentTracks.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{recentTracks.map((track) => <button key={track.id} onClick={() => { selectTrack(track); setActiveView("library"); }} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-left hover:bg-white/[0.07]"><span className="block truncate text-sm text-slate-100">{track.name}</span><span className="mt-1 block truncate text-xs text-slate-500">{track.artist}</span></button>)}</div> : <p className="text-sm text-slate-500">Importe músicas para começar sua biblioteca.</p>}</section>
@@ -395,13 +438,14 @@ export default function MusicPage() {
       {chatOpen && <>
         <button aria-label="Fechar conversa com Euterpe" onClick={() => setChatOpen(false)} className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[2px] lg:bg-transparent lg:backdrop-blur-none" />
         <section role="dialog" aria-modal="true" aria-label="Conversa com Euterpe" className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88svh] flex-col overflow-hidden rounded-t-3xl border border-violet-300/20 bg-[#0c0c15]/95 shadow-[0_-25px_100px_rgba(0,0,0,.65)] backdrop-blur-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[430px] lg:max-h-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l">
-        <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4"><div><h3 className="font-semibold text-white">Euterpe</h3><p className="mt-1 text-xs text-slate-400">Sua presença musical · em diálogo com Athena</p></div><div className="flex items-center gap-2"><button type="button" disabled={!euterpeVoiceProvider.available} title={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "Provider de voz ainda não configurado"} aria-label="Conversa por voz indisponível" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-500 disabled:cursor-not-allowed"><Mic2 size={16} /></button><button type="button" onClick={() => setChatOpen(false)} aria-label="Fechar conversa" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-300"><X size={17} /></button></div></div>
+        <div className="flex min-h-[92px] items-center justify-between border-b border-white/[0.07] px-5 py-2"><div className="flex min-w-0 items-center gap-3"><EuterpeCharacterArtwork variant="chibi" state={euterpeState} width={48} label="Euterpe" /><div className="min-w-0"><h3 className="font-semibold text-white">Euterpe</h3><p className="mt-1 text-xs text-slate-400">Uma presença musical própria · ligada à Athena</p></div></div><div className="flex items-center gap-2"><button type="button" disabled={!euterpeVoiceProvider.available} title={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "STT/TTS ainda não configurados"} aria-label={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "Conversa por voz indisponível"} className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-500 disabled:cursor-not-allowed"><Mic2 size={16} /></button><button type="button" onClick={() => setChatOpen(false)} aria-label="Fechar conversa" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-300"><X size={17} /></button></div></div>
         <div className="max-h-[32rem] space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">{chatMessages.map((chat) => <div key={chat.id}><div className={`flex ${chat.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 ${chat.sender === "user" ? "bg-violet-500/20 text-violet-50" : "border border-white/[0.07] bg-white/[0.03] text-slate-200"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{chat.sender === "user" ? "Você" : `Euterpe${chat.consultedAthena ? " · consultou Athena" : ""}`}</p><p className="whitespace-pre-wrap text-sm leading-6">{chat.text}</p>{chat.proposal && <button onClick={() => void applyProposal(chat.proposal!)} className="mt-3 rounded-lg border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100">Revisar e aplicar proposta</button>}</div></div>{chat.athenaPlanId && <div className="mt-3"><p className="mb-2 text-xs text-amber-200">Athena preparou um plano para revisão. Aprove, confirme ou execute pelos controles abaixo conforme as permissões.</p><AthenaCapabilityPlanPanel store={store} planId={chat.athenaPlanId} /></div>}</div>)}{chatBusy && <p className="text-xs text-violet-300" role="status">{chatStatus}</p>}<div ref={chatEndRef} /></div>
         <form onSubmit={(event) => void sendToCurator(event)} className="flex gap-2 border-t border-white/[0.07] p-3"><input aria-label="Mensagem para Euterpe" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Converse com Euterpe…" disabled={chatBusy} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-600" /><button type="submit" aria-label="Enviar para Euterpe" disabled={chatBusy || !chatInput.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:opacity-40"><Send size={17} /></button></form>
         <p className="px-4 pb-3 text-[10px] text-slate-600">Você conversa com Euterpe; quando o pedido exige recursos gerais, ela consulta Athena e traz a resposta. Histórico e memória ficam neste navegador.</p>
         </section>
       </>}
-      <EuterpePresence state={euterpeState} energy={audioFrame.loudness} onClick={() => setChatOpen((open) => !open)} />
+      {!euterpeHidden && !focusMode && <EuterpePresence state={euterpeState} audio={{ bass: audioFrame.bass, mids: audioFrame.mids, treble: audioFrame.treble, energy: audioFrame.loudness, calmness: dna?.calmness ?? .5 }} quality={quality} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} reactiveMotion={reactiveMotion} onClick={() => { setChatOpen(true); varynthEventBus.emit("AGENT.LISTENING", { agentId: "euterpe" }); }} onHide={() => setEuterpeHidden(true)} onBackToMusic={() => setActiveView("now-playing")} />}
+      {(euterpeHidden || focusMode) && activeView !== "now-playing" && <button onClick={() => { setEuterpeHidden(false); setFocusMode(false); }} className="fixed bottom-4 right-4 z-30 rounded-full border border-white/15 bg-[#15131bf0] px-4 py-2 text-xs text-white shadow-xl">Mostrar Euterpe</button>}
 
       <div hidden={activeView !== "library"} className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <section className="min-w-0 rounded-2xl border border-white/[0.08] bg-[#101018]">
@@ -412,14 +456,14 @@ export default function MusicPage() {
         <section className="rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tocando agora</p><div className="mt-4 min-h-[55px]">{selectedTrack ? <><h3 className="line-clamp-2 font-semibold text-white">{selectedTrack.name}</h3><p className="text-sm text-slate-400">{selectedTrack.artist}</p></> : <p className="text-sm text-slate-500">Escolha uma faixa.</p>}</div>
           <input aria-label="Posição da música" className="mt-4 w-full accent-violet-400" type="range" min={0} max={duration || 0} step={0.1} value={Math.min(currentTime, duration || 0)} onChange={(e) => { if (audioRef.current) audioRef.current.currentTime = Number(e.target.value); setCurrentTime(Number(e.target.value)); }} disabled={!audioUrl || duration <= 0} /><div className="flex justify-between text-[11px] text-slate-500"><span>{formatMusicTime(currentTime * 1000)}</span><span>{formatMusicTime(duration * 1000)}</span></div>
           <div className="mt-4 flex items-center justify-center gap-5"><button aria-label="Faixa anterior" onClick={() => stepTrack(-1)} disabled={!visibleTracks.length}><SkipBack size={20} /></button><button aria-label={playing ? "Pausar" : "Reproduzir"} onClick={() => void togglePlayback()} disabled={!audioUrl} className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-500 text-white disabled:opacity-40">{playing ? <Pause size={20} /> : <Play size={20} />}</button><button aria-label="Próxima faixa" onClick={() => stepTrack(1)} disabled={!visibleTracks.length}><SkipForward size={20} /></button></div><div className="mt-4 flex items-center gap-3"><Volume2 size={16} /><input aria-label="Volume" className="w-full accent-violet-400" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></div>
-          <audio ref={audioRef} src={audioUrl ?? undefined} onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)} onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => { void saveDNA("COMPLETE"); stepTrack(1); }} onError={() => { if (audioUrl) setMessage("Não foi possível decodificar esta faixa neste navegador."); }} />
+          <audio ref={audioRef} src={audioUrl ?? undefined} onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)} onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)} onPlay={() => { setPlaying(true); musicEngineRef.current?.confirmPlaying(); }} onPause={() => { setPlaying(false); musicEngineRef.current?.confirmPaused(); }} onEnded={() => { void saveDNA("COMPLETE"); stepTrack(1); }} onError={() => { if (audioUrl) setMessage("Não foi possível decodificar esta faixa neste navegador."); }} />
         </section>
       </div>
 
       <div hidden={activeView !== "library"} className="grid gap-5 lg:grid-cols-2">
         <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><div className="flex items-center justify-between"><h3 className="font-semibold text-white">Music DNA · v2</h3><button onClick={() => void saveDNA()} disabled={!selectedTrack} className="rounded-lg bg-violet-500/20 px-3 py-1.5 text-xs text-violet-200 disabled:opacity-40">Atualizar análise</button></div><p className="text-xs text-slate-500">Amostras locais acumulam durante a reprodução e salvam gradualmente. {dna ? `Estado: ${dna.status.toLowerCase()}.` : "Estado: aguardando reprodução."}</p>{dna ? <div className="grid grid-cols-3 gap-2 text-xs text-slate-300">{[["Energia", dna.meanLoudness], ["Graves", dna.bass], ["Médios", dna.mids], ["Agudos", dna.treble], ["Centro espectral", dna.spectralCentroid], ["Calma estimada", dna.calmness]].map(([label, value]) => <div key={String(label)} className="rounded-lg bg-white/[0.04] p-2">{label}<strong className="mt-1 block">{Number(value).toFixed(2)}</strong></div>)}</div> : <p className="text-sm text-slate-500">{selectedTrack ? musicSpecialist.memory(selectedTrack) : "Selecione uma faixa."}</p>}{sections.length > 0 && <p className="text-xs text-slate-400">Seções estimadas (confiança baixa a moderada): {sections.map((s) => `${s.label} ${formatMusicTime(s.timeSeconds * 1000)} (${Math.round(s.confidence * 100)}%)`).join(" · ")}</p>}<p className="text-xs text-slate-500">{selectedTrack ? musicSpecialist.suggest(selectedTrack, dna) : "Euterpe responde dentro do Music e consulta Athena para capacidades gerais da plataforma."}</p></section>
         <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Playlists locais</h3><div className="flex gap-2"><input aria-label="Nome da playlist" value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Nome da playlist" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void createPlaylist()} className="rounded-lg bg-violet-500 px-3 text-sm text-white">Criar</button></div>{playlists.map((p) => <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-sm text-slate-300"><button onClick={() => setActivePlaylist(p.id)} className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${playlistDot[p.color] ?? playlistDot.violet}`} />{p.name} · {p.trackIds.length} faixas</button><span className="flex gap-3"><button onClick={() => void renamePlaylist(p)} className="text-xs text-slate-400">Renomear</button><button onClick={() => void addToPlaylist(p)} disabled={!selectedId || p.trackIds.includes(selectedId)} className="text-xs text-violet-300 disabled:text-slate-600">Adicionar</button><button onClick={() => void removeFromPlaylist(p)} disabled={!selectedId || !p.trackIds.includes(selectedId)} className="text-xs text-rose-300 disabled:text-slate-600">Remover faixa</button></span></div>)}</section>
-        <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Conceito visual</h3><p className="text-xs text-slate-500">Provider local cria um briefing textual; imagem generativa externa não está configurada.</p><div className="flex gap-2"><input aria-label="Prompt visual" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Descreva uma atmosfera visual" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void generateVisualPrompt()} className="rounded-lg bg-violet-500 px-3 text-sm text-white">Criar ideia</button></div>{visualConcept && <p className="text-sm text-slate-300">{visualConcept}</p>}</section>
+        <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Personalizar visual da faixa</h3><p className="text-xs text-slate-500">A identidade é salva por faixa. Envie GIF ou WebP animado, ou peça à Euterpe para criar uma composição visual local.</p><label className="flex items-center gap-2 text-xs text-slate-400">Aplicar imagem em<select value={visualAssetScope} onChange={(event) => setVisualAssetScope(event.target.value as VisualAssetScope)} className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-slate-200"><option value="TRACK">Somente esta faixa</option><option value="LIBRARY">Todas as faixas da biblioteca</option></select></label><div className="flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200">Escolher capa ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" onChange={(e) => void uploadVisualAsset(e, "cover")} /></label><label className="cursor-pointer rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200">Escolher fundo ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" onChange={(e) => void uploadVisualAsset(e, "background")} /></label><button onClick={() => void generateVisualPrompt()} disabled={visualBusy} className="rounded-lg border border-violet-300/20 px-3 py-2 text-xs text-violet-200">{visualBusy ? "Criando…" : "Gerar com Euterpe"}</button></div><div className="flex flex-wrap gap-2 text-xs text-slate-400"><span>Movimento:</span>{(["STATIC","SMOOTH","ANIMATED"] as const).map((mode) => <button key={mode} onClick={() => { const base=visualProfile ?? createVisualProfile(selectedTrack?.id ?? "empty", dna); const next={...base,reducedMotion:mode==="STATIC",motionSpeed:mode==="STATIC"?0:mode==="SMOOTH"?.16:.3,updatedAt:new Date().toISOString()};setVisualProfile(next);void musicStudio.saveVisualProfile(next); }} aria-pressed={(mode === "STATIC" ? (visualProfile?.reducedMotion ?? false) : mode === "SMOOTH" ? (visualProfile?.motionSpeed ?? .3) === .16 : (visualProfile?.motionSpeed ?? 0) === .3)} className={`rounded-full border px-3 py-1 ${((mode === "STATIC" && visualProfile?.reducedMotion) || (mode === "SMOOTH" && visualProfile?.motionSpeed === .16) || (mode === "ANIMATED" && visualProfile?.motionSpeed === .3 && !visualProfile?.reducedMotion)) ? "border-violet-300 bg-violet-500/20 text-violet-100" : "border-white/10"}`}>{mode === "STATIC" ? "Estático" : mode === "SMOOTH" ? "Suave" : "Animado"}</button>)}</div><div className="flex gap-2"><input aria-label="Prompt visual" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Intenção visual para Euterpe" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void generateVisualPrompt()} disabled={visualBusy} className="rounded-lg bg-violet-500 px-3 text-sm text-white disabled:opacity-50">{visualBusy ? "Criando…" : "Criar briefing"}</button></div>{(visualConcept || message) && <p role="status" aria-live="polite" className="text-sm text-slate-300">{visualConcept || message}</p>}</section>
         <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Feedback revisável · {feedbackCount}</h3><p className="text-xs text-slate-500">Dados locais, sem retreino ou ajuste automático.</p><div className="flex gap-3"><select aria-label="Nota da faixa" value={feedbackRating} onChange={(e) => setFeedbackRating(Number(e.target.value))} className="rounded-lg bg-slate-900 p-2 text-sm text-white">{[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}</select><input aria-label="Observação da avaliação" value={feedbackNote} onChange={(e) => setFeedbackNote(e.target.value)} placeholder="Observação opcional" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white" /></div><div className="flex gap-2"><button onClick={() => void recordFeedback()} disabled={!selectedTrack} className="rounded-lg bg-violet-500/20 px-3 py-2 text-xs text-violet-200">Registrar avaliação</button><button onClick={() => void exportFeedback()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Exportar JSON para revisão</button></div><div className="max-h-24 space-y-1 overflow-y-auto text-xs text-slate-500">{feedbackRows.slice(0, 6).map((row) => <p key={row.id}>{tracks.find((track) => track.id === row.trackId)?.name ?? row.trackId} · {row.rating}/5{row.note ? ` · ${row.note}` : ""}</p>)}</div></section>
       </div>
       <section hidden={activeView !== "playlists"} className="grid gap-5 lg:grid-cols-2"><div className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h2 className="font-semibold text-white">Suas playlists</h2><div className="flex gap-2"><input aria-label="Nome da playlist" value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Nome da playlist" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void createPlaylist()} className="rounded-lg bg-violet-500 px-3 text-sm text-white">Criar</button></div>{playlists.length ? playlists.map((p) => <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-sm text-slate-300"><button onClick={() => { setActivePlaylist(p.id); setActiveView("library"); }} className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${playlistDot[p.color] ?? playlistDot.violet}`} />{p.name} · {p.trackIds.length} faixas</button><span className="flex gap-3"><button onClick={() => void renamePlaylist(p)} className="text-xs text-slate-400">Renomear</button><button onClick={() => void addToPlaylist(p)} disabled={!selectedId || p.trackIds.includes(selectedId)} className="text-xs text-violet-300 disabled:text-slate-600">Adicionar faixa atual</button><button onClick={() => void removeFromPlaylist(p)} disabled={!selectedId || !p.trackIds.includes(selectedId)} className="text-xs text-rose-300 disabled:text-slate-600">Remover faixa atual</button></span></div>) : <p className="text-sm text-slate-500">Crie uma playlist para organizar suas faixas.</p>}</div><section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h2 className="font-semibold text-white">Feedback revisável · {feedbackCount}</h2><p className="text-xs text-slate-500">Dados locais, sem retreino ou ajuste automático.</p><div className="flex gap-3"><select aria-label="Nota da faixa" value={feedbackRating} onChange={(e) => setFeedbackRating(Number(e.target.value))} className="rounded-lg bg-slate-900 p-2 text-sm text-white">{[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}</select><input aria-label="Observação da avaliação" value={feedbackNote} onChange={(e) => setFeedbackNote(e.target.value)} placeholder="Observação opcional" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white" /></div><div className="flex gap-2"><button onClick={() => void recordFeedback()} disabled={!selectedTrack} className="rounded-lg bg-violet-500/20 px-3 py-2 text-xs text-violet-200">Registrar avaliação da faixa atual</button><button onClick={() => void exportFeedback()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Exportar JSON</button></div>{feedbackRows.slice(0, 6).map((row) => <p key={row.id} className="text-xs text-slate-500">{tracks.find((track) => track.id === row.trackId)?.name ?? row.trackId} · {row.rating}/5{row.note ? ` · ${row.note}` : ""}</p>)}</section></section>

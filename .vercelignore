@@ -6,3 +6,8 @@
 music-release-v1
 *.tsbuildinfo
 src/lib/tests/forge-browser-security.test.ts.bak
+apps/**/node_modules
+apps/**/target
+apps/**/.cargo
+apps/**/android/.gradle
+apps/**/android/app/build

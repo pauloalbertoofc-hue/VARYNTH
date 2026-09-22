@@ -3,7 +3,7 @@ import {
   AudioClip,
   AudioOperation,
   AudioChangeSet,
-  AudioTrackType,
+  ExtendedAudioTrackType,
 } from "./types";
 import { audioService } from "./audio-service";
 
@@ -75,7 +75,7 @@ export class AthenaAudioActions {
    */
   public createTrack(
     name: string,
-    type: AudioTrackType = "AUDIO",
+    type: ExtendedAudioTrackType = "AUDIO",
     color?: string
   ): AudioTrack {
     return {
@@ -106,4 +106,3 @@ export class AthenaAudioActions {
 }
 
 export const athenaAudioActions = new AthenaAudioActions();
-

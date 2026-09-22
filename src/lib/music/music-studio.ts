@@ -1,4 +1,6 @@
 import type { MusicTrack } from "./types";
+import type { MusicWaveform } from "./music-engine";
+import type { TrackVisualIdentity } from "./visual-identity";
 import { idbRequest, MUSIC_STORES, openMusicDatabase } from "./music-db";
 
 export type VisualQuality = "low" | "balanced" | "high";
@@ -101,6 +103,10 @@ export function analyzeSections(samples: number[], durationSeconds: number): Mus
 export const musicStudio = {
   getDNA: async (trackId: string) => migrateMusicDNA(await openStore<MusicDNA | LegacyMusicDNA | undefined>(MUSIC_STORES.dna, "readonly", (s) => s.get(trackId))),
   saveDNA: (dna: MusicDNA) => openStore(MUSIC_STORES.dna, "readwrite", (s) => s.put(dna)),
+  getWaveform: (trackId: string) => openStore<MusicWaveform | undefined>(MUSIC_STORES.waveforms, "readonly", (s) => s.get(trackId)),
+  saveWaveform: (waveform: MusicWaveform) => openStore(MUSIC_STORES.waveforms, "readwrite", (s) => s.put(waveform)),
+  getVisualIdentity: (trackId: string) => openStore<TrackVisualIdentity | undefined>(MUSIC_STORES.visualIdentities, "readonly", (s) => s.get(trackId)),
+  saveVisualIdentity: (identity: TrackVisualIdentity) => openStore(MUSIC_STORES.visualIdentities, "readwrite", (s) => s.put(identity)),
   listPlaylists: async () => (await openStore<MusicPlaylist[]>(MUSIC_STORES.playlists, "readonly", (s) => s.getAll())).sort((a, b) => a.name.localeCompare(b.name)),
   savePlaylist: (playlist: MusicPlaylist) => openStore(MUSIC_STORES.playlists, "readwrite", (s) => s.put(playlist)),
   saveFeedback: (feedback: MusicFeedback) => openStore(MUSIC_STORES.feedback, "readwrite", (s) => s.put(feedback)),

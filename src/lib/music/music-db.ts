@@ -1,7 +1,7 @@
 export const MUSIC_DB_NAME = "varynth-music-library";
-export const MUSIC_DB_VERSION = 3;
+export const MUSIC_DB_VERSION = 5;
 export const MUSIC_STORES = {
-  tracks: "tracks", audio: "audio", dna: "dna", playlists: "playlists", feedback: "feedback",
+  tracks: "tracks", audio: "audio", dna: "dna", waveforms: "waveforms", visualIdentities: "visualIdentities", playlists: "playlists", feedback: "feedback",
   visualProfiles: "visualProfiles", preferences: "preferences", agentMemory: "agentMemory", identities: "identities",
 } as const;
 
@@ -12,7 +12,7 @@ export function openMusicDatabase(): Promise<IDBDatabase> {
     const request = indexedDB.open(MUSIC_DB_NAME, MUSIC_DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const name of [MUSIC_STORES.tracks, MUSIC_STORES.dna, MUSIC_STORES.playlists, MUSIC_STORES.feedback, MUSIC_STORES.visualProfiles, MUSIC_STORES.preferences, MUSIC_STORES.agentMemory, MUSIC_STORES.identities]) {
+      for (const name of [MUSIC_STORES.tracks, MUSIC_STORES.dna, MUSIC_STORES.waveforms, MUSIC_STORES.visualIdentities, MUSIC_STORES.playlists, MUSIC_STORES.feedback, MUSIC_STORES.visualProfiles, MUSIC_STORES.preferences, MUSIC_STORES.agentMemory, MUSIC_STORES.identities]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
       }
       if (!db.objectStoreNames.contains(MUSIC_STORES.audio)) db.createObjectStore(MUSIC_STORES.audio);

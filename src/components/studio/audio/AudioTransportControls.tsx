@@ -32,6 +32,7 @@ interface AudioTransportControlsProps {
   onPlay: () => void;
   onPause: () => void;
   onStop: () => void;
+  onRecord?: () => void;
   onJumpToStart: () => void;
   onJumpToEnd: () => void;
   onZoomIn: () => void;
@@ -41,6 +42,7 @@ interface AudioTransportControlsProps {
   onAddTrack: () => void;
   onImportAudio: () => void;
   onAskAthena: () => void;
+  onAddMarker?: () => void;
 }
 
 export function AudioTransportControls({
@@ -56,6 +58,7 @@ export function AudioTransportControls({
   onPlay,
   onPause,
   onStop,
+  onRecord,
   onJumpToStart,
   onJumpToEnd,
   onZoomIn,
@@ -65,6 +68,7 @@ export function AudioTransportControls({
   onAddTrack,
   onImportAudio,
   onAskAthena,
+  onAddMarker,
 }: AudioTransportControlsProps) {
   const formatTimecode = (ms: number) => {
     const totalSec = Math.floor(ms / 1000);
@@ -78,6 +82,7 @@ export function AudioTransportControls({
     <div className="flex items-center justify-between px-4 py-2 bg-[#0e0f1c] border-b border-[#1c1d32] text-xs text-slate-300 select-none">
       {/* Left: Transport Buttons */}
       <div className="flex items-center gap-1.5">
+        <button onClick={onRecord} className={`px-2 py-1.5 rounded-lg border ${playbackState === "BUFFERING" ? "bg-rose-600 text-white border-rose-400" : "bg-[#141528] text-rose-300 border-[#232544]"}`} title="Gravar pelo microfone">● REC</button><button onClick={onAddMarker} className="px-2 py-1.5 rounded-lg border border-[#232544] bg-[#141528] text-amber-300" title="Adicionar marker no playhead">⚑</button>
         <button
           onClick={onJumpToStart}
           className="p-1.5 bg-[#141528] hover:bg-[#1f213a] text-slate-400 hover:text-white rounded-lg border border-[#232544] transition"
@@ -231,4 +236,3 @@ export function AudioTransportControls({
     </div>
   );
 }
-

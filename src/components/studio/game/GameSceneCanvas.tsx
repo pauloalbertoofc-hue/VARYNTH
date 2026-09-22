@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { GameDocumentState, GameEntity, GameScene } from "@/lib/studio/game/types";
-import { Box, Layers, MousePointer } from "lucide-react";
+import { Box, Layers, MousePointer, ZoomIn, ZoomOut } from "lucide-react";
 
 interface GameSceneCanvasProps {
   documentState: GameDocumentState;
@@ -19,15 +19,24 @@ export const GameSceneCanvas: React.FC<GameSceneCanvasProps> = ({
   onSelectEntity,
   onUpdateEntityTransform,
 }) => {
+  const [zoom, setZoom] = useState(1);
+  const [grid, setGrid] = useState(32);
+  const drag = useRef<{ id: string; ox: number; oy: number } | null>(null);
   const scene = activeScene || documentState.scenes.find((s) => s.id === documentState.entrySceneId);
-  const sceneEntities = documentState.entities.filter((e) => e.sceneId === scene?.id);
+  const sceneEntities = documentState.entities.filter((e) => e.sceneId === scene?.id).sort((a, b) => ((a.components.find(c => c.type === "TRANSFORM") as any)?.zIndex || 0) - ((b.components.find(c => c.type === "TRANSFORM") as any)?.zIndex || 0));
 
   return (
-    <div className="relative w-full h-full bg-[#090a12] overflow-hidden flex items-center justify-center p-6 select-none">
+    <div className="relative w-full h-full bg-[#090a12] overflow-auto flex items-center justify-center p-6 select-none">
+      <div className="absolute top-3 right-3 z-40 flex gap-1 bg-black/60 p-1 rounded-lg border border-white/10">
+        <button onClick={() => setZoom(z => Math.min(2, z + .1))} title="Aumentar zoom" className="p-1.5 text-slate-300 hover:text-white"><ZoomIn size={14}/></button>
+        <span className="px-1 py-1 text-[10px] font-mono text-slate-400">{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(z => Math.max(.5, z - .1))} title="Reduzir zoom" className="p-1.5 text-slate-300 hover:text-white"><ZoomOut size={14}/></button>
+        <button onClick={() => setGrid(g => g === 32 ? 16 : 32)} className="px-2 text-[10px] text-emerald-300">Grid {grid}</button>
+      </div>
       {/* 2D Canvas Container (800x600 virtual viewport) */}
       <div
-        className="relative w-[800px] h-[600px] rounded-xl border border-[#232742] shadow-2xl overflow-hidden flex flex-col justify-between"
-        style={{ backgroundColor: scene?.backgroundColor || "#0f172a" }}
+        className="relative shrink-0 rounded-xl border border-[#232742] shadow-2xl overflow-hidden flex flex-col justify-between"
+        style={{ width: 800 * zoom, height: 600 * zoom, backgroundColor: scene?.backgroundColor || "#0f172a" }}
       >
         {/* Viewport Grid Overlay */}
         <div
@@ -35,7 +44,7 @@ export const GameSceneCanvas: React.FC<GameSceneCanvasProps> = ({
           style={{
             backgroundImage:
               "linear-gradient(to right, #475569 1px, transparent 1px), linear-gradient(to bottom, #475569 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
+            backgroundSize: `${grid * zoom}px ${grid * zoom}px`,
           }}
         />
 
@@ -67,17 +76,23 @@ export const GameSceneCanvas: React.FC<GameSceneCanvasProps> = ({
             return (
               <div
                 key={ent.id}
-                onClick={(e) => {
+                onPointerDown={(e) => {
                   e.stopPropagation();
                   onSelectEntity(ent.id);
+                  const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (rect) { drag.current = { id: ent.id, ox: (e.clientX - rect.left) / zoom - x, oy: (e.clientY - rect.top) / zoom - y }; e.currentTarget.setPointerCapture(e.pointerId); }
                 }}
+                onPointerMove={(e) => { if (!drag.current || drag.current.id !== ent.id) return; const rect = e.currentTarget.parentElement?.getBoundingClientRect(); if (!rect) return; const px = (e.clientX - rect.left) / zoom - drag.current.ox; const py = (e.clientY - rect.top) / zoom - drag.current.oy; onUpdateEntityTransform(ent.id, Math.round(px / grid) * grid, Math.round(py / grid) * grid); }}
+                onPointerUp={() => { drag.current = null; }}
                 className={`absolute cursor-pointer transition-all ${
                   isSelected ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-black z-30" : "hover:ring-1 hover:ring-white/40 z-10"
                 } ${!ent.active ? "opacity-40" : ""}`}
+                hidden={tr?.visible === false}
                 style={{
-                  left: `${x}px`,
-                  top: `${y}px`,
-                  transform: "translate(-50%, -50%)",
+                  left: `${x * zoom}px`,
+                  top: `${y * zoom}px`,
+                  transform: `translate(-50%, -50%) rotate(${tr?.rotation || 0}deg) scale(${tr?.scaleX || 1},${tr?.scaleY || 1})`,
+                  zIndex: tr?.zIndex || 0,
                 }}
               >
                 {/* Visual Representation */}
@@ -129,4 +144,3 @@ export const GameSceneCanvas: React.FC<GameSceneCanvasProps> = ({
     </div>
   );
 };
-

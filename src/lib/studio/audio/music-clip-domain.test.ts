@@ -1,0 +1,18 @@
+import { createMusicClip, duplicateMusicClip, transposeMusicClip, syncMusicNotesWithClips, syncPrimaryMusicClip } from "./music-clip-domain";
+const clip = createMusicClip("instrument-1", [{ id: "c", pitch: "C", accidental: "natural", octave: 4, startBeat: 0, durationBeats: 1, velocity: 96 }]);
+const moved = duplicateMusicClip(clip, 4); if (moved.startBeat !== 4 || moved.notes[0].startBeat !== 0) throw new Error("Duplicação de Music Clip inválida");
+const transposed = transposeMusicClip(clip, 12); if (transposed.notes[0].octave !== 5 || transposed.transposeSemitones !== 12) throw new Error("Transposição de Music Clip inválida");
+const synced = syncPrimaryMusicClip({ version: 1, tuning: { concertPitchHz: 440, temperament: "12-TET" }, tempoMap: [{ beat: 0, bpm: 120 }], timeSignature: { numerator: 4, denominator: 4 }, key: { tonic: "C", accidental: "natural", scale: "major" }, notes: clip.notes, rests: [], chords: [] }, "instrument-1");
+if (synced.clips?.[0]?.trackId !== "instrument-1" || synced.clips?.[0]?.notes.length !== 1) throw new Error("Sincronização do Music Clip inválida");
+const importedNote = { id: "midi-note", pitch: "D" as const, accidental: "natural" as const, octave: 4, startBeat: 2, durationBeats: 1, velocity: 80 };
+const unrelated = createMusicClip("bass", [{ ...importedNote, id: "bass-note", octave: 2 }], 0, 4, "MIDI Bass");
+const structured = { ...synced, notes: [{ ...clip.notes[0], startBeat: 1, velocity: 110 }, importedNote], clips: [...(synced.clips || []), unrelated] };
+const aligned = syncMusicNotesWithClips(structured, "instrument-1");
+if (aligned.clips?.find((item) => item.trackId === "bass")?.notes[0].velocity !== 80) throw new Error("Sincronização não pode alterar clip de outro track");
+if (aligned.clips?.find((item) => item.trackId === "instrument-1")?.notes.some((note) => note.id === "midi-note") !== true) throw new Error("Nota nova deve entrar no clip alvo");
+if (aligned.clips?.find((item) => item.trackId === "instrument-1")?.notes.find((note) => note.id === "c")?.velocity !== 110) throw new Error("Nota existente deve ser atualizada por ID");
+const segmented = { ...structured, clips: [...(synced.clips || []), { ...synced.clips![0], id: "instrument-second", name: "MIDI Segment 2", startBeat: 4, endBeat: 8, notes: [{ ...clip.notes[0], id: "segment-note", startBeat: 4 }] }] };
+const segmentedAligned = syncMusicNotesWithClips(segmented, "instrument-1");
+if (segmentedAligned.clips?.find((item) => item.id === "instrument-second")?.notes[0].id !== "segment-note") throw new Error("Clip segmentado do mesmo track não pode ser substituído");
+if (segmentedAligned.clips?.find((item) => item.id === synced.clips?.[0].id)?.notes.some((note) => note.id === "midi-note") !== true) throw new Error("Nota nova deve usar o primeiro clip do track como fallback determinístico");
+console.log("Music clip tests passed: creation, duplication, transposition, synchronization and clip isolation.");

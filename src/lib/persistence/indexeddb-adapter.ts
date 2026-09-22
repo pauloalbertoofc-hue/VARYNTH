@@ -96,10 +96,17 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
     this.storeName = storeName;
   }
 
+  private cloneRecord<V>(value: V): V {
+    if (this.storeName === "asset_blobs" && typeof structuredClone === "function") {
+      try { return structuredClone(value); } catch { /* Fall back for legacy/non-cloneable records. */ }
+    }
+    return JSON.parse(JSON.stringify(value));
+  }
+
   public async getById(id: string): Promise<T | null> {
     if (!dbConnection.isAvailable()) {
       const item = dbConnection.getMemoryStore(this.storeName).get(id);
-      return item ? JSON.parse(JSON.stringify(item)) : null;
+      return item ? this.cloneRecord(item) : null;
     }
 
     try {
@@ -114,7 +121,7 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
       });
     } catch {
       const item = dbConnection.getMemoryStore(this.storeName).get(id);
-      return item ? JSON.parse(JSON.stringify(item)) : null;
+      return item ? this.cloneRecord(item) : null;
     }
   }
 
@@ -122,7 +129,7 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
     if (!dbConnection.isAvailable()) {
       const all = Array.from(dbConnection.getMemoryStore(this.storeName).values());
       const res = filter ? all.filter(filter) : all;
-      return JSON.parse(JSON.stringify(res));
+      return this.cloneRecord(res);
     }
 
     try {
@@ -141,12 +148,12 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
     } catch {
       const all = Array.from(dbConnection.getMemoryStore(this.storeName).values());
       const res = filter ? all.filter(filter) : all;
-      return JSON.parse(JSON.stringify(res));
+      return this.cloneRecord(res);
     }
   }
 
   public async save(item: T): Promise<T> {
-    const clone = JSON.parse(JSON.stringify(item));
+    const clone = this.cloneRecord(item);
 
     // 1. Fallback Policy Evaluation
     const perm = fallbackPolicyEngine.evaluateWritePermission(this.storeName, clone);
@@ -177,7 +184,7 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
   }
 
   public async saveBatch(items: T[]): Promise<void> {
-    const clones = items.map((i) => JSON.parse(JSON.stringify(i)));
+    const clones = items.map((item) => this.cloneRecord(item));
 
     // 1. Fallback Policy Evaluation
     const perm = fallbackPolicyEngine.evaluateWritePermission(this.storeName, clones);
@@ -276,11 +283,14 @@ export class IndexedDbStoreAdapter<T extends { id: string }> implements StorageA
 
 export class AssetBlobStorageAdapter implements AssetStorageAdapter {
   private blobStore = new IndexedDbStoreAdapter<{ id: string; blob: any; metadata: Record<string, unknown>; updatedAt: string }>("asset_blobs");
+  private memoryBlobs = new Map<string, Blob | string>();
 
-  public async storeBlob(id: string, blob: Blob | string, metadata: Record<string, unknown> = {}): Promise<string> {
+  public async storeBlob(id: string, blob: Blob | ArrayBuffer | string, metadata: Record<string, unknown> = {}): Promise<string> {
+    const stored = blob instanceof ArrayBuffer ? new Blob([blob], { type: String(metadata.mimeType || "application/octet-stream") }) : blob;
+    this.memoryBlobs.set(id, stored);
     await this.blobStore.save({
       id,
-      blob,
+      blob: stored,
       metadata,
       updatedAt: new Date().toISOString(),
     });
@@ -288,8 +298,12 @@ export class AssetBlobStorageAdapter implements AssetStorageAdapter {
   }
 
   public async getBlob(id: string): Promise<Blob | string | null> {
+    const memoryBlob = this.memoryBlobs.get(id);
+    if (memoryBlob) return memoryBlob;
     const item = await this.blobStore.getById(id);
-    return item ? item.blob : null;
+    if (!item) return null;
+    if (item.blob instanceof Blob || typeof item.blob === "string") this.memoryBlobs.set(id, item.blob);
+    return item.blob;
   }
 
   public async getBlobUrl(id: string): Promise<string | null> {
@@ -303,6 +317,7 @@ export class AssetBlobStorageAdapter implements AssetStorageAdapter {
   }
 
   public async deleteBlob(id: string): Promise<boolean> {
+    this.memoryBlobs.delete(id);
     return this.blobStore.delete(id);
   }
 
@@ -334,4 +349,3 @@ export class AssetBlobStorageAdapter implements AssetStorageAdapter {
 
 export const assetStorage = new AssetBlobStorageAdapter();
 export const assetStore = assetStorage;
-

@@ -191,6 +191,7 @@ export function StudioShell({
 
           <button
             onClick={onExport}
+            title="Exportar projeto"
             className="px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-1.5 shadow-sm transition touch-manipulation"
           >
             <Share2 size={14} />

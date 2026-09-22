@@ -1,4 +1,5 @@
 import { Artifact, ArtifactActor } from "../../artifacts/types";
+import type { AudioEventCondition } from "./game-audio-domain";
 
 export type AudioDocumentMode = "SINGLE_TRACK" | "MULTITRACK";
 
@@ -8,6 +9,7 @@ export type AudioTrackType =
   | "MUSIC"
   | "SFX"
   | "MASTER";
+export type ExtendedAudioTrackType = AudioTrackType | "DIALOGUE" | "INSTRUMENT" | "MIDI" | "FOLEY" | "AMBIENCE" | "REFERENCE" | "BUS_AUX";
 
 export type AudioPlaybackState =
   | "STOPPED"
@@ -37,19 +39,60 @@ export interface AudioClip {
   fadeInMs?: number;
   fadeOutMs?: number;
   playbackRate?: number;
+  variationWeight?: number;
+  /** Project-scoped tags for Game Audio variations; never written to shared asset metadata. */
+  gameAudioTags?: string[];
+  gameAudioVolumeRange?: [number, number];
+  gameAudioPitchRange?: [number, number];
+  gameAudioConditions?: AudioEventCondition[];
+  loop?: { enabled: boolean; startMs?: number; endMs?: number; crossfadeMs?: number };
+  spatial?: { x: number; y: number; z: number; refDistance?: number; maxDistance?: number; rolloffFactor?: number };
+  provenance?: { origin: "IMPORTED" | "RECORDED" | "GENERATED"; provider?: string; license?: string; generationDate?: string; generationMetadata?: Record<string, unknown> };
 }
+export interface MusicClip { id: string; trackId: string; name?: string; timelineStartMs: number; startBeat: number; endBeat: number; transposeSemitones: number; notes: import("./music-domain").MusicalNote[]; chords?: import("./music-domain").MusicalChord[]; loop?: { enabled: boolean; endBeat: number }; }
 
 export interface AudioTrack {
   id: string;
   name: string;
-  type: AudioTrackType;
+  type: AudioTrackType | "DIALOGUE" | "INSTRUMENT" | "MIDI" | "FOLEY" | "AMBIENCE" | "REFERENCE" | "BUS_AUX";
   muted: boolean;
   solo: boolean;
   volume: number; // 0.0 to 1.5 (1.0 = 0dB)
   pan: number;    // -1.0 (Left) to 1.0 (Right), 0.0 = Center
   clips: AudioClip[];
+  musicClips?: MusicClip[];
+  variationGroup?: string;
+  variationSeed?: number;
+  variationSelectionMode?: "weighted" | "sequence";
   effects: AudioEffect[];
   color?: string;
+  busId?: string;
+  inputDeviceId?: string;
+  recordArm?: boolean;
+  sends?: AudioSend[];
+}
+
+export interface AudioSend { id: string; busId: string; level: number; preFader?: boolean; enabled: boolean; }
+
+export interface AudioBus {
+  id: string;
+  name: string;
+  volume: number;
+  pan: number;
+  muted: boolean;
+  solo: boolean;
+  effects: AudioEffect[];
+  outputBusId?: string;
+  color?: string;
+}
+
+export interface AudioAutomationPoint {
+  id: string;
+  parameter: "TRACK_VOLUME" | "TRACK_PAN" | "EFFECT_PARAMETER";
+  targetId: string;
+  timeMs: number;
+  value: number;
+  curve?: "STEP" | "LINEAR" | "EQUAL_POWER";
 }
 
 export interface AudioTimelineMarker {
@@ -67,14 +110,37 @@ export interface AudioTimeline {
   timeUnit: "ms";
 }
 
+/** Editorial annotations scoped to one Audio project; source provenance and shared AssetFile data stay untouched. */
+export interface AudioAssetProjectMetadata {
+  category?: string;
+  tags?: string[];
+  character?: string;
+  bpm?: number | null;
+  key?: string;
+  licenseClaim?: string;
+  attribution?: string;
+  notes?: string;
+}
+
 export interface AudioDocumentState {
+  projectSchemaVersion?: number;
   artifactId: string;
+  settings?: { sampleRate: number; bitDepth: 16 | 24 | 32; channels: 1 | 2; bpm?: number; timeSignature?: [number, number]; metronome?: { enabled: boolean; volume: number; accentFirstBeat: boolean; countInBars?: number } };
+  synthPreset?: Partial<import("./instrument-engine").SynthPreset>;
+  synthPresetVersions?: Array<{ id: string; name: string; createdAt: string; preset: import("./instrument-engine").SynthPreset }>;
   timeline: AudioTimeline;
   tracks: AudioTrack[];
+  buses?: AudioBus[];
+  masterBus?: AudioBus;
+  automation?: AudioAutomationPoint[];
+  assetMetadataOverrides?: Record<string, AudioAssetProjectMetadata>;
   selectedTrackId?: string;
   selectedClipIds: string[];
   playheadMs: number;
   updatedAt: string;
+  music?: import("./music-domain").MusicProjectState;
+  voiceProfiles?: import("./voice-domain").CharacterVoiceProfile[];
+  voiceTakes?: import("./voice-domain").VoiceTake[];
 }
 
 export interface AudioMetadata {
@@ -102,6 +168,9 @@ export interface AudioWaveformData {
   peaks: number[]; // Normalized peak amplitudes [0.0 - 1.0]
   sampleRate: number;
   generatedAt: string;
+  resolution?: number;
+  channels?: number;
+  clipping?: boolean[];
 }
 
 export interface AudioRuntimeCapabilities {
@@ -154,6 +223,7 @@ export interface AudioExportOptions {
   bitDepth?: 16 | 24 | 32; // Default 16
   channels?: 1 | 2; // Mono or Stereo
   normalize?: boolean;
+  target?: { type: "FULL_MIX" | "SELECTED_REGION" | "TRACK" | "STEMS" | "CLIP"; trackIds?: string[]; clipId?: string; startMs?: number; endMs?: number };
 }
 
 export interface AudioExportResult {
@@ -168,9 +238,9 @@ export interface AudioExportResult {
   warnings?: string[];
   error?: string;
 }
+export interface AudioStemsExportResult { success: boolean; stems: { trackId: string; result: AudioExportResult }[]; error?: string; }
 
 export interface AudioCommandHistoryState {
   past: AudioDocumentState[];
   future: AudioDocumentState[];
 }
-

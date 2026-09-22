@@ -2,7 +2,7 @@
 
 import React from "react";
 import { GameScene, GameEntity } from "@/lib/studio/game/types";
-import { Layers, Plus, Trash2, Eye, EyeOff, Box } from "lucide-react";
+import { Layers, Plus, Trash2, Eye, EyeOff, Box, Copy, Pencil } from "lucide-react";
 
 interface GameEntityHierarchyProps {
   scenes: GameScene[];
@@ -15,6 +15,11 @@ interface GameEntityHierarchyProps {
   onAddEntity: (sceneId: string) => void;
   onDeleteEntity: (entityId: string) => void;
   onToggleEntityActive: (entityId: string) => void;
+  onDuplicateEntity: (entityId: string) => void;
+  onRenameScene: (sceneId: string, name: string) => void;
+  onDuplicateScene: (sceneId: string) => void;
+  onDeleteScene: (sceneId: string) => void;
+  entrySceneId: string;
 }
 
 export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
@@ -28,6 +33,11 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
   onAddEntity,
   onDeleteEntity,
   onToggleEntityActive,
+  onDuplicateEntity,
+  onRenameScene,
+  onDuplicateScene,
+  onDeleteScene,
+  entrySceneId,
 }) => {
   const currentScene = scenes.find((s) => s.id === activeSceneId) || scenes[0];
   const sceneEntities = entities.filter((e) => e.sceneId === currentScene?.id);
@@ -61,10 +71,8 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
                 isSelected ? "bg-emerald-500/20 text-white border border-emerald-500/30" : "hover:bg-[#151628] text-slate-400"
               }`}
             >
-              <span className="font-semibold line-clamp-1">{sc.name}</span>
-              <span className="text-[10px] opacity-60 font-mono">
-                {entities.filter((e) => e.sceneId === sc.id).length} ents
-              </span>
+              <span className="font-semibold line-clamp-1">{sc.name}{sc.id === entrySceneId ? " • Startup" : ""}</span>
+              <div className="flex items-center gap-1 text-[10px] opacity-70 font-mono"><span>{entities.filter((e) => e.sceneId === sc.id).length} ents</span><button onClick={(e) => { e.stopPropagation(); const name = prompt("Nome da cena", sc.name); if (name?.trim()) onRenameScene(sc.id, name.trim()); }} title="Renomear cena"><Pencil size={11}/></button><button onClick={(e) => { e.stopPropagation(); onDuplicateScene(sc.id); }} title="Duplicar cena"><Copy size={11}/></button>{sc.id !== entrySceneId && <button onClick={(e) => { e.stopPropagation(); if (confirm(`Excluir cena '${sc.name}' e suas entidades?`)) onDeleteScene(sc.id); }} title="Excluir cena" className="hover:text-rose-400"><Trash2 size={11}/></button>}</div>
             </div>
           );
         })}
@@ -112,6 +120,16 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      onDuplicateEntity(ent.id);
+                    }}
+                    className="p-1 hover:bg-[#232438] rounded text-slate-400 hover:text-emerald-300"
+                    title="Duplicar Entidade"
+                  >
+                    <Copy size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       onToggleEntityActive(ent.id);
                     }}
                     className="p-1 hover:bg-[#232438] rounded text-slate-400 hover:text-white"
@@ -140,4 +158,3 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
     </div>
   );
 };
-

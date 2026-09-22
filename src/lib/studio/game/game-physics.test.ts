@@ -1,0 +1,4 @@
+import { stepPhysics } from "./game-physics";
+const entities: any = { p: { id: "p", active: true, components: [{ type: "TRANSFORM", x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 0 }, { type: "RIGID_BODY", mode: "DYNAMIC", mass: 1, gravityScale: 1, velocityX: 0, velocityY: 0 }, { type: "COLLIDER", shape: "RECTANGLE", width: 20, height: 20 }] }, w: { id: "w", active: true, components: [{ type: "TRANSFORM", x: 0, y: 100, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 0 }, { type: "RIGID_BODY", mode: "STATIC", mass: 1, gravityScale: 0, velocityX: 0, velocityY: 0 }, { type: "COLLIDER", shape: "RECTANGLE", width: 100, height: 20 }] } };
+stepPhysics(entities, 1000); if (entities.p.components[0].y !== 980) throw new Error("gravity failed");
+entities.p.components[0].y = 100; if (stepPhysics(entities, 16).collisions.length !== 2) throw new Error("collision failed"); console.log("Physics: 2 aprovados");
