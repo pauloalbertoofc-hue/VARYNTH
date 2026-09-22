@@ -89,5 +89,6 @@ export interface KnowledgeAccessLog {
   purpose: string;
   knowledgeIds: string[];
   decision: KnowledgePolicyDecision;
+  operation?: KnowledgeAccessOperation;
   createdAt: string;
 }

@@ -63,20 +63,22 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   scored.sort((left, right) => right.score - left.score || left.item.title.localeCompare(right.item.title));
   const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.item);
   const decision = scored.some((entry) => entry.decision.decision === "ALLOW") ? "ALLOW" : scored.length ? "ALLOW_SUMMARY" : "DENY";
-  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, createdAt: new Date().toISOString() });
+  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, operation: request.operation || "CAN_QUERY", createdAt: new Date().toISOString() });
   queryCache.set(cacheKey, { revision, items: result });
   return result;
 }
 
 export async function discoverKnowledge(request: KnowledgeQuery): Promise<KnowledgeDiscovery[]> {
   const items = await knowledgeRepository.getAll((item) => !item.invalidatedAt && (!request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain)));
-  return items.map((item) => {
+  const result = items.map((item) => {
     const decision = decideKnowledgeAccess(item, request);
     const contentDecision = decideKnowledgeAccess(item, { ...request, operation: undefined });
     const canQuery = contentDecision.decision !== "DENY";
     const canRead = canQuery && contentDecision.decision === "ALLOW";
     return { id: item.id, title: item.title, primaryDomain: item.primaryDomain, relatedDomains: [...item.relatedDomains], ownerAgent: item.ownerAgent, visibility: item.visibility, kind: item.kind, freshness: item.freshness, authority: item.provenance.authority, canDiscover: true, canQuery, canRead };
   });
+  await knowledgeAccessLogRepository.save({ id: `discovery-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision: "ALLOW", operation: "CAN_DISCOVER", createdAt: new Date().toISOString() });
+  return result;
 }
 
 export async function linkKnowledge(relation: Omit<KnowledgeRelationship, "createdAt">): Promise<KnowledgeRelationship> {
