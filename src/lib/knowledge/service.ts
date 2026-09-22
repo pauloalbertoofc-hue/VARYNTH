@@ -56,6 +56,9 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   const tokens = request.query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
   const candidates = await knowledgeRepository.getAll((item) => {
     if (item.invalidatedAt) return false;
+    const now = Date.now();
+    if (item.validFrom && new Date(item.validFrom).getTime() > now) return false;
+    if (item.validUntil && new Date(item.validUntil).getTime() < now) return false;
     const inDomain = !request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain) || item.primaryDomain.startsWith(`${request.domain}.`);
     const inProject = !request.projectId || item.relatedProjectIds.length === 0 || item.relatedProjectIds.includes(request.projectId);
     const text = `${item.title} ${item.content} ${item.tags.join(" ")}`.toLocaleLowerCase();
