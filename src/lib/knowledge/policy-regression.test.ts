@@ -7,5 +7,6 @@ const base: KnowledgeItem = { id: "policy-1", title: "Policy test", content: "pr
 assert.equal(decideKnowledgeAccess(base, { requester: "euterpe", purpose: "public context", scope: "PUBLIC" }).decision, "ALLOW");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "AGENT_PRIVATE", sensitivity: "PRIVATE" }, { requester: "euterpe", purpose: "private context" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "PROJECT", relatedProjectIds: ["project-a"] }, { requester: "euterpe", projectId: "project-b", purpose: "cross-project" }).decision, "DENY");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "PROJECT", relatedProjectIds: [] }, { requester: "euterpe", purpose: "unscoped project item" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "athena", purpose: "domain summary" }).decision, "ALLOW_SUMMARY");
 console.log("Knowledge policy regression tests passed");
