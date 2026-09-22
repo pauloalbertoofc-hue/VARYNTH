@@ -58,3 +58,14 @@ export interface KnowledgeAccessDecision {
   decision: KnowledgePolicyDecision;
   reason: string;
 }
+
+export interface KnowledgeAccessLog {
+  id: string;
+  requester: string;
+  provider?: string;
+  domain?: string;
+  purpose: string;
+  knowledgeIds: string[];
+  decision: KnowledgePolicyDecision;
+  createdAt: string;
+}

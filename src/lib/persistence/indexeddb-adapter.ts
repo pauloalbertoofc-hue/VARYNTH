@@ -30,6 +30,7 @@ export const KNOWN_STORES = [
   "experience_preferences",
   "experience_records",
   "knowledge_items",
+  "knowledge_access_logs",
 ] as const;
 
 export type StoreName = (typeof KNOWN_STORES)[number];

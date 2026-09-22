@@ -1,4 +1,4 @@
-import { knowledgeRepository } from "../persistence/repositories";
+import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistence/repositories";
 import { KnowledgeItem, KnowledgeQuery } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
 
@@ -23,6 +23,8 @@ export async function findKnowledgeConflicts(domain?: string): Promise<Array<{ g
   return [...groups.entries()].map(([groupId, grouped]) => ({ groupId, items: grouped }));
 }
 
+export async function listKnowledgeAccessLogs(): Promise<import("./contracts").KnowledgeAccessLog[]> { return knowledgeAccessLogRepository.getAll(); }
+
 export async function queryKnowledge(request: KnowledgeQuery): Promise<KnowledgeItem[]> {
   const cacheKey = JSON.stringify(request);
   const cached = queryCache.get(cacheKey);
@@ -35,6 +37,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
     return inDomain && inProject && (!tokens.length || tokens.some((token) => text.includes(token)));
   });
   const result = candidates.filter((item) => decideKnowledgeAccess(item, request).decision !== "DENY");
+  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision: result.length ? "ALLOW" : "DENY", createdAt: new Date().toISOString() });
   queryCache.set(cacheKey, { revision, items: result });
   return result;
 }

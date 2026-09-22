@@ -33,6 +33,7 @@ const LEGACY_STORAGE_MAPPING: Record<StoreName, string> = {
   experience_preferences: "varynth_experience_preferences_v1",
   experience_records: "varynth_experience_records_v1",
   knowledge_items: "varynth_knowledge_items_v1",
+  knowledge_access_logs: "varynth_knowledge_access_logs_v1",
 };
 
 export class MigrationEngine {
