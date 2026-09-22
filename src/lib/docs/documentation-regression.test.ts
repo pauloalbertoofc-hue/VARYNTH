@@ -22,12 +22,12 @@ const tools = read("docs/athena/tools.md");
 const council = read("docs/athena/agents.md");
 const readme = read("README.md");
 
-assert(routes.length === 32, `número de route handlers mudou (${routes.length}); revise a auditoria/documentação`);
+assert(routes.length === 33, `número de route handlers mudou (${routes.length}); revise a auditoria/documentação`);
 assert(toolCount === 36, `número de ferramentas mudou (${toolCount}); revise docs/athena/tools.md`);
 assert(agentCount === 12, `número de agentes registrados mudou (${agentCount}); revise docs/athena/agents.md`);
 assert(moduleCount === 18, `número de módulos registrados mudou (${moduleCount}); revise docs/varynth/modules.md`);
 assert(readme.includes("Next.js 16") && !readme.includes("Next.js 15"), "README contém versão antiga do Next.js");
-assert(architecture.includes("32 route handlers") && architecture.includes("36 ferramentas") && architecture.includes("12 agentes"), "overview não contém os números atuais");
+assert(architecture.includes("33 route handlers") && architecture.includes("36 ferramentas") && architecture.includes("12 agentes"), "overview não contém os números atuais");
 assert(tools.includes("36") && tools.includes("registry.ts"), "catálogo de ferramentas não referencia o registro real");
 assert(council.includes("12") && council.includes("registry.ts"), "documentação de agentes não referencia o registro real");
 assert(files("docs/adr").some((file) => file.startsWith("ADR-043-")), "ADR-043 não está presente");
