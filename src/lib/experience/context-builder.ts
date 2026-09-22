@@ -1,5 +1,6 @@
 import { preferenceService } from "./preference-service";
 import { Preference } from "./contracts";
+import { retrieveExperiences } from "./outcome-service";
 
 export interface ExperienceContextRequest {
   requester: string;
@@ -15,6 +16,7 @@ export interface ExperienceContextRequest {
 
 export interface ExperienceContext {
   preferences: Preference[];
+  experiences: Awaited<ReturnType<typeof retrieveExperiences>>;
   generatedAt: string;
   truncated: boolean;
 }
@@ -22,5 +24,6 @@ export interface ExperienceContext {
 export async function buildExperienceContext(request: ExperienceContextRequest): Promise<ExperienceContext> {
   const budget = Math.max(0, Math.min(request.budget ?? 12, 50));
   const preferences = await preferenceService.resolve(request);
-  return { preferences: preferences.slice(0, budget), generatedAt: new Date().toISOString(), truncated: preferences.length > budget };
+  const experiences = await retrieveExperiences(request.domain, request.projectId, budget);
+  return { preferences: preferences.slice(0, budget), experiences, generatedAt: new Date().toISOString(), truncated: preferences.length > budget || experiences.length > budget };
 }
