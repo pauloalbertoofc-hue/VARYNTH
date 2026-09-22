@@ -254,6 +254,10 @@ export class AudioEngine {
         if (!instrument) continue;
         const delayMs = Math.max(0, (tempoMapBeatsToSeconds(note.startBeat, tempoMap) - positionSeconds) * 1000);
         const onTimer = setTimeout(() => {
+          if (note.drum && instrument instanceof LocalSamplerInstrument) {
+            instrument.triggerOneShot(note.velocity);
+            return;
+          }
           instrument!.noteOn({ midi: pitch, velocity: note.velocity, articulation: note.articulation, expression: note.drum ? 1 : note.expression, concertPitchHz: music.tuning.concertPitchHz });
           const offTimer = setTimeout(() => instrument.noteOff(pitch), Math.max(10, (tempoMapBeatsToSeconds(note.startBeat + effectiveNoteDurationBeats(note), tempoMap) - tempoMapBeatsToSeconds(note.startBeat, tempoMap)) * 1000));
           this.musicTimers.push(offTimer);
