@@ -1,4 +1,5 @@
 import { midiToFrequency } from "./music-domain";
+import { SamplerDefinition, mapSamplerVoice, validateSamplerDefinition } from "./sampler-domain";
 
 export interface InstrumentNote { midi: number; velocity: number; concertPitchHz?: number; articulation?: "normal" | "legato" | "staccato" | "accent" | "tenuto" | "sustain"; expression?: number; }
 export interface SynthPreset { oscillator: OscillatorType; attack: number; decay: number; sustain: number; release: number; gain: number; detune: number; filterFrequency?: number; lfoRate?: number; lfoDepth?: number; }
@@ -27,3 +28,19 @@ export class LocalSynthInstrument implements InstrumentEngine {
 }
 
 export function createLocalSynthInstrument(context?: AudioContext, destination?: AudioNode): LocalSynthInstrument { return new LocalSynthInstrument(context, destination); }
+
+/** Plays a preloaded local AudioBuffer through the shared InstrumentEngine contract. */
+export class LocalSamplerInstrument implements InstrumentEngine {
+  private context: AudioContext | null;
+  private output: GainNode | null;
+  private buffer: AudioBuffer | null = null;
+  private voices = new Map<number, { source: AudioBufferSourceNode; gain: GainNode; release: number }>();
+  private definition: SamplerDefinition;
+  constructor(definition: SamplerDefinition, context?: AudioContext, destination?: AudioNode) { this.definition = validateSamplerDefinition(definition); this.context = context || (typeof window !== "undefined" && window.AudioContext ? new AudioContext() : null); this.output = this.context?.createGain() || null; this.output?.connect(destination || this.context?.destination || this.output); }
+  loadBuffer(buffer: AudioBuffer): void { this.buffer = buffer; }
+  noteOn(note: InstrumentNote): void { if (!this.context || !this.output || !this.buffer) return; this.noteOff(note.midi); const mapping = mapSamplerVoice(this.definition, note.midi); const now = this.context.currentTime; const source = this.context.createBufferSource(); const gain = this.context.createGain(); source.buffer = this.buffer; source.playbackRate.value = mapping.playbackRate; if (this.definition.loop?.enabled) { source.loop = true; source.loopStart = this.definition.loop.startMs / 1000; source.loopEnd = this.definition.loop.endMs / 1000; } source.connect(gain); gain.connect(this.output); const velocity = Math.max(0, Math.min(127, note.velocity)) / 127; const peak = Math.min(1, this.definition.gain * velocity); const attack = Math.max(0.001, this.definition.envelope.attackMs / 1000); const decay = Math.max(0, this.definition.envelope.decayMs / 1000); gain.gain.setValueAtTime(0.0001, now); gain.gain.linearRampToValueAtTime(peak, now + attack); gain.gain.linearRampToValueAtTime(peak * this.definition.envelope.sustain, now + attack + decay); source.start(now); this.voices.set(note.midi, { source, gain, release: Math.max(0.01, this.definition.envelope.releaseMs / 1000) }); }
+  noteOff(midi: number): void { const voice = this.voices.get(midi); if (!voice || !this.context) return; const now = this.context.currentTime; voice.gain.gain.cancelScheduledValues(now); voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), now); voice.gain.gain.linearRampToValueAtTime(0.0001, now + voice.release); voice.source.stop(now + voice.release + 0.02); this.voices.delete(midi); }
+  setParameter(name: keyof SynthPreset, value: number | OscillatorType): void { if (name === "gain") this.definition = { ...this.definition, gain: Math.max(0, Number(value)) }; }
+  loadPreset(preset: Partial<SynthPreset>): void { if (typeof preset.gain === "number") this.definition = { ...this.definition, gain: Math.max(0, preset.gain) }; }
+  dispose(): void { for (const midi of [...this.voices.keys()]) this.noteOff(midi); this.output?.disconnect(); this.output = null; }
+}
