@@ -25,7 +25,9 @@ export interface AgentContextPack {
 export async function buildAgentContext(request: AgentContextRequest): Promise<AgentContextPack> {
   const route = routeKnowledgeIntent({ task: request.task, currentModule: request.currentModule, projectId: request.projectId });
   const budget = Math.max(0, Math.min(request.budget ?? 8, 20));
-  const knowledge = await queryKnowledge({ requester: request.requester, domain: route.primaryDomain, query: request.task, projectId: request.projectId, purpose: request.purpose, scope: request.scope });
+  const domains = [...new Set([route.primaryDomain, ...route.relatedDomains].filter((domain): domain is string => Boolean(domain)))].slice(0, 5);
+  const packs = await Promise.all(domains.map((domain) => queryKnowledge({ requester: request.requester, domain, query: request.task, projectId: request.projectId, purpose: request.purpose, scope: request.scope, limit: Math.max(1, budget) })));
+  const knowledge = [...new Map(packs.flat().map((item) => [item.id, item])).values()];
   const experience = await buildExperienceContext({ requester: request.requester, domain: route.primaryDomain, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget });
   return {
     primaryDomain: route.primaryDomain,
