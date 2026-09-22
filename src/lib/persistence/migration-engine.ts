@@ -32,6 +32,7 @@ const LEGACY_STORAGE_MAPPING: Record<StoreName, string> = {
   experience_events: "varynth_experience_events_v1",
   experience_preferences: "varynth_experience_preferences_v1",
   experience_records: "varynth_experience_records_v1",
+  experience_learning_exclusions: "varynth_experience_learning_exclusions_v1",
   knowledge_items: "varynth_knowledge_items_v1",
   knowledge_access_logs: "varynth_knowledge_access_logs_v1",
   knowledge_relationships: "varynth_knowledge_relationships_v1",

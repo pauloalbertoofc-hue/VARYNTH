@@ -18,7 +18,7 @@ import {
 } from "../types";
 import { Artifact } from "../artifacts/types";
 import { EpisodicMemoryEntry } from "../athena/memory/memory-manager";
-import { ExperienceEvent, ExperienceRecord, Preference } from "../experience/contracts";
+import { ExperienceEvent, ExperienceRecord, LearningExclusion, Preference } from "../experience/contracts";
 import { KnowledgeAccessLog, KnowledgeItem, KnowledgeRelationship } from "../knowledge/contracts";
 
 export const projectRepository = new IndexedDbStoreAdapter<Project>("projects");
@@ -41,6 +41,7 @@ export const athenaEpisodeRepository = new IndexedDbStoreAdapter<EpisodicMemoryE
 export const experienceEventRepository = new IndexedDbStoreAdapter<ExperienceEvent>("experience_events");
 export const experiencePreferenceRepository = new IndexedDbStoreAdapter<Preference>("experience_preferences");
 export const experienceRepository = new IndexedDbStoreAdapter<ExperienceRecord>("experience_records");
+export const learningExclusionRepository = new IndexedDbStoreAdapter<LearningExclusion>("experience_learning_exclusions");
 export const knowledgeRepository = new IndexedDbStoreAdapter<KnowledgeItem>("knowledge_items");
 export const knowledgeAccessLogRepository = new IndexedDbStoreAdapter<KnowledgeAccessLog>("knowledge_access_logs");
 export const knowledgeRelationshipRepository = new IndexedDbStoreAdapter<KnowledgeRelationship>("knowledge_relationships");

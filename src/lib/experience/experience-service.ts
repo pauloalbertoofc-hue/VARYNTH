@@ -1,5 +1,7 @@
-import { experienceEventRepository } from "@/lib/persistence/repositories";
+import { experienceEventRepository, experiencePreferenceRepository, experienceRepository } from "@/lib/persistence/repositories";
 import { ExperienceEvent, ExperienceEventInput, validateExperienceEvent } from "./contracts";
+import { evaluateLearningEligibility, findLearningExclusion } from "./learning-policy";
+import { confidenceFromEvidence } from "./signals";
 
 const MAX_METADATA_KEYS = 40;
 const MAX_EVENT_BYTES = 80_000;
@@ -16,12 +18,18 @@ export class ExperienceService {
   async record(input: ExperienceEventInput): Promise<ExperienceEvent> {
     const metadata = input.metadata && typeof input.metadata === "object" ? input.metadata : {};
     if (Object.keys(metadata).length > MAX_METADATA_KEYS) throw new Error("[EXPERIENCE_EVENT_INVALID] metadata excede o limite.");
-    const event = validateExperienceEvent({
+    let event = validateExperienceEvent({
       ...input,
       id: input.id || eventId(),
       timestamp: input.timestamp || new Date().toISOString(),
       schemaVersion: 1,
     });
+    if (event.learningEligible) {
+      const decision = evaluateLearningEligibility(event);
+      if (!decision.eligible) event = { ...event, learningEligible: false, metadata: { ...event.metadata, learningExclusionReason: decision.reason } };
+      const exclusion = await findLearningExclusion(event);
+      if (exclusion) event = { ...event, learningEligible: false, metadata: { ...event.metadata, learningExclusionReason: `aprendizado desativado para o escopo ${exclusion.scope}` } };
+    }
     if (safeSize(event) > MAX_EVENT_BYTES) throw new Error("[EXPERIENCE_EVENT_INVALID] evento excede o limite de tamanho.");
     const duplicate = await experienceEventRepository.getById(event.id);
     if (duplicate) return duplicate;
@@ -34,6 +42,23 @@ export class ExperienceService {
 
   async forget(eventIdToForget: string): Promise<boolean> {
     if (!eventIdToForget.trim()) return false;
+    const event = await experienceEventRepository.getById(eventIdToForget);
+    if (!event) return false;
+    const [preferences, experiences] = await Promise.all([
+      experiencePreferenceRepository.getAll((item) => item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
+      experienceRepository.getAll((item) => item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
+    ]);
+    for (const preference of preferences) {
+      const evidence = preference.evidence.filter((item) => item.eventId !== eventIdToForget);
+      if (evidence.length) await experiencePreferenceRepository.save({ ...preference, evidence, confidence: confidenceFromEvidence(evidence), updatedAt: new Date().toISOString() });
+      else if (preference.source === "INFERRED") await experiencePreferenceRepository.delete(preference.id);
+      else await experiencePreferenceRepository.save({ ...preference, evidence: [], confidence: 0, status: "DEPRECATED", updatedAt: new Date().toISOString() });
+    }
+    for (const experience of experiences) {
+      const evidence = experience.evidence.filter((item) => item.eventId !== eventIdToForget);
+      if (evidence.length) await experienceRepository.save({ ...experience, evidence, confidence: confidenceFromEvidence(evidence) });
+      else await experienceRepository.delete(experience.id);
+    }
     return experienceEventRepository.delete(eventIdToForget);
   }
 }

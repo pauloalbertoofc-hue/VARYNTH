@@ -76,7 +76,7 @@ import { syncMusicNotesWithClips } from "@/lib/studio/audio/music-clip-domain";
 import { createMusicClip } from "@/lib/studio/audio/music-clip-domain";
 import { exportMusicXml } from "@/lib/studio/audio/musicxml-export";
 import { exportScorePdf } from "@/lib/studio/audio/score-pdf-export";
-import { audioLearningAdapter } from "@/lib/experience/audio-learning-adapter";
+import { audioLearningAdapter, collectAudioLearningObservations } from "@/lib/experience/audio-learning-adapter";
 
 // Video Studio Imports
 import { VideoPreviewFrame } from "@/components/studio/video/VideoPreviewFrame";
@@ -671,24 +671,9 @@ export default function StudioPage() {
 
   const handleUpdateAudioDocumentState = useCallback((updated: AudioItem["documentState"]) => {
     if (!activeAudio) return;
-    const previous = activeAudio.documentState;
-    const previousBpm = previous.music?.tempoMap?.[0]?.bpm ?? previous.settings?.bpm;
-    const nextBpm = updated.music?.tempoMap?.[0]?.bpm ?? updated.settings?.bpm;
-    const recordAudioExperience = (action: "BPM_CHANGED" | "TRACK_REMOVED" | "EFFECT_CHANGED" | "MIX_CHANGED", before: unknown, after: unknown, targetId?: string) => {
-      void audioLearningAdapter.record({ action, artifactId: activeAudio.artifact.id, targetId, before, after, source: "audio-studio" })
+    for (const observation of collectAudioLearningObservations(activeAudio.documentState, updated)) {
+      void audioLearningAdapter.record({ ...observation, artifactId: activeAudio.artifact.id, source: "audio-studio" })
         .catch((error: unknown) => console.warn("[AudioStudio] Experience observation could not be saved", error));
-    };
-    if (previousBpm !== undefined && nextBpm !== undefined && previousBpm !== nextBpm) recordAudioExperience("BPM_CHANGED", previousBpm, nextBpm);
-    for (const track of previous.tracks) {
-      if (!updated.tracks.some((next) => next.id === track.id)) {
-        recordAudioExperience("TRACK_REMOVED", { id: track.id, type: track.type, name: track.name }, null, track.id);
-        continue;
-      }
-      const next = updated.tracks.find((item) => item.id === track.id)!;
-      if (JSON.stringify(track.effects || []) !== JSON.stringify(next.effects || [])) recordAudioExperience("EFFECT_CHANGED", track.effects || [], next.effects || [], track.id);
-      const beforeMix = { gain: track.gain, pan: track.pan, muted: track.muted, solo: track.solo };
-      const afterMix = { gain: next.gain, pan: next.pan, muted: next.muted, solo: next.solo };
-      if (JSON.stringify(beforeMix) !== JSON.stringify(afterMix)) recordAudioExperience("MIX_CHANGED", beforeMix, afterMix, track.id);
     }
     audioService.pushUndoState(activeAudio.documentState);
     const pendingSave = { artifactId: activeAudio.artifact.id, state: updated };

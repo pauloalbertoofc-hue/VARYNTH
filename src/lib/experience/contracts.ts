@@ -15,6 +15,7 @@ export interface ExperienceEvent {
   actor: "USER" | "AGENT" | "SYSTEM";
   agentId?: string;
   moduleId?: string;
+  domain?: string;
   projectId?: string;
   sessionId?: string;
   artifactId?: string;
@@ -40,6 +41,16 @@ export interface EvidenceRef {
 
 export type PreferenceStatus = "INFERRED" | "CONFIRMED" | "CONTESTED" | "REJECTED" | "DEPRECATED";
 export type PreferenceScope = "GLOBAL" | "DOMAIN" | "AGENT" | "MODULE" | "PROJECT" | "ARTIFACT" | "SESSION";
+
+export type LearningExclusionScope = "GLOBAL" | "DOMAIN" | "AGENT" | "MODULE" | "PROJECT" | "ARTIFACT" | "SESSION";
+
+export interface LearningExclusion {
+  id: string;
+  scope: LearningExclusionScope;
+  scopeId?: string;
+  reason?: string;
+  createdAt: string;
+}
 
 export interface Preference {
   id: string;

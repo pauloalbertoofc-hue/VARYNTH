@@ -29,6 +29,7 @@ export const KNOWN_STORES = [
   "experience_events",
   "experience_preferences",
   "experience_records",
+  "experience_learning_exclusions",
   "knowledge_items",
   "knowledge_access_logs",
   "knowledge_relationships",

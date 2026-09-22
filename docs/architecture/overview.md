@@ -53,7 +53,7 @@ graph TD
 
 ## 5. Status dos Subsistemas
 
-- **VARYNTH Core**: `IMPLEMENTED` (inventário atual: 39 route handlers)
+- **VARYNTH Core**: `IMPLEMENTED` (inventário atual: 42 route handlers)
 - **Ícone global do Web App**: `IMPLEMENTED` (alterado pelo proprietário, compartilhado pelo manifesto e pelo ícone público; instalações sincronizam conforme as regras de cada navegador)
 - **Athena Cognitive Kernel**: `IMPLEMENTED` (contratos de interação, 12 agentes registrados e 36 ferramentas nomeadas; o subconjunto clássico de 7 agentes continua documentado como Conselho de domínio)
 - **Suíte de Regressão**: `IMPLEMENTED` (testes distribuídos por Athena, studios, persistência, hardening e plataforma; execute os scripts do `package.json`)
