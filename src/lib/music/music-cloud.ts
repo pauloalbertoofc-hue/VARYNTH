@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { getServerSession, type Session } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { validMusicBlobPath } from "./music-cloud-contracts";
-export { validMusicBlobPath } from "./music-cloud-contracts";
+export { validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
 
 export type MusicAccount = { id: string; namespace: string; redisKey: string };
 
