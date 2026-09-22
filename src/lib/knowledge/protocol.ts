@@ -1,6 +1,7 @@
 import { KnowledgeItem, KnowledgeQuery } from "./contracts";
 import { domainRegistry } from "./domain-registry";
 import { queryKnowledge } from "./service";
+import { decideKnowledgeAccess } from "./policy";
 
 export interface PublicKnowledgeCapability { id: string; agentId: string; domain: string; description: string; input: string[]; output: string[]; public: true; }
 export interface KnowledgePacket { id: string; requester: string; provider: string; domain: string; purpose: string; facts: Array<{ knowledgeId: string; title: string; content: string }>; constraints: string[]; provenanceIds: string[]; createdAt: string; }
@@ -20,7 +21,11 @@ export async function requestKnowledgePacket(request: KnowledgeQuery & { provide
     provider,
     domain,
     purpose: request.purpose,
-    facts: items.slice(0, 8).map((item) => ({ knowledgeId: item.id, title: item.title, content: item.content })),
+    facts: items.slice(0, 8).map((item) => {
+      const decision = decideKnowledgeAccess(item, { ...request, domain });
+      const content = decision.decision === "ALLOW" ? item.content : `${item.content.slice(0, 280)}${item.content.length > 280 ? "…" : ""}`;
+      return { knowledgeId: item.id, title: item.title, content };
+    }),
     constraints: ["Somente conhecimento autorizado foi incluído.", "O pacote não contém raciocínio interno."],
     provenanceIds: items.map((item) => item.id),
     createdAt: new Date().toISOString(),
