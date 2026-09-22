@@ -19,5 +19,6 @@ O painel mostra Knowledge Items, grupos de conflitos e quantidade de consultas a
 - `GET /api/knowledge/domains` — mapa autenticado;
 - `GET /api/knowledge/capabilities` — capabilities públicas autenticadas;
 - `POST /api/knowledge/route` — decomposição multidomínio autenticada.
+- `POST /api/knowledge/response` — DomainResponse autenticado com evidence e limitations.
 
 O Vault continua sendo a origem de arquivos e classificação do usuário. A conversão para KnowledgeItem é derivada e preserva a referência de origem.
