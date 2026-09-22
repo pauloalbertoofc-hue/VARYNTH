@@ -129,6 +129,7 @@ export interface AudioDocumentState {
   synthPreset?: Partial<import("./instrument-engine").SynthPreset>;
   synthPresetVersions?: Array<{ id: string; name: string; createdAt: string; preset: import("./instrument-engine").SynthPreset }>;
   samplerDefinitions?: import("./sampler-domain").SamplerDefinition[];
+  drumPatterns?: import("./drum-sequencer-domain").DrumPattern[];
   timeline: AudioTimeline;
   tracks: AudioTrack[];
   buses?: AudioBus[];
