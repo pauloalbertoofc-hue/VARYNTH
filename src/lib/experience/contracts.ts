@@ -69,6 +69,21 @@ export interface PreferenceCandidate {
   proposedAt: string;
 }
 
+export type FeedbackType = "LIKE" | "DISLIKE" | "ACCEPT" | "REJECT" | "RATING" | "PREFER_A" | "PREFER_B" | "CORRECTION" | "COMMENT" | "CONFIRM_PREFERENCE" | "REJECT_PREFERENCE";
+
+export interface FeedbackInput {
+  type: FeedbackType;
+  targetType: string;
+  targetId: string;
+  context?: Record<string, unknown>;
+  reason?: string;
+  strength?: "LOW" | "MEDIUM" | "HIGH";
+  projectId?: string;
+  moduleId?: string;
+  agentId?: string;
+  sessionId?: string;
+}
+
 export interface ExperienceRecord {
   id: string;
   domain: string;
