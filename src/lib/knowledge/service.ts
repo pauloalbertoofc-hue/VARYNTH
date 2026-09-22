@@ -1,5 +1,5 @@
 import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistence/repositories";
-import { KnowledgeItem, KnowledgeQuery } from "./contracts";
+import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
 
 const queryCache = new Map<string, { revision: number; items: KnowledgeItem[] }>();
@@ -51,8 +51,27 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
     const text = `${item.title} ${item.content} ${item.tags.join(" ")}`.toLocaleLowerCase();
     return inDomain && inProject && (!tokens.length || tokens.some((token) => text.includes(token)));
   });
-  const result = candidates.filter((item) => decideKnowledgeAccess(item, request).decision !== "DENY");
-  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision: result.length ? "ALLOW" : "DENY", createdAt: new Date().toISOString() });
+  const scored = candidates.map((item) => {
+    const decision = decideKnowledgeAccess(item, request);
+    if (decision.decision === "DENY") return null;
+    const authorityScore = { PRIMARY_SOURCE: 5, OFFICIAL_REFERENCE: 4, INTERNAL_DOCUMENT: 3, USER_PROVIDED: 2, AGENT_GENERATED: 2, EXPERIENCE_DERIVED: 1, UNKNOWN: 0 }[item.provenance.authority];
+    const freshnessScore = { CURRENT: 3, POSSIBLY_STALE: 1, HISTORICAL: 0, UNKNOWN: 0 }[item.freshness];
+    const recencyScore = Math.max(0, 2 - Math.floor((Date.now() - new Date(item.updatedAt).getTime()) / 31536000000));
+    const domainScore = request.domain && item.primaryDomain === request.domain ? 3 : 0;
+    return { item, decision, score: authorityScore + freshnessScore + recencyScore + domainScore };
+  }).filter((entry): entry is { item: KnowledgeItem; decision: ReturnType<typeof decideKnowledgeAccess>; score: number } => Boolean(entry));
+  scored.sort((left, right) => right.score - left.score || left.item.title.localeCompare(right.item.title));
+  const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.item);
+  const decision = scored.some((entry) => entry.decision.decision === "ALLOW") ? "ALLOW" : scored.length ? "ALLOW_SUMMARY" : "DENY";
+  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, createdAt: new Date().toISOString() });
   queryCache.set(cacheKey, { revision, items: result });
   return result;
+}
+
+export async function discoverKnowledge(request: KnowledgeQuery): Promise<KnowledgeDiscovery[]> {
+  const items = await knowledgeRepository.getAll((item) => !item.invalidatedAt && (!request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain)));
+  return items.map((item) => {
+    const decision = decideKnowledgeAccess(item, request);
+    return { id: item.id, title: item.title, primaryDomain: item.primaryDomain, relatedDomains: [...item.relatedDomains], ownerAgent: item.ownerAgent, visibility: item.visibility, kind: item.kind, freshness: item.freshness, authority: item.provenance.authority, canQuery: decision.decision !== "DENY" };
+  });
 }

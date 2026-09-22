@@ -52,6 +52,20 @@ export interface KnowledgeQuery {
   projectId?: string;
   purpose: string;
   scope?: "PUBLIC" | "PROJECT" | "DOMAIN" | "ALL";
+  limit?: number;
+}
+
+export interface KnowledgeDiscovery {
+  id: string;
+  title: string;
+  primaryDomain: string;
+  relatedDomains: string[];
+  ownerAgent?: string;
+  visibility: KnowledgeVisibility;
+  kind: KnowledgeKind;
+  freshness: KnowledgeItem["freshness"];
+  authority: SourceAuthority;
+  canQuery: boolean;
 }
 
 export interface KnowledgeAccessDecision {
