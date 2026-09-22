@@ -109,5 +109,7 @@ export async function linkKnowledge(relation: Omit<KnowledgeRelationship, "creat
 
 export async function listKnowledgeRelationships(id?: string): Promise<KnowledgeRelationship[]> {
   const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
-  return knowledgeRelationshipRepository.getAll((relation) => !id || relation.fromId === id || relation.toId === id);
+  const relationships = await knowledgeRelationshipRepository.getAll((relation) => !id || relation.fromId === id || relation.toId === id);
+  const revokedIds = new Set((await knowledgeRepository.getAll((item) => Boolean(item.invalidatedAt))).map((item) => item.id));
+  return relationships.filter((relation) => !revokedIds.has(relation.fromId) && !revokedIds.has(relation.toId));
 }
