@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EuterpeAgent, decideEuterpeBehavior, visualStateForMusic } from "./euterpe-agent";
+import { idlePhase } from "./euterpe-living";
 import { varynthEventBus } from "@/lib/events/varynth-event-bus";
 
 const agent = new EuterpeAgent();
@@ -19,4 +20,7 @@ const rare = decideEuterpeBehavior({ type: "WEATHER.RAIN_STARTED", payload: { ob
 assert.equal(rare.behavior, undefined, "environment contracts do not trigger unimplemented weather reactions");
 assert.equal(visualStateForMusic("PLAYING"), "MUSIC_REACTIVE");
 assert.equal(visualStateForMusic("PAUSED"), "MUSIC_PAUSED");
+assert.equal(idlePhase(29_999), "ACTIVE_IDLE");
+assert.equal(idlePhase(30_000), "RELAXED_IDLE");
+assert.equal(idlePhase(180_000), "REST_ELIGIBLE");
 console.log("Euterpe agent emits auditable decisions from real music and agent events; rare behavior stays opt-in.");
