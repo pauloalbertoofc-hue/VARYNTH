@@ -44,6 +44,9 @@ export async function publishKnowledge(id: string, requester: string, visibility
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_PUBLISH_DENIED] Somente o owner ou sistema pode publicar conhecimento.");
+  if (!["PUBLIC_TO_AGENTS", "DOMAIN", "CROSS_DOMAIN"].includes(visibility)) throw new Error("[KNOWLEDGE_PUBLISH_VISIBILITY_INVALID] Visibilidade de publicação inválida.");
+  if (current.sensitivity === "PRIVATE") throw new Error("[KNOWLEDGE_PUBLISH_PRIVATE] Conhecimento PRIVATE não pode ser publicado entre agentes.");
+  if (current.sensitivity === "SENSITIVE" && visibility !== "DOMAIN") throw new Error("[KNOWLEDGE_PUBLISH_SENSITIVE] Conhecimento SENSITIVE só pode ser compartilhado dentro do domínio.");
   const published = { ...current, visibility, updatedAt: new Date().toISOString(), provenance: { ...current.provenance, addedBy: requester === "system" ? "SYSTEM" as const : current.provenance.addedBy } };
   revision += 1;
   queryCache.clear();

@@ -2,6 +2,8 @@
 
 A decisão considera requester, purpose, domínio, projeto, visibility e sensitivity.
 
+`PRIVATE` não é publicado. `SENSITIVE` só pode ser lido no domínio, em projeto autorizado ou pelo owner de um item `AGENT_PRIVATE`; `SYSTEM`, `PUBLIC_TO_AGENTS` e `CROSS_DOMAIN` não ampliam esse acesso. Um item `AGENT_PRIVATE` é legível integralmente pelo próprio ownerAgent; outros agentes recebem DENY. Metadata discovery não altera a decisão de leitura.
+
 Resultados possíveis:
 
 - `ALLOW`;
