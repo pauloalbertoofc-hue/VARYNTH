@@ -72,7 +72,10 @@ export async function discoverKnowledge(request: KnowledgeQuery): Promise<Knowle
   const items = await knowledgeRepository.getAll((item) => !item.invalidatedAt && (!request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain)));
   return items.map((item) => {
     const decision = decideKnowledgeAccess(item, request);
-    return { id: item.id, title: item.title, primaryDomain: item.primaryDomain, relatedDomains: [...item.relatedDomains], ownerAgent: item.ownerAgent, visibility: item.visibility, kind: item.kind, freshness: item.freshness, authority: item.provenance.authority, canQuery: decision.decision !== "DENY" };
+    const contentDecision = decideKnowledgeAccess(item, { ...request, operation: undefined });
+    const canQuery = contentDecision.decision !== "DENY";
+    const canRead = canQuery && contentDecision.decision === "ALLOW";
+    return { id: item.id, title: item.title, primaryDomain: item.primaryDomain, relatedDomains: [...item.relatedDomains], ownerAgent: item.ownerAgent, visibility: item.visibility, kind: item.kind, freshness: item.freshness, authority: item.provenance.authority, canDiscover: true, canQuery, canRead };
   });
 }
 

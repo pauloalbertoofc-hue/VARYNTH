@@ -45,6 +45,7 @@ export interface KnowledgeItem {
 }
 
 export type KnowledgePolicyDecision = "ALLOW" | "DENY" | "ALLOW_SUMMARY" | "ALLOW_PUBLIC_ONLY" | "REQUIRE_DELEGATION";
+export type KnowledgeAccessOperation = "CAN_DISCOVER" | "CAN_READ" | "CAN_QUERY" | "CAN_DELEGATE" | "CAN_MODIFY" | "CAN_PUBLISH";
 
 export interface KnowledgeQuery {
   requester: string;
@@ -54,6 +55,7 @@ export interface KnowledgeQuery {
   purpose: string;
   scope?: "PUBLIC" | "PROJECT" | "DOMAIN" | "ALL";
   limit?: number;
+  operation?: KnowledgeAccessOperation;
 }
 
 export interface KnowledgeDiscovery {
@@ -67,6 +69,8 @@ export interface KnowledgeDiscovery {
   freshness: KnowledgeItem["freshness"];
   authority: SourceAuthority;
   canQuery: boolean;
+  canDiscover: boolean;
+  canRead: boolean;
 }
 
 export type KnowledgeRelationshipType = "BELONGS_TO" | "OWNED_BY" | "RELATED_TO" | "DERIVED_FROM" | "USED_BY" | "PRODUCED_BY" | "REFERENCES" | "SPECIALIZES_IN" | "DEPENDS_ON" | "APPLIES_TO";
