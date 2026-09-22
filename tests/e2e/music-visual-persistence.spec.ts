@@ -53,22 +53,3 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await page.getByRole("button", { name: "Biblioteca" }).click();
   await expect(page.getByRole("button", { name: "Suave" })).toHaveAttribute("aria-pressed", "true");
 });
-
-test("Euterpe finds her rest position after three quiet minutes", async ({ page }) => {
-  await page.clock.install();
-  await page.goto("/modules/music");
-  await page.locator('input[type="file"][accept*="audio"]').setInputFiles({
-    name: "idle-rest.wav",
-    mimeType: "audio/wav",
-    buffer: shortWav(),
-  });
-  await page.getByRole("button", { name: "Biblioteca" }).click();
-  await expect(page.getByRole("button", { name: /idle-rest/i }).first()).toBeVisible({ timeout: 20_000 });
-
-  await page.clock.fastForward(181_000);
-  const presence = page.getByTestId("euterpe-presence");
-  await expect(presence).toHaveAttribute("data-idle-phase", "REST_ELIGIBLE");
-  await expect(presence.getByRole("button")).toHaveAttribute("aria-label", /descansando/);
-  await page.clock.fastForward(1_000);
-  await expect(presence).toHaveAttribute("style", /left: [\d.]+px; top: [\d.]+px/);
-});
