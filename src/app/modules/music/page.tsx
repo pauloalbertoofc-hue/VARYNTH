@@ -8,6 +8,7 @@ import { processAthenaQueryAsync } from "@/lib/athena/engine";
 import { AthenaCapabilityPlanPanel } from "@/components/athena/AthenaCapabilityPlanPanel";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { adjacentTrackIndex, createMusicTrack, formatMusicTime, isSupportedMusicFile, musicLibrary } from "@/lib/music/music-library";
+import { resolveAccountArtwork } from "@/lib/music/visual-artwork-persistence";
 import { analyzeSections, LocalVisualGenerationProvider, makeMusicDNA, MUSIC_ANALYSIS_LIMITS, musicSpecialist, musicStudio, spectralFeatures, type MusicDNA, type MusicFeedback, type MusicPlaylist, type VisualQuality } from "@/lib/music/music-studio";
 import { musicAgentShouldConsultAthena, runMusicAgentTurn } from "@/lib/music/music-agent-bridge";
 import { readMusicMetadata } from "@/lib/music/music-metadata";
@@ -208,14 +209,25 @@ export default function MusicPage() {
           let refreshed: VisualProfile = { ...stored, coverDataUrl: stored.coverDataUrl ?? art?.coverDataUrl, backgroundDataUrl: stored.backgroundDataUrl ?? art?.backgroundDataUrl };
           if (musicLibrary.isAccountStorageAvailable()) {
             const cloud = await musicLibrary.getArtworkUrls(selectedTrack.id);
-            refreshed = { ...refreshed, coverDataUrl: cloud.coverUrl ?? refreshed.coverDataUrl, backgroundDataUrl: cloud.backgroundUrl ?? refreshed.backgroundDataUrl };
+            const persisted = resolveAccountArtwork(
+              { cover: cloud.coverUrl, background: cloud.backgroundUrl },
+              { cover: stored.coverDataUrl, background: stored.backgroundDataUrl },
+              { cover: art?.coverDataUrl, background: art?.backgroundDataUrl },
+            );
+            refreshed = {
+              ...refreshed,
+              coverDataUrl: persisted.cover,
+              backgroundDataUrl: persisted.background,
+            };
             refreshed = await persistAccountVisualProfile(refreshed);
           }
           await musicStudio.saveVisualProfile({ ...refreshed }); if (!cancelled) setVisualProfile(refreshed);
         }
         else {
-          const generated = await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() });
-          let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: generated.coverDataUrl, backgroundDataUrl: generated.backgroundDataUrl, palette: generated.palette, accentColor: generated.palette[0] };
+          const cloud = musicLibrary.isAccountStorageAvailable() ? await musicLibrary.getArtworkUrls(selectedTrack.id) : {};
+          const generated = !cloud.coverUrl || !cloud.backgroundUrl ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() }) : undefined;
+          const persisted = resolveAccountArtwork({ cover: cloud.coverUrl, background: cloud.backgroundUrl }, {}, { cover: generated?.coverDataUrl, background: generated?.backgroundDataUrl });
+          let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: persisted.cover, backgroundDataUrl: persisted.background, ...(generated ? { palette: generated.palette, accentColor: generated.palette[0] } : {}) };
           if (musicLibrary.isAccountStorageAvailable()) profile = await persistAccountVisualProfile(profile);
           await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) setVisualProfile(profile);
         }
