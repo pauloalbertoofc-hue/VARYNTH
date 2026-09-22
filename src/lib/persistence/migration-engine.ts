@@ -29,6 +29,9 @@ const LEGACY_STORAGE_MAPPING: Record<StoreName, string> = {
   athena_messages: "varynth_athena_messages",
   athena_episodes: "varynth_athena_episodic_memory",
   asset_blobs: "varynth_asset_blobs",
+  experience_events: "varynth_experience_events_v1",
+  experience_preferences: "varynth_experience_preferences_v1",
+  experience_records: "varynth_experience_records_v1",
 };
 
 export class MigrationEngine {

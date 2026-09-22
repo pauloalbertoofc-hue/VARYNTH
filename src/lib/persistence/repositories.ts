@@ -18,6 +18,7 @@ import {
 } from "../types";
 import { Artifact } from "../artifacts/types";
 import { EpisodicMemoryEntry } from "../athena/memory/memory-manager";
+import { ExperienceEvent, ExperienceRecord, Preference } from "../experience/contracts";
 
 export const projectRepository = new IndexedDbStoreAdapter<Project>("projects");
 export const taskRepository = new IndexedDbStoreAdapter<Task>("tasks");
@@ -36,4 +37,6 @@ export const activityRepository = new IndexedDbStoreAdapter<ActivityLog>("activi
 export const artifactRepository = new IndexedDbStoreAdapter<Artifact>("artifacts");
 export const athenaMessageRepository = new IndexedDbStoreAdapter<AthenaMessage>("athena_messages");
 export const athenaEpisodeRepository = new IndexedDbStoreAdapter<EpisodicMemoryEntry>("athena_episodes");
-
+export const experienceEventRepository = new IndexedDbStoreAdapter<ExperienceEvent>("experience_events");
+export const experiencePreferenceRepository = new IndexedDbStoreAdapter<Preference>("experience_preferences");
+export const experienceRepository = new IndexedDbStoreAdapter<ExperienceRecord>("experience_records");

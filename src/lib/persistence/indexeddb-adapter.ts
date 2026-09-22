@@ -2,7 +2,7 @@ import { StorageAdapter, AssetStorageAdapter } from "./contracts";
 import { fallbackPolicyEngine } from "./fallback-policy";
 
 const DB_NAME = "VARYNTH_SOVEREIGN_DB_V1";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const KNOWN_STORES = [
   "projects",
@@ -26,6 +26,9 @@ export const KNOWN_STORES = [
   "athena_messages",
   "athena_episodes",
   "asset_blobs",
+  "experience_events",
+  "experience_preferences",
+  "experience_records",
 ] as const;
 
 export type StoreName = (typeof KNOWN_STORES)[number];
