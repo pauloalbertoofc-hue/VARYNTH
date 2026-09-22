@@ -9,6 +9,7 @@ export interface DomainDefinition {
   enabled: boolean;
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
+export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
 
 export class DomainRegistry {
   private readonly domains = new Map<string, DomainDefinition>();
@@ -57,6 +58,11 @@ export class DomainRegistry {
     if (!current) return [];
     const inherited = current.parentId ? this.resolveSpecialists(current.parentId) : [];
     return [...new Set([...current.specialists, ...inherited])];
+  }
+  resolveKnowledgePolicy(id: string): DomainKnowledgePolicy | undefined {
+    const domain = this.resolveDomain(id);
+    if (!domain) return undefined;
+    return { domain: domain.id, ownerAgent: this.resolveOwner(domain.id), publicKnowledge: true, allowedVisibility: ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY" };
   }
   resolveRelatedDomains(id: string): string[] {
     const domain = this.resolveDomain(id);
