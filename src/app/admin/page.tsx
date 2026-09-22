@@ -10,6 +10,8 @@ import { EnvironmentPersonalization } from "@/components/admin/EnvironmentPerson
 import { AdminTabs } from "./AdminTabs";
 import { AccountApprovalManagement } from "@/components/admin/AccountApprovalManagement";
 
+export const dynamic = "force-dynamic";
+
 function Status({ active, label }: { active: boolean; label: string }) {
   return <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${active ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}>{active ? "ATIVO" : label}</span>;
 }
