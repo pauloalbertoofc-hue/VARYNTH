@@ -4,3 +4,4 @@ export * from "./policy";
 export * from "./service";
 export * from "./vault-adapter";
 export * from "./router";
+export * from "./context-assembler";
