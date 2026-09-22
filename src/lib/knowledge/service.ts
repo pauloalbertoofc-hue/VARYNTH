@@ -108,13 +108,23 @@ export async function discoverKnowledge(request: KnowledgeQuery): Promise<Knowle
 }
 
 export async function linkKnowledge(relation: Omit<KnowledgeRelationship, "createdAt">): Promise<KnowledgeRelationship> {
+  const relationshipTypes = new Set(["BELONGS_TO", "OWNED_BY", "RELATED_TO", "DERIVED_FROM", "USED_BY", "PRODUCED_BY", "REFERENCES", "SPECIALIZES_IN", "DEPENDS_ON", "APPLIES_TO"]);
+  if (typeof relation.id !== "string" || typeof relation.fromId !== "string" || typeof relation.toId !== "string" || !relation.id.trim() || !relation.fromId.trim() || !relation.toId.trim() || relation.fromId === relation.toId || !relationshipTypes.has(relation.type)) throw new Error("[KNOWLEDGE_RELATION_INVALID] Relação vazia, autorreferente ou com tipo inválido.");
+  const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
+  const sameId = await knowledgeRelationshipRepository.getById(relation.id);
+  if (sameId) {
+    if (sameId.fromId !== relation.fromId || sameId.toId !== relation.toId || sameId.type !== relation.type) throw new Error("[KNOWLEDGE_RELATION_ID_CONFLICT] O identificador já pertence a outra relação.");
+    return sameId;
+  }
+  const duplicate = await knowledgeRelationshipRepository.getAll((candidate) => candidate.fromId === relation.fromId && candidate.toId === relation.toId && candidate.type === relation.type);
+  if (duplicate.length) return duplicate[0];
   const stored = { ...relation, createdAt: new Date().toISOString() };
-  return import("../persistence/repositories").then(({ knowledgeRelationshipRepository }) => knowledgeRelationshipRepository.save(stored));
+  return knowledgeRelationshipRepository.save(stored);
 }
 
 export async function listKnowledgeRelationships(id?: string): Promise<KnowledgeRelationship[]> {
   const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
   const relationships = await knowledgeRelationshipRepository.getAll((relation) => !id || relation.fromId === id || relation.toId === id);
   const revokedIds = new Set((await knowledgeRepository.getAll((item) => Boolean(item.invalidatedAt))).map((item) => item.id));
-  return relationships.filter((relation) => !revokedIds.has(relation.fromId) && !revokedIds.has(relation.toId));
+    return relationships.filter((relation) => relation.fromId !== relation.toId && !revokedIds.has(relation.fromId) && !revokedIds.has(relation.toId));
 }
