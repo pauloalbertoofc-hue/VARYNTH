@@ -14,10 +14,14 @@ export function VisualScene({ sceneId, background, coverArtwork, previousBackgro
   energy: SceneEnergy;
   reducedMotion: boolean;
 }) {
-  const image = background ? `url("${background}")` : coverArtwork ? `url("${coverArtwork}")` : "radial-gradient(ellipse at 18% 26%, #f2bd8140, transparent 30%), radial-gradient(ellipse at 78% 68%, #9274df66, transparent 38%), radial-gradient(ellipse at 46% 54%, #243c5a 0%, #141322 38%, #090910 76%)";
+  const fallbackImage = coverArtwork ? `url("${coverArtwork}")` : "radial-gradient(ellipse at 18% 26%, #f2bd8140, transparent 30%), radial-gradient(ellipse at 78% 68%, #9274df66, transparent 38%), radial-gradient(ellipse at 46% 54%, #243c5a 0%, #141322 38%, #090910 76%)";
+  const image = background ? `url("${background}")` : fallbackImage;
   const style = { "--scene-accent": accent ?? "#a78bfa", "--scene-bass": energy.bass, "--scene-mids": energy.mids, "--scene-treble": energy.treble, "--scene-energy": energy.loudness } as CSSProperties;
   return <div key={sceneId} data-visual-scene="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden" style={style} aria-hidden="true">
-    <div data-scene-layer="BackgroundLayer" className="scene-background absolute -inset-[8%] bg-cover bg-center"><div key={background ?? "fallback"} className="scene-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: image }} />{previousBackground && <div key={previousBackground} className="scene-art-exit absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${previousBackground}")` }} />}</div>
+    <div data-scene-layer="BackgroundLayer" className="scene-background absolute -inset-[8%] bg-cover bg-center">
+      {background ? <img key={background} className="scene-art absolute inset-0 h-full w-full object-cover" src={background} alt="" /> : <div key="fallback" className="scene-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: fallbackImage }} />}
+      {previousBackground && <img key={previousBackground} className="scene-art-exit absolute inset-0 h-full w-full object-cover" src={previousBackground} alt="" />}
+    </div>
     <div data-scene-layer="MidgroundLayer" className="scene-midground absolute -inset-[10%] bg-cover bg-center opacity-35 mix-blend-screen" style={{ backgroundImage: image }} />
     <div data-scene-layer="ForegroundLayer" className="scene-foreground absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,transparent_18%,rgba(3,4,12,.32)_68%,rgba(3,4,12,.9)_100%)]" />
     <div data-scene-layer="ParticleLayer" className="absolute inset-0 overflow-hidden">{Array.from({ length: 24 }, (_, i) => <span key={i} className="scene-particle absolute h-1 w-1 rounded-full bg-cyan-100/70 shadow-[0_0_12px_rgba(165,243,252,.9)]" style={{ left: `${(i * 37) % 100}%`, top: `${(i * 53) % 100}%`, animationDelay: `${-(i % 9)}s`, opacity: Math.min(.8, .15 + energy.treble * .7) }} />)}</div>
