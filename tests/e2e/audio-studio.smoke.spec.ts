@@ -200,6 +200,8 @@ test.describe("Audio Studio browser runtime", () => {
     await page.getByLabel("Versão do perfil vocal").blur();
     await expect(page.getByText(/Euterpe Voice v2/)).toBeVisible();
     await page.getByLabel("Processamento vocal Noise Gate").check();
+    await page.getByLabel("Ganho do EQ vocal em dB").fill("3");
+    await page.getByLabel("Threshold do compressor").fill("0.55");
     await page.getByPlaceholder(/Digite a fala da Euterpe/i).fill("Olá, esta é uma take de teste.");
     await page.getByRole("button", { name: "Registrar rascunho" }).click();
     await expect(page.getByRole("status")).toContainText(/Take de rascunho registrada/i);
@@ -212,6 +214,8 @@ test.describe("Audio Studio browser runtime", () => {
     await expect(page.getByRole("button", { name: "★ Favorita" })).toBeVisible();
     await expect(page.getByLabel("Versão do perfil vocal")).toHaveValue("Euterpe Voice v2");
     await expect(page.getByLabel("Processamento vocal Noise Gate")).toBeChecked();
+    await expect(page.getByLabel("Ganho do EQ vocal em dB")).toHaveValue("3");
+    await expect(page.getByLabel("Threshold do compressor")).toHaveValue("0.55");
     await page.getByRole("textbox", { name: /Anotação do take/ }).fill("Comparar dicção e ritmo");
     await page.getByRole("button", { name: "A/B A" }).click();
     await page.waitForTimeout(1000);
