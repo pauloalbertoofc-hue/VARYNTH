@@ -56,3 +56,9 @@ export async function requestDomainResponse(request: KnowledgeQuery & { provider
     packet,
   };
 }
+
+export async function askSpecialist(request: KnowledgeQuery): Promise<DomainResponse> {
+  const domain = request.domain || "system.orchestration";
+  const provider = domainRegistry.resolveOwner(domain) || "athena";
+  return requestDomainResponse({ ...request, domain, provider, scope: request.scope || "PUBLIC" });
+}
