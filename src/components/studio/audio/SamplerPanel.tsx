@@ -4,7 +4,7 @@ import { assetManager } from "@/lib/artifacts/asset-manager";
 import { SamplerDefinition, validateSamplerDefinition } from "@/lib/studio/audio/sampler-domain";
 import { LocalSamplerInstrument } from "@/lib/studio/audio/instrument-engine";
 
-async function previewSampler(definition: SamplerDefinition): Promise<void> {
+export async function previewSampler(definition: SamplerDefinition, midi = definition.rootMidi): Promise<void> {
   if (typeof window === "undefined") throw new Error("[SAMPLER_RUNTIME_UNAVAILABLE] Pré-escuta requer um navegador.");
   const Constructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Constructor) throw new Error("[SAMPLER_RUNTIME_UNAVAILABLE] AudioContext não está disponível.");
@@ -13,12 +13,13 @@ async function previewSampler(definition: SamplerDefinition): Promise<void> {
   const context = new Constructor();
   try {
     await context.resume();
-    const buffer = await context.decodeAudioData(raw.slice(0));
+    const bytes = raw instanceof ArrayBuffer ? raw : raw instanceof Blob ? await raw.arrayBuffer() : new TextEncoder().encode(raw).buffer;
+    const buffer = await context.decodeAudioData(bytes.slice(0));
     const instrument = new LocalSamplerInstrument(definition, context);
     instrument.loadBuffer(buffer);
-    instrument.noteOn({ midi: definition.rootMidi, velocity: 100 });
+    instrument.noteOn({ midi, velocity: 100 });
     await new Promise((resolve) => window.setTimeout(resolve, Math.min(1800, Math.max(250, buffer.duration * 1000))));
-    instrument.noteOff(definition.rootMidi);
+    instrument.noteOff(midi);
     await new Promise((resolve) => window.setTimeout(resolve, Math.max(40, definition.envelope.releaseMs + 40)));
     instrument.dispose();
   } finally {
