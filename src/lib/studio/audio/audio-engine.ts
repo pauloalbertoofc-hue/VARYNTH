@@ -109,7 +109,14 @@ export class AudioEngine {
       for (const point of panPoints) { const relative = (point.timeMs - position) / 1000; if (relative >= 0 && relative <= (clipEnd - position) / 1000) pan.pan.linearRampToValueAtTime(point.value, context.currentTime + relative); }
       this.sources.push(source);
     }
-    await this.scheduleMusic(project, position, busNodes, startDelayMs);
+    try {
+      await this.scheduleMusic(project, position, busNodes, startDelayMs);
+    } catch (error) {
+      this.stopNodes();
+      this.state = "STOPPED";
+      this.offsetMs = position;
+      throw error;
+    }
     this.scheduleMetronome(project, position, startDelayMs, countInBars);
     this.startedAt = context.currentTime; this.state = "PLAYING";
   }

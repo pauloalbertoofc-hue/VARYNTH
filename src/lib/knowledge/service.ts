@@ -126,5 +126,5 @@ export async function listKnowledgeRelationships(id?: string): Promise<Knowledge
   const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
   const relationships = await knowledgeRelationshipRepository.getAll((relation) => !id || relation.fromId === id || relation.toId === id);
   const revokedIds = new Set((await knowledgeRepository.getAll((item) => Boolean(item.invalidatedAt))).map((item) => item.id));
-    return relationships.filter((relation) => relation.fromId !== relation.toId && !revokedIds.has(relation.fromId) && !revokedIds.has(relation.toId));
+  return relationships.filter((relation) => relation.fromId !== relation.toId && !revokedIds.has(relation.fromId) && !revokedIds.has(relation.toId));
 }
