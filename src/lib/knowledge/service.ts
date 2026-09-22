@@ -62,8 +62,11 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   const cached = queryCache.get(cacheKey);
   if (cached?.revision === revision) return cached.items.map((item) => ({ ...item }));
   const tokens = request.query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
+  const allKnowledge = await knowledgeRepository.getAll();
+  const supersededIds = new Set(allKnowledge.filter((item) => item.supersedesId && item.supersedesId !== item.id).map((item) => item.supersedesId!));
   const candidates = await knowledgeRepository.getAll((item) => {
     if (item.invalidatedAt) return false;
+    if (supersededIds.has(item.id)) return false;
     const now = Date.now();
     if (item.validFrom && new Date(item.validFrom).getTime() > now) return false;
     if (item.validUntil && new Date(item.validUntil).getTime() < now) return false;
