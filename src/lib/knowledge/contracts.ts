@@ -68,6 +68,9 @@ export interface KnowledgeDiscovery {
   canQuery: boolean;
 }
 
+export type KnowledgeRelationshipType = "BELONGS_TO" | "OWNED_BY" | "RELATED_TO" | "DERIVED_FROM" | "USED_BY" | "PRODUCED_BY" | "REFERENCES" | "SPECIALIZES_IN" | "DEPENDS_ON" | "APPLIES_TO";
+export interface KnowledgeRelationship { id: string; fromId: string; toId: string; type: KnowledgeRelationshipType; createdAt: string; provenanceId?: string; }
+
 export interface KnowledgeAccessDecision {
   decision: KnowledgePolicyDecision;
   reason: string;

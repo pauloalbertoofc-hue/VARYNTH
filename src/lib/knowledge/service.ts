@@ -1,5 +1,5 @@
 import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistence/repositories";
-import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery } from "./contracts";
+import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationship } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
 
 const queryCache = new Map<string, { revision: number; items: KnowledgeItem[] }>();
@@ -74,4 +74,14 @@ export async function discoverKnowledge(request: KnowledgeQuery): Promise<Knowle
     const decision = decideKnowledgeAccess(item, request);
     return { id: item.id, title: item.title, primaryDomain: item.primaryDomain, relatedDomains: [...item.relatedDomains], ownerAgent: item.ownerAgent, visibility: item.visibility, kind: item.kind, freshness: item.freshness, authority: item.provenance.authority, canQuery: decision.decision !== "DENY" };
   });
+}
+
+export async function linkKnowledge(relation: Omit<KnowledgeRelationship, "createdAt">): Promise<KnowledgeRelationship> {
+  const stored = { ...relation, createdAt: new Date().toISOString() };
+  return import("../persistence/repositories").then(({ knowledgeRelationshipRepository }) => knowledgeRelationshipRepository.save(stored));
+}
+
+export async function listKnowledgeRelationships(id?: string): Promise<KnowledgeRelationship[]> {
+  const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
+  return knowledgeRelationshipRepository.getAll((relation) => !id || relation.fromId === id || relation.toId === id);
 }
