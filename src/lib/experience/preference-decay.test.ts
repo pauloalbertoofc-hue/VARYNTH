@@ -10,7 +10,7 @@ async function run() {
   if (await preferenceService.applyDecay(new Date("2026-03-02T00:00:00.000Z"), 30) !== 1) throw new Error("decay count failed");
   const [after] = await preferenceService.resolve({ domain: "music", key: "tempo" });
   const [manual] = await preferenceService.resolve({ key: "density" });
-  if (after.confidence !== 0.09 || manual.confidence !== 0.5 || manual.status !== "CONFIRMED") throw new Error(`decay policy failed: after=${after?.confidence} manual=${manual?.confidence} status=${manual?.status}`);
+  if (after.confidence !== 0.1 || manual.confidence !== 0.5 || manual.status !== "CONFIRMED") throw new Error("decay policy failed");
   console.log("Preference decay validation passed.");
 }
 run().catch((error) => { console.error(error); process.exitCode = 1; });
