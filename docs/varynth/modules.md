@@ -16,6 +16,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
 | **Athena AI** | 🦉 | `/modules/athena` | Centro de comando cognitivo e chat soberano |
 | **Vault** | 📚 | `/modules/vault` | Acervo bibliográfico, jurisprudência, livros e artigos |
+| **Knowledge** | 🧭 | `/modules/knowledge` | Domínios, ownership, provenance e conhecimento entre agentes |
 | **Codex** | ⚖️ | `/modules/codex` | Argument Arena, dialética jurídica e matriz de teses |
 | **Research** | 🔬 | `/modules/research` | Evidence Board, síntese científica e fontes empíricas |
 | **Chronos** | ⏳ | `/modules/chronos` | Motor temporal, prazos e marcos de projetos |

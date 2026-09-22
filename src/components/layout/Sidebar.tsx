@@ -58,6 +58,7 @@ const systemNavItems: NavSectionItem[] = [
   { href: "/modules/graph", icon: Share2, label: "Graph Rede" },
   { href: "/modules/activity", icon: Activity, label: "Histórico" },
   { href: "/modules/vault", icon: BookOpen, label: "Vault" },
+  { href: "/modules/knowledge", icon: BookOpen, label: "Knowledge", badge: "Mapa" },
   { href: "/modules/chronos", icon: Clock, label: "Chronos" },
   { href: "/modules/people", icon: Users, label: "People" },
   { href: "/modules/labs", icon: FlaskConical, label: "Labs" },
