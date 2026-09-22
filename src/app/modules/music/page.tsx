@@ -29,6 +29,24 @@ import { CoverPresentation } from "@/components/music/CoverPresentation";
 import { resolveVisualAssetTargetIds, type VisualAssetScope } from "@/lib/music/visual-asset-targets";
 
 const visualProvider = new LocalVisualGenerationProvider();
+async function persistAccountVisualProfile(profile: VisualProfile): Promise<VisualProfile> {
+  if (!musicLibrary.isAccountStorageAvailable()) return profile;
+  const next = { ...profile };
+  for (const kind of ["cover", "background"] as const) {
+    const field = kind === "cover" ? "coverDataUrl" : "backgroundDataUrl";
+    const value = next[field];
+    if (value?.startsWith("data:")) {
+      const blob = await fetch(value).then((response) => response.blob());
+      const extension = blob.type === "image/jpeg" ? "jpg" : blob.type.split("/")[1]?.replace("svg+xml", "svg") || "png";
+      const file = new File([blob], `${profile.trackId}.${extension}`, { type: blob.type || "image/png" });
+      await musicLibrary.uploadArtwork(file, kind, [profile.trackId]);
+    }
+  }
+  const urls = await musicLibrary.getArtworkUrls(profile.trackId);
+  if (urls.coverUrl) next.coverDataUrl = urls.coverUrl;
+  if (urls.backgroundUrl) next.backgroundDataUrl = urls.backgroundUrl;
+  return next;
+}
 const colors = ["violet", "cyan", "rose", "amber"];
 const playlistDot: Record<string, string> = { violet: "bg-violet-400", cyan: "bg-cyan-400", rose: "bg-rose-400", amber: "bg-amber-400" };
 const CHAT_STORAGE_KEY = "varynth_music_curator_chat_v1";
@@ -187,13 +205,19 @@ export default function MusicPage() {
         if (cancelled) return;
         if (stored?.schemaVersion === 1) {
           const art = (!stored.coverDataUrl || !stored.backgroundDataUrl) ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() }) : undefined;
-          const refreshed = { ...stored, coverDataUrl: stored.coverDataUrl ?? art?.coverDataUrl, backgroundDataUrl: stored.backgroundDataUrl ?? art?.backgroundDataUrl };
-          await musicStudio.saveVisualProfile(refreshed); if (!cancelled) setVisualProfile(refreshed);
+          let refreshed: VisualProfile = { ...stored, coverDataUrl: stored.coverDataUrl ?? art?.coverDataUrl, backgroundDataUrl: stored.backgroundDataUrl ?? art?.backgroundDataUrl };
+          if (musicLibrary.isAccountStorageAvailable()) {
+            const cloud = await musicLibrary.getArtworkUrls(selectedTrack.id);
+            refreshed = { ...refreshed, coverDataUrl: cloud.coverUrl ?? refreshed.coverDataUrl, backgroundDataUrl: cloud.backgroundUrl ?? refreshed.backgroundDataUrl };
+            refreshed = await persistAccountVisualProfile(refreshed);
+          }
+          await musicStudio.saveVisualProfile({ ...refreshed }); if (!cancelled) setVisualProfile(refreshed);
         }
         else {
           const generated = await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() });
-          const profile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: generated.coverDataUrl, backgroundDataUrl: generated.backgroundDataUrl, palette: generated.palette, accentColor: generated.palette[0] };
-          await musicStudio.saveVisualProfile(profile); if (!cancelled) setVisualProfile(profile);
+          let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: generated.coverDataUrl, backgroundDataUrl: generated.backgroundDataUrl, palette: generated.palette, accentColor: generated.palette[0] };
+          if (musicLibrary.isAccountStorageAvailable()) profile = await persistAccountVisualProfile(profile);
+          await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) setVisualProfile(profile);
         }
       }
     }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : "Não foi possível abrir esta faixa."); });
@@ -332,9 +356,55 @@ export default function MusicPage() {
   const renamePlaylist = async (list: MusicPlaylist) => { const name = window.prompt("Novo nome da playlist", list.name)?.trim(); if (!name) return; await musicStudio.savePlaylist({ ...list, name, updatedAt: new Date().toISOString() }); setPlaylists(await musicStudio.listPlaylists()); };
   const recordFeedback = async () => { if (!selectedId) return; const item: MusicFeedback = { id: crypto.randomUUID(), trackId: selectedId, rating: feedbackRating, tags: [], note: feedbackNote.trim(), createdAt: new Date().toISOString() }; await musicStudio.saveFeedback(item); const rows = await musicStudio.listFeedback(); setFeedbackRows(rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt))); setFeedbackCount(rows.length); setFeedbackNote(""); setMessage("Avaliação guardada localmente; não altera automaticamente perfis nem recomendações."); };
   const exportFeedback = async () => { const rows = await musicStudio.listFeedback(); const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), feedback: rows }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "varynth-music-feedback.json"; link.click(); URL.revokeObjectURL(url); };
-  const generateVisualPrompt = async () => { if (visualBusy) return; if (!selectedTrack) { setMessage("Escolha uma faixa antes de criar o visual."); return; } const visualPrompt = prompt.trim() || selectedTrack.name; setVisualBusy(true); setVisualConcept("Euterpe está criando a identidade visual…"); setMessage("Criando capa e fundo com Euterpe…"); try { const result = await visualProvider.generate({ prompt: visualPrompt, title: selectedTrack.name, artist: selectedTrack.artist, style: "abstrato responsivo à música", createdAt: new Date().toISOString() }); const stamp = new Date().toISOString(); const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, coverDataUrl: result.coverDataUrl, backgroundDataUrl: result.backgroundDataUrl, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }); })); const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: result.coverDataUrl, backgroundDataUrl: result.backgroundDataUrl, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; setVisualProfile(next); setVisualConcept(result.description); const destination = visualAssetScope === "LIBRARY" ? "à biblioteca inteira" : visualAssetScope === "SELECTED" ? `a ${targets.length} faixas selecionadas` : "à faixa"; setMessage(`Capa e fundo criados e aplicados ${destination}.`); } catch (error) { const detail = error instanceof Error ? error.message : "Provider indisponível."; setVisualConcept(""); setMessage(`Erro ao criar visual: ${detail}`); } finally { setVisualBusy(false); } };
-  const uploadVisualAsset = async (event: ChangeEvent<HTMLInputElement>, kind: "cover" | "background") => { const file = event.target.files?.[0]; event.target.value = ""; if (!file || !selectedTrack || !file.type.startsWith("image/")) { if (file) setMessage("Escolha uma imagem animada ou estática válida."); return; } if (file.size > 20 * 1024 * 1024) { setMessage("A imagem pode ter no máximo 20 MB."); return; } const reader = new FileReader(); reader.onerror = () => setMessage("Não foi possível ler a imagem selecionada."); reader.onload = async () => { try { const dataUrl = String(reader.result); const stamp = new Date().toISOString(); const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); if (!targets.length) { setMessage("Escolha ao menos uma faixa para aplicar a imagem."); return; } await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp }); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp }; setVisualProfile(current); const label = kind === "cover" ? "Capa" : "Fundo"; const animation = file.type === "image/gif" || file.type === "image/webp" ? " animado" : ""; const destination = visualAssetScope === "LIBRARY" ? "em toda a biblioteca" : visualAssetScope === "SELECTED" ? `em ${targets.length} faixas selecionadas` : "nesta faixa"; setMessage(`${label}${animation} salvo ${destination}.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível salvar a imagem."); } }; reader.readAsDataURL(file); };
-  const clearVisualAsset = async (kind: "cover" | "background") => { if (!selectedTrack) return; const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); const stamp = new Date().toISOString(); try { await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); const next = { ...base, updatedAt: stamp }; if (kind === "cover") delete next.coverDataUrl; else delete next.backgroundDataUrl; await musicStudio.saveVisualProfile(next); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), updatedAt: stamp }; if (kind === "cover") delete current.coverDataUrl; else delete current.backgroundDataUrl; setVisualProfile(current); setMessage(`${kind === "cover" ? "Capa" : "Fundo"} removido ${visualAssetScope === "LIBRARY" ? "da biblioteca" : visualAssetScope === "SELECTED" ? "das faixas selecionadas" : "desta faixa"}.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível remover a imagem."); } };
+  const generateVisualPrompt = async () => {
+    if (visualBusy) return;
+    if (!selectedTrack) { setMessage("Escolha uma faixa antes de criar o visual."); return; }
+    const visualPrompt = prompt.trim() || selectedTrack.name; setVisualBusy(true); setVisualConcept("Euterpe está criando a identidade visual…"); setMessage("Criando capa e fundo com Euterpe…");
+    try {
+      const result = await visualProvider.generate({ prompt: visualPrompt, title: selectedTrack.name, artist: selectedTrack.artist, style: "abstrato responsivo à música", createdAt: new Date().toISOString() });
+      if (!result.coverDataUrl || !result.backgroundDataUrl) throw new Error("O provider visual não entregou capa e fundo válidos.");
+      const stamp = new Date().toISOString(); const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id));
+      let cover = result.coverDataUrl; let background = result.backgroundDataUrl;
+      if (musicLibrary.isAccountStorageAvailable()) {
+        const asFile = async (dataUrl: string, name: string) => { const blob = await fetch(dataUrl).then((response) => response.blob()); const extension = blob.type === "image/svg+xml" ? "svg" : "png"; return new File([blob], `${name}.${extension}`, { type: blob.type || "image/svg+xml" }); };
+        await musicLibrary.uploadArtwork(await asFile(cover, "euterpe-cover"), "cover", targets.map((track) => track.id));
+        await musicLibrary.uploadArtwork(await asFile(background, "euterpe-background"), "background", targets.map((track) => track.id));
+        const urls = await musicLibrary.getArtworkUrls(selectedTrack.id); cover = urls.coverUrl || cover; background = urls.backgroundUrl || background;
+      }
+      await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); let profile = { ...base, coverDataUrl: cover, backgroundDataUrl: background, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; if (musicLibrary.isAccountStorageAvailable()) { const urls = await musicLibrary.getArtworkUrls(track.id); profile = { ...profile, coverDataUrl: urls.coverUrl || cover, backgroundDataUrl: urls.backgroundUrl || background }; } await musicStudio.saveVisualProfile(profile); }));
+      const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; setVisualProfile(next); setVisualConcept(result.description);
+      const destination = visualAssetScope === "LIBRARY" ? "à biblioteca inteira" : visualAssetScope === "SELECTED" ? `a ${targets.length} faixas selecionadas` : "à faixa"; setMessage(`Capa e fundo criados e aplicados ${destination}.`);
+    } catch (error) { const detail = error instanceof Error ? error.message : "Provider indisponível."; setVisualConcept(""); setMessage(`Erro ao criar visual: ${detail}`); }
+    finally { setVisualBusy(false); }
+  };
+  const uploadVisualAsset = async (event: ChangeEvent<HTMLInputElement>, kind: "cover" | "background") => {
+    const file = event.target.files?.[0]; event.target.value = "";
+    if (!file || !selectedTrack || !file.type.startsWith("image/")) { if (file) setMessage("Escolha uma imagem animada ou estática válida."); return; }
+    if (file.size > 20 * 1024 * 1024) { setMessage("A imagem pode ter no máximo 20 MB."); return; }
+    const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id));
+    const targets = tracks.filter((track) => targetIds.includes(track.id));
+    if (!targets.length) { setMessage("Escolha ao menos uma faixa para aplicar a imagem."); return; }
+    try {
+      setMessage("Salvando imagem privada da sua conta…");
+      let dataUrl: string;
+      if (musicLibrary.isAccountStorageAvailable()) {
+        await musicLibrary.uploadArtwork(file, kind, targets.map((track) => track.id));
+        const urls = await musicLibrary.getArtworkUrls(selectedTrack.id);
+        dataUrl = (kind === "cover" ? urls.coverUrl : urls.backgroundUrl) || "";
+        if (!dataUrl) throw new Error("A imagem foi enviada, mas não foi possível confirmar a associação à faixa.");
+      } else {
+        dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error("Não foi possível ler a imagem selecionada.")); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file); });
+      }
+      const stamp = new Date().toISOString();
+      await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp }); }));
+      const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp };
+      setVisualProfile(current);
+      const label = kind === "cover" ? "Capa" : "Fundo"; const animation = file.type === "image/gif" || file.type === "image/webp" ? " animado" : "";
+      const destination = visualAssetScope === "LIBRARY" ? "em toda a biblioteca" : visualAssetScope === "SELECTED" ? `em ${targets.length} faixas selecionadas` : "nesta faixa";
+      setMessage(`${label}${animation} salvo de forma permanente ${destination}.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível salvar a imagem."); }
+  };
+  const clearVisualAsset = async (kind: "cover" | "background") => { if (!selectedTrack) return; const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); const stamp = new Date().toISOString(); try { await musicLibrary.clearArtwork(kind, targets.map((track) => track.id)); await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); const next = { ...base, updatedAt: stamp }; if (kind === "cover") delete next.coverDataUrl; else delete next.backgroundDataUrl; await musicStudio.saveVisualProfile(next); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), updatedAt: stamp }; if (kind === "cover") delete current.coverDataUrl; else delete current.backgroundDataUrl; setVisualProfile(current); setMessage(`${kind === "cover" ? "Capa" : "Fundo"} removido ${visualAssetScope === "LIBRARY" ? "da biblioteca" : visualAssetScope === "SELECTED" ? "das faixas selecionadas" : "desta faixa"}.`); } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível remover a imagem."); } };
   const setVisualMotion = async (mode: "STATIC" | "SMOOTH" | "ANIMATED") => {
     if (!selectedTrack) { setMessage("Escolha uma faixa antes de ajustar o movimento."); return; }
     const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna);

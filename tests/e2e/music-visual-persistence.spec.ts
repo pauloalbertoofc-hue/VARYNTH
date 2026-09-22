@@ -37,19 +37,19 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
     mimeType: "image/gif",
     buffer: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
   });
-  await expect(page.getByRole("status").last()).toContainText(/Capa animado salvo nesta faixa/i);
+  await expect(page.getByRole("status").last()).toContainText(/Capa animado salvo de forma permanente nesta faixa/i);
   await page.locator('input[type="file"][accept*="image/gif"]').last().setInputFiles({
     name: "music-background.gif",
     mimeType: "image/gif",
     buffer: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
   });
-  await expect(page.getByRole("status").last()).toContainText(/Fundo animado salvo nesta faixa/i);
+  await expect(page.getByRole("status").last()).toContainText(/Fundo animado salvo de forma permanente nesta faixa/i);
   await page.getByRole("button", { name: "Suave" }).click();
   await expect(page.getByRole("status").last()).toContainText(/Movimento suave aplicado e salvo/i);
 
   await page.reload();
-  await expect(page.locator('img[src^="data:image/gif"]').first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('[data-visual-scene="true"] img[src^="data:image/gif"]').first()).toBeVisible();
+  await expect(page.locator('img[src^="data:image/gif"], img[src*="/artwork?kind="]').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-visual-scene="true"] img[src^="data:image/gif"], [data-visual-scene="true"] img[src*="/artwork?kind="]').first()).toBeVisible();
   await page.getByRole("button", { name: "Biblioteca" }).click();
   await expect(page.getByRole("button", { name: "Suave" })).toHaveAttribute("aria-pressed", "true");
 });
