@@ -23,6 +23,15 @@ export async function findKnowledgeConflicts(domain?: string): Promise<Array<{ g
   return [...groups.entries()].map(([groupId, grouped]) => ({ groupId, items: grouped }));
 }
 
+export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
+  const current = await knowledgeRepository.getById(id);
+  if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
+  const revoked = { ...current, invalidatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  revision += 1;
+  queryCache.clear();
+  return knowledgeRepository.save(revoked);
+}
+
 export async function listKnowledgeAccessLogs(): Promise<import("./contracts").KnowledgeAccessLog[]> { return knowledgeAccessLogRepository.getAll(); }
 
 export async function queryKnowledge(request: KnowledgeQuery): Promise<KnowledgeItem[]> {
@@ -31,6 +40,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   if (cached?.revision === revision) return cached.items.map((item) => ({ ...item }));
   const tokens = request.query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
   const candidates = await knowledgeRepository.getAll((item) => {
+    if (item.invalidatedAt) return false;
     const inDomain = !request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain) || item.primaryDomain.startsWith(`${request.domain}.`);
     const inProject = !request.projectId || item.relatedProjectIds.length === 0 || item.relatedProjectIds.includes(request.projectId);
     const text = `${item.title} ${item.content} ${item.tags.join(" ")}`.toLocaleLowerCase();
