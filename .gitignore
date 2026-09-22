@@ -9,6 +9,9 @@ node_modules/
 .vercel-cli/
 *.tsbuildinfo
 *.bak
+out/
+test-results/
+build-validation.log
 
 .vercel
 .env*
