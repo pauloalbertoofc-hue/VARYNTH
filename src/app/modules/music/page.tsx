@@ -302,12 +302,40 @@ export default function MusicPage() {
   const selectTrack = useCallback((track: MusicTrack) => {
     setSelectedId(track.id); athenaEventBus.emit("MUSIC_CHANGED", { trackId: track.id, title: track.name });
   }, []);
-  const togglePlayback = async () => {
+  const togglePlayback = useCallback(async () => {
     const audio = audioRef.current; if (!audio || !audioUrl) return;
     if (audio.paused) { try { await audioContextRef.current?.resume(); await audio.play(); setPlaying(true); athenaEventBus.emit("MUSIC_PLAY", { trackId: selectedId }); setMessage(""); } catch { setPlaying(false); setMessage("O navegador não conseguiu reproduzir este arquivo de áudio."); } }
     else { audio.pause(); setPlaying(false); athenaEventBus.emit("MUSIC_PAUSE", { trackId: selectedId }); }
-  };
-  const stepTrack = (direction: -1 | 1) => { const index = adjacentTrackIndex(visibleTracks.findIndex((track) => track.id === selectedId), visibleTracks.length, direction); if (index >= 0) selectTrack(visibleTracks[index]); };
+  }, [audioUrl, selectedId]);
+  const stepTrack = useCallback((direction: -1 | 1) => { const index = adjacentTrackIndex(visibleTracks.findIndex((track) => track.id === selectedId), visibleTracks.length, direction); if (index >= 0) selectTrack(visibleTracks[index]); }, [visibleTracks, selectedId, selectTrack]);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator) || !selectedTrack) return;
+    const session = navigator.mediaSession;
+    const cover = visualProfile?.coverDataUrl;
+    const artwork = cover ? [{ src: new URL(cover, window.location.href).href, sizes: "512x512", type: /^data:([^;,]+)/.exec(cover)?.[1] || "image/png" }] : [];
+    try {
+      session.metadata = new MediaMetadata({ title: selectedTrack.name, artist: selectedTrack.artist || "Artista desconhecido", album: selectedTrack.album || "VARYNTH Music", artwork });
+      session.setActionHandler("play", () => { const audio = audioRef.current; if (audio?.paused) void togglePlayback(); });
+      session.setActionHandler("pause", () => { const audio = audioRef.current; if (audio && !audio.paused) void togglePlayback(); });
+      session.setActionHandler("previoustrack", () => stepTrack(-1));
+      session.setActionHandler("nexttrack", () => stepTrack(1));
+      session.setActionHandler("seekto", (event) => { if (audioRef.current && Number.isFinite(event.seekTime)) audioRef.current.currentTime = Math.max(0, Math.min(duration || Infinity, event.seekTime!)); });
+      session.setActionHandler("seekbackward", (event) => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - (event.seekOffset || 10)); });
+      session.setActionHandler("seekforward", (event) => { if (audioRef.current) audioRef.current.currentTime = Math.min(duration || Infinity, audioRef.current.currentTime + (event.seekOffset || 10)); });
+    } catch { /* Unsupported Media Session actions are optional; in-page controls remain available. */ }
+    return () => {
+      for (const action of ["play", "pause", "previoustrack", "nexttrack", "seekto", "seekbackward", "seekforward"] as const) {
+        try { session.setActionHandler(action, null); } catch { /* Some browsers expose only a subset of actions. */ }
+      }
+    };
+  }, [selectedTrack, visualProfile?.coverDataUrl, duration, togglePlayback, stepTrack]);
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+    if (duration > 0 && Number.isFinite(currentTime)) {
+      try { navigator.mediaSession.setPositionState({ duration, playbackRate: audioRef.current?.playbackRate || 1, position: Math.min(currentTime, duration) }); } catch { /* Position reporting is not supported in every browser. */ }
+    }
+  }, [playing, duration, currentTime]);
 
   const importFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []); event.target.value = ""; if (!files.length) return;

@@ -31,6 +31,8 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await page.getByRole("button", { name: "Biblioteca" }).click();
   await expect(page.getByRole("button", { name: /persistent-cover/i }).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: /second-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  const mediaTitle = await page.evaluate(() => navigator.mediaSession?.metadata?.title ?? null);
+  expect(mediaTitle).toContain("persistent-cover");
   const coverInput = page.locator('input[type="file"][accept*="image/gif"]').first();
   await coverInput.setInputFiles({
     name: "music-cover.gif",
