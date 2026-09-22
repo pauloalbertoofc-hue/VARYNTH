@@ -15,6 +15,6 @@ if (invalidVoiceSettings.voiceProfiles?.[0]?.processingSettings?.eqGainDb !== 0 
 const samplerMigration = migrateAudioProject({ ...old, samplerDefinitions: [{ id: "sampler", name: "Glass", assetId: "asset-glass", rootMidi: 60, minMidi: 48, maxMidi: 72, envelope: { attackMs: 5, decayMs: 20, sustain: 0.8, releaseMs: 100 } }, { id: "bad", name: "Bad", assetId: "asset", loop: { startMs: 2, endMs: 1, enabled: true } }] } as never);
 if (samplerMigration.samplerDefinitions?.length !== 1 || samplerMigration.samplerDefinitions[0].id !== "sampler") throw new Error("Migração deve preservar samplers válidos e remover definições inválidas");
 if (samplerMigration.drumPatterns?.length !== 0) throw new Error("Migração não deve criar padrões de bateria ausentes");
-const drumMigration = migrateAudioProject({ ...old, drumPatterns: [{ id: "beat", name: "Beat", steps: 2, subdivision: 16, lanes: {} }] } as never);
-if (drumMigration.drumPatterns?.[0]?.lanes.kick.length !== 2) throw new Error("Migração deve normalizar padrões de bateria");
+const drumMigration = migrateAudioProject({ ...old, samplerDefinitions: samplerMigration.samplerDefinitions, drumPatterns: [{ id: "beat", name: "Beat", steps: 2, subdivision: 16, lanes: {}, laneSamplers: { kick: "sampler" } }] } as never);
+if (drumMigration.drumPatterns?.[0]?.lanes.kick.length !== 2 || drumMigration.drumPatterns[0].laneSamplers?.kick !== "sampler") throw new Error("Migração deve normalizar padrões e preservar o mapeamento de samples por lane");
 console.log("Audio migration tests passed: legacy defaults plus notes, transposed clips, voice takes, asset references, provenance, project-scoped asset annotations and schema 3→4 compatibility.");
