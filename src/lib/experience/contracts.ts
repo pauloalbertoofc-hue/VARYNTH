@@ -58,6 +58,17 @@ export interface Preference {
   lastObservedAt?: string;
 }
 
+export interface PreferenceCandidate {
+  subject: string;
+  domain: string;
+  key: string;
+  value: unknown;
+  scope: PreferenceScope;
+  scopeId?: string;
+  evidence: EvidenceRef[];
+  proposedAt: string;
+}
+
 export interface ExperienceRecord {
   id: string;
   domain: string;
