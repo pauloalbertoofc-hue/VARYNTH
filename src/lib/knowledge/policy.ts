@@ -15,6 +15,7 @@ export function decideKnowledgeAccess(item: KnowledgeItem, request: KnowledgeQue
   if (item.visibility === "PROJECT" && item.relatedProjectIds.length === 0) return { decision: "DENY", reason: "Conhecimento de projeto sem projeto associado." };
   if (item.visibility === "PROJECT" && !request.projectId) return { decision: "DENY", reason: "Projeto não informado." };
   if (item.visibility === "PROJECT" && request.projectId && !item.relatedProjectIds.includes(request.projectId)) return { decision: "DENY", reason: "Projeto fora do escopo." };
+  if (item.visibility === "PROJECT" && request.projectId && item.ownerAgent !== request.requester && !item.contributingAgents.includes(request.requester)) return { decision: "DENY", reason: "Solicitante não possui vínculo registrado com o conhecimento do projeto." };
   if (request.scope === "PUBLIC" && item.visibility !== "PUBLIC_TO_AGENTS" && item.visibility !== "CROSS_DOMAIN") return { decision: "DENY", reason: "A consulta exige conhecimento público entre agentes." };
   return { decision: item.visibility === "PUBLIC_TO_AGENTS" || item.visibility === "DOMAIN" ? "ALLOW" : "ALLOW_SUMMARY", reason: "Acesso permitido pela política." };
 }
