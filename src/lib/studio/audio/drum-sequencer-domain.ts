@@ -25,3 +25,17 @@ export function createDrumPattern(input: Partial<DrumPattern> & Pick<DrumPattern
 export function stepTimeBeats(step: number, pattern: DrumPattern): number { return Math.max(0, step) * (4 / pattern.subdivision); }
 export function shouldTrigger(step: DrumStep, random = Math.random()): boolean { return step.active && random >= 0 && random <= 1 && random <= step.probability; }
 export function drumLanes(): DrumLane[] { return [...LANES]; }
+
+const LANE_MIDI: Record<DrumLane, number> = { kick: 36, snare: 38, hat: 42, clap: 39, tom: 45, perc: 50 };
+export function drumPatternToNotes(pattern: DrumPattern, startBeat = 0, idPrefix = pattern.id) {
+  return LANES.flatMap((lane) => pattern.lanes[lane].flatMap((step, index) => {
+    if (!step.active) return [];
+    const midi = LANE_MIDI[lane];
+    const pitchNames = ["C", "C", "D", "D", "E", "F", "F", "G", "G", "A", "A", "B"] as const;
+    const accidentals = ["natural", "sharp", "natural", "sharp", "natural", "natural", "sharp", "natural", "sharp", "natural", "sharp", "natural"] as const;
+    const pitchClass = midi % 12;
+    const subdivisionBeats = 4 / pattern.subdivision;
+    const position = startBeat + index * subdivisionBeats + (index % 2 === 1 ? pattern.swing * subdivisionBeats * 0.5 : 0) + step.microtimingMs * (120 / 60000);
+    return [{ id: `${idPrefix}-${lane}-${index}`, pitch: pitchNames[pitchClass], accidental: accidentals[pitchClass], octave: Math.floor(midi / 12) - 1, startBeat: Math.max(0, position), durationBeats: subdivisionBeats, velocity: step.velocity, articulation: "staccato" as const, expression: step.probability, drum: { patternId: pattern.id, lane, step: index, probability: step.probability, microtimingMs: step.microtimingMs } }];
+  }));
+}

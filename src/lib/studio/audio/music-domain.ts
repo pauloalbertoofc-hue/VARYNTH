@@ -24,6 +24,8 @@ export interface MusicalNote {
   expression?: number;
   originalStartBeat?: number;
   originalVelocity?: number;
+  /** Proveniência de um passo convertido do Drum Sequencer. */
+  drum?: { patternId: string; lane: import("./drum-sequencer-domain").DrumLane; step: number; probability: number; microtimingMs: number };
 }
 
 export interface MusicalRest { id: string; startBeat: number; durationBeats: number; }
