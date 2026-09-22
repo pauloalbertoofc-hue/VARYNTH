@@ -46,6 +46,15 @@ export class PreferenceService {
     return changed;
   }
 
+  async forget(id: string): Promise<boolean> {
+    if (!id.trim()) return false;
+    return experiencePreferenceRepository.delete(id);
+  }
+
+  async exportAll(): Promise<Preference[]> {
+    return experiencePreferenceRepository.getAll();
+  }
+
   async resolve(input: { domain?: string; agentId?: string; moduleId?: string; projectId?: string; artifactId?: string; sessionId?: string; key?: string; currentInstruction?: unknown }): Promise<Preference[]> {
     if (input.currentInstruction !== undefined) return [];
     const all = await experiencePreferenceRepository.getAll((preference) => preference.status === "CONFIRMED" || preference.status === "INFERRED");
