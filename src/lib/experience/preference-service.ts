@@ -14,10 +14,11 @@ export class PreferenceService {
     const now = new Date().toISOString();
     const existing = await experiencePreferenceRepository.getById(idFor(candidate));
     const evidence = [...(existing?.evidence || []), ...candidate.evidence].filter((item, index, all) => all.findIndex((other) => other.eventId === item.eventId) === index);
+    const conflictingValue = existing && JSON.stringify(existing.value) !== JSON.stringify(candidate.value);
     const preference: Preference = {
       id: idFor(candidate), subject: candidate.subject, domain: candidate.domain, key: candidate.key, value: candidate.value,
       scope: candidate.scope, scopeId: candidate.scopeId, confidence: confidenceFromEvidence(evidence),
-      status: existing?.status === "CONFIRMED" ? "CONFIRMED" : "INFERRED", evidence, source: existing?.source === "MANUAL" ? "MANUAL" : "INFERRED",
+      status: conflictingValue ? "CONTESTED" : existing?.status === "CONFIRMED" ? "CONFIRMED" : "INFERRED", evidence, source: existing?.source === "MANUAL" ? "MANUAL" : "INFERRED",
       createdAt: existing?.createdAt || now, updatedAt: now, lastObservedAt: now,
     };
     return experiencePreferenceRepository.save(preference);
