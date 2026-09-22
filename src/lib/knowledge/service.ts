@@ -32,6 +32,11 @@ export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
   return knowledgeRepository.save(revoked);
 }
 
+export async function getKnowledgeProvenance(id: string): Promise<KnowledgeItem["provenance"] | null> {
+  const item = await knowledgeRepository.getById(id);
+  return item?.provenance || null;
+}
+
 export async function listKnowledgeAccessLogs(): Promise<import("./contracts").KnowledgeAccessLog[]> { return knowledgeAccessLogRepository.getAll(); }
 
 export async function queryKnowledge(request: KnowledgeQuery): Promise<KnowledgeItem[]> {
