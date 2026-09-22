@@ -16,8 +16,9 @@ export function listPublicCapabilities(): PublicKnowledgeCapability[] {
 export function getPublicKnowledgeProfile(domainId: string): PublicKnowledgeProfile | undefined {
   const domain = domainRegistry.resolveDomain(domainId);
   if (!domain) return undefined;
+  const policy = domainRegistry.resolveKnowledgePolicy(domain.id);
   const capabilities = listPublicCapabilities().filter((capability) => capability.domain === domain.id);
-  return { domain: domain.id, ownerAgent: domain.primaryOwner, specialists: domainRegistry.resolveSpecialists(domain.id), capabilities, contract: { domain: domain.id, providerAgent: domain.primaryOwner || "system", visibility: "PUBLIC_TO_AGENTS", allowedConsumers: ["*"], categories: ["public-capability", "public-knowledge"], capabilities: capabilities.map((capability) => capability.id), sensitivityPolicy: "PUBLIC_ONLY" } };
+  return { domain: domain.id, ownerAgent: policy?.ownerAgent, specialists: domainRegistry.resolveSpecialists(domain.id), capabilities, contract: { domain: domain.id, providerAgent: policy?.ownerAgent || "system", visibility: "PUBLIC_TO_AGENTS", allowedConsumers: ["*"], categories: ["public-capability", "public-knowledge"], capabilities: capabilities.map((capability) => capability.id), sensitivityPolicy: policy?.sensitivity || "PUBLIC_ONLY" } };
 }
 
 export async function requestKnowledgePacket(request: KnowledgeQuery & { provider?: string }): Promise<KnowledgePacket> {
