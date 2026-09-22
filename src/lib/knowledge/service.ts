@@ -16,6 +16,14 @@ export async function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem
   return knowledgeRepository.save(stored);
 }
 
+export async function updateKnowledge(id: string, requester: string, patch: Partial<KnowledgeItem>): Promise<KnowledgeItem> {
+  const current = await knowledgeRepository.getById(id);
+  if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
+  if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_UPDATE_DENIED] Somente o owner ou sistema pode atualizar conhecimento.");
+  const next = { ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: new Date().toISOString() };
+  return storeKnowledge(next);
+}
+
 export async function findKnowledgeConflicts(domain?: string): Promise<Array<{ groupId: string; items: KnowledgeItem[] }>> {
   const items = await knowledgeRepository.getAll((item) => Boolean(item.conflictGroupId) && (!domain || item.primaryDomain === domain));
   const groups = new Map<string, KnowledgeItem[]>();
