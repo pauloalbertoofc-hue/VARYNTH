@@ -24,6 +24,6 @@ export interface ExperienceContext {
 export async function buildExperienceContext(request: ExperienceContextRequest): Promise<ExperienceContext> {
   const budget = Math.max(0, Math.min(request.budget ?? 12, 50));
   const preferences = await preferenceService.resolve(request);
-  const experiences = await retrieveExperiences(request.domain, request.projectId, budget);
-  return { preferences: preferences.slice(0, budget), experiences, generatedAt: new Date().toISOString(), truncated: preferences.length > budget || experiences.length > budget };
+  const experiences = await retrieveExperiences(request.domain, request.projectId, 50);
+  return { preferences: preferences.slice(0, budget), experiences: experiences.slice(0, budget), generatedAt: new Date().toISOString(), truncated: preferences.length > budget || experiences.length > budget };
 }

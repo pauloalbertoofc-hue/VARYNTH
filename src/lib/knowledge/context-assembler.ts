@@ -33,7 +33,7 @@ export async function buildAgentContext(request: AgentContextRequest): Promise<A
     specialist: route.owner,
     knowledge: knowledge.slice(0, budget),
     experience,
-    truncated: knowledge.length > budget,
+    truncated: knowledge.length > budget || experience.truncated,
     generatedAt: new Date().toISOString(),
   };
 }
