@@ -10,6 +10,7 @@ export interface DomainDefinition {
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
 export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
+export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; specialists: string[]; capabilities: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
 
 export class DomainRegistry {
   private readonly domains = new Map<string, DomainDefinition>();
@@ -73,6 +74,9 @@ export class DomainRegistry {
 
   listHierarchy(rootId?: string): DomainDefinition[] {
     return this.listDomains().filter((domain) => !rootId || domain.id === rootId || domain.id.startsWith(`${rootId}.`) || domain.parentId === rootId);
+  }
+  getAwarenessIndex(): KnowledgeAwarenessIndex {
+    return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
   }
 
   private requireDomain(id: string): DomainDefinition {
