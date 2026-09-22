@@ -24,13 +24,13 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   test.setTimeout(60_000);
   await page.goto("/modules/music");
 
-  await page.locator('input[type="file"][accept*="audio"]').setInputFiles({
-    name: "persistent-cover.wav",
-    mimeType: "audio/wav",
-    buffer: shortWav(),
-  });
+  await page.locator('input[type="file"][accept*="audio"]').setInputFiles([
+    { name: "persistent-cover.wav", mimeType: "audio/wav", buffer: shortWav() },
+    { name: "second-track.wav", mimeType: "audio/wav", buffer: shortWav() },
+  ]);
   await page.getByRole("button", { name: "Biblioteca" }).click();
   await expect(page.getByRole("button", { name: /persistent-cover/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: /second-track/i }).first()).toBeVisible({ timeout: 20_000 });
   const coverInput = page.locator('input[type="file"][accept*="image/gif"]').first();
   await coverInput.setInputFiles({
     name: "music-cover.gif",
