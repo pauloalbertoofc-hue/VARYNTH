@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Poin
 import type { VisualQuality } from "@/lib/music/music-studio";
 import { getEuterpeCharacterAsset, type EuterpeVisualState } from "@/lib/music/euterpe-character";
 import { clampPosition, classifyEuterpeGesture, EUTERPE_DRAG_THRESHOLD, EUTERPE_POSITION_KEY, isEuterpeMotionEnabled, readEuterpePosition, saveEuterpePosition, type NormalizedPosition } from "@/lib/music/euterpe-avatar";
-import { idlePhase } from "@/lib/music/euterpe-living";
+import { idlePhase, idleRestPosition } from "@/lib/music/euterpe-living";
 
 export type EuterpeAudioMetrics = { bass: number; mids: number; treble: number; energy: number; calmness: number };
 const label: Record<EuterpeVisualState, string> = { IDLE:"disponível", LISTENING:"ouvindo", THINKING:"processando resposta", SPEAKING:"respondendo", HAPPY:"contente", CURIOUS:"curiosa", ALERT:"atenta", SLEEP:"em repouso", MUSIC_REACTIVE:"ouvindo música", MUSIC_PAUSED:"música pausada", TRACK_CHANGED:"faixa mudou", ATHENA_DELEGATION:"em contato com Athena" };
@@ -30,6 +30,13 @@ export function EuterpePresence({ state, audio, quality, onClick, onHide, onBack
   }, [setFromNormalized]);
   useEffect(() => setSmooth((old) => ({ bass: old.bass*.78+audio.bass*.22, mids:old.mids*.82+audio.mids*.18, treble:old.treble*.8+audio.treble*.2, energy:old.energy*.84+audio.energy*.16, calmness:old.calmness*.9+audio.calmness*.1 })), [audio.bass,audio.mids,audio.treble,audio.energy,audio.calmness]);
   useEffect(() => { const timer = window.setInterval(() => setIdleElapsed(Date.now() - activityAt.current), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => {
+    const markActivity = () => { activityAt.current = Date.now(); setIdleElapsed(0); };
+    window.addEventListener("pointerdown", markActivity, { passive: true });
+    window.addEventListener("keydown", markActivity);
+    return () => { window.removeEventListener("pointerdown", markActivity); window.removeEventListener("keydown", markActivity); };
+  }, []);
+  useEffect(() => { activityAt.current = Date.now(); setIdleElapsed(0); }, [state]);
   useEffect(() => () => { if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current); }, []);
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button[data-menu-action]")) return;
@@ -59,8 +66,17 @@ export function EuterpePresence({ state, audio, quality, onClick, onHide, onBack
   const resting = phase === "REST_ELIGIBLE" && (state === "IDLE" || state === "MUSIC_PAUSED");
   const displayState = resting ? "SLEEP" : state;
   const asset = getEuterpeCharacterAsset(displayState);
+  useEffect(() => {
+    if (!resting) return;
+    const spot = idleRestPosition();
+    const timer = window.setTimeout(() => {
+      setFromNormalized(spot);
+      saveEuterpePosition(window.localStorage, spot, EUTERPE_POSITION_KEY);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [resting, setFromNormalized]);
   const phaseClass = phase === "ACTIVE_IDLE" ? "euterpe-active" : phase === "RELAXED_IDLE" ? "euterpe-relaxed" : "euterpe-rest-ready";
-  return <div ref={node} role="group" aria-label="Presença de Euterpe" data-idle-phase={phase} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} className={`fixed z-40 flex h-[116px] w-[88px] touch-none select-none items-end justify-center ${phaseClass} ${resting ? "euterpe-resting" : ""} ${dragging?"cursor-grabbing":"cursor-grab"}`} style={{left,top,touchAction:"none"}} data-testid="euterpe-presence">
+  return <div ref={node} role="group" aria-label="Presença de Euterpe" data-idle-phase={phase} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} className={`fixed z-40 flex h-[116px] w-[88px] touch-none select-none items-end justify-center ${phaseClass} ${resting ? "euterpe-resting transition-[left,top] duration-[1400ms] ease-in-out" : dragging ? "transition-none" : ""} ${dragging?"cursor-grabbing":"cursor-grab"}`} style={{left,top,touchAction:"none"}} data-testid="euterpe-presence">
     <span className="sr-only" aria-live="polite">Euterpe está {resting ? "descansando" : label[displayState]}.</span>
     <button type="button" aria-label={`Euterpe, ${resting ? "descansando" : label[displayState]}. Toque para opções; segure e arraste para mover.`} aria-expanded={menuOpen} onKeyDown={handleKeyboard} className="relative z-10 flex h-full w-full items-end justify-center border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-100"><img src={playPose?"/music/euterpe/euterpe-chibi-lyre.png":asset.src} alt="" draggable={false} className={`h-auto max-h-[108px] w-auto max-w-[82px] object-contain ${motionEnabled||tapPulse?"euterpe-breathe":""}`} style={{transform:audioTransform,filter:`drop-shadow(0 2px ${5+smooth.energy*6}px rgba(232,203,159,${.18+smooth.energy*.17}))`,"--euterpe-duration":`${tapPulse?.7:speed}s`} as CSSProperties} /></button>
     {state==="LISTENING"&&<span className="pointer-events-none absolute left-1 top-8 h-5 w-5 rounded-full border border-amber-100/65 animate-ping" aria-hidden="true"/>}
