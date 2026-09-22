@@ -44,8 +44,12 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
     buffer: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
   });
   await expect(page.getByRole("status").last()).toContainText(/Fundo animado salvo nesta faixa/i);
+  await page.getByRole("button", { name: "Suave" }).click();
+  await expect(page.getByRole("status").last()).toContainText(/Movimento suave aplicado e salvo/i);
 
   await page.reload();
   await expect(page.locator('img[src^="data:image/gif"]').first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-visual-scene="true"] img[src^="data:image/gif"]').first()).toBeVisible();
+  await page.getByRole("button", { name: "Biblioteca" }).click();
+  await expect(page.getByRole("button", { name: "Suave" })).toHaveAttribute("aria-pressed", "true");
 });
