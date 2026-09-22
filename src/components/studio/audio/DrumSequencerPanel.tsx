@@ -19,7 +19,7 @@ export function DrumSequencerPanel({ patterns, onPatternsChange, music, onMusicC
   const patchStep = (lane: DrumLane, index: number, patch: Partial<DrumStep>) => update((pattern) => { const steps = [...pattern.lanes[lane]]; steps[index] = { ...steps[index], ...patch }; return { ...pattern, lanes: { ...pattern.lanes, [lane]: steps } }; });
   const sendToComposition = () => {
     if (!selected) return;
-    const notes = drumPatternToNotes(selected);
+    const notes = drumPatternToNotes(selected, music.tempoMap);
     const existing = music.notes.filter((note) => note.drum?.patternId !== selected.id);
     onMusicChange({ ...music, notes: [...existing, ...notes] });
     setMessage(`${notes.length} hit(s) enviados para o Piano Roll e para a estrutura musical.`);
