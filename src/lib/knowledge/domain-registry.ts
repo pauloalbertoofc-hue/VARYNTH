@@ -7,19 +7,26 @@ export interface DomainDefinition {
   capabilities: string[];
   relatedDomains: string[];
   enabled: boolean;
+  ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
 
 export class DomainRegistry {
   private readonly domains = new Map<string, DomainDefinition>();
 
   register(domain: DomainDefinition): void {
-    this.domains.set(domain.id, { ...domain, specialists: [...domain.specialists], capabilities: [...domain.capabilities], relatedDomains: [...domain.relatedDomains] });
+    this.domains.set(domain.id, { ...domain, specialists: [...domain.specialists], capabilities: [...domain.capabilities], relatedDomains: [...domain.relatedDomains], ownershipHistory: [...(domain.ownershipHistory || [])] });
   }
 
   registerOwner(domainId: string, owner: string): void {
     const domain = this.requireDomain(domainId);
     domain.primaryOwner = owner;
     if (!domain.specialists.includes(owner)) domain.specialists.unshift(owner);
+  }
+
+  transferOwnership(domainId: string, nextOwner: string): void {
+    const domain = this.requireDomain(domainId);
+    if (domain.primaryOwner && domain.primaryOwner !== nextOwner) domain.ownershipHistory = [...(domain.ownershipHistory || []), { agentId: domain.primaryOwner, transferredAt: new Date().toISOString() }];
+    this.registerOwner(domainId, nextOwner);
   }
 
   registerSpecialist(domainId: string, specialist: string): void {
