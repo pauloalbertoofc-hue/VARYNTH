@@ -21,6 +21,7 @@ import { AudioPlaybackState } from "@/lib/studio/audio/types";
 
 interface AudioTransportControlsProps {
   playbackState: AudioPlaybackState;
+  playbackError?: string | null;
   playheadMs: number;
   totalDurationMs: number;
   zoom: number; // Pixels per second
@@ -47,6 +48,7 @@ interface AudioTransportControlsProps {
 
 export function AudioTransportControls({
   playbackState,
+  playbackError,
   playheadMs,
   totalDurationMs,
   zoom,
@@ -79,7 +81,8 @@ export function AudioTransportControls({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-[#0e0f1c] border-b border-[#1c1d32] text-xs text-slate-300 select-none">
+    <div className="flex items-center justify-between gap-3 px-4 py-2 bg-[#0e0f1c] border-b border-[#1c1d32] text-xs text-slate-300 select-none">
+      {playbackError && <p role="alert" className="min-w-0 flex-1 truncate text-rose-300" title={playbackError}>{playbackError}</p>}
       {/* Left: Transport Buttons */}
       <div className="flex items-center gap-1.5">
         <button onClick={onRecord} className={`px-2 py-1.5 rounded-lg border ${playbackState === "BUFFERING" ? "bg-rose-600 text-white border-rose-400" : "bg-[#141528] text-rose-300 border-[#232544]"}`} title="Gravar pelo microfone">● REC</button><button onClick={onAddMarker} className="px-2 py-1.5 rounded-lg border border-[#232544] bg-[#141528] text-amber-300" title="Adicionar marker no playhead">⚑</button>
