@@ -30,6 +30,22 @@ export class PreferenceService {
     return experiencePreferenceRepository.save(updated);
   }
 
+  async applyDecay(now = new Date(), halfLifeDays = 30): Promise<number> {
+    if (!Number.isFinite(halfLifeDays) || halfLifeDays <= 0) throw new Error("[PREFERENCE_INVALID] half-life inválida.");
+    const inferred = await experiencePreferenceRepository.getAll((preference) => preference.status === "INFERRED");
+    let changed = 0;
+    for (const preference of inferred) {
+      const observedAt = preference.lastObservedAt || preference.updatedAt;
+      const ageDays = Math.max(0, (now.getTime() - Date.parse(observedAt)) / 86_400_000);
+      const confidence = Math.max(0, Math.round(preference.confidence * Math.pow(0.5, ageDays / halfLifeDays) * 100) / 100);
+      if (confidence !== preference.confidence) {
+        await experiencePreferenceRepository.save({ ...preference, confidence, updatedAt: now.toISOString() });
+        changed += 1;
+      }
+    }
+    return changed;
+  }
+
   async resolve(input: { domain?: string; agentId?: string; moduleId?: string; projectId?: string; artifactId?: string; sessionId?: string; key?: string; currentInstruction?: unknown }): Promise<Preference[]> {
     if (input.currentInstruction !== undefined) return [];
     const all = await experiencePreferenceRepository.getAll((preference) => preference.status === "CONFIRMED" || preference.status === "INFERRED");
