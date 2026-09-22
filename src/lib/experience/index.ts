@@ -10,3 +10,4 @@ export * from "./game-learning-adapter";
 export * from "./document-learning-adapter";
 export * from "./retrospective-service";
 export * from "./learning-policy";
+export * from "./pattern-service";
