@@ -2,7 +2,7 @@ import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistenc
 import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationship } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
 
-const queryCache = new Map<string, { revision: number; items: KnowledgeItem[] }>();
+const queryCache = new Map<string, { revision: number; expiresAt: number; items: KnowledgeItem[] }>();
 let revision = 0;
 
 export async function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
@@ -60,11 +60,11 @@ export async function listKnowledgeAccessLogs(): Promise<import("./contracts").K
 export async function queryKnowledge(request: KnowledgeQuery): Promise<KnowledgeItem[]> {
   const cacheKey = JSON.stringify(request);
   const cached = queryCache.get(cacheKey);
-  if (cached?.revision === revision) return cached.items.map((item) => ({ ...item }));
+  if (cached?.revision === revision && cached.expiresAt > Date.now()) return cached.items.map((item) => ({ ...item }));
   const tokens = request.query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
   const allKnowledge = await knowledgeRepository.getAll();
   const supersededIds = new Set(allKnowledge.filter((item) => item.supersedesId && item.supersedesId !== item.id).map((item) => item.supersedesId!));
-  const candidates = await knowledgeRepository.getAll((item) => {
+  const candidates = allKnowledge.filter((item) => {
     if (item.invalidatedAt) return false;
     if (supersededIds.has(item.id)) return false;
     const now = Date.now();
@@ -88,7 +88,9 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.decision.decision === "ALLOW_SUMMARY" ? { ...entry.item, content: `${entry.item.content.slice(0, 280)}${entry.item.content.length > 280 ? "…" : ""}` } : entry.item);
   const decision = scored.some((entry) => entry.decision.decision === "ALLOW") ? "ALLOW" : scored.length ? "ALLOW_SUMMARY" : "DENY";
   await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, operation: request.operation || "CAN_QUERY", createdAt: new Date().toISOString() });
-  queryCache.set(cacheKey, { revision, items: result });
+  const now = Date.now();
+  const nextValidityBoundary = allKnowledge.flatMap((item) => [item.validFrom, item.validUntil]).map((date) => date ? new Date(date).getTime() : Number.POSITIVE_INFINITY).filter((timestamp) => timestamp > now).reduce((nearest, timestamp) => Math.min(nearest, timestamp), Number.POSITIVE_INFINITY);
+  queryCache.set(cacheKey, { revision, expiresAt: Math.min(now + 30_000, nextValidityBoundary), items: result });
   return result;
 }
 
