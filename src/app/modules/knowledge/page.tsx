@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { domainRegistry, findKnowledgeConflicts, listKnowledgeAccessLogs, listKnowledgeRelationships, queryKnowledge } from "@/lib/knowledge";
+import { applyKnowledgeClassification, domainRegistry, findKnowledgeConflicts, listKnowledgeAccessLogs, listKnowledgeRelationships, publishKnowledge, queryKnowledge, revokeKnowledge, updateKnowledge } from "@/lib/knowledge";
 import type { KnowledgeItem } from "@/lib/knowledge";
 import type { KnowledgeRelationship } from "@/lib/knowledge";
 
@@ -13,7 +13,47 @@ export default function KnowledgePage() {
   const [relationships, setRelationships] = useState<KnowledgeRelationship[]>([]);
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("");
+  const [classificationTargets, setClassificationTargets] = useState<Record<string, string>>({});
+  const [busyItem, setBusyItem] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState("");
   useEffect(() => { void Promise.all([queryKnowledge({ requester: "athena", query, domain: domain || undefined, purpose: "knowledge center retrieval", scope: "ALL" }), findKnowledgeConflicts(), listKnowledgeAccessLogs(), listKnowledgeRelationships()]).then(([nextItems, nextConflicts, logs, nextRelationships]) => { setItems(nextItems); setConflicts(nextConflicts); setAccessCount(logs.length); setRelationships(nextRelationships); }); }, [query, domain]);
+  async function authorize(operation: "CLASSIFY" | "PUBLISH" | "REVOKE", itemId: string) {
+    const response = await fetch("/api/knowledge/authorize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation, itemId }) });
+    const result = await response.json().catch(() => ({})) as { authorized?: boolean; error?: string };
+    if (!response.ok || !result.authorized) throw new Error(result.error || "Ação não autorizada.");
+  }
+  async function classifyItem(item: KnowledgeItem) {
+    setBusyItem(item.id); setActionMessage("");
+    try {
+      await authorize("CLASSIFY", item.id);
+      const classified = applyKnowledgeClassification(item, { primaryDomain: classificationTargets[item.id] || item.primaryDomain });
+      const updated = await updateKnowledge(item.id, "system", { primaryDomain: classified.primaryDomain, categories: classified.categories, tags: classified.tags, classification: classified.classification });
+      setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...updated, content: item.content } : candidate));
+      setActionMessage("Classificação salva.");
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao classificar."); }
+    finally { setBusyItem(null); }
+  }
+  async function publishItem(item: KnowledgeItem) {
+    setBusyItem(item.id); setActionMessage("");
+    try {
+      await authorize("PUBLISH", item.id);
+      const published = await publishKnowledge(item.id, "system");
+      setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...published, content: item.content } : candidate));
+      setActionMessage("Conhecimento publicado entre agentes.");
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao publicar."); }
+    finally { setBusyItem(null); }
+  }
+  async function revokeItem(item: KnowledgeItem) {
+    if (!window.confirm(`Revogar “${item.title}” do retrieval? O registro e a provenance serão preservados.`)) return;
+    setBusyItem(item.id); setActionMessage("");
+    try {
+      await authorize("REVOKE", item.id);
+      await revokeKnowledge(item.id);
+      setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+      setActionMessage("Conhecimento revogado do retrieval.");
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao revogar."); }
+    finally { setBusyItem(null); }
+  }
   const publicCount = items.filter((item) => item.visibility === "PUBLIC_TO_AGENTS").length;
   const domains = domainRegistry.listDomains();
   return <PageLayout title="Knowledge" subtitle="Mapa de domínios, autoridade e conhecimento compartilhável">
@@ -28,7 +68,7 @@ export default function KnowledgePage() {
       </section>
       <section className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] p-5"><div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold text-amber-100">Conflitos preservados</h2><p className="mt-1 text-xs text-slate-500">Fontes divergentes permanecem disponíveis para revisão do especialista.</p></div><span className="rounded-full border border-amber-500/30 px-2 py-1 text-[10px] text-amber-300">{conflicts.length} grupos</span></div><div className="mt-4 space-y-2">{conflicts.length === 0 ? <p className="text-xs text-slate-500">Nenhum conflito detectado.</p> : conflicts.map((conflict) => <div key={conflict.groupId} className="rounded-lg border border-amber-500/20 px-3 py-2 text-xs text-slate-300">{conflict.items.length} fontes no grupo <span className="font-mono text-[10px] text-amber-300">{conflict.groupId}</span></div>)}</div></section>
       <section className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-5"><div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold text-cyan-100">Relationships</h2><p className="mt-1 text-xs text-slate-500">Relações persistidas do grafo lógico, sem expor conteúdo fora da policy.</p></div><span className="rounded-full border border-cyan-500/30 px-2 py-1 text-[10px] text-cyan-300">{relationships.length}</span></div><div className="mt-4 space-y-2">{relationships.length === 0 ? <p className="text-xs text-slate-500">Nenhuma relação registrada.</p> : relationships.slice(0, 12).map((relationship) => <div key={relationship.id} className="rounded-lg border border-cyan-500/20 px-3 py-2 text-xs text-slate-300"><span className="font-mono text-cyan-200">{relationship.fromId}</span><span className="mx-2 text-slate-500">{relationship.type}</span><span className="font-mono text-cyan-200">{relationship.toId}</span></div>)}</div></section>
-      <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-sm font-semibold text-white">Knowledge Items</h2><div className="flex gap-2"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar conhecimento..." className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-white outline-none focus:border-violet-400" /><select value={domain} onChange={(event) => setDomain(event.target.value)} className="rounded-lg border border-white/10 bg-black/20 px-2 py-2 text-xs text-slate-300"><option value="">Todos os domínios</option>{domains.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></div></div><div className="mt-4 space-y-2">{items.length === 0 ? <p className="text-xs text-slate-500">Nenhum item autorizado foi encontrado. O Vault continua funcionando normalmente.</p> : items.map((item) => <details key={item.id} className="group rounded-lg border border-white/10 px-3 py-2"><summary className="flex cursor-pointer list-none items-center justify-between gap-3"><span className="text-xs text-slate-200">{item.title}</span><span className="text-right text-[10px] text-slate-500">{item.primaryDomain} · {item.visibility} · v{item.version}</span></summary><div className="mt-3 grid gap-3 border-t border-white/10 pt-3 text-[11px] md:grid-cols-2"><div><p className="text-slate-400">Domínio e owner</p><p className="mt-1 text-slate-200">{item.primaryDomain}{item.relatedDomains.length ? ` · ${item.relatedDomains.join(", ")}` : ""} · {item.ownerAgent || "sem owner"}</p></div><div><p className="text-slate-400">Origem e autoridade</p><p className="mt-1 text-slate-200">{item.provenance.sourceType} · {item.provenance.authority}{item.provenance.sourceReference ? ` · ${item.provenance.sourceReference}` : ""}</p></div><div><p className="text-slate-400">Freshness e assertion</p><p className="mt-1 text-slate-200">{item.freshness} · {item.assertion}{item.validUntil ? ` · válido até ${new Date(item.validUntil).toLocaleDateString()}` : ""}</p></div><div><p className="text-slate-400">Categorias e projetos</p><p className="mt-1 text-slate-200">{[...item.categories, ...item.tags, ...item.relatedProjectIds].join(" · ") || "sem classificação adicional"}</p></div><div className="md:col-span-2"><p className="text-slate-400">Conteúdo autorizado</p><p className="mt-1 whitespace-pre-wrap text-slate-200">{item.content || "Sem conteúdo textual"}</p></div></div></details>)}</div></section>
+      <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-sm font-semibold text-white">Knowledge Items</h2><div className="flex gap-2"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar conhecimento..." className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-white outline-none focus:border-violet-400" /><select value={domain} onChange={(event) => setDomain(event.target.value)} className="rounded-lg border border-white/10 bg-black/20 px-2 py-2 text-xs text-slate-300"><option value="">Todos os domínios</option>{domains.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></div></div>{actionMessage && <p role="status" className="mt-3 text-xs text-violet-200">{actionMessage}</p>}<div className="mt-4 space-y-2">{items.length === 0 ? <p className="text-xs text-slate-500">Nenhum item autorizado foi encontrado. O Vault continua funcionando normalmente.</p> : items.map((item) => <details key={item.id} className="group rounded-lg border border-white/10 px-3 py-2"><summary className="flex cursor-pointer list-none items-center justify-between gap-3"><span className="text-xs text-slate-200">{item.title}</span><span className="text-right text-[10px] text-slate-500">{item.primaryDomain} · {item.visibility} · v{item.version}</span></summary><div className="mt-3 grid gap-3 border-t border-white/10 pt-3 text-[11px] md:grid-cols-2"><div><p className="text-slate-400">Domínio e owner</p><p className="mt-1 text-slate-200">{item.primaryDomain}{item.relatedDomains.length ? ` · ${item.relatedDomains.join(", ")}` : ""} · {item.ownerAgent || "sem owner"}</p></div><div><p className="text-slate-400">Origem e autoridade</p><p className="mt-1 text-slate-200">{item.provenance.sourceType} · {item.provenance.authority}{item.provenance.sourceReference ? ` · ${item.provenance.sourceReference}` : ""}</p></div><div><p className="text-slate-400">Freshness e assertion</p><p className="mt-1 text-slate-200">{item.freshness} · {item.assertion}{item.validUntil ? ` · válido até ${new Date(item.validUntil).toLocaleDateString()}` : ""}</p></div><div><p className="text-slate-400">Categorias e projetos</p><p className="mt-1 text-slate-200">{[...item.categories, ...item.tags, ...item.relatedProjectIds].join(" · ") || "sem classificação adicional"}</p></div><div className="md:col-span-2"><p className="text-slate-400">Conteúdo autorizado</p><p className="mt-1 whitespace-pre-wrap text-slate-200">{item.content || "Sem conteúdo textual"}</p></div><div className="flex flex-wrap items-center gap-2 md:col-span-2"><select aria-label={`Reclassificar ${item.title}`} value={classificationTargets[item.id] || item.primaryDomain} onChange={(event) => setClassificationTargets((current) => ({ ...current, [item.id]: event.target.value }))} className="rounded border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-slate-200">{domains.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select><button type="button" disabled={busyItem === item.id} onClick={() => void classifyItem(item)} className="rounded border border-violet-500/30 px-2 py-1 text-[10px] text-violet-200 disabled:opacity-50">Salvar classificação</button>{item.visibility !== "PUBLIC_TO_AGENTS" && <button type="button" disabled={busyItem === item.id} onClick={() => void publishItem(item)} className="rounded border border-emerald-500/30 px-2 py-1 text-[10px] text-emerald-200 disabled:opacity-50">Publicar entre agentes</button>}<button type="button" disabled={busyItem === item.id} onClick={() => void revokeItem(item)} className="rounded border border-rose-500/30 px-2 py-1 text-[10px] text-rose-200 disabled:opacity-50">Revogar do retrieval</button></div></div></details>)}</div></section>
     </main>
   </PageLayout>;
 }
