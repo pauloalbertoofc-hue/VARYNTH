@@ -200,6 +200,14 @@ export class AudioEngine {
     const groups = new Map<string, ReturnType<typeof flattenMusicNotes>>();
     if (structured.length) {
       for (const clip of structured) groups.set(clip.trackId, [...(groups.get(clip.trackId) || []), ...flattenMusicNotes({ ...music, notes: [], clips: [clip] })]);
+      const clipNoteIds = new Set(structured.flatMap((clip) => clip.notes.map((note) => note.id)));
+      const unassignedNotes = music.notes.filter((note) => !clipNoteIds.has(note.id));
+      if (unassignedNotes.length) {
+        const targetTrackId = project.selectedTrackId && project.tracks.some((track) => track.id === project.selectedTrackId && ["INSTRUMENT", "MIDI", "MUSIC"].includes(track.type))
+          ? project.selectedTrackId
+          : project.tracks.find((track) => ["INSTRUMENT", "MIDI", "MUSIC"].includes(track.type))?.id;
+        if (targetTrackId) groups.set(targetTrackId, [...(groups.get(targetTrackId) || []), ...unassignedNotes]);
+      }
     } else {
       const track = project.tracks.find((item) => item.type === "INSTRUMENT" || item.type === "MIDI" || item.type === "MUSIC");
       if (track) groups.set(track.id, music.notes);

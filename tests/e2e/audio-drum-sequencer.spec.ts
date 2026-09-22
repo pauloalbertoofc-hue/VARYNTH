@@ -1,0 +1,52 @@
+import { expect, test } from "@playwright/test";
+
+test("persists a drum pattern and sends its edited hit to the musical project", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/modules/studio");
+  await page.getByRole("button", { name: /Audio Studio \(Studio 4\)/i }).click();
+  await page.getByRole("button", { name: /Novo Projeto de Áudio/i }).click();
+  await page.getByPlaceholder(/Trilha de Abertura/i).fill("E2E Drum Sequencer");
+  await page.getByRole("button", { name: /Criar Projeto/i }).click();
+  await page.getByRole("button", { name: "Sound Design" }).click();
+  await page.getByRole("button", { name: "Gerar ambience local" }).click();
+  await expect(page.getByRole("status").last()).toContainText("Ambience rain procedural real gerado", { timeout: 20_000 });
+  await page.getByLabel("Nome do sampler").fill("E2E kick sample");
+  await page.getByLabel("Asset do sampler").selectOption({ label: "procedural-ambience-rain-5.0s.wav" });
+  await page.getByRole("button", { name: "Adicionar sampler" }).click();
+  await expect(page.getByRole("status").first()).toContainText("Sampler salvo no projeto");
+  await page.getByRole("button", { name: "Drum Sequencer" }).click();
+  await page.getByRole("button", { name: "Novo padrão" }).click();
+  await page.getByLabel("Sample para Kick").selectOption({ label: "E2E kick sample" });
+
+  const kick = page.getByRole("button", { name: "Kick passo 1", exact: true });
+  await kick.click();
+  await expect(kick).toHaveAttribute("aria-pressed", "true");
+  const probability = page.getByLabel("Probabilidade do passo");
+  await probability.focus();
+  await probability.press("ArrowLeft");
+  const microtiming = page.getByLabel("Microtiming do passo");
+  await microtiming.focus();
+  await microtiming.press("ArrowRight");
+  await expect(probability).toHaveValue("0.99");
+  await expect(microtiming).toHaveValue("1");
+  await page.getByRole("button", { name: "Enviar para composição" }).click();
+  await expect(page.getByRole("status")).toContainText("1 hit(s) enviados");
+
+  await page.reload();
+  await page.getByRole("button", { name: "Drum Sequencer" }).click();
+  const restoredKick = page.getByRole("button", { name: "Kick passo 1", exact: true });
+  await expect(restoredKick).toHaveAttribute("aria-pressed", "true");
+  await restoredKick.click();
+  await expect(page.getByLabel("Probabilidade do passo")).toHaveValue("0.99");
+  await expect(page.getByLabel("Microtiming do passo")).toHaveValue("1");
+  await restoredKick.click();
+  await expect(restoredKick).toHaveAttribute("aria-pressed", "true");
+  const restoredProbability = page.getByLabel("Probabilidade do passo");
+  await restoredProbability.focus();
+  await restoredProbability.press("ArrowRight");
+  await page.getByRole("button", { name: "Enviar para composição" }).click();
+  await page.getByRole("button", { name: "Tocar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Pausar", exact: true })).toBeVisible({ timeout: 10_000 });
+  const playbackAlerts = (await page.getByRole("alert").allTextContents()).map((text) => text.trim()).filter(Boolean);
+  expect(playbackAlerts, `Falha ao reproduzir o sample da bateria: ${playbackAlerts.join(" | ")}`).toEqual([]);
+});

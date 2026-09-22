@@ -8,5 +8,8 @@ assert.equal(decideKnowledgeAccess(base, { requester: "euterpe", purpose: "publi
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "AGENT_PRIVATE", sensitivity: "PRIVATE" }, { requester: "euterpe", purpose: "private context" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "PROJECT", relatedProjectIds: ["project-a"] }, { requester: "euterpe", projectId: "project-b", purpose: "cross-project" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "PROJECT", relatedProjectIds: [] }, { requester: "euterpe", purpose: "unscoped project item" }).decision, "DENY");
-assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "athena", purpose: "domain summary" }).decision, "ALLOW_SUMMARY");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "athena", purpose: "global awareness is not content access" }).decision, "DENY");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "justitia", purpose: "owner domain access" }).decision, "ALLOW");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity: "PRIVATE" }, { requester: "athena", purpose: "private system item" }).decision, "DENY");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity: "INTERNAL" }, { requester: "athena", purpose: "system knowledge" }).decision, "ALLOW");
 console.log("Knowledge policy regression tests passed");
