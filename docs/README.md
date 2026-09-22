@@ -51,6 +51,10 @@ Para acomodar diferentes necessidades de profundidade técnica sem exigir a leit
 - [`data-flow.md`](./architecture/data-flow.md): Fluxo reativo de dados, mutações e barramento de eventos.
 - [`security-model.md`](./architecture/security-model.md): Modelo de segurança local, auditoria e princípio *Fail-Closed* (Alex Principle).
 - [`local-first.md`](./architecture/local-first.md): Arquitetura Local-First, soberania de dados e inferência local adaptativa.
+- [`DOMAIN-ARCHITECTURE.md`](./architecture/DOMAIN-ARCHITECTURE.md), [`KNOWLEDGE-MODEL.md`](./architecture/KNOWLEDGE-MODEL.md), [`domain-ownership.md`](./architecture/domain-ownership.md), [`knowledge-policy.md`](./architecture/knowledge-policy.md) e [`knowledge-sharing.md`](./architecture/knowledge-sharing.md): ownership, modelo e política de acesso ao conhecimento.
+- [`VAULT-TAXONOMY.md`](./architecture/VAULT-TAXONOMY.md) e [`provenance.md`](./architecture/provenance.md): taxonomia semântica do Vault e rastreabilidade de fontes/derivados.
+- [`agent-context.md`](./architecture/agent-context.md) e [`cross-agent-protocol.md`](./architecture/cross-agent-protocol.md): montagem de contexto e transferência governada entre agentes.
+- [`ADR-044-domain-knowledge-layer.md`](./adr/ADR-044-domain-knowledge-layer.md): decisões e rationale da arquitetura de conhecimento por domínio.
 
 ### 2. 🌌 VARYNTH OS Core (`/docs/varynth`)
 - [`overview.md`](./varynth/overview.md): Núcleo do sistema operacional, cockpit unificado e ciclo de vida.
