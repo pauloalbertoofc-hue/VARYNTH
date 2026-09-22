@@ -174,6 +174,7 @@ export default function StudioPage() {
   const [selectedAudioTrackId, setSelectedAudioTrackId] = useState<string | undefined>(undefined);
   const [selectedAudioClipIds, setSelectedAudioClipIds] = useState<string[]>([]);
   const [audioPlaybackState, setAudioPlaybackState] = useState<AudioPlaybackState>("STOPPED");
+  const [audioPlaybackError, setAudioPlaybackError] = useState<string | null>(null);
   const [audioViewMode, setAudioViewMode] = useState<"EDIT" | "PREVIEW" | "SPLIT">("EDIT");
   const [audioZoom, setAudioZoom] = useState(40); // 40px per second default
   const [audioSidebarTab, setAudioSidebarTab] = useState<"OUTLINE" | "VERSIONS" | "ASSETS" | "RELATIONS" | "ATHENA">("OUTLINE");
@@ -782,8 +783,9 @@ export default function StudioPage() {
 
   const handlePlayAudio = async () => {
     if (!activeAudio) return;
+    setAudioPlaybackError(null);
     audioEngine.seek(activeAudio.documentState.playheadMs);
-    try { await audioEngine.play({ ...activeAudio.documentState, settings: { ...activeAudio.documentState.settings!, metronome: { enabled: audioMetronome, volume: 0.7, accentFirstBeat: true, countInBars: audioCountInBars } } }); } catch (error) { console.error("[AudioStudio] Playback failed", error); setAudioPlaybackState("ERROR"); return; }
+    try { await audioEngine.play({ ...activeAudio.documentState, settings: { ...activeAudio.documentState.settings!, metronome: { enabled: audioMetronome, volume: 0.7, accentFirstBeat: true, countInBars: audioCountInBars } } }); } catch (error) { console.error("[AudioStudio] Playback failed", error); setAudioPlaybackError(error instanceof Error ? error.message : "Não foi possível reproduzir o projeto."); setAudioPlaybackState("ERROR"); return; }
     setAudioPlaybackState("PLAYING");
     if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
 
@@ -794,7 +796,7 @@ export default function StudioPage() {
       if (loopStartMs !== null) {
         const loopDocument = { ...activeAudio.documentState, playheadMs: loopStartMs, settings: { ...activeAudio.documentState.settings!, metronome: { enabled: audioMetronome, volume: 0.7, accentFirstBeat: true, countInBars: 0 } } };
         audioEngine.seek(loopStartMs);
-        void audioEngine.play(loopDocument).catch((error) => { console.error("[AudioStudio] Musical loop restart failed", error); setAudioPlaybackState("ERROR"); });
+        void audioEngine.play(loopDocument).catch((error) => { console.error("[AudioStudio] Musical loop restart failed", error); setAudioPlaybackError(error instanceof Error ? error.message : "Não foi possível reiniciar o loop musical."); setAudioPlaybackState("ERROR"); });
         setActiveAudio((prev) => prev?.artifact.id === activeAudio.artifact.id ? { ...prev, documentState: { ...prev.documentState, playheadMs: loopStartMs } } : prev);
         return;
       }
@@ -824,6 +826,7 @@ export default function StudioPage() {
 
   const handleStopAudio = () => {
     audioEngine.stop();
+    setAudioPlaybackError(null);
     setAudioPlaybackState("STOPPED");
     if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
     if (activeAudio) {
@@ -2721,6 +2724,7 @@ export default function StudioPage() {
               {/* Transport Bar */}
               <AudioTransportControls
                 playbackState={audioPlaybackState}
+                playbackError={audioPlaybackError}
                 playheadMs={activeAudio.documentState.playheadMs}
                 totalDurationMs={activeAudio.documentState.timeline.durationMs}
                 zoom={audioZoom}
