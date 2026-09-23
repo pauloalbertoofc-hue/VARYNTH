@@ -164,7 +164,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   scored.sort((left, right) => right.score - left.score || left.item.title.localeCompare(right.item.title));
   const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.decision.decision === "ALLOW_SUMMARY" ? { ...entry.item, content: `${entry.item.content.slice(0, 280)}${entry.item.content.length > 280 ? "…" : ""}` } : entry.item);
   const decision = scored.some((entry) => entry.decision.decision === "ALLOW") ? "ALLOW" : scored.length ? "ALLOW_SUMMARY" : "DENY";
-  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, operation: request.operation || "CAN_QUERY", createdAt: new Date().toISOString() });
+  await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, provider: request.provider, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, operation: request.operation || "CAN_QUERY", createdAt: new Date().toISOString() });
   const now = Date.now();
   const nextValidityBoundary = allKnowledge.flatMap((item) => [item.validFrom, item.validUntil]).map((date) => date ? new Date(date).getTime() : Number.POSITIVE_INFINITY).filter((timestamp) => timestamp > now).reduce((nearest, timestamp) => Math.min(nearest, timestamp), Number.POSITIVE_INFINITY);
   queryCache.set(cacheKey, { revision, expiresAt: Math.min(now + 30_000, nextValidityBoundary), items: result });

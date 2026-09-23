@@ -49,6 +49,7 @@ export type KnowledgeAccessOperation = "CAN_DISCOVER" | "CAN_READ" | "CAN_QUERY"
 
 export interface KnowledgeQuery {
   requester: string;
+  provider?: string;
   domain?: string;
   query?: string;
   projectId?: string;
