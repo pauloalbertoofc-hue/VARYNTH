@@ -3,28 +3,68 @@ import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationshi
 import { decideKnowledgeAccess } from "./policy";
 
 const queryCache = new Map<string, { revision: number; expiresAt: number; items: KnowledgeItem[] }>();
+const knowledgeWriteQueues = new Map<string, Promise<void>>();
 let revision = 0;
 
-export async function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
-  const existing = await knowledgeRepository.getById(item.id);
-  const siblings = await knowledgeRepository.getAll((candidate) => candidate.id !== item.id && candidate.primaryDomain === item.primaryDomain && candidate.title.toLocaleLowerCase() === item.title.toLocaleLowerCase() && candidate.content !== item.content);
-  const conflictGroupId = siblings.length ? (siblings[0].conflictGroupId || `conflict-${item.primaryDomain}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`) : undefined;
-  const stored = existing ? {
-    ...item,
-    createdAt: existing.createdAt,
-    version: existing.version + 1,
-    supersedesId: existing.id,
-    conflictGroupId: conflictGroupId || existing.conflictGroupId,
-    provenance: {
-      ...item.provenance,
-      createdAt: existing.provenance.createdAt,
-      derivedFromIds: item.provenance.derivedFromIds || existing.provenance.derivedFromIds,
-    },
-  } : { ...item, conflictGroupId };
-  if (conflictGroupId) await knowledgeRepository.saveBatch(siblings.map((sibling) => ({ ...sibling, conflictGroupId })));
-  revision += 1;
-  queryCache.clear();
-  return knowledgeRepository.save(stored);
+function currentKnowledge(items: KnowledgeItem[]): KnowledgeItem[] {
+  const supersededIds = new Set(items.flatMap((item) => item.supersedesId ? [item.supersedesId] : []));
+  return items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id));
+}
+
+async function persistKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
+  const write = async () => {
+    const existing = await knowledgeRepository.getById(item.id);
+    const allKnowledge = await knowledgeRepository.getAll();
+    const activeIds = new Set(currentKnowledge(allKnowledge).map((candidate) => candidate.id));
+    const siblings = allKnowledge.filter((candidate) => activeIds.has(candidate.id) && candidate.id !== item.id && candidate.primaryDomain === item.primaryDomain && candidate.title.toLocaleLowerCase() === item.title.toLocaleLowerCase() && candidate.content !== item.content);
+    const conflictGroupId = siblings.length ? (siblings[0].conflictGroupId || `conflict-${item.primaryDomain}-${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`) : undefined;
+    let snapshot: KnowledgeItem | undefined;
+    const snapshotId = existing ? `${existing.id}::version:${existing.version}` : undefined;
+    if (existing && snapshotId) {
+      snapshot = {
+        ...existing,
+        id: snapshotId,
+        supersedesId: existing.supersedesId,
+        freshness: "HISTORICAL",
+      };
+    }
+    const stored = existing ? {
+      ...item,
+      createdAt: existing.createdAt,
+      version: existing.version + 1,
+      supersedesId: snapshotId,
+      conflictGroupId: conflictGroupId || existing.conflictGroupId,
+      provenance: {
+        ...item.provenance,
+        createdAt: existing.provenance.createdAt,
+        derivedFromIds: item.provenance.derivedFromIds || existing.provenance.derivedFromIds,
+      },
+    } : { ...item, conflictGroupId };
+    const writes = [
+      ...(snapshot ? [snapshot] : []),
+      ...(conflictGroupId ? siblings.map((sibling) => ({ ...sibling, conflictGroupId })) : []),
+      stored,
+    ];
+    await knowledgeRepository.saveBatch(writes);
+    revision += 1;
+    queryCache.clear();
+    return stored;
+  };
+
+  const lockManager = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  return lockManager
+    ? lockManager.request(`varynth:knowledge-item:${item.id}`, write)
+    : write();
+}
+
+export function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
+  const previous = knowledgeWriteQueues.get(item.id) || Promise.resolve();
+  const current = previous.catch(() => undefined).then(() => persistKnowledge(item));
+  const queueEntry = current.then(() => undefined, () => undefined);
+  knowledgeWriteQueues.set(item.id, queueEntry);
+  return current.finally(() => {
+    if (knowledgeWriteQueues.get(item.id) === queueEntry) knowledgeWriteQueues.delete(item.id);
+  });
 }
 
 export async function updateKnowledge(id: string, requester: string, patch: Partial<KnowledgeItem>): Promise<KnowledgeItem> {
@@ -36,7 +76,7 @@ export async function updateKnowledge(id: string, requester: string, patch: Part
 }
 
 export async function findKnowledgeConflicts(domain?: string): Promise<Array<{ groupId: string; items: KnowledgeItem[] }>> {
-  const items = await knowledgeRepository.getAll((item) => Boolean(item.conflictGroupId) && (!domain || item.primaryDomain === domain));
+  const items = currentKnowledge(await knowledgeRepository.getAll()).filter((item) => Boolean(item.conflictGroupId) && (!domain || item.primaryDomain === domain));
   const groups = new Map<string, KnowledgeItem[]>();
   for (const item of items) groups.set(item.conflictGroupId!, [...(groups.get(item.conflictGroupId!) || []), item]);
   return [...groups.entries()].map(([groupId, grouped]) => ({ groupId, items: grouped }));
@@ -130,7 +170,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
 }
 
 export async function discoverKnowledge(request: KnowledgeQuery): Promise<KnowledgeDiscovery[]> {
-  const items = await knowledgeRepository.getAll((item) => !item.invalidatedAt && (!request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain)));
+  const items = currentKnowledge(await knowledgeRepository.getAll()).filter((item) => !request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain));
   const result = items.map((item) => {
     const decision = decideKnowledgeAccess(item, request);
     const contentDecision = decideKnowledgeAccess(item, { ...request, operation: undefined });
