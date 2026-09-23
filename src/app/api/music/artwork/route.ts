@@ -1,15 +1,28 @@
 import { requireMusicAccount, musicRedis, validMusicArtworkBlobPath, validMusicBlobPath } from "@/lib/music/music-cloud";
+import { isMusicVisualSettings } from "@/lib/music/music-cloud-contracts";
 
 export const dynamic = "force-dynamic";
 const idPattern = /^[a-f0-9-]{36}$/i;
 const key = (namespace: string) => `varynth:music:artwork:v1:${namespace}`;
+const settingsKey = (namespace: string) => `varynth:music:visual-settings:v1:${namespace}`;
 
 export async function POST(request: Request) {
   const account = await requireMusicAccount();
   if (!account) return Response.json({ error: "Autenticação necessária." }, { status: 401 });
   if (request.headers.get("origin") !== new URL(request.url).origin) return Response.json({ error: "Origem inválida." }, { status: 403 });
   try {
-    const body = await request.json() as { trackIds?: unknown; kind?: unknown; assetId?: unknown };
+    const body = await request.json() as { trackIds?: unknown; trackId?: unknown; kind?: unknown; assetId?: unknown; visualSettings?: unknown };
+    if (body.visualSettings !== undefined) {
+      if (typeof body.trackId !== "string" || !idPattern.test(body.trackId) || !isMusicVisualSettings(body.visualSettings)) {
+        return Response.json({ error: "Configuração visual inválida." }, { status: 400 });
+      }
+      const raw = await musicRedis(["HGET", account.redisKey, body.trackId]);
+      if (typeof raw !== "string") return Response.json({ error: "Uma faixa não pertence à sua biblioteca." }, { status: 404 });
+      const track = JSON.parse(raw) as { blobPathname?: string };
+      if (!track.blobPathname || !validMusicBlobPath(track.blobPathname, account.namespace)) return Response.json({ error: "Faixa inválida." }, { status: 404 });
+      await musicRedis(["HSET", settingsKey(account.namespace), body.trackId, JSON.stringify(body.visualSettings)]);
+      return Response.json({ ok: true }, { headers: { "cache-control": "private, no-store" } });
+    }
     if (!Array.isArray(body.trackIds) || body.trackIds.length < 1 || body.trackIds.length > 100 || !body.trackIds.every((id) => typeof id === "string" && idPattern.test(id))
       || !["cover", "background"].includes(String(body.kind))) return Response.json({ error: "Faixas ou tipo de imagem inválidos." }, { status: 400 });
     for (const trackId of body.trackIds as string[]) {
