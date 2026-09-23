@@ -12,6 +12,8 @@ const AGENT_TASK_TYPES: Record<string, TaskType[]> = {
   logos: ["RESEARCH_SYNTHESIS"],
   strategos: ["PRODUCTIVITY_OPTIMIZATION"],
   sophia: ["WRITING_DRAFT"],
+  bibliotecario: ["GENERAL_DELIBERATION", "ACTION_FAST"],
+  "curador-pesquisa": ["RESEARCH_SYNTHESIS"],
   musa: ["CREATIVE_IDEATION"],
   critias: ["CRITICAL_REVIEW"],
   mnemosyne: ["GENERAL_DELIBERATION"],
