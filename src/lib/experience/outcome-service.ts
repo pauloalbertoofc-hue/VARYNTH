@@ -1,6 +1,7 @@
 import { experienceEventRepository, experienceRepository } from "@/lib/persistence/repositories";
 import { ExperienceRecord, EvidenceRef, PreferenceScope } from "./contracts";
 import { getExperienceOwnerId } from "./identity";
+import { domainRegistry } from "@/lib/knowledge/domain-registry";
 
 export interface OutcomeInput {
   domain: string;
@@ -39,10 +40,10 @@ export interface ExperienceAudience { ownerId?: string; agentId?: string; module
 
 export async function retrieveExperiences(domain?: string, projectId?: string, limit = 8, audience: ExperienceAudience = {}): Promise<ExperienceRecord[]> {
   const ownerId = await getExperienceOwnerId(audience.ownerId);
-  const records = await experienceRepository.getAll((record) => record.ownerId === ownerId && (!domain || record.domain === domain));
+  const records = await experienceRepository.getAll((record) => record.ownerId === ownerId && (!domain || domainRegistry.isWithinDomain(domain, record.domain)));
   return records.filter((record) => {
     if (record.scope === "GLOBAL") return true;
-    if (record.scope === "DOMAIN") return !!domain && record.scopeId === domain;
+    if (record.scope === "DOMAIN") return !!domain && domainRegistry.isWithinDomain(domain, record.scopeId || record.domain);
     if (record.scope === "AGENT") return !!audience.agentId && record.scopeId === audience.agentId;
     if (record.scope === "MODULE") return !!audience.moduleId && record.scopeId === audience.moduleId;
     if (record.scope === "PROJECT") return !!projectId && record.scopeId === projectId;

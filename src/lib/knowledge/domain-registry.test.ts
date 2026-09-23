@@ -30,4 +30,7 @@ assert.equal(merged.getDomain("music.theory.harmony")?.parentId, "music.theory")
 assert.equal(merged.resolveOwner("music.theory.harmony"), "custom-owner");
 assert.ok(merged.listHierarchy("legal").some((domain) => domain.id === "legal.intellectual-property"));
 assert.ok(merged.resolveCapabilities("music.theory.harmony").includes("music.explainTheory"));
+assert.equal(merged.isWithinDomain("legal.intellectual-property", "legal"), true);
+assert.equal(merged.isWithinDomain("legal", "legal.intellectual-property"), false);
+assert.equal(merged.isWithinDomain("music.theory.harmony", "legal"), false);
 console.log("Domain registry tests passed");

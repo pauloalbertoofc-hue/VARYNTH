@@ -3,6 +3,7 @@ import { EvidenceRef, Preference, PreferenceCandidate, PreferenceScope, Preferen
 import { confidenceFromEvidence } from "./signals";
 import { getExperienceOwnerId } from "./identity";
 import { experienceService } from "./experience-service";
+import { domainRegistry } from "@/lib/knowledge/domain-registry";
 
 const scopeRank: Record<PreferenceScope, number> = { GLOBAL: 1, DOMAIN: 2, AGENT: 3, MODULE: 3, PROJECT: 4, ARTIFACT: 5, SESSION: 6 };
 
@@ -106,7 +107,7 @@ export class PreferenceService {
     return all.filter((preference) => {
       if (input.key && preference.key !== input.key) return false;
       if (preference.scope === "GLOBAL") return true;
-      if (preference.scope === "DOMAIN") return !!input.domain && preference.scopeId === input.domain;
+      if (preference.scope === "DOMAIN") return !!input.domain && domainRegistry.isWithinDomain(input.domain, preference.scopeId || preference.domain);
       if (preference.scope === "AGENT") return !!input.agentId && preference.scopeId === input.agentId;
       if (preference.scope === "MODULE") return !!input.moduleId && preference.scopeId === input.moduleId;
       if (preference.scope === "PROJECT") return !!input.projectId && preference.scopeId === input.projectId;
