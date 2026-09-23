@@ -1,14 +1,47 @@
 import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistence/repositories";
 import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationship } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
+import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, selectKnowledgeCandidates, type KnowledgeRetrievalIndex } from "./retrieval-index";
 
 const queryCache = new Map<string, { revision: number; expiresAt: number; items: KnowledgeItem[] }>();
 const knowledgeWriteQueues = new Map<string, Promise<void>>();
 let revision = 0;
+let retrievalIndex: KnowledgeRetrievalIndex | undefined;
+let retrievalIndexBuild: Promise<KnowledgeRetrievalIndex | null> | undefined;
+let retrievalIndexBuildRevision = -1;
 
 export function invalidateKnowledgeQueryCache(): void {
   revision += 1;
   queryCache.clear();
+  retrievalIndex = undefined;
+  retrievalIndexBuild = undefined;
+  retrievalIndexBuildRevision = -1;
+}
+
+async function getKnowledgeRetrievalIndex(): Promise<KnowledgeRetrievalIndex> {
+  while (true) {
+    if (retrievalIndex?.revision === revision) return retrievalIndex;
+    if (!retrievalIndexBuild || retrievalIndexBuildRevision !== revision) {
+      const buildRevision = revision;
+      retrievalIndexBuildRevision = buildRevision;
+      const buildPromise = knowledgeRepository.getAll().then((items) => buildRevision === revision ? buildKnowledgeRetrievalIndex(items, buildRevision) : null);
+      retrievalIndexBuild = buildPromise;
+    }
+    const pending = retrievalIndexBuild;
+    let built: KnowledgeRetrievalIndex | null;
+    try {
+      built = await pending;
+    } catch (error) {
+      if (pending === retrievalIndexBuild) retrievalIndexBuild = undefined;
+      throw error;
+    }
+    if (pending === retrievalIndexBuild && built && built.revision === revision) {
+      retrievalIndex = built;
+      retrievalIndexBuild = undefined;
+      return built;
+    }
+    if (pending === retrievalIndexBuild) retrievalIndexBuild = undefined;
+  }
 }
 
 function currentKnowledge(items: KnowledgeItem[]): KnowledgeItem[] {
@@ -138,21 +171,12 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   const cacheKey = JSON.stringify(request);
   const cached = queryCache.get(cacheKey);
   if (cached?.revision === revision && cached.expiresAt > Date.now()) return cached.items.map((item) => ({ ...item }));
-  const tokens = request.query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
-  const allKnowledge = await knowledgeRepository.getAll();
-  const supersededIds = new Set(allKnowledge.filter((item) => item.supersedesId && item.supersedesId !== item.id).map((item) => item.supersedesId!));
-  const chunkedSourceIds = new Set(allKnowledge.filter((item) => item.provenance.span).flatMap((item) => item.provenance.derivedFromIds || []));
-  const candidates = allKnowledge.filter((item) => {
-    if (item.invalidatedAt) return false;
-    if (supersededIds.has(item.id)) return false;
-    if (chunkedSourceIds.has(item.id)) return false;
+  const index = await getKnowledgeRetrievalIndex();
+  const candidates = selectKnowledgeCandidates(index, request).filter((item) => {
     const now = Date.now();
     if (item.validFrom && new Date(item.validFrom).getTime() > now) return false;
     if (item.validUntil && new Date(item.validUntil).getTime() < now) return false;
-    const inDomain = !request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain) || item.primaryDomain.startsWith(`${request.domain}.`);
-    const inProject = !request.projectId || item.relatedProjectIds.length === 0 || item.relatedProjectIds.includes(request.projectId);
-    const text = `${item.title} ${item.content} ${item.tags.join(" ")}`.toLocaleLowerCase();
-    return inDomain && inProject && (!tokens.length || tokens.some((token) => text.includes(token)));
+    return true;
   });
   const scored = candidates.map((item) => {
     const decision = decideKnowledgeAccess(item, request);
@@ -168,8 +192,8 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   const decision = scored.some((entry) => entry.decision.decision === "ALLOW") ? "ALLOW" : scored.length ? "ALLOW_SUMMARY" : "DENY";
   await knowledgeAccessLogRepository.save({ id: `access-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, requester: request.requester, provider: request.provider, domain: request.domain, purpose: request.purpose, knowledgeIds: result.map((item) => item.id), decision, operation: request.operation || "CAN_QUERY", createdAt: new Date().toISOString() });
   const now = Date.now();
-  const nextValidityBoundary = allKnowledge.flatMap((item) => [item.validFrom, item.validUntil]).map((date) => date ? new Date(date).getTime() : Number.POSITIVE_INFINITY).filter((timestamp) => timestamp > now).reduce((nearest, timestamp) => Math.min(nearest, timestamp), Number.POSITIVE_INFINITY);
-  queryCache.set(cacheKey, { revision, expiresAt: Math.min(now + 30_000, nextValidityBoundary), items: result });
+  const nextValidityBoundary = nextKnowledgeValidityBoundary(index, now);
+  if (revision === index.revision) queryCache.set(cacheKey, { revision: index.revision, expiresAt: Math.min(now + 30_000, nextValidityBoundary), items: result });
   return result;
 }
 

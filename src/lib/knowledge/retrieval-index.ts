@@ -1,0 +1,118 @@
+import type { KnowledgeItem, KnowledgeQuery } from "./contracts";
+
+export interface KnowledgeRetrievalIndex {
+  revision: number;
+  items: KnowledgeItem[];
+  ordinalById: Map<string, number>;
+  textById: Map<string, string>;
+  trigramPostings: Map<string, Set<string>>;
+  primaryDomainPostings: Map<string, Set<string>>;
+  relatedDomainPostings: Map<string, Set<string>>;
+  projectPostings: Map<string, Set<string>>;
+  unscopedProjectIds: Set<string>;
+  chunkedSourceIds: Set<string>;
+  validityBoundaries: number[];
+}
+
+function addPosting(index: Map<string, Set<string>>, key: string, id: string) {
+  const posting = index.get(key);
+  if (posting) posting.add(id);
+  else index.set(key, new Set([id]));
+}
+
+function trigrams(value: string): Set<string> {
+  const result = new Set<string>();
+  for (let offset = 0; offset <= value.length - 3; offset += 1) result.add(value.slice(offset, offset + 3));
+  return result;
+}
+
+/** Rebuildable lexical and structured candidate index; KnowledgeItems remain canonical in storage. */
+export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: number): KnowledgeRetrievalIndex {
+  const supersededIds = new Set(items.flatMap((item) => item.supersedesId && item.supersedesId !== item.id ? [item.supersedesId] : []));
+  const activeItems = items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id));
+  const index: KnowledgeRetrievalIndex = {
+    revision,
+    items: activeItems,
+    ordinalById: new Map(),
+    textById: new Map(),
+    trigramPostings: new Map(),
+    primaryDomainPostings: new Map(),
+    relatedDomainPostings: new Map(),
+    projectPostings: new Map(),
+    unscopedProjectIds: new Set(),
+    chunkedSourceIds: new Set(activeItems.filter((item) => item.provenance.span).flatMap((item) => item.provenance.derivedFromIds || [])),
+    validityBoundaries: [],
+  };
+
+  activeItems.forEach((item, ordinal) => {
+    index.ordinalById.set(item.id, ordinal);
+    const text = `${item.title} ${item.content} ${item.tags.join(" ")}`.toLocaleLowerCase();
+    index.textById.set(item.id, text);
+    for (const gram of trigrams(text)) addPosting(index.trigramPostings, gram, item.id);
+    addPosting(index.primaryDomainPostings, item.primaryDomain, item.id);
+    for (const domain of item.relatedDomains) addPosting(index.relatedDomainPostings, domain, item.id);
+    if (item.relatedProjectIds.length) {
+      for (const projectId of item.relatedProjectIds) addPosting(index.projectPostings, projectId, item.id);
+    } else index.unscopedProjectIds.add(item.id);
+    for (const boundary of [item.validFrom, item.validUntil]) {
+      if (!boundary) continue;
+      const timestamp = new Date(boundary).getTime();
+      if (Number.isFinite(timestamp)) index.validityBoundaries.push(timestamp);
+    }
+  });
+  index.validityBoundaries.sort((left, right) => left - right);
+  return index;
+}
+
+function textCandidates(index: KnowledgeRetrievalIndex, query?: string): Set<string> {
+  const tokens = query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
+  if (!tokens.length) return new Set(index.items.map((item) => item.id));
+  const result = new Set<string>();
+  for (const token of tokens) {
+    const postingLists = [...trigrams(token)].map((gram) => index.trigramPostings.get(gram));
+    if (!postingLists.length || postingLists.some((posting) => !posting)) continue;
+    postingLists.sort((left, right) => left!.size - right!.size);
+    for (const id of postingLists[0]!) {
+      if (postingLists.every((posting) => posting!.has(id)) && index.textById.get(id)?.includes(token)) result.add(id);
+    }
+  }
+  return result;
+}
+
+function domainCandidates(index: KnowledgeRetrievalIndex, domain: string): Set<string> {
+  const result = new Set(index.relatedDomainPostings.get(domain) || []);
+  for (const [primaryDomain, ids] of index.primaryDomainPostings) {
+    if (primaryDomain === domain || primaryDomain.startsWith(`${domain}.`)) for (const id of ids) result.add(id);
+  }
+  return result;
+}
+
+function intersect(left: Set<string>, right: Set<string>): Set<string> {
+  const [smaller, larger] = left.size <= right.size ? [left, right] : [right, left];
+  return new Set([...smaller].filter((id) => larger.has(id)));
+}
+
+/** Match legacy substring/OR semantics while narrowing candidates through structured and trigram indexes. */
+export function selectKnowledgeCandidates(index: KnowledgeRetrievalIndex, request: KnowledgeQuery): KnowledgeItem[] {
+  let ids = textCandidates(index, request.query);
+  if (request.domain) ids = intersect(ids, domainCandidates(index, request.domain));
+  if (request.projectId) {
+    const projectIds = index.projectPostings.get(request.projectId) || new Set<string>();
+    ids = new Set([...ids].filter((id) => index.unscopedProjectIds.has(id) || projectIds.has(id)));
+  }
+  return [...ids]
+    .filter((id) => !index.chunkedSourceIds.has(id))
+    .map((id) => index.items[index.ordinalById.get(id)!])
+    .sort((left, right) => index.ordinalById.get(left.id)! - index.ordinalById.get(right.id)!);
+}
+
+export function nextKnowledgeValidityBoundary(index: KnowledgeRetrievalIndex, now: number): number {
+  let low = 0;
+  let high = index.validityBoundaries.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (index.validityBoundaries[middle] <= now) low = middle + 1;
+    else high = middle;
+  }
+  return index.validityBoundaries[low] ?? Number.POSITIVE_INFINITY;
+}
