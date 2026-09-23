@@ -19,6 +19,7 @@ Aceito e implementado incrementalmente.
 10. Separar Knowledge, Experience, Preference, Memory e Policy, com precedência de instruções/policy sobre personalização.
 11. Manter retrieval híbrido por filtros estruturados e busca lexical antes de considerar embeddings; nenhum índice semântico substitui a fonte de verdade local.
 12. Publicar capabilities somente por declaração explícita com contrato de entrada/saída e consumidores; capabilities registradas para awareness não são públicas por padrão, e descoberta não equivale a execução.
+13. Consultar um especialista somente pelo owner atual com método `consultKnowledge` explícito e fatos já filtrados por policy; sem fontes autorizadas, nenhum agente é invocado, e a resposta declara a execução determinística limitada às fontes.
 
 ## Rationale
 

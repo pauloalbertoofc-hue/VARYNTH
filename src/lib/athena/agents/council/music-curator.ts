@@ -1,4 +1,4 @@
-import type { AthenaAgent, AgentManifest } from "../base-agent";
+import type { AgentKnowledgeConsultation, AthenaAgent, AgentManifest } from "../base-agent";
 import type { AthenaTask } from "../../domain/task";
 import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
@@ -64,6 +64,24 @@ export class EuterpeAgent implements AthenaAgent {
       sources: [dna ? "Music DNA fornecido na tarefa" : "Prompt e metadados fornecidos na tarefa"],
       recommendations: ["A decisão final e qualquer ação sobre a biblioteca pertencem à pessoa usuária."],
       metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", ...musicSpecialist.capabilities], toolAccess: false, localFileAccess: false },
+    };
+  }
+
+  async consultKnowledge(request: AgentKnowledgeConsultation): Promise<AgentResult> {
+    const sources = request.sources.slice(0, 8);
+    const content = sources.length
+      ? `Euterpe consultou o pacote autorizado do domínio **${request.domain}** para responder a “${request.query}”. O material disponível traz estes dados, sem acrescentar fatos que não constem nas fontes:\n\n${sources.map((source) => `**${source.title}** (${source.id}${source.truncated ? "; trecho truncado" : ""})\n${source.content}`).join("\n\n")}\n\nEste retorno é uma leitura das fontes fornecidas; ${request.truncated ? "o pacote ou alguns trechos foram truncados; " : ""}não houve análise de áudio, acesso a arquivos locais nem verificação externa.`
+      : "Não recebi fontes autorizadas para esta consulta musical; não vou inferir conteúdo ausente.";
+    return {
+      agentId: this.manifest.id,
+      agentName: this.manifest.name,
+      role: this.manifest.role,
+      success: sources.length > 0,
+      content,
+      confidence: sources.length ? 0.55 : 0,
+      sources: sources.map((source) => source.id),
+      limitations: ["Somente fatos do KnowledgePacket autorizado foram considerados.", ...(request.truncated ? ["O pacote ou alguns trechos foram truncados por limite de contexto."] : []), "A implementação atual faz leitura de fontes, não análise neural ou inspeção de áudio."],
+      metadata: { authority: "source-grounded", knowledgeConsultation: true, provider: this.manifest.id, purpose: request.purpose, toolAccess: false, localFileAccess: false },
     };
   }
 

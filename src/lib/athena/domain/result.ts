@@ -8,6 +8,7 @@ export interface AgentResult {
   sources?: string[];
   recommendations?: string[];
   criticism?: string[];
+  limitations?: string[];
   metadata?: Record<string, unknown>;
 }
 

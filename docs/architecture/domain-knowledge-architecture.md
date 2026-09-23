@@ -29,7 +29,7 @@ The implemented foundation provides:
 3. Policy and local retrieval (implemented).
 4. Vault classification adapter and migration-safe backfill (implemented; taxonomy corrections persist on the source item).
 5. Public knowledge contracts and capability discovery through Athena (explicit per-capability allowlist and consumer contract; discovery does not imply a generic executable adapter, and not every proposed capability is wired).
-6. Domain router, multi-domain decomposition, and knowledge packets (implemented incrementally).
+6. Domain router, multi-domain decomposition, and bounded knowledge packets (implemented incrementally; Euterpe and Justitia expose explicit, source-only consultation methods, not neural domain reasoning).
 7. Knowledge Center UI and inspectors (implemented for registry, retrieval, classification, publication, revocation, conflicts, audit, and persistence state).
 8. Cache invalidation, conflict/version views, adversarial tests (implemented incrementally); multi-instance load testing and authenticated production end-to-end validation remain open.
 

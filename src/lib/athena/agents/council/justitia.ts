@@ -1,4 +1,4 @@
-import { AthenaAgent, AgentManifest } from "../base-agent";
+import { AgentKnowledgeConsultation, AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
@@ -70,6 +70,24 @@ export class JustitiaAgent implements AthenaAgent {
         "Verificar conformidade com súmulas vinculantes",
         "Confrontar argumentos contrários no Codex",
       ],
+    };
+  }
+
+  async consultKnowledge(request: AgentKnowledgeConsultation): Promise<AgentResult> {
+    const sources = request.sources.slice(0, 8);
+    const content = sources.length
+      ? `Justitia consultou o pacote autorizado do domínio **${request.domain}** para a pergunta “${request.query}”. Fontes recuperadas:\n\n${sources.map((source) => `**${source.title}** (${source.id}; ${source.authority}; ${source.freshness}${source.truncated ? "; trecho truncado" : ""})\n${source.content}`).join("\n\n")}\n\nEste retorno identifica material disponível; ${request.truncated ? "o pacote ou alguns trechos foram truncados; " : ""}não constitui parecer jurídico, não verifica vigência em fonte oficial e não extrapola além dos trechos recebidos.`
+      : "Não recebi fontes jurídicas autorizadas para esta consulta; não vou inferir uma conclusão.";
+    return {
+      agentId: this.manifest.id,
+      agentName: this.manifest.name,
+      role: this.manifest.role,
+      success: sources.length > 0,
+      content,
+      confidence: sources.length ? 0.5 : 0,
+      sources: sources.map((source) => source.id),
+      limitations: ["A resposta é uma revisão de fontes, não aconselhamento jurídico.", ...(request.truncated ? ["O pacote ou alguns trechos foram truncados por limite de contexto."] : []), "Vigência e atualidade não foram verificadas fora do pacote autorizado."],
+      metadata: { authority: "source-grounded", knowledgeConsultation: true, provider: this.manifest.id, purpose: request.purpose },
     };
   }
 }

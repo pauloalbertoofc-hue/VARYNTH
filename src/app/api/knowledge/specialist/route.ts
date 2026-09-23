@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/auth/require-session";
-import { askSpecialist } from "@/lib/knowledge";
+import { askSpecialist } from "@/lib/knowledge/specialist-consultation.server";
 import { hydrateDomainRegistryFromPersistence } from "@/lib/knowledge/domain-registry-store";
 import { knowledgeAccountId, withKnowledgeAccount } from "@/lib/knowledge/knowledge-account-store";
 

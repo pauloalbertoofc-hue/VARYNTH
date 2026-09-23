@@ -12,13 +12,24 @@ async function main() {
   const packet = await requestKnowledgePacket({ requester: "justitia", domain: "music", query: "formato áudio", purpose: "análise jurídica", scope: "PUBLIC" });
   assert.equal(packet.provider, "euterpe");
   assert.equal(packet.facts.length, 1);
+  assert.equal(packet.facts[0].domain, "music");
+  assert.equal(packet.facts[0].authority, "INTERNAL_DOCUMENT");
   assert.deepEqual(packet.provenanceIds, packet.facts.map((fact) => fact.knowledgeId));
   assert.ok(packet.constraints.some((constraint) => constraint.includes("raciocínio")));
+  assert.equal(packet.truncated, false);
   const accessLog = (await listKnowledgeAccessLogs()).at(-1);
   assert.equal(accessLog?.requester, "justitia");
   assert.equal(accessLog?.provider, "euterpe");
   assert.deepEqual(accessLog?.knowledgeIds, packet.provenanceIds);
   await assert.rejects(requestKnowledgePacket({ requester: "justitia", provider: "unregistered-agent", domain: "music", query: "formato áudio", purpose: "spoof provider", scope: "PUBLIC" }), /KNOWLEDGE_PROVIDER_UNREGISTERED/);
+  const longText = "longcontext ".repeat(120);
+  const timestamp = new Date().toISOString();
+  await storeKnowledge({ id: "packet-long-k2", title: "Contexto extenso", content: longText, primaryDomain: "music", relatedDomains: [], categories: [], tags: [], ownerAgent: "euterpe", contributingAgents: [], visibility: "PUBLIC_TO_AGENTS", sensitivity: "PUBLIC", kind: "PUBLIC_DOMAIN", assertion: "FACT", provenance: { sourceType: "TEST", addedBy: "SYSTEM", createdAt: timestamp, authority: "INTERNAL_DOCUMENT", inferred: false }, version: 1, freshness: "CURRENT", relatedProjectIds: [], relatedArtifactIds: [], createdAt: timestamp, updatedAt: timestamp });
+  const boundedPacket = await requestKnowledgePacket({ requester: "justitia", domain: "music", query: "longcontext", purpose: "bounded context", scope: "PUBLIC" });
+  assert.equal(boundedPacket.facts.length, 1);
+  assert.equal(boundedPacket.facts[0].content.length, 1000);
+  assert.equal(boundedPacket.facts[0].truncated, true);
+  assert.equal(boundedPacket.truncated, true);
   console.log("Knowledge protocol tests passed");
 }
 void main();

@@ -12,7 +12,9 @@ async function main() {
   assert.equal(response.specialistAgent, "justitia");
   assert.ok(response.sources.includes("vault:e2e-vault"));
   assert.ok(response.answer.includes("Copyright"));
-  assert.equal(response.packet.constraints.length, 2);
+  assert.ok(response.packet.constraints.some((constraint) => constraint.includes("autorizado")));
+  assert.ok(response.packet.constraints.some((constraint) => constraint.includes("raciocínio interno")));
+  assert.ok(response.packet.constraints.some((constraint) => constraint.includes("oito fatos")));
   console.log("Knowledge Vault-to-domain end-to-end test passed");
 }
 void main();
