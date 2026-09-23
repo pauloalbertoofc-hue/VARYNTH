@@ -1,5 +1,6 @@
 import type { ExperienceEvent, EvidenceRef, PreferenceCandidate } from "./contracts";
 import { extractSignal } from "./signals";
+import { domainRegistry } from "@/lib/knowledge/domain-registry";
 
 const MIN_EVIDENCE = 3;
 const MIN_INDEPENDENT_ARTIFACTS = 2;
@@ -37,7 +38,7 @@ export function derivePreferenceCandidates(events: ExperienceEvent[], subject: s
   const groups = new Map<string, { domain: string; events: ExperienceEvent[] }>();
   for (const event of events) {
     if (event.ownerId !== subject) continue;
-    if (!event.domain || (domain && event.domain !== domain)) continue;
+    if (!event.domain || (domain && !domainRegistry.isWithinDomain(domain, event.domain))) continue;
     const signal = extractSignal(event);
     if (!signal?.eligible) continue;
     const declared = readCandidateSignal(event);

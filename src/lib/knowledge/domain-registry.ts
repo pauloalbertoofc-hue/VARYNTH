@@ -132,6 +132,19 @@ export class DomainRegistry {
     return [...new Set([...domain.capabilities, ...(domain.parentId ? this.resolveCapabilities(domain.parentId) : [])])];
   }
 
+  isWithinDomain(candidateDomainId: string, scopeDomainId: string): boolean {
+    if (!candidateDomainId || !scopeDomainId) return false;
+    if (candidateDomainId === scopeDomainId || candidateDomainId.startsWith(`${scopeDomainId}.`)) return true;
+    let current = this.resolveDomain(candidateDomainId);
+    const visited = new Set<string>();
+    while (current?.parentId && !visited.has(current.id)) {
+      if (current.parentId === scopeDomainId) return true;
+      visited.add(current.id);
+      current = this.getDomain(current.parentId);
+    }
+    return false;
+  }
+
   listHierarchy(rootId?: string): DomainDefinition[] {
     return this.listDomains().filter((domain) => !rootId || domain.id === rootId || this.isDescendantOf(domain, rootId));
   }
