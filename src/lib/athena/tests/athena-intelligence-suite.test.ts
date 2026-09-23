@@ -592,7 +592,7 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
 
   // ATHINT-023: Ellipsis slot filling in creation
   const s23 = "session-int-023";
-  await processAthenaQueryAsync("Crie um vídeo", "geral", ctx, undefined, s23);
+  const createdVideo23 = await processAthenaQueryAsync("Crie um vídeo", "geral", ctx, undefined, s23);
   const r23 = await processAthenaQueryAsync("A pesquisa do CNJ.", "geral", ctx, undefined, s23);
   record(
     "ATHINT-023",
@@ -601,7 +601,9 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
     "A pesquisa do CNJ.",
     "ENTITY_SELECTION",
     "RESOLVED",
-    r23.text.includes("Pesquisa CNJ") || r23.text.includes("vídeo") ? "PASS" : "PARTIAL",
+    r23.text.includes("Pesquisa CNJ") && r23.text.includes("vídeo") &&
+      r23.text.includes("Ainda não associei") &&
+      r23.actionCard?.link === createdVideo23.actionCard?.link ? "PASS" : "PARTIAL",
     r23.text.slice(0, 80)
   );
 
