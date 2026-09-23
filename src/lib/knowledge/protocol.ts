@@ -30,20 +30,22 @@ export async function requestKnowledgePacket(request: KnowledgeQuery & { provide
   domainRegistry.hydrateBrowserSnapshot();
   const domain = request.domain || "system.orchestration";
   const provider = request.provider || domainRegistry.resolveOwner(domain) || "athena";
-  const items = await queryKnowledge({ ...request, domain, scope: request.scope || "PUBLIC" });
+  if (!domainRegistry.resolveSpecialists(domain).includes(provider)) throw new Error("[KNOWLEDGE_PROVIDER_UNREGISTERED] Provider não está registrado como especialista do domínio solicitado.");
+  const items = await queryKnowledge({ ...request, provider, domain, scope: request.scope || "PUBLIC" });
+  const packetItems = items.slice(0, 8);
   return {
     id: `packet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     requester: request.requester,
     provider,
     domain,
     purpose: request.purpose,
-    facts: items.slice(0, 8).map((item) => {
+    facts: packetItems.map((item) => {
       const decision = decideKnowledgeAccess(item, { ...request, domain });
       const content = decision.decision === "ALLOW" ? item.content : `${item.content.slice(0, 280)}${item.content.length > 280 ? "…" : ""}`;
       return { knowledgeId: item.id, title: item.title, content };
     }),
     constraints: ["Somente conhecimento autorizado foi incluído.", "O pacote não contém raciocínio interno."],
-    provenanceIds: items.map((item) => item.id),
+    provenanceIds: packetItems.map((item) => item.id),
     createdAt: new Date().toISOString(),
   };
 }
