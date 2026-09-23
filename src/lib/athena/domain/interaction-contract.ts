@@ -35,6 +35,7 @@ export interface InteractionContractTelemetry {
 
 const CONTRACT_BY_INTERACTION: Readonly<Record<InteractionType, InteractionContract>> = {
   CONVERSATION: "ANSWER_SELF",
+  FACTUAL_QUERY: "ANSWER_SELF",
   COGNITIVE_REQUEST: "USE_AGENT",
   OPERATIONAL_REQUEST: "USE_TOOL",
 };
@@ -70,7 +71,7 @@ export function decisionForContract(
   confidence: ConfidenceLevel = "HIGH"
 ): InteractionContractDecision {
   const sourceInteractionType: InteractionType =
-    contract === "ANSWER_SELF" ? "CONVERSATION" :
+    contract === "ANSWER_SELF" ? "FACTUAL_QUERY" :
     contract === "USE_AGENT" ? "COGNITIVE_REQUEST" :
     "OPERATIONAL_REQUEST";
 

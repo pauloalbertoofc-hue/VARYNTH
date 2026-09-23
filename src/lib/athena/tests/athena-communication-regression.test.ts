@@ -14,6 +14,19 @@ const context: AthenaEngineContext = {
 };
 
 async function run(): Promise<void> {
+  for (const [index, question] of [
+    "Quais tarefas eu tenho?",
+    "Tem coisa pendente?",
+    "O que ficou pra fazer?",
+    "Estou devendo alguma coisa?",
+    "Tem algo na fila?",
+  ].entries()) {
+    const status = await processAthenaQueryAsync(question, "geral", context, undefined, `communication-tasks-${index}`);
+    assert(status.text.includes("tarefas pendentes"), `Task-status paraphrase must return grounded task counts: ${question}`);
+    const debug = status.metadata?.debug as Record<string, unknown> | undefined;
+    assert(debug?.interactionContract === "ANSWER_SELF", `Read-only task status must be answered directly: ${question}`);
+  }
+
   const image = await processAthenaQueryAsync("Athenas consegue me dar ideia de uma imagem?", "geral", context, undefined, "communication-image");
   assert(image.text.includes("ideias visuais") && !image.text.includes("Como seu copilot digital, posso"), "Image ideation must answer with concrete ideas instead of a capabilities briefing");
 
@@ -51,7 +64,7 @@ async function run(): Promise<void> {
   const greeting = await processAthenaQueryAsync("Oi Athena", "geral", context, undefined, "communication-greeting");
   assert(!greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural without leaking another account name");
 
-  console.log("✓ Image ideation, incomplete fragments, Vault handoff and genuine greetings communicate correctly");
+  console.log("✓ Colloquial task queries, image ideation, incomplete fragments, Vault handoff and genuine greetings communicate correctly");
 }
 
 run().catch((error) => {

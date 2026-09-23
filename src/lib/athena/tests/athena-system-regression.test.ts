@@ -188,7 +188,7 @@ export async function runAthenaSystemSuite(): Promise<void> {
   const s1 = "session-sys-001";
   const r1 = await processAthenaQueryAsync("Como você está?", "geral", ctx, undefined, s1);
   assert(
-    Boolean(r1.text && !r1.text.includes("Briefing Executivo") && !r1.text.includes("tarefas pendentes") && r1.text.includes("Paulo")),
+    Boolean(r1.text && !r1.text.includes("Briefing Executivo") && !r1.text.includes("tarefas pendentes") && !r1.text.includes("Paulo")),
     "ATHSYS-001",
     "Casual conversation produces warm natural response without system briefing"
   );

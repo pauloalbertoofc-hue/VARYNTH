@@ -166,7 +166,7 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
   record(
     "RESP-REG-012",
     "Follow-up answer avoids repeating already-known context",
-    Boolean(r12.text) && r12.text.includes("razões estratégicas"),
+    Boolean(r12.text) && r12.text.includes("dados registrados") && r12.text.includes("não explicam as razões"),
     r12.text.slice(0, 80)
   );
 

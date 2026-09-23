@@ -117,8 +117,16 @@ export class SemanticInterpretationEngine {
     }
     // Rule B: Emotional Venting (Empathy, no mutation)
     else if (pragRes.isEmotionalVenting) {
-      selectedIntent = "SOCIAL_CONVERSATION";
-      finalConfidence = 0.9;
+      // Idioms about owing work are resource questions, not emotional venting.
+      // The task-query rule must precede the broad pragmatic distress signal.
+      if (/\b(devendo|pendente|pendencias|fila|ficou para fazer|ficou pra fazer)\b/.test(cleanText)) {
+        selectedIntent = "TASK_QUERY";
+        finalConfidence = 0.9;
+        deterministicSignals.push("TASK_QUERY_IDIOM_OVERRIDES_VENTING");
+      } else {
+        selectedIntent = "SOCIAL_CONVERSATION";
+        finalConfidence = 0.9;
+      }
       semanticSource = "DETERMINISTIC";
     }
     // Rule C: Approval Phrase Routing (Pending context required)
@@ -139,6 +147,14 @@ export class SemanticInterpretationEngine {
       selectedIntent = "SOCIAL_CONVERSATION";
       finalConfidence = 0.85;
       semanticSource = "DETERMINISTIC";
+    }
+    // Common colloquial workload questions should not depend on statistical
+    // similarity or optional model enrichment to reach the task repository.
+    else if (/\b(devendo|pendente|pendencias|fila|ficou para fazer|ficou pra fazer)\b/.test(cleanText)) {
+      selectedIntent = "TASK_QUERY";
+      finalConfidence = 0.9;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("TASK_QUERY_COLLOQUIAL_PHRASE");
     }
     // Rule F: Polite Indirect Command
     else if (pragRes.isIndirectPoliteRequest && pragRes.suggestedIntent) {

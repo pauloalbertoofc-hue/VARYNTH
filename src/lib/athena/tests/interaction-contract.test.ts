@@ -12,6 +12,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 const matrix = [
   ["CONVERSATION", "ANSWER_SELF"],
+  ["FACTUAL_QUERY", "ANSWER_SELF"],
   ["COGNITIVE_REQUEST", "USE_AGENT"],
   ["OPERATIONAL_REQUEST", "USE_TOOL"],
 ] as const;

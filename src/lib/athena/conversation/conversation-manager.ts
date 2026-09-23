@@ -487,7 +487,7 @@ export class ConversationManager {
       clean.includes("como esta esse projeto") ||
       clean.includes("meus prazos")
     ) {
-      interactionType = "COGNITIVE_REQUEST";
+      interactionType = "FACTUAL_QUERY";
       intents.push("ECOSYSTEM_STATUS");
       subject = semantic.intent === "TASK_QUERY" ? "USER_RESOURCES" : semantic.intent === "PROJECT_QUERY" ? "PROJECT" : "USER_RESOURCES";
       requiresContext = true;

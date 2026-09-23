@@ -3,6 +3,7 @@ export type { ConfidenceLevel };
 
 export type InteractionType =
   | "CONVERSATION"        // Diálogo social, humor, empatia, saudações (Fast Path - zero banco de dados)
+  | "FACTUAL_QUERY"       // Consulta factual/estado respondida diretamente a partir de dados fornecidos
   | "COGNITIVE_REQUEST"   // Ideação, recomendação, análise, crítica, síntese, explicação (Cognitive Path)
   | "OPERATIONAL_REQUEST"; // Mutação no sistema: tarefas, notas, lixeira, calendário (Operational Path)
 

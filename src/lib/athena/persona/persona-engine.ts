@@ -246,6 +246,9 @@ export class AthenaPersonaEngine {
       if (previous.includes("prefiro nao inventar") || previous.includes("novidade especifica")) {
         return "Porque eu não tinha uma novidade verificada nos dados disponíveis. Inventar uma atualização pareceria útil, mas criaria informação falsa. Posso consultar projetos, tarefas e prazos e dizer apenas o que estiver realmente registrado.";
       }
+      if (/\b(projeto|tarefas pendentes|prazo|registros?)\b/.test(previous)) {
+        return "Porque respondi com os dados registrados que estavam disponíveis — como status, prazo e tarefas do projeto. Esses registros descrevem a situação, mas não explicam as razões por trás dela. Se você quis perguntar por que o projeto está nesse estado ou por que recomendo determinada decisão, diga qual desses pontos e eu separo fato de hipótese.";
+      }
       return "Minha resposta anterior não continha uma recomendação identificável. Posso explicar um trecho específico dela, mas não vou atribuir uma escolha ou justificativa que não apareceu na conversa.";
     }
     const target = referent;
