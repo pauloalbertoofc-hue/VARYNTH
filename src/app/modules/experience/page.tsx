@@ -10,6 +10,7 @@ import type { ExperienceEvent, LearningExclusion, LearningExclusionScope, Prefer
 import { experienceRepository } from "@/lib/persistence/repositories";
 import { confidenceFromEvidence } from "@/lib/experience/signals";
 import { getExperienceOwnerId } from "@/lib/experience/identity";
+import { legacyExperienceMigrationService } from "@/lib/experience/legacy-migration-service";
 
 export default function ExperiencePage() {
   const [events, setEvents] = useState<ExperienceEvent[]>([]);
@@ -21,13 +22,17 @@ export default function ExperiencePage() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [ownerId, setOwnerId] = useState<string>();
+  const [legacyInventory, setLegacyInventory] = useState({ events: 0, preferences: 0, experiences: 0, learningExclusions: 0 });
+  const [legacySelection, setLegacySelection] = useState({ events: true, preferences: false, experiences: false });
   async function refresh() {
     const currentOwnerId = await getExperienceOwnerId();
     const [nextEvents, allPreferences, nextExclusions] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), learningExclusionService.list(currentOwnerId)]);
+    const legacy = await legacyExperienceMigrationService.preview();
     const nextPreferences = allPreferences.filter((preference) => preference.status === "CONFIRMED" || preference.status === "INFERRED");
     setEvents(nextEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
     setPreferences(nextPreferences);
     setExclusions(nextExclusions);
+    setLegacyInventory(legacy);
     setOwnerId(currentOwnerId);
     setCandidates(derivePreferenceCandidates(nextEvents, currentOwnerId).filter((candidate) => !allPreferences.some((preference) => preference.subject === candidate.subject && preference.domain === candidate.domain && preference.key === candidate.key && JSON.stringify(preference.value) === JSON.stringify(candidate.value))));
   }
@@ -43,12 +48,19 @@ export default function ExperiencePage() {
     const file = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), storage: "local-device", events: allEvents, preferences: allPreferences, experiences: allExperiences, learningExclusions: allExclusions }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(file); const link = document.createElement("a"); link.href = url; link.download = `varynth-experience-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url);
   }
+  async function migrateLegacy() {
+    if (!ownerId) return;
+    const counts = await legacyExperienceMigrationService.migrate(legacySelection, true, ownerId);
+    await refresh();
+    window.alert(`Recuperação concluída para esta conta: ${counts.events} eventos, ${counts.preferences} preferências e ${counts.experiences} experiências. Exclusões antigas continuam bloqueadas e sem dono.`);
+  }
   return <PageLayout title="Experience Layer" subtitle="Evidência, preferências e adaptação controlável">
     <main className="p-6 space-y-6 animate-fade-in">
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[['Eventos', events.length], ['Preferências', preferences.length], ['Confirmadas', preferences.filter((p) => p.status === "CONFIRMED").length], ['Inferidas', preferences.filter((p) => p.status === "INFERRED").length]].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-white">{value}</p></div>)}
       </section>
       <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">Os dados permanecem neste dispositivo; isso não altera pesos de modelos.</p><button type="button" onClick={() => void exportData()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 hover:bg-white/5">Exportar dados da Experience Layer</button></div>
+      {(legacyInventory.events + legacyInventory.preferences + legacyInventory.experiences + legacyInventory.learningExclusions) > 0 && <section className="rounded-xl border border-amber-300/25 bg-amber-500/[0.04] p-5"><h2 className="text-sm font-semibold text-white">Revisar dados anteriores à separação por conta</h2><p className="mt-1 text-xs text-slate-400">Estes registros continuam locais e invisíveis para o aprendizado. Escolha categorias para reassociar à conta atual. Preferências e experiências só podem ser recuperadas quando todas as evidências apontarem para registros recuperados ou já pertencentes a esta conta. Exclusões antigas permanecem bloqueios globais até revisão própria.</p><div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-200">{([['events', 'Eventos', legacyInventory.events], ['preferences', 'Preferências', legacyInventory.preferences], ['experiences', 'Experiências', legacyInventory.experiences]] as const).map(([key, label, count]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={legacySelection[key]} disabled={count === 0 || busy} onChange={(event) => setLegacySelection((current) => ({ ...current, [key]: event.target.checked }))} />{label}: {count}</label>)}<span>Exclusões não reassociáveis: {legacyInventory.learningExclusions}</span></div><button type="button" disabled={busy || !ownerId || !Object.values(legacySelection).some(Boolean)} onClick={() => { if (window.confirm("Confirma reassociar os registros selecionados à conta autenticada neste dispositivo? Essa ação altera o proprietário local dos registros.")) void migrateLegacy(); }} className="mt-4 rounded-lg border border-amber-300/30 px-3 py-2 text-xs font-semibold text-amber-100 disabled:opacity-40">Reassociar itens selecionados a esta conta</button></section>}
       <section className="rounded-xl border border-amber-400/20 bg-amber-500/[0.04] p-5">
         <h2 className="text-sm font-semibold text-white">Não aprender neste escopo</h2>
         <p className="mt-1 text-xs text-slate-400">Os eventos continuam registrados para rastreabilidade, mas não podem alimentar sinais, padrões ou preferências enquanto a exclusão estiver ativa.</p>
