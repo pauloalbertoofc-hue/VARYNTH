@@ -29,6 +29,7 @@ import { varynthEventBus, type VarynthEvent } from "@/lib/events/varynth-event-b
 import { CoverPresentation } from "@/components/music/CoverPresentation";
 import { resolveVisualAssetTargetIds, type VisualAssetScope } from "@/lib/music/visual-asset-targets";
 import { VisualEffectControls } from "@/components/music/VisualEffectControls";
+import { musicLearningAdapter } from "@/lib/experience/music-learning-adapter";
 
 const visualProvider = new LocalVisualGenerationProvider();
 type EuterpeOverlayBridge = {
@@ -452,7 +453,23 @@ export default function MusicPage() {
   const addToPlaylist = async (list: MusicPlaylist) => { if (!selectedId) return; const updated = { ...list, trackIds: Array.from(new Set([...list.trackIds, selectedId])), updatedAt: new Date().toISOString() }; await musicStudio.savePlaylist(updated); setPlaylists(await musicStudio.listPlaylists()); };
   const removeFromPlaylist = async (list: MusicPlaylist) => { if (!selectedId) return; await musicStudio.savePlaylist({ ...list, trackIds: list.trackIds.filter((id) => id !== selectedId), updatedAt: new Date().toISOString() }); setPlaylists(await musicStudio.listPlaylists()); };
   const renamePlaylist = async (list: MusicPlaylist) => { const name = window.prompt("Novo nome da playlist", list.name)?.trim(); if (!name) return; await musicStudio.savePlaylist({ ...list, name, updatedAt: new Date().toISOString() }); setPlaylists(await musicStudio.listPlaylists()); };
-  const recordFeedback = async () => { if (!selectedId) return; const item: MusicFeedback = { id: crypto.randomUUID(), trackId: selectedId, rating: feedbackRating, tags: [], note: feedbackNote.trim(), createdAt: new Date().toISOString() }; await musicStudio.saveFeedback(item); const rows = await musicStudio.listFeedback(); setFeedbackRows(rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt))); setFeedbackCount(rows.length); setFeedbackNote(""); setMessage("Avaliação guardada localmente; não altera automaticamente perfis nem recomendações."); };
+  const recordMusicExperience = async (input: Parameters<typeof musicLearningAdapter.record>[0]) => {
+    try { await musicLearningAdapter.record(input); return true; }
+    catch { return false; }
+  };
+  const recordFeedback = async () => {
+    if (!selectedId) return;
+    const item: MusicFeedback = { id: crypto.randomUUID(), trackId: selectedId, rating: feedbackRating, tags: [], note: feedbackNote.trim(), createdAt: new Date().toISOString() };
+    await musicStudio.saveFeedback(item);
+    const experienceRecorded = await recordMusicExperience({ action: "TRACK_RATED", trackId: selectedId, before: null, after: feedbackRating, note: feedbackNote.trim() });
+    const rows = await musicStudio.listFeedback();
+    setFeedbackRows(rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    setFeedbackCount(rows.length);
+    setFeedbackNote("");
+    setMessage(experienceRecorded
+      ? "Avaliação guardada localmente e registrada como evidência explícita; não altera automaticamente perfis nem recomendações."
+      : "Avaliação guardada localmente, mas não foi possível registrá-la na Experience Layer.");
+  };
   const exportFeedback = async () => { const rows = await musicStudio.listFeedback(); const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), feedback: rows }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "varynth-music-feedback.json"; link.click(); URL.revokeObjectURL(url); };
   const generateVisualPrompt = async () => {
     if (visualBusy) return;
@@ -513,7 +530,8 @@ export default function MusicPage() {
     try {
       await musicStudio.saveVisualProfile({ ...next });
       if (musicLibrary.isAccountStorageAvailable()) await musicLibrary.saveVisualSettings(selectedTrack.id, { particleType: next.particleType, particleDensity: next.particleDensity, motionSpeed: next.motionSpeed, reducedMotion: next.reducedMotion });
-      setMessage(`Movimento ${mode === "STATIC" ? "estático" : mode === "SMOOTH" ? "suave" : "animado"} aplicado e salvo para esta faixa.`);
+      const experienceRecorded = await recordMusicExperience({ action: "VISUAL_MOTION_CHANGED", trackId: selectedTrack.id, before: base.motionSpeed, after: next.motionSpeed });
+      setMessage(`Movimento ${mode === "STATIC" ? "estático" : mode === "SMOOTH" ? "suave" : "animado"} aplicado e salvo para esta faixa.${experienceRecorded ? "" : " A Experience Layer não pôde registrar esta escolha."}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível salvar o movimento visual.");
     }
@@ -527,8 +545,9 @@ export default function MusicPage() {
     try {
       await musicStudio.saveVisualProfile(next);
       if (musicLibrary.isAccountStorageAvailable()) await musicLibrary.saveVisualSettings(selectedTrack.id, { particleType: next.particleType, particleDensity: next.particleDensity, motionSpeed: next.motionSpeed, reducedMotion: next.reducedMotion });
+      const experienceRecorded = await recordMusicExperience({ action: "VISUAL_EFFECT_CHANGED", trackId: selectedTrack.id, before: base.particleType, after: next.particleType });
       const labels: Record<ParticleType, string> = { none: "sem partículas", dust: "poeira luminosa", rain: "chuva", stars: "estrelas", wave: "ondas de luz" };
-      setMessage(`Efeito ${labels[effect]} salvo para esta faixa.`);
+      setMessage(`Efeito ${labels[effect]} salvo para esta faixa.${experienceRecorded ? "" : " A Experience Layer não pôde registrar esta escolha."}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível salvar o efeito visual.");
     }

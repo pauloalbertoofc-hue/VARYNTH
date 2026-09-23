@@ -8,7 +8,7 @@ This document replaces the initial Milestone A-only snapshot. The Experience Lay
 ## Current architecture
 
 ```text
-App / Athena / Knowledge / selected Studio adapters
+App / Athena / Knowledge / Music / selected Studio adapters
         -> ExperienceEvent (validated, account-owned, scoped, deduplicated)
         -> policy and user exclusion checks
         -> evidence signals and candidate thresholds
@@ -32,7 +32,7 @@ Experience Center (/modules/experience)
 | Preference and experience lifecycle | `preference-service.ts`, `experience-service.ts`, `pattern-service.ts`, `outcome-service.ts`, `retrospective-service.ts` | Scope, confidence, conflicts/decay, provenance, outcomes, retrospective, and forget cascades have automated tests. |
 | Privacy and learning policy | `learning-policy.ts`, `learning-exclusion-service.ts`, `identity.ts` | Account ownership, actor/source eligibility, scoped exclusions, and agent-event safeguards are enforced locally. |
 | Retrieval/context budget | `context-builder.ts`, `knowledge/context-assembler.ts` | Scope-filtered and bounded packets feed the Knowledge route; Athena's direct Experience packet is used on the selected local-model path, not every deterministic/offline response. |
-| Studio event producers | `audio-learning-adapter.ts`, `game-learning-adapter.ts`, `document-learning-adapter.ts` | These adapters exist. The Audio Studio has a production call site. A repository-wide call-site audit did not find equivalent production use for Game and Document, or adapters for Music, Image, Video, and Web. |
+| Studio event producers | `audio-learning-adapter.ts`, `game-learning-adapter.ts`, `document-learning-adapter.ts`, `music-learning-adapter.ts` | Audio Studio records scoped editor observations; Music records explicit ratings and per-track visual choices. Game and Document adapters still lack confirmed production call sites; Image, Video, and Web adapters are absent. Music event evidence is retained, but automatic preference inference is intentionally not enabled. |
 | Experience Center | `src/app/modules/experience/page.tsx`, navigation at `/modules/experience` | Functional local controls include manual preferences, candidate review, confirmation/rejection, learning exclusions, forget, export, and guarded legacy reassociation. It explicitly states that data stays on this device. |
 | Cross-device sync and retention | No Experience sync implementation found in the audited route inventory | Not implemented; do not imply that local records follow the account to another device or are subject to a configurable retention scheduler. |
 | End-to-end inspector | No event → signal → candidate → retrieval → decision trace UI found | Not implemented. Current UI is a local inventory/control center, not a full developer trace inspector. |
@@ -60,7 +60,7 @@ Experience Center (/modules/experience)
 | H — agent integration contract | PARTIAL | Knowledge packets include Experience context; agent/provider coverage and explicit integration tests per agent remain incomplete. |
 | I — project experience and retrospective | PARTIAL | Retrospective service exists and is tested; a full project-level user workflow and visible provenance review remain incomplete. |
 | J — Experience Center | PARTIAL | `/modules/experience` exposes working local controls; it is not yet a full lifecycle/inspector UI. |
-| K — adapters | PARTIAL | Audio, Game, and Document adapters exist; confirmed production call-site integration is currently narrower than the adapter inventory. |
+| K — adapters | PARTIAL, EXPANDED | Audio and Music have confirmed production call sites, including explicit Music ratings and per-track visual settings. Game and Document still lack production call-site integration; Image, Video, and Web are not covered. |
 | L — forget, export, retention | PARTIAL | Forget cascade and local JSON export exist; scheduled retention and sync-aware deletion are not implemented. |
 | M — observability and developer inspector | NOT IMPLEMENTED END TO END | Need a trace joining event, signal, candidate, preference, retrieval, and consuming decision. |
 | N/O — performance, automated and adversarial tests | PARTIAL, CORE TESTS PASS | Experience, ownership, exclusion, conflict, forgetting, and candidate adversarial tests pass; production event-volume and cross-module E2E coverage remain. |
@@ -78,7 +78,7 @@ Experience Center (/modules/experience)
 
 ## Next implementation sequence
 
-1. Add explicit feedback controls to Athena/agent and Studio result surfaces; persist only deliberate feedback or well-attributed edits.
+1. Add explicit feedback controls to Athena/agent and remaining Studio result surfaces; persist only deliberate feedback or well-attributed edits.
 2. Wire real, scoped Experience producers into each Studio and governed action lifecycle, including cancellation/undo/redo without false causal learning.
 3. Integrate bounded context into deterministic Athena and selected subagent/provider paths, with instruction/policy precedence tests per consumer.
 4. Complete the manual test plan, privacy and agent-integration docs, and user-visible explanations/decision traces.
