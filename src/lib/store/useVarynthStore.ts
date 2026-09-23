@@ -53,7 +53,7 @@ const STORAGE_KEYS = {
 };
 
 const STORE_UPDATE_EVENT = "varynth_store_update";
-type AccountIdentity = { key: string; name: string; role: string };
+type AccountIdentity = { key: string; ownerId: string; name: string; role: string };
 
 function triggerStoreUpdate() {
   if (typeof window !== "undefined") {
@@ -95,8 +95,8 @@ export function useVarynthStore() {
       if (!active) return;
       const user = session?.user as { id?: string; email?: string; name?: string; role?: string } | undefined;
       const raw = String(user?.id || user?.email || "local-owner").trim().toLowerCase();
-      setAccount({ key: raw.replace(/[^a-z0-9]/g, "_"), name: user?.name?.trim() || "Você", role: user?.role || "owner" });
-    }).catch(() => { if (active) setAccount({ key: "local-owner", name: "Paulo", role: "owner" }); });
+      setAccount({ key: raw.replace(/[^a-z0-9]/g, "_"), ownerId: user?.id?.trim() || "local-owner", name: user?.name?.trim() || "Você", role: user?.role || "owner" });
+    }).catch(() => { if (active) setAccount({ key: "local-owner", ownerId: "local-owner", name: "Paulo", role: "owner" }); });
     return () => { active = false; };
   }, []);
 
@@ -1159,6 +1159,7 @@ export function useVarynthStore() {
   return {
     isLoaded,
     accountName: account?.name || "Você",
+    experienceOwnerId: account?.ownerId,
     projects,
     tasks,
     notes,

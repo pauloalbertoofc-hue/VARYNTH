@@ -5,6 +5,7 @@ import { routeKnowledgeIntent } from "./router";
 
 export interface AgentContextRequest extends Omit<KnowledgeQuery, "domain" | "query"> {
   task: string;
+  ownerId?: string;
   currentModule?: string;
   agentId?: string;
   artifactId?: string;
@@ -28,7 +29,8 @@ export async function buildAgentContext(request: AgentContextRequest): Promise<A
   const domains = [...new Set([route.primaryDomain, ...route.relatedDomains].filter((domain): domain is string => Boolean(domain)))].slice(0, 5);
   const packs = await Promise.all(domains.map((domain) => queryKnowledge({ requester: request.requester, domain, query: request.task, projectId: request.projectId, purpose: request.purpose, scope: request.scope, limit: Math.max(1, budget) })));
   const knowledge = [...new Map(packs.flat().map((item) => [item.id, item])).values()];
-  const experience = await buildExperienceContext({ requester: request.requester, domain: route.primaryDomain, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget });
+  const requesterOwnerId = request.ownerId || (request.requester.startsWith("user:") ? request.requester.slice("user:".length) : undefined);
+  const experience = await buildExperienceContext({ requester: request.requester, ownerId: requesterOwnerId, domain: route.primaryDomain, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget });
   return {
     primaryDomain: route.primaryDomain,
     relatedDomains: route.relatedDomains,

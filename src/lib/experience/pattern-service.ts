@@ -1,5 +1,6 @@
 import { experienceRepository } from "@/lib/persistence/repositories";
 import type { ExperienceRecord, EvidenceRef } from "./contracts";
+import { getExperienceOwnerId } from "./identity";
 
 export interface ExperiencePattern {
   id: string;
@@ -35,8 +36,9 @@ function confidence(records: ExperienceRecord[]): number {
   return Math.round(Math.min(1, average * Math.min(1, records.length / 3)) * 100) / 100;
 }
 
-export async function deriveExperiencePatterns(domain?: string, minimumOccurrences = 2): Promise<ExperiencePattern[]> {
-  const records = await experienceRepository.getAll((record) => !domain || record.domain === domain);
+export async function deriveExperiencePatterns(domain?: string, minimumOccurrences = 2, requestedOwnerId?: string): Promise<ExperiencePattern[]> {
+  const ownerId = await getExperienceOwnerId(requestedOwnerId);
+  const records = await experienceRepository.getAll((record) => record.ownerId === ownerId && (!domain || record.domain === domain));
   const groups = new Map<string, ExperienceRecord[]>();
   for (const record of records) groups.set(patternKey(record), [...(groups.get(patternKey(record)) ?? []), record]);
   return [...groups.entries()]
@@ -49,7 +51,7 @@ export async function deriveExperiencePatterns(domain?: string, minimumOccurrenc
     .sort((left, right) => right.confidence - left.confidence || right.occurrences - left.occurrences);
 }
 
-export async function deriveExperienceInsights(domain?: string): Promise<ExperienceInsight[]> {
-  const patterns = await deriveExperiencePatterns(domain);
+export async function deriveExperienceInsights(domain?: string, ownerId?: string): Promise<ExperienceInsight[]> {
+  const patterns = await deriveExperiencePatterns(domain, 2, ownerId);
   return patterns.map((pattern) => ({ id: `insight-${pattern.id}`, patternId: pattern.id, statement: `No domínio ${pattern.domain}, a experiência acumulada sugere repetir a relação observada antes de propor uma alternativa.`, confidence: pattern.confidence, evidence: pattern.evidence, generatedAt: new Date().toISOString() }));
 }

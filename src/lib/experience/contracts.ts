@@ -11,6 +11,7 @@ export type ExperiencePrivacyScope = typeof EXPERIENCE_SCOPES[number];
 
 export interface ExperienceEvent {
   id: string;
+  ownerId?: string;
   timestamp: string;
   actor: "USER" | "AGENT" | "SYSTEM";
   agentId?: string;
@@ -46,6 +47,7 @@ export type LearningExclusionScope = "GLOBAL" | "DOMAIN" | "AGENT" | "MODULE" | 
 
 export interface LearningExclusion {
   id: string;
+  ownerId?: string;
   scope: LearningExclusionScope;
   scopeId?: string;
   reason?: string;
@@ -54,6 +56,7 @@ export interface LearningExclusion {
 
 export interface Preference {
   id: string;
+  ownerId?: string;
   subject: string;
   domain: string;
   key: string;
@@ -97,6 +100,7 @@ export interface FeedbackInput {
 
 export interface ExperienceRecord {
   id: string;
+  ownerId?: string;
   domain: string;
   context: Record<string, unknown>;
   situation: string;

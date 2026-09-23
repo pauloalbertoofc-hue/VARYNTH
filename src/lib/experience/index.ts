@@ -12,3 +12,5 @@ export * from "./retrospective-service";
 export * from "./learning-policy";
 export * from "./learning-exclusion-service";
 export * from "./pattern-service";
+export * from "./preference-candidate-service";
+export * from "./identity";

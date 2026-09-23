@@ -12,12 +12,16 @@ The Experience Layer separates raw observation from interpreted personalization.
 - `PreferenceCandidate` is a hypothesis requiring evidence.
 - `Preference` is scoped, confidence-bearing and reversible.
 
+Every newly written event, preference, retained experience, and learning exclusion carries the authenticated account's stable `ownerId`. Repository reads and destructive operations are constrained to that owner. Preferences and retained experiences also verify that every provenance event exists and belongs to the same account. Ownerless legacy events cannot become learning signals; legacy preferences/experiences stay out of account retrieval and export. They are not silently attached to whichever account logs in next; a reviewed migration/export path is still required to reclaim them safely.
+
+The live Athena cognitive path includes this account-scoped context only when the local Ollama agent is selected. Deterministic/offline responses and operational tool execution do not consume personalization yet. Context carries evidence references and an explicit instruction-precedence marker; it is not an online-training signal.
+
 ## Resolution
 
-Current user instructions override all stored preferences. When no current instruction exists, the resolver selects applicable preferences by scope specificity, then confidence. System policies and permissions remain outside personalization and always win.
+Current user instructions override all stored preferences. The context builder still retrieves applicable preferences alongside an ordinary task, and labels the precedence contract as `CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION`; this avoids treating every task as a blanket request to suppress personalization. The consumer must honor that contract when a preference conflicts with the current instruction. When no conflict exists, the resolver selects applicable preferences by scope specificity, then confidence. System policies and permissions remain outside personalization and always win.
 
 Retained experiences are retrieved only for a matching scope: `GLOBAL`, the requested `DOMAIN`, or the exact `AGENT`, `MODULE`, `PROJECT`, `ARTIFACT`, or `SESSION` identifier. A missing identifier does not widen access; it hides records that require that scope. Relevance ranking and context budgets run only after this authorization filter.
 
-Agent-generated events are not learning-eligible by default. Confirmation changes provenance to `MANUAL`; rejection and forgetting remain explicit state operations.
+Agent-generated events are not learning-eligible by default. Preference candidate extraction also requires event ownership to match the current account. Confirmation changes provenance to `MANUAL`; rejection and forgetting remain explicit state operations. Forgetting one account's event only updates evidence owned by that same account.
 
-No model weights, prompts, agent identity or personality are rewritten by this layer.
+No model weights, persistent system prompt, agent identity or personality are rewritten by this layer. The selected local agent receives a bounded, request-time context packet.

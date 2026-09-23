@@ -44,11 +44,14 @@ export function collectAudioLearningObservations(previous: AudioDocumentState, n
 
 export class AudioLearningAdapter {
   async record(input: AudioLearningInput): Promise<ExperienceEvent> {
+    const preferenceSignal = input.action === "BPM_CHANGED" && typeof input.before === "number" && Number.isFinite(input.before) && typeof input.after === "number" && Number.isFinite(input.after) && input.before !== input.after
+      ? { key: "tempoDirection", value: input.after > input.before ? "increase" : "decrease" }
+      : undefined;
     return experienceService.record({
       actor: "USER", actionType: input.action === "COMPOSITION_PROPOSAL_ACCEPTED" ? "PROPOSAL_ACCEPTED" : input.action === "COMPOSITION_PROPOSAL_REJECTED" ? "PROPOSAL_REJECTED" : "USER_ACTION",
       moduleId: "audio", domain: "audio", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
       before: input.before, after: input.after, correlationId: input.correlationId,
-      metadata: { audioAction: input.action }, source: input.source || "audio-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: true,
+      metadata: { audioAction: input.action, ...(preferenceSignal ? { preferenceSignal } : {}) }, source: input.source || "audio-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: true,
     });
   }
 }

@@ -1,8 +1,10 @@
 import { experiencePreferenceRepository } from "@/lib/persistence/repositories";
 import { preferenceService } from "./preference-service";
+import { seedExperienceEvidence } from "./experience-test-fixtures";
 
 async function run() {
   await experiencePreferenceRepository.clear();
+  await seedExperienceEvidence(["event-1", "event-2"]);
   const evidence = [{ eventId: "event-1", weight: "VERY_HIGH" as const, reason: "confirmação explícita" }];
   const inferred = await preferenceService.propose({ subject: "usuário", domain: "music", key: "tempo", value: "moderado", scope: "DOMAIN", scopeId: "music", evidence, proposedAt: new Date().toISOString() });
   if (inferred.status !== "INFERRED" || inferred.confidence !== 0.5) throw new Error("candidate inference failed");

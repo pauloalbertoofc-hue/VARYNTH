@@ -1,8 +1,10 @@
 import { experienceRepository } from "@/lib/persistence/repositories";
 import { retrieveExperiences, retainExperience } from "./outcome-service";
+import { seedExperienceEvidence } from "./experience-test-fixtures";
 
 async function run() {
   await experienceRepository.clear();
+  await seedExperienceEvidence(["export-1"]);
   const saved = await retainExperience({ domain: "music", context: { style: "cinematic" }, situation: "dialogue-heavy scene", action: "reduce piano reverb", outcome: "kept in exported version", usefulness: 0.9, evidence: [{ eventId: "export-1", weight: "HIGH", reason: "resultado final" }], scope: "PROJECT", scopeId: "project-1" });
   if (saved.confidence !== 0.5 || (await retrieveExperiences("music", "project-1")).length !== 1) throw new Error("experience retention failed");
   let failed = false;
@@ -10,6 +12,7 @@ async function run() {
   if (!failed) throw new Error("invalid experience accepted");
 
   await experienceRepository.clear();
+  await seedExperienceEvidence(["scope-event"]);
   const evidence = [{ eventId: "scope-event", weight: "HIGH" as const, reason: "scope test" }];
   const fixtures = [
     ["global", "GLOBAL", undefined], ["domain", "DOMAIN", "music"], ["project-a", "PROJECT", "project-a"],

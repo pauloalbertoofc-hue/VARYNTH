@@ -2,6 +2,7 @@ import { experienceEventRepository, experiencePreferenceRepository, experienceRe
 import { ExperienceEvent, ExperienceEventInput, validateExperienceEvent } from "./contracts";
 import { evaluateLearningEligibility, findLearningExclusion } from "./learning-policy";
 import { confidenceFromEvidence } from "./signals";
+import { getExperienceOwnerId } from "./identity";
 
 const MAX_METADATA_KEYS = 40;
 const MAX_EVENT_BYTES = 80_000;
@@ -16,10 +17,12 @@ function safeSize(value: unknown): number {
 
 export class ExperienceService {
   async record(input: ExperienceEventInput): Promise<ExperienceEvent> {
+    const ownerId = await getExperienceOwnerId(input.ownerId);
     const metadata = input.metadata && typeof input.metadata === "object" ? input.metadata : {};
     if (Object.keys(metadata).length > MAX_METADATA_KEYS) throw new Error("[EXPERIENCE_EVENT_INVALID] metadata excede o limite.");
     let event = validateExperienceEvent({
       ...input,
+      ownerId,
       id: input.id || eventId(),
       timestamp: input.timestamp || new Date().toISOString(),
       schemaVersion: 1,
@@ -32,21 +35,26 @@ export class ExperienceService {
     }
     if (safeSize(event) > MAX_EVENT_BYTES) throw new Error("[EXPERIENCE_EVENT_INVALID] evento excede o limite de tamanho.");
     const duplicate = await experienceEventRepository.getById(event.id);
-    if (duplicate) return duplicate;
+    if (duplicate) {
+      if (duplicate.ownerId !== ownerId) throw new Error("[EXPERIENCE_EVENT_ID_COLLISION] O identificador já pertence a outra conta.");
+      return duplicate;
+    }
     return experienceEventRepository.save(event);
   }
 
-  async list(filter?: (event: ExperienceEvent) => boolean): Promise<ExperienceEvent[]> {
-    return experienceEventRepository.getAll(filter);
+  async list(filter?: (event: ExperienceEvent) => boolean, requestedOwnerId?: string): Promise<ExperienceEvent[]> {
+    const ownerId = await getExperienceOwnerId(requestedOwnerId);
+    return experienceEventRepository.getAll((event) => event.ownerId === ownerId && (!filter || filter(event)));
   }
 
-  async forget(eventIdToForget: string): Promise<boolean> {
+  async forget(eventIdToForget: string, requestedOwnerId?: string): Promise<boolean> {
     if (!eventIdToForget.trim()) return false;
+    const ownerId = await getExperienceOwnerId(requestedOwnerId);
     const event = await experienceEventRepository.getById(eventIdToForget);
-    if (!event) return false;
+    if (!event || event.ownerId !== ownerId) return false;
     const [preferences, experiences] = await Promise.all([
-      experiencePreferenceRepository.getAll((item) => item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
-      experienceRepository.getAll((item) => item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
+      experiencePreferenceRepository.getAll((item) => item.ownerId === ownerId && item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
+      experienceRepository.getAll((item) => item.ownerId === ownerId && item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
     ]);
     for (const preference of preferences) {
       const evidence = preference.evidence.filter((item) => item.eventId !== eventIdToForget);

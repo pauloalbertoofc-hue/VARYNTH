@@ -1,8 +1,10 @@
 import { experiencePreferenceRepository } from "@/lib/persistence/repositories";
 import { preferenceService } from "./preference-service";
+import { seedExperienceEvidence } from "./experience-test-fixtures";
 
 async function run() {
   await experiencePreferenceRepository.clear();
+  await seedExperienceEvidence(["explicit", "implicit"]);
   const confirmed = await preferenceService.propose({ subject: "user", domain: "ui", key: "density", value: "compact", scope: "GLOBAL", evidence: [{ eventId: "explicit", weight: "VERY_HIGH", reason: "manual" }], proposedAt: "2026-01-01T00:00:00.000Z" });
   await preferenceService.setStatus(confirmed.id, "CONFIRMED");
   const inferred = await preferenceService.propose({ subject: "user", domain: "music", key: "tempo", value: "fast", scope: "DOMAIN", scopeId: "music", evidence: [{ eventId: "implicit", weight: "HIGH", reason: "repeated edit" }], proposedAt: "2026-01-01T00:00:00.000Z" });

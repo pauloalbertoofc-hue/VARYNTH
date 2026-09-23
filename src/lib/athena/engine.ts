@@ -35,8 +35,10 @@ import { capabilityPlanStore } from "./runtime/capability-plan-store";
 import { athenaObservabilityJournal } from "./observability/local-observability-journal";
 import { processStudioConversation } from "./conversation/studio-continuity";
 import { athenaConversationFeedback } from "./conversation/quality-feedback";
+import { buildExperienceContext } from "@/lib/experience/context-builder";
 
 export interface AthenaEngineContext {
+  experienceOwnerId?: string;
   projects: Project[];
   tasks: Task[];
   vaultItems: VaultItem[];
@@ -370,6 +372,18 @@ export async function processAthenaQueryAsync(
   if (isOllamaOnline && ollamaAdapter.activeModel && contractDecision.contract === "USE_AGENT") {
     try {
       const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
+      const experienceDomain = scope === "juridico" ? "legal" : scope === "pesquisa" ? "research" : scope === "produtividade" ? "productivity" : undefined;
+      const experienceContext = await buildExperienceContext({
+        requester: ctx.experienceOwnerId ? `user:${ctx.experienceOwnerId}` : "local-owner",
+        ownerId: ctx.experienceOwnerId,
+        domain: experienceDomain,
+        agentId: capabilitySelection?.selected?.id || "athena",
+        moduleId: "athena",
+        projectId: resolvedProjectId,
+        sessionId,
+        currentInstruction: prompt,
+        budget: 8,
+      });
       const contextData = {
         activeProject: activeProj ? { title: activeProj.title, category: activeProj.category, status: activeProj.status } : null,
         recentTasks: ctx.tasks.slice(0, 5).map((t) => ({ title: t.title, priority: t.priority })),
@@ -377,11 +391,16 @@ export async function processAthenaQueryAsync(
         keyFacts: responseIntent.keyFacts,
         responseMode: responseIntent.mode,
         responseTone: responseIntent.tone,
+        experience: {
+          preferences: experienceContext.preferences,
+          priorExperiences: experienceContext.experiences,
+          instructionPrecedence: experienceContext.instructionPrecedence,
+        },
       };
 
       const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
 Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
-Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando com o Paulo, criador do VARYNTH OS.`;
+Respeite estritamente os fatos fornecidos em keyFacts. O bloco experience contém preferências e experiências anteriores da conta autenticada, não fatos universais. Trate inferências como incertas, use apenas o que for pertinente e nunca as aplique quando conflitarem com a instrução atual do usuário; instrução atual, política de projeto e permissões têm precedência. Você está conversando com o Paulo, criador do VARYNTH OS.`;
 
       const modelResponse = await athenaInteractionContractGateway.executeAsync(
         contractDecision,
@@ -405,6 +424,11 @@ Respeite estritamente os fatos fornecidos em keyFacts. Você está conversando c
             metadata: {
               engine: "ollama-local",
               model: ollamaAdapter.activeModel,
+              experienceContext: {
+                preferenceIds: experienceContext.preferences.map((preference) => preference.id),
+                experienceIds: experienceContext.experiences.map((experience) => experience.id),
+                instructionPrecedence: experienceContext.instructionPrecedence,
+              },
               debug: {
                 interactionType: parsed.interactionType,
                 detectedIntents: parsed.intents,

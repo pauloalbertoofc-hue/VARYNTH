@@ -1,5 +1,6 @@
 import { experienceEventRepository, experienceRepository } from "@/lib/persistence/repositories";
 import { ExperienceRecord, EvidenceRef } from "./contracts";
+import { getExperienceOwnerId } from "./identity";
 
 export interface ProjectRetrospective {
   projectId: string;
@@ -12,10 +13,11 @@ export interface ProjectRetrospective {
   generatedAt: string;
 }
 
-export async function buildProjectRetrospective(projectId: string): Promise<ProjectRetrospective> {
+export async function buildProjectRetrospective(projectId: string, requestedOwnerId?: string): Promise<ProjectRetrospective> {
   if (!projectId.trim()) throw new Error("[RETROSPECTIVE_INVALID] projectId obrigatório.");
-  const events = await experienceEventRepository.getAll((event) => event.projectId === projectId);
-  const experiences = await experienceRepository.getAll((record) => record.scopeId === projectId || record.scope !== "PROJECT");
+  const ownerId = await getExperienceOwnerId(requestedOwnerId);
+  const events = await experienceEventRepository.getAll((event) => event.ownerId === ownerId && event.projectId === projectId);
+  const experiences = await experienceRepository.getAll((record) => record.ownerId === ownerId && (record.scopeId === projectId || record.scope !== "PROJECT"));
   const evidence = events.map((event) => ({ eventId: event.id, weight: event.actor === "USER" ? "HIGH" as const : "LOW" as const, reason: `evento ${event.actionType}` }));
   return {
     projectId,
