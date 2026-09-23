@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { domainRegistry, type DomainDefinition } from "./domain-registry";
+import { domainRegistry, mergeDomainDefinitions, DEFAULT_DOMAIN_DEFINITIONS, type DomainDefinition } from "./domain-registry";
 
 const REGISTRY_KEY = "varynth:knowledge:domain-registry:v1";
 const LOCAL_FILE = path.join(process.cwd(), ".varynth-data", "domain-registry.json");
@@ -56,7 +56,7 @@ export async function readPersistedDomainRegistry(options: DomainRegistryStoreOp
 
 export async function hydrateDomainRegistryFromPersistence(): Promise<StoredDomainRegistry | null> {
   const stored = await readPersistedDomainRegistry();
-  if (stored) domainRegistry.replaceDomains(stored.domains);
+  if (stored) domainRegistry.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, stored.domains));
   return stored;
 }
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { DomainRegistry } from "./domain-registry";
+import { DEFAULT_DOMAIN_DEFINITIONS, DomainRegistry, mergeDomainDefinitions } from "./domain-registry";
 
 const registry = new DomainRegistry();
 registry.register({ id: "music", label: "Music", specialists: [], capabilities: [], relatedDomains: [], enabled: true });
@@ -24,4 +24,10 @@ assert.throws(() => registry.register({ id: "music.game-audio", label: "Cycle", 
 const restored = new DomainRegistry(false);
 restored.replaceDomains(registry.listAllDomains());
 assert.deepEqual(restored.listAllDomains(), registry.listAllDomains());
+const merged = new DomainRegistry(false);
+merged.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, [{ id: "music", label: "Custom Music", primaryOwner: "custom-owner", specialists: ["custom-owner"], capabilities: [], relatedDomains: [], enabled: true }]));
+assert.equal(merged.getDomain("music.theory.harmony")?.parentId, "music.theory");
+assert.equal(merged.resolveOwner("music.theory.harmony"), "custom-owner");
+assert.ok(merged.listHierarchy("legal").some((domain) => domain.id === "legal.intellectual-property"));
+assert.ok(merged.resolveCapabilities("music.theory.harmony").includes("music.explainTheory"));
 console.log("Domain registry tests passed");
