@@ -2,6 +2,7 @@ import { experienceEventRepository, experiencePreferenceRepository } from "@/lib
 import { EvidenceRef, Preference, PreferenceCandidate, PreferenceScope, PreferenceStatus } from "./contracts";
 import { confidenceFromEvidence } from "./signals";
 import { getExperienceOwnerId } from "./identity";
+import { experienceService } from "./experience-service";
 
 const scopeRank: Record<PreferenceScope, number> = { GLOBAL: 1, DOMAIN: 2, AGENT: 3, MODULE: 3, PROJECT: 4, ARTIFACT: 5, SESSION: 6 };
 
@@ -10,6 +11,32 @@ function idFor(candidate: PreferenceCandidate, ownerId: string): string {
 }
 
 export class PreferenceService {
+  async declare(input: { domain: string; key: string; value: unknown; scope: Extract<PreferenceScope, "GLOBAL" | "DOMAIN">; scopeId?: string }, requestedOwnerId?: string): Promise<Preference> {
+    const ownerId = await getExperienceOwnerId(requestedOwnerId);
+    const domain = input.domain.trim().toLowerCase();
+    const key = input.key.trim();
+    const scopeId = input.scope === "DOMAIN" ? (input.scopeId?.trim() || domain) : undefined;
+    if (!/^[a-z][a-z0-9_.-]{1,63}$/.test(domain) || !/^[a-z][a-zA-Z0-9_.-]{1,63}$/.test(key) || input.value === undefined || (input.scope === "DOMAIN" && !scopeId)) {
+      throw new Error("[PREFERENCE_INVALID] Domínio, chave, valor ou escopo inválido.");
+    }
+    const candidate: PreferenceCandidate = { subject: ownerId, domain, key, value: input.value, scope: input.scope, scopeId, evidence: [], proposedAt: new Date().toISOString() };
+    const id = idFor(candidate, ownerId);
+    const stored = await experiencePreferenceRepository.getById(id);
+    if (stored && stored.ownerId !== ownerId) throw new Error("[PREFERENCE_OWNER_MISMATCH] O identificador pertence a outra conta.");
+    const event = await experienceService.record({
+      ownerId, actor: "USER", actionType: "PREFERENCE_CONFIRMED", domain, metadata: { preferenceKey: key, preferenceValue: input.value, preferenceScope: input.scope, preferenceScopeId: scopeId },
+      source: "experience-manual-preference", privacyScope: "USER_SHARED", learningEligible: false,
+    });
+    const now = new Date().toISOString();
+    const preference: Preference = {
+      id, ownerId, subject: ownerId, domain, key, value: input.value, scope: input.scope, scopeId,
+      confidence: 1, status: "CONFIRMED", source: "MANUAL",
+      evidence: [...(stored?.evidence || []).filter((item) => item.eventId !== event.id), { eventId: event.id, weight: "VERY_HIGH", reason: "Preferência declarada diretamente pelo usuário." }],
+      createdAt: stored?.createdAt || now, updatedAt: now, lastObservedAt: now,
+    };
+    return experiencePreferenceRepository.save(preference);
+  }
+
   async propose(candidate: PreferenceCandidate, requestedOwnerId?: string): Promise<Preference> {
     if (!candidate.evidence.length) throw new Error("[PREFERENCE_INVALID] Preferência inferida exige evidência.");
     const ownerId = await getExperienceOwnerId(requestedOwnerId);
