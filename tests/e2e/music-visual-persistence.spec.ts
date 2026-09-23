@@ -172,6 +172,31 @@ test("keeps covers attached to their own tracks when the selection changes", asy
   expect(reloadedCovers.find((track) => /cover-track-two/i.test(track.name))?.cover).toBe(secondCover);
 });
 
+test("keeps Euterpe present after playback ends and moves her to a rest spot after three idle minutes", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.clock.install({ time: new Date("2026-09-23T12:00:00.000Z") });
+  await page.goto("/modules/music");
+  await page.locator('input[type="file"][accept*="audio"]').setInputFiles({
+    name: "euterpe-idle-presence.wav",
+    mimeType: "audio/wav",
+    buffer: shortWav(),
+  });
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(page.getByRole("button", { name: /euterpe-idle-presence/i }).first()).toBeVisible({ timeout: 20_000 });
+  const presence = page.getByTestId("euterpe-presence");
+  await expect(presence).toBeVisible();
+
+  await page.getByRole("button", { name: "Tocando agora" }).click();
+  await page.getByRole("button", { name: "Reproduzir" }).click();
+  await page.waitForFunction(() => document.querySelector("audio")?.ended === true, undefined, { timeout: 10_000 });
+  await expect(presence).toBeVisible();
+
+  await page.clock.fastForward(181_000);
+  await expect(presence).toHaveAttribute("data-idle-phase", "REST_ELIGIBLE");
+  await expect(presence.getByRole("button")).toHaveAttribute("aria-label", /Euterpe, descansando/i);
+  await expect(presence).toBeVisible();
+});
+
 test("restores a track's saved motion and environment effect on another signed-in device", async ({ browser }) => {
   test.setTimeout(90_000);
   const trackId = "c3d33f84-c9cf-4c62-90ad-a5acfeb0a65f";
