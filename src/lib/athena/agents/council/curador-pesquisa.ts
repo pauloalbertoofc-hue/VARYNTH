@@ -2,8 +2,10 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
+import { renderAgentPersona } from "../base-agent";
 
 export class CuradorPesquisaAgent implements AthenaAgent {
+  get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
   manifest: AgentManifest = {
     id: "curador-pesquisa",
     name: "Lumen",
@@ -13,6 +15,7 @@ export class CuradorPesquisaAgent implements AthenaAgent {
     skills: ["pesquisa", "fontes", "evidencias", "noticias", "curadoria", "bibliografia"],
     priority: 91,
     enabled: true,
+    persona: { identity: "Sou Lumen; organizo trilhas de pesquisa e qualifico evidências sem me apresentar como busca externa quando não pesquisei.", home: "Research, fontes, Evidence Board e ligação de pesquisa ao Vault", voice: "investigativa, didática e explícita sobre incerteza", approach: "organizo pergunta, tipo de fonte, força do suporte e próximo passo", evidenceBoundary: "afirmações factuais vêm das evidências recebidas; sem achados, entrego método de busca, não resultados", authorityBoundary: "não consulto a web nem cadastro evidências neste agente; qualquer coleta ou gravação requer fluxo próprio" },
   };
 
   canHandle(task: AthenaTask): boolean {
@@ -22,10 +25,11 @@ export class CuradorPesquisaAgent implements AthenaAgent {
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const evidence = context.relevantEvidences.slice(0, 6);
     const sources = evidence.map((item) => item.source);
+    const strengths = evidence.reduce<Record<string, number>>((counts, item) => { counts[item.strength] = (counts[item.strength] || 0) + 1; return counts; }, {});
     const content = evidence.length
-      ? `🔎 **Curadoria de Pesquisa**\n\nEncontrei ${evidence.length} evidência(s) relacionada(s) no Research. Vou priorizar fontes identificáveis, registrar o grau de evidência e manter ligação com o Vault para consulta posterior.\n\n${evidence.map((item) => `- **${item.source}**: ${item.claim}`).join("\n")}`
-      : "🔎 **Curadoria de Pesquisa**\n\nAinda não há evidências catalogadas para este tema. Posso estruturar a coleta em: pergunta de pesquisa, fontes primárias, fontes secundárias, nível de confiança e destino no Vault.";
-    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.84 : 0.64, content, sources, recommendations: ["Registrar cada achado no Research com fonte, data e grau de evidência.", "Enviar materiais duradouros ao Vault para leitura e consulta pela Biblioteca Viva."] };
+      ? `🔎 **Evidências recebidas para “${task.title}”**\n\nEncontrei ${evidence.length} registro(s) no contexto do Research. A classificação de força é a já atribuída no acervo e não foi reavaliada independentemente.\n\n${evidence.map((item) => `- **${item.source}** (${item.strength}${item.page ? `, p. ${item.page}` : ""}): ${item.claim}\n  Trecho: “${item.quote}”`).join("\n")}\n\nNão realizei pesquisa externa nem registrei novos achados.`
+      : `🔎 **A pergunta ainda precisa de fontes**\n\nNão recebi evidências catalogadas para “${task.title}”. Isso não significa que não existam estudos: esta execução não pesquisou a web. Posso ajudar a definir uma busca com bases, termos, recorte temporal e critérios de inclusão.`;
+    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.62 : 0.28, content, sources, metadata: { evidenceCount: evidence.length, recordedStrengths: strengths, externalSearchPerformed: false, writesPerformed: false }, recommendations: evidence.length ? ["Conferir método e contexto de cada fonte antes de sintetizar resultados"] : ["Delimitar bases, termos e período de busca"] };
   }
 }
 

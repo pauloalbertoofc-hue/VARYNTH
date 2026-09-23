@@ -67,7 +67,7 @@
     "test:athena-observability": "npx tsx src/lib/athena/tests/athena-observability.test.ts",
     "test:athena-core-certification": "npx tsx src/lib/athena/tests/operational-core-certification.test.ts",
     "test:athena-contract-versioning": "npx tsx src/lib/athena/tests/contract-versioning-certification.test.ts",
-    "test:athena-capabilities": "npx tsx src/lib/athena/tests/capability-selection.test.ts",
+    "test:athena-capabilities": "npx tsx src/lib/athena/tests/capability-selection.test.ts && npx tsx src/lib/athena/agents/council/agent-persona-grounding.test.ts",
     "test:athena-capability-plans": "npx tsx src/lib/athena/tests/capability-plan.test.ts",
     "test:athena-plan-recovery": "npx tsx src/lib/athena/tests/capability-plan-recovery.test.ts",
     "test:athena-plan-ui": "npx tsx src/lib/athena/tests/capability-plan-ui.test.ts",

@@ -58,7 +58,7 @@ assert(missing.status === "NO_MATCH", "Unavailable explicit capability must fail
 const tiedTask = { ...task, id: "tie-task", rawPrompt: "capability tie probe", type: "GENERAL_DELIBERATION" as const };
 for (const id of ["tie-a", "tie-b"]) {
   const tiedAgent: AthenaAgent = {
-    manifest: { id, name: id, role: "test", version: "1", description: "test", skills: [], priority: 99, enabled: true },
+    manifest: { id, name: id, role: "test", version: "1", description: "test", skills: [], priority: 99, enabled: true, persona: { identity: "Teste", home: "Teste", voice: "neutra", approach: "testa", evidenceBoundary: "nenhuma", authorityBoundary: "nenhuma" } },
     canHandle: (candidate) => candidate.id === "tie-task",
     execute: async () => ({ agentId: id, agentName: id, role: "test", success: true, content: "test", confidence: 1 }),
   };

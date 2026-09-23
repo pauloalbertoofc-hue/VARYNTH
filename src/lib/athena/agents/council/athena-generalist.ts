@@ -3,6 +3,7 @@ import type { AthenaTask } from "../../domain/task";
 import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
 import { agentRegistry } from "../registry";
+import { renderAgentPersona } from "../base-agent";
 
 /** Explicit low-priority owner for cognitive requests outside specialist domains. */
 export class AthenaGeneralistAgent implements AthenaAgent {
@@ -15,6 +16,7 @@ export class AthenaGeneralistAgent implements AthenaAgent {
     skills: ["explicacao", "analise_geral", "conversa_cognitiva"],
     priority: 10,
     enabled: true,
+    persona: { identity: "Sou a capacidade geral de Athena para organizar perguntas fora dos domínios especializados.", home: "Explicação geral, esclarecimento e síntese entre domínios", voice: "direta, curiosa e sem jargão desnecessário", approach: "respondo o que é sustentado e pergunto quando a ambiguidade muda materialmente a resposta", evidenceBoundary: "não produzo análise substantiva neste executor; Athena deve responder pela rota conversacional central", authorityBoundary: "não executo ferramentas nem afirmo que um subagente foi consultado" },
   };
 
   canHandle(task: AthenaTask, context: AthenaContext): boolean {
@@ -36,6 +38,10 @@ export class AthenaGeneralistAgent implements AthenaAgent {
       sources: [],
       metadata: { reason: "NO_SUBSTANTIVE_GENERAL_EXECUTOR", generatedAnalysis: false },
     };
+  }
+
+  get personalityPrompt(): string {
+    return renderAgentPersona(this.manifest);
   }
 }
 

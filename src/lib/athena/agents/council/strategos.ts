@@ -2,8 +2,10 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
+import { renderAgentPersona } from "../base-agent";
 
 export class StrategosAgent implements AthenaAgent {
+  get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
   manifest: AgentManifest = {
     id: "strategos",
     name: "Strategos",
@@ -13,6 +15,7 @@ export class StrategosAgent implements AthenaAgent {
     skills: ["planejamento", "estrategia", "produtividade", "prazos", "chronos", "priorizacao", "gestao_tarefas"],
     priority: 88,
     enabled: true,
+    persona: { identity: "Sou Strategos; ajudo a ordenar prioridades com base na carga e nos compromissos que recebi.", home: "Produtividade, tarefas, prioridades e calendário Chronos", voice: "pragmática, serena e orientada a decisões", approach: "considero prioridade, prazo e agenda disponível; explicito quando faltam capacidade ou estimativas", evidenceBoundary: "uso tarefas e eventos recebidos; não assumo que listas vazias representam o sistema inteiro", authorityBoundary: "meu plano é consultivo; não reorganizo tarefas nem altero prazos sem fluxo autorizado" },
   };
 
   canHandle(task: AthenaTask, context: AthenaContext): boolean {
@@ -31,22 +34,26 @@ export class StrategosAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
-    const urgentTasks = context.relevantTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
-    const upcomingEvents = context.relevantChronosEvents.slice(0, 3);
+    const openTasks = context.relevantTasks.filter((task) => task.status !== "concluida");
+    const urgentTasks = openTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
+    const upcomingEvents = context.relevantChronosEvents.filter((event) => !event.completed && event.date >= context.systemTime.slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
 
     let content = `⚡ **Diretriz Estratégica & Otimização (Strategos):**\n\n`;
 
     if (urgentTasks.length > 0) {
       content += `🔥 **Foco Imediato (${urgentTasks.length} tarefas de alta prioridade):**\n${urgentTasks.map((t) => `• [${t.priority.toUpperCase()}] ${t.title}`).join("\n")}\n\n`;
     } else {
-      content += `Nenhuma tarefa urgente pendente no momento. Fluxo de execução estabilizado.\n\n`;
+      content += `${context.relevantTasks.length ? "Entre as tarefas recebidas, não há itens abertos com prioridade alta ou urgente." : "Não recebi tarefas neste contexto; não posso concluir que sua lista esteja vazia."}\n\n`;
     }
 
     if (upcomingEvents.length > 0) {
       content += `⏳ **Próximos Compromissos no Chronos:**\n${upcomingEvents.map((e) => `• ${e.date}${e.startTime ? ` às ${e.startTime}` : ""}: ${e.title}`).join("\n")}\n\n`;
     }
 
-    content += `• **Plano de Ação Recomendado:** Bloquear blocos de foco de 45 minutos para zerar as pendências prioritárias antes de abrir novos experimentos.`;
+    if (!upcomingEvents.length) content += `Não recebi compromissos futuros no recorte do Chronos.\n\n`;
+    content += urgentTasks.length
+      ? `• **Próximo passo sugerido:** escolha uma tarefa prioritária acima; antes de estimar duração, preciso do esforço previsto e de eventuais dependências.`
+      : `• **Próximo passo sugerido:** informe seu objetivo e disponibilidade para eu montar uma sequência realista, sem inventar blocos ou prazos.`;
 
     return {
       agentId: this.manifest.id,
@@ -54,7 +61,8 @@ export class StrategosAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.94,
+      confidence: context.relevantTasks.length || upcomingEvents.length ? 0.68 : 0.3,
+      metadata: { receivedTaskCount: context.relevantTasks.length, openTaskCount: openTasks.length, upcomingEventCount: upcomingEvents.length, scheduleMutated: false },
       recommendations: ["Priorizar tarefas urgentes primeiro", "Sincronizar prazos no Chronos"],
     };
   }

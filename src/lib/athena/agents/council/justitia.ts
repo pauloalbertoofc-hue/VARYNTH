@@ -2,8 +2,10 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
+import { renderAgentPersona } from "../base-agent";
 
 export class JustitiaAgent implements AthenaAgent {
+  get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
   manifest: AgentManifest = {
     id: "justitia",
     name: "Justitia",
@@ -13,6 +15,7 @@ export class JustitiaAgent implements AthenaAgent {
     skills: ["direito", "legislacao", "jurisprudencia", "precedentes", "stf", "stj", "argumentacao_juridica"],
     priority: 90,
     enabled: true,
+    persona: { identity: "Sou Justitia; ajudo a organizar questões jurídicas sem substituir aconselhamento profissional.", home: "Argument Arena, teses jurídicas, precedentes e acervo legal do Vault", voice: "precisa, sóbria e dialética", approach: "separo controvérsia, argumentos favoráveis, objeções e estado das fontes", evidenceBoundary: "uso somente teses, precedentes e itens legais presentes no contexto; não invento lei ou jurisprudência", authorityBoundary: "minha análise é informativa e não constitui parecer profissional nem executa alterações" },
   };
 
   canHandle(task: AthenaTask, context: AthenaContext): boolean {
@@ -51,7 +54,10 @@ export class JustitiaAgent implements AthenaAgent {
         content += `• **Precedentes Vinculantes:** ${thesis.precedents.join(", ")}\n`;
       }
     } else {
-      content += `Analisei a consulta sob a ótica jurídica. Nenhuma tese formal está aberta na Argument Arena no momento. Recomendo cadastrar a controvérsia para estruturar o quadro dialético com base no acervo de legislação e precedentes do Vault.`;
+      content += `Não recebi uma tese formal relevante na Argument Arena. Portanto, ainda não posso avaliar os argumentos concretos do caso. `;
+      content += vaultLegal.length
+        ? `Há ${vaultLegal.length} item(ns) jurídicos no contexto, listados abaixo; sua pertinência precisa ser conferida em relação à pergunta.`
+        : `Também não recebi legislação ou jurisprudência relevante no contexto; não vou inventar normas ou precedentes. Informe a questão jurídica concreta ou selecione fontes do Vault.`;
     }
 
     if (vaultLegal.length > 0) {
@@ -64,8 +70,9 @@ export class JustitiaAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.95,
-      sources: thesis?.precedents || [],
+      confidence: thesis ? 0.82 : vaultLegal.length ? 0.48 : 0.2,
+      sources: [...(thesis?.precedents || []), ...vaultLegal.map((item) => item.title)],
+      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false },
       recommendations: [
         "Verificar conformidade com súmulas vinculantes",
         "Confrontar argumentos contrários no Codex",

@@ -4,6 +4,7 @@ import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
 import { musicSpecialist, type MusicDNA } from "@/lib/music/music-studio";
 import { EUTERPE_PERSONALITY } from "@/lib/music/euterpe";
+import { renderAgentPersona } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
 
 export type MusicAthenaConsult = (userRequest: string) => Promise<{ text: string; metadata?: Record<string, unknown> }>;
@@ -27,7 +28,7 @@ function providedTrack(task: AthenaTask): MusicTrack | undefined {
 }
 
 export class EuterpeAgent implements AthenaAgent {
-  readonly personalityPrompt = EUTERPE_PERSONALITY;
+  get personalityPrompt(): string { return `${EUTERPE_PERSONALITY} ${renderAgentPersona(this.manifest)}`; }
   manifest: AgentManifest = {
     id: "euterpe",
     name: "Euterpe",
@@ -37,6 +38,7 @@ export class EuterpeAgent implements AthenaAgent {
     skills: ["music", "music-dna", "curadoria-musical", "playlists"],
     priority: 70,
     enabled: true,
+    persona: { identity: "Sou Euterpe, presença musical própria e consultiva, subordinada à coordenação geral de Athena.", home: "Music, faixa atual, Music DNA, preferências e propostas visuais ou de playlist", voice: "artística, sensorial, curiosa e naturalmente próxima", approach: "uso a faixa, o DNA e as memórias musicais fornecidas; separo dado acústico de leitura estética", evidenceBoundary: "não invento análise de áudio nem acesso à biblioteca além do contexto entregue", authorityBoundary: "não acesso arquivos nem executo ações sem proposta revisável e confirmação" },
   };
 
   canHandle(task: AthenaTask): boolean {

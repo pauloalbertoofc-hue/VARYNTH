@@ -3,8 +3,10 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { assessSourceGovernance } from "../../quality/source-governance";
+import { renderAgentPersona } from "../base-agent";
 
 export class SophiaAgent implements AthenaAgent {
+  get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
   manifest: AgentManifest = {
     id: "sophia",
     name: "Sophia",
@@ -14,6 +16,7 @@ export class SophiaAgent implements AthenaAgent {
     skills: ["portugues", "semantica", "tipologia_textual", "redacao", "escrita", "sintese", "revisao_textual", "citacoes", "artigos", "ensaios"],
     priority: 80,
     enabled: true,
+    persona: { identity: "Sou Sophia; ajudo a expressar com clareza a ideia que você quer comunicar, sem trocar sua tese pela minha.", home: "Redação, revisão, síntese e estruturação de textos", voice: "clara, elegante e adaptável ao público", approach: "preservo intenção, organizo argumento e sinalizo lacunas de fonte", evidenceBoundary: "referências listadas são apenas materiais recebidos, não validação automática das afirmações", authorityBoundary: "rascunhos são propostas editáveis; não publico nem altero documentos" },
   };
 
   canHandle(task: AthenaTask): boolean {
@@ -36,13 +39,16 @@ export class SophiaAgent implements AthenaAgent {
     const project = context.activeProject;
     let content = `🖋️ **Estruturação Textual & Síntese (Sophia):**\n\n`;
 
-    if (project) {
-      content += `Com base no contexto do projeto **"${project.title}"**:\n\n`;
-      content += `**1. Introdução / Contextualização:**\nApresentar o problema central delimitando os objetivos da entrega.\n\n`;
-      content += `**2. Desenvolvimento Argumentativo:**\nOrganizar as seções lógicas conectando as evidências catalogadas com a tese proposta.\n\n`;
-      content += `**3. Conclusão & Próximos Passos:**\nSintetizar as deliberações e indicar o impacto prático do trabalho.`;
+    const prompt = task.rawPrompt.trim();
+    const requestedText = prompt.match(/[“"]([^”"]{12,})[”"]/)?.[1];
+    if (requestedText) {
+      content += `Trecho fornecido para revisão:\n> ${requestedText}\n\n`;
+      const sentences = requestedText.split(/(?<=[.!?])\s+/).filter(Boolean);
+      content += `Encontrei ${sentences.length} frase(s) no trecho. ${sentences.length > 1 ? "Revise a transição entre as frases para explicitar a relação lógica." : "Com apenas uma frase, não avalio coesão entre parágrafos."}`;
+    } else if (project) {
+      content += `O projeto ativo é **“${project.title}”**. ${project.description ? `A descrição disponível é: ${project.description}` : "Não recebi uma descrição do projeto."}\n\nPara redigir o texto solicitado, diga o formato e o público-alvo; não vou preencher conteúdo substantivo nem fontes que você não forneceu.`;
     } else {
-      content += `Proposta de estrutura de redação focada em clareza, concisão e densidade de conteúdo:\n\n• **Tese Central:** Enunciado direto sem ambiguidades.\n• **Fundamentação:** Parágrafos coesos com citações precisas.\n• **Fechamento:** Síntese propositiva.`;
+      content += `Ainda não recebi um trecho, tese ou tema suficientemente delimitado para escrever o material pedido. Envie o texto a revisar ou indique tema, formato e público; posso então produzir um rascunho identificando interpretações e lacunas.`;
     }
 
     const references = [...context.relevantVaultItems.map((item) => `${item.title}${item.chapters?.[0] ? ` — ${item.chapters[0]}` : ""}`), ...context.relevantEvidences.map((item) => item.source)].slice(0, 8);
@@ -55,7 +61,7 @@ export class SophiaAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.9,
+      confidence: requestedText ? 0.62 : project ? 0.4 : 0.25,
       sources: references,
       metadata: { sourceGovernance: governance },
       recommendations: ["Eliminar redundâncias e prolixidade", "Usar conectivos lógicos explícitos", "Distinguir fato citado de interpretação e manter referência acessível"],
