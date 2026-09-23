@@ -18,7 +18,14 @@ export interface StoredKnowledgeAccount {
 }
 
 export type KnowledgeAccountPersistenceMode = "REDIS" | "LOCAL_FILE" | "UNAVAILABLE";
-export interface KnowledgeAccountStoreOptions { mode?: KnowledgeAccountPersistenceMode; }
+export interface KnowledgeAccountStoreOptions {
+  mode?: KnowledgeAccountPersistenceMode;
+  /** Lease tuning is useful for bounded deployments and deterministic concurrency tests. */
+  redisLockLeaseMs?: number;
+  redisLockRenewalIntervalMs?: number;
+}
+const DEFAULT_LOCK_LEASE_MS = 30_000;
+const DEFAULT_LOCK_RENEWAL_INTERVAL_MS = 10_000;
 let processQueue: Promise<void> = Promise.resolve();
 
 function redisConfig() {
@@ -76,10 +83,19 @@ async function readSnapshot(accountKey: string, options: KnowledgeAccountStoreOp
   }
 }
 
-async function writeSnapshot(accountKey: string, snapshot: StoredKnowledgeAccount, options: KnowledgeAccountStoreOptions): Promise<void> {
+async function writeSnapshot(accountKey: string, snapshot: StoredKnowledgeAccount, options: KnowledgeAccountStoreOptions, lock?: { key: string; token: string }): Promise<void> {
   const mode = options.mode || knowledgeAccountPersistenceMode();
   const serialized = JSON.stringify(snapshot);
-  if (mode === "REDIS") { await redis(["SET", REDIS_PREFIX + accountKey, serialized]); return; }
+  if (mode === "REDIS") {
+    if (!lock) throw new Error("[KNOWLEDGE_WRITE_LOCK_MISSING] Snapshot Redis exige lease ativo.");
+    const result = await redis([
+      "EVAL",
+      "if redis.call('get', KEYS[2]) == ARGV[1] then redis.call('set', KEYS[1], ARGV[2]); return 1 else return 0 end",
+      "2", REDIS_PREFIX + accountKey, lock.key, lock.token, serialized,
+    ]);
+    if (Number(result) !== 1) throw new Error("[KNOWLEDGE_WRITE_LOCK_LOST] Snapshot recusado porque o lease expirou ou mudou de owner.");
+    return;
+  }
   if (mode === "UNAVAILABLE") throw new Error("[KNOWLEDGE_PERSISTENCE_UNAVAILABLE] Configure Redis persistente para servir Knowledge na Vercel.");
   await mkdir(LOCAL_DIRECTORY, { recursive: true });
   const target = path.join(LOCAL_DIRECTORY, accountKey + ".json");
@@ -88,14 +104,55 @@ async function writeSnapshot(accountKey: string, snapshot: StoredKnowledgeAccoun
   await rename(temporary, target);
 }
 
-async function acquireRedisLock(accountKey: string): Promise<{ key: string; token: string }> {
+async function acquireRedisLock(accountKey: string, leaseMs: number): Promise<{ key: string; token: string }> {
   const key = REDIS_PREFIX + accountKey + ":write-lock";
   const token = randomUUID();
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (await redis(["SET", key, token, "NX", "PX", "30000"]) === "OK") return { key, token };
+    if (await redis(["SET", key, token, "NX", "PX", String(leaseMs)]) === "OK") return { key, token };
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
   throw new Error("[KNOWLEDGE_WRITE_BUSY] Outra requisição está atualizando Knowledge; tente novamente.");
+}
+
+function startRedisLockHeartbeat(lock: { key: string; token: string }, leaseMs: number, intervalMs: number) {
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let pending: Promise<void> | undefined;
+  let failure: Error | undefined;
+  const renew = async () => {
+    try {
+      const result = await redis([
+        "EVAL",
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
+        "1", lock.key, lock.token, String(leaseMs),
+      ]);
+      if (Number(result) !== 1) failure = new Error("[KNOWLEDGE_WRITE_LOCK_LOST] Lease Redis não pertence mais a esta operação.");
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error("[KNOWLEDGE_WRITE_LOCK_LOST] Não foi possível renovar o lease Redis.");
+    }
+  };
+  const schedule = () => {
+    if (stopped || failure) return;
+    timer = setTimeout(() => {
+      pending = renew().finally(() => {
+        pending = undefined;
+        schedule();
+      });
+    }, intervalMs);
+    timer.unref?.();
+  };
+  schedule();
+  return {
+    async assertOwned() {
+      if (pending) await pending;
+      if (failure) throw new Error("[KNOWLEDGE_WRITE_LOCK_LOST] Operação abortada para evitar sobrescrita após perda do lease.", { cause: failure });
+    },
+    async stop() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      if (pending) await pending;
+    },
+  };
 }
 
 async function restore(snapshot: StoredKnowledgeAccount) {
@@ -126,14 +183,23 @@ export async function withKnowledgeAccount<T>(accountId: string, operation: () =
   await previous;
 
   let lock: { key: string; token: string } | undefined;
+  let heartbeat: ReturnType<typeof startRedisLockHeartbeat> | undefined;
   try {
-    if (mode === "REDIS") lock = await acquireRedisLock(accountKey);
+    if (mode === "REDIS") {
+      const leaseMs = options.redisLockLeaseMs ?? DEFAULT_LOCK_LEASE_MS;
+      const renewalIntervalMs = options.redisLockRenewalIntervalMs ?? DEFAULT_LOCK_RENEWAL_INTERVAL_MS;
+      if (!Number.isSafeInteger(leaseMs) || !Number.isSafeInteger(renewalIntervalMs) || leaseMs < 3 || renewalIntervalMs < 1 || renewalIntervalMs >= leaseMs / 2) throw new Error("[KNOWLEDGE_LOCK_CONFIG_INVALID] Renewal deve ocorrer antes da metade de um lease válido.");
+      lock = await acquireRedisLock(accountKey, leaseMs);
+      heartbeat = startRedisLockHeartbeat(lock, leaseMs, renewalIntervalMs);
+    }
     const current = await readSnapshot(accountKey, { mode });
     await restore(current);
     const result = await operation();
-    await writeSnapshot(accountKey, await capture(current.revision), { mode });
+    await heartbeat?.assertOwned();
+    await writeSnapshot(accountKey, await capture(current.revision), { mode }, lock);
     return result;
   } finally {
+    await heartbeat?.stop();
     await Promise.all([knowledgeRepository.clear(), knowledgeAccessLogRepository.clear(), knowledgeRelationshipRepository.clear()]);
     invalidateKnowledgeQueryCache();
     if (lock) await redis(["EVAL", "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", "1", lock.key, lock.token]).catch(() => undefined);
