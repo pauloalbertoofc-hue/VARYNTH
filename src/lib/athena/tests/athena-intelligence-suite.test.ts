@@ -1278,14 +1278,15 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
 
   // ATHINT-067: Fact vs Inference boundary
   const r67 = await processAthenaQueryAsync("O relatório CNJ já está 100% pronto para publicação?", "geral", ctx, "proj-2");
+  const r67Debug = r67.metadata?.debug as Record<string, unknown> | undefined;
   record(
     "ATHINT-067",
     "UNCERTAINTY",
-    "Reports actual 60% progress and pending tasks accurately without overconfidence",
+    "Answers selected-project readiness directly from recorded progress and task evidence",
     "O relatório CNJ já está 100% pronto para publicação?",
     "FACT_REPORT",
     "60%_PROGRESS",
-    r67.text.includes("60%") || r67.text.includes("tarefa") || r67.text.includes("andamento") ? "PASS" : "PARTIAL",
+    r67.text.includes("60%") && r67.text.includes("tarefa") && r67Debug?.interactionContract === "ANSWER_SELF" ? "PASS" : "PARTIAL",
     r67.text.slice(0, 80)
   );
 

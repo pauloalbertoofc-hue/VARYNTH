@@ -404,7 +404,7 @@ export class ConversationManager {
       subject = "CONDITIONAL_FALLBACK";
     }
     else if (isProjectReadinessQuery) {
-      interactionType = "COGNITIVE_REQUEST";
+      interactionType = "FACTUAL_QUERY";
       intents.push("ECOSYSTEM_STATUS");
       confidence = "HIGH";
       requiresContext = true;

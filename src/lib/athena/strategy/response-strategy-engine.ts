@@ -168,6 +168,7 @@ export class AthenaResponseStrategyEngine {
     // 5. Fact Grounding & Status Reports (Tasks, Projects, Deadlines, Health, Jobs)
     const keyFacts: StructuredFact[] = [];
     const isResourceStatusIntent =
+      (Boolean(targetProjectId) && /\b(pronto|progresso|concluido|100%)\b/.test(clean)) ||
       semantic.intent === "TASK_QUERY" ||
       semantic.intent === "PROJECT_QUERY" ||
       semantic.intent === "ECOSYSTEM_STATUS" ||
@@ -245,20 +246,28 @@ export class AthenaResponseStrategyEngine {
         const projTasks = ctx.tasks.filter((t: Task) => t.projectId === proj.id);
         const completedTasks = projTasks.filter((t: Task) => t.status === "concluida").length;
         const totalProjTasks = projTasks.length;
-        const progressPct = totalProjTasks > 0 ? Math.round((completedTasks / totalProjTasks) * 100) : 60;
+        const recordedProgress = typeof proj.progress === "number" && Number.isFinite(proj.progress)
+          ? Math.max(0, Math.min(100, proj.progress))
+          : undefined;
+        const derivedProgress = totalProjTasks > 0
+          ? Math.round((completedTasks / totalProjTasks) * 100)
+          : undefined;
+        const progressPct = recordedProgress ?? derivedProgress;
 
-        keyFacts.push({
-          key: "projectProgress",
-          value: progressPct,
-          label: `${proj.title} está com ${progressPct}% de progresso concluído`,
-          supportedBy: {
-            sourceType: "PROJECT_REPOSITORY",
-            sourceId: proj.id,
-            revision: proj.updatedAt,
-            queryRef: `tasksCount:${totalProjTasks},completed:${completedTasks}`,
-            evaluatedAt,
-          },
-        });
+        if (progressPct !== undefined) {
+          keyFacts.push({
+            key: "projectProgress",
+            value: progressPct,
+            label: `${proj.title} está com ${progressPct}% de progresso concluído`,
+            supportedBy: {
+              sourceType: recordedProgress !== undefined ? "PROJECT_REPOSITORY" : "TASK_REPOSITORY",
+              sourceId: proj.id,
+              revision: proj.updatedAt,
+              queryRef: recordedProgress !== undefined ? "project.progress" : `tasksCount:${totalProjTasks},completed:${completedTasks}`,
+              evaluatedAt,
+            },
+          });
+        }
 
         const pendingProjTasks = projTasks.filter((t: Task) => t.status !== "concluida");
         keyFacts.push({
