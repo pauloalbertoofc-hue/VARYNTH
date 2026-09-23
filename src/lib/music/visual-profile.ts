@@ -2,6 +2,7 @@ import type { MusicDNA } from "./music-studio";
 
 export type ParticleType = "none" | "dust" | "rain" | "stars" | "wave";
 export type VisualMood = "balanced" | "dark" | "urban" | "calm" | "aggressive" | "bright";
+export type VisualMotionMode = "STATIC" | "SMOOTH" | "ANIMATED";
 export interface VisualProfile {
   id: string;
   schemaVersion: 1;
@@ -26,6 +27,27 @@ export interface VisualProfile {
 }
 
 const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, Number.isFinite(value) ? value : 0));
+
+export function applyVisualMotionPreset(profile: VisualProfile, mode: VisualMotionMode): VisualProfile {
+  return {
+    ...profile,
+    reducedMotion: mode === "STATIC",
+    motionSpeed: mode === "STATIC" ? 0 : mode === "SMOOTH" ? 0.16 : 0.3,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function getVisualMotionMode(profile: Pick<VisualProfile, "motionSpeed" | "reducedMotion">): VisualMotionMode {
+  if (profile.reducedMotion || profile.motionSpeed <= 0) return "STATIC";
+  return profile.motionSpeed >= 0.25 ? "ANIMATED" : "SMOOTH";
+}
+
+/** Converts the saved 0..0.3 speed control to a visible ambient cycle duration. */
+export function visualMotionDurationSeconds(speed: number): number {
+  const normalized = clamp(speed, 0, 0.3);
+  if (normalized === 0) return 0;
+  return Number((5 + ((0.3 - normalized) / 0.3) * 8).toFixed(1));
+}
 
 export function createVisualProfile(trackId: string, dna?: MusicDNA, seed = 0): VisualProfile {
   const hue = (Array.from(trackId).reduce((sum, c) => sum + c.charCodeAt(0), seed) * 17) % 360;

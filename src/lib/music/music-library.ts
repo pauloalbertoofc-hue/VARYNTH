@@ -3,6 +3,7 @@ import { upload } from "@vercel/blob/client";
 import { repairSwappedUtf16Text, type MusicMetadataSuggestion } from "./music-metadata";
 import { idbRequest, MUSIC_STORES, openMusicDatabase } from "./music-db";
 import { createMusicAudioAdapters, resolveMusicAudio } from "./audio-source-resolver";
+import type { MusicVisualSettings } from "./music-cloud-contracts";
 
 const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|webm)$/i;
 let accountUploadPrefix = "";
@@ -53,11 +54,22 @@ export const musicLibrary = {
   streamingUrl(track: MusicTrack): string | undefined {
     return track.storageMode === "account" ? `/api/music/tracks/${encodeURIComponent(track.id)}/audio` : undefined;
   },
-  async getArtworkUrls(trackId: string): Promise<{ coverUrl?: string; backgroundUrl?: string }> {
+  async getArtworkUrls(trackId: string): Promise<{ coverUrl?: string; backgroundUrl?: string; visualSettings?: MusicVisualSettings }> {
     if (!accountStorageAvailable) return {};
     const response = await fetch(`/api/music/tracks/${encodeURIComponent(trackId)}/artwork`, { cache: "no-store" });
     if (!response.ok) throw new Error("Não foi possível carregar as imagens salvas na sua conta.");
-    return response.json() as Promise<{ coverUrl?: string; backgroundUrl?: string }>;
+    return response.json() as Promise<{ coverUrl?: string; backgroundUrl?: string; visualSettings?: MusicVisualSettings }>;
+  },
+  async saveVisualSettings(trackId: string, visualSettings: MusicVisualSettings): Promise<void> {
+    if (!accountStorageAvailable) return;
+    const response = await fetch("/api/music/artwork", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ trackId, visualSettings }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(error?.error || "Não foi possível sincronizar o efeito visual com sua conta.");
+    }
   },
   async uploadArtwork(file: File, kind: "cover" | "background", trackIds: string[]): Promise<void> {
     if (!accountStorageAvailable || !accountUploadPrefix) throw new Error("Entre na conta e carregue a biblioteca sincronizada antes de salvar artes na nuvem.");
