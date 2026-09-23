@@ -31,5 +31,5 @@ npm run build
 ---
 
 ## 3. Variáveis de Ambiente
-O VARYNTH OS **não requer nenhuma chave de API comercial** (`OPENAI_API_KEY`, etc.). Todas as configurações operam em modo Local-First por padrão.
+O VARYNTH OS **não requer nenhuma chave de API comercial** para uso normal; todas as configurações operam em modo Local-First por padrão. A geração opcional de imagens no Music pode usar uma chave da plataforma (`OPENAI_API_KEY`) ou uma chave conectada pela própria pessoa na seção visual. A chave da pessoa fica criptografada e vinculada à conta; essa geração envia o prompt, título e artista ao provedor e pode consumir créditos daquela conta. Sem uma chave, a composição local continua disponível.
 

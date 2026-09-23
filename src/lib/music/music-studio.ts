@@ -149,8 +149,20 @@ export class LocalVisualGenerationProvider implements VisualGenerationProvider {
 }
 
 export class RemoteVisualGenerationProvider implements VisualGenerationProvider {
-  readonly id = "remote-unconfigured";
-  async generate(): Promise<never> { throw new Error("Nenhum provedor visual remoto está configurado. A composição local continua disponível."); }
+  readonly id = "athena-image-generation";
+  async generate(input: MusicVisualPrompt & { title?: string; artist?: string }, signal?: AbortSignal): Promise<VisualGenerationResult> {
+    const response = await fetch("/api/athena/music/visual", {
+      method: "POST", headers: { "content-type": "application/json" }, signal,
+      body: JSON.stringify({ prompt: input.prompt, title: input.title || input.prompt, artist: input.artist || "Artista desconhecido" }),
+    });
+    const result = await response.json().catch(() => null) as (VisualGenerationResult & { error?: string }) | null;
+    if (!response.ok) throw new Error(result?.error || "Athena não conseguiu criar as imagens.");
+    if (typeof result?.coverDataUrl !== "string" || !result.coverDataUrl.startsWith("data:image/webp;base64,")
+      || typeof result.backgroundDataUrl !== "string" || !result.backgroundDataUrl.startsWith("data:image/webp;base64,")) {
+      throw new Error("Athena retornou imagens incompletas.");
+    }
+    return result;
+  }
 }
 
 export class UnavailableVisualGenerationProvider implements VisualGenerationProvider {

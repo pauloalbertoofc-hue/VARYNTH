@@ -73,7 +73,7 @@ Experience Center (/modules/experience)
 - Athena system suite — 50/50 passed; response-quality suite — 30/30 passed.
 - Athena certification — 16/16 passed; TypeScript and full Next production build passed.
 - Knowledge/Vault suite — passed after source-addressable Vault chunk changes were integrated.
-- Documentation regression inventory at build — 43 routes, 36 tools, 12 agents, 18 modules.
+- Documentation regression inventory at build — 44 routes, 36 tools, 12 agents, 18 modules.
 - Production deployment `dpl_B7SAf2GGAJ5tANCTf6KaDSZgxA6a` reached `READY`, received `https://varynth-ynqv-plum.vercel.app`, and `/modules/athena` returned HTTP 200 with the expected unauthenticated redirect to login.
 
 ## Next implementation sequence

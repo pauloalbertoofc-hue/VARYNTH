@@ -90,7 +90,7 @@ test("creates and persists an animated local cover and background with visible c
   });
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await expect(page.getByRole("button", { name: /generated-animated-visual/i }).first()).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: "Criar visual animado", exact: true }).click();
+  await page.getByRole("button", { name: "Criar visual local", exact: true }).click();
   await expect(page.getByText("Euterpe está compondo uma animação visual local…")).toBeVisible();
   await expect(page.getByRole("status").last()).toContainText(/Capa e fundo animados criados localmente e aplicados à faixa/i, { timeout: 20_000 });
 
@@ -149,6 +149,66 @@ test("creates and persists an animated local cover and background with visible c
   expect(restored?.backgroundDataUrl).toBe(generated?.backgroundDataUrl);
 });
 
+test("connects a private image provider then asks Athena for separate saved Music artwork", async ({ page }) => {
+  test.setTimeout(60_000);
+  const secret = "sk-test_account_specific_visual_generation_123456789";
+  const webp = Buffer.from("RIFF0000WEBPpayload").toString("base64");
+  let configured = false;
+  let receivedPrompt: Record<string, unknown> | undefined;
+  await page.route("**/api/athena/music/visual", async (route) => {
+    const method = route.request().method();
+    if (method === "GET") return route.fulfill({ json: { configured, source: configured ? "account" : "none", canConfigure: true, model: "gpt-image-2" } });
+    if (method === "PUT") {
+      const body = route.request().postDataJSON() as { apiKey?: string };
+      expect(body.apiKey).toBe(secret);
+      configured = true;
+      return route.fulfill({ json: { configured: true, source: "account" } });
+    }
+    if (method === "POST") {
+      receivedPrompt = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({ json: { coverDataUrl: `data:image/webp;base64,${webp}`, backgroundDataUrl: `data:image/webp;base64,${webp}`, description: "Athena criou duas artes WebP para a faixa.", palette: [] } });
+    }
+    return route.fulfill({ status: 405 });
+  });
+
+  await page.goto("/modules/music");
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await page.locator('input[type="file"][accept*="audio"]').setInputFiles({ name: "athena-artwork-track.wav", mimeType: "audio/wav", buffer: shortWav() });
+  await expect(page.getByRole("button", { name: /athena-artwork-track/i }).first()).toBeVisible({ timeout: 20_000 });
+
+  await page.getByText("Conectar geração de imagens à Athena").click();
+  await page.getByLabel("Chave de API de imagens").fill(secret);
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Chave protegida/ })).toBeVisible();
+  await expect(page.getByLabel("Chave de API de imagens")).toHaveValue("");
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(secret);
+
+  await page.getByLabel("Prompt visual").fill("constelações sobre um oceano noturno");
+  await page.getByTestId("create-athena-music-artwork").click();
+  await expect(page.getByRole("status").filter({ hasText: /Athena criou capa e fundo próprios/ })).toBeVisible({ timeout: 20_000 });
+  expect(receivedPrompt).toMatchObject({ title: "athena-artwork-track", artist: "Artista desconhecido", prompt: "constelações sobre um oceano noturno" });
+  const stored = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open("varynth-music-library"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    try { return await new Promise<Array<{ coverDataUrl?: string; backgroundDataUrl?: string }>>((resolve, reject) => { const request = db.transaction("visualProfiles", "readonly").objectStore("visualProfiles").getAll(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
+    finally { db.close(); }
+  });
+  expect(stored.find((profile) => profile.coverDataUrl?.startsWith("data:image/webp"))).toMatchObject({ coverDataUrl: `data:image/webp;base64,${webp}`, backgroundDataUrl: `data:image/webp;base64,${webp}` });
+});
+
+test("shows an actionable error when Athena has no image provider configured", async ({ page }) => {
+  await page.route("**/api/athena/music/visual", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: { configured: false, source: "none", canConfigure: false, model: "gpt-image-2" } });
+    return route.fulfill({ status: 503, json: { error: "Conecte uma chave de API de imagens nas configurações desta seção. Sem ela, use a composição local gratuita." } });
+  });
+  await page.goto("/modules/music");
+  await page.locator('input[type="file"][accept*="audio"]').setInputFiles({ name: "missing-provider-track.wav", mimeType: "audio/wav", buffer: shortWav() });
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(page.getByRole("button", { name: /missing-provider-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("create-athena-music-artwork").click();
+  await expect(page.getByRole("status").filter({ hasText: /Conecte uma chave de API de imagens/ })).toBeVisible();
+  await expect(page.getByTestId("create-athena-music-artwork")).toBeEnabled();
+});
+
 test("keeps covers attached to their own tracks when the selection changes", async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto("/modules/music");
@@ -161,6 +221,11 @@ test("keeps covers attached to their own tracks when the selection changes", asy
   const secondTrack = page.getByRole("button", { name: /cover-track-two/i }).first();
   await expect(firstTrack).toBeVisible({ timeout: 20_000 });
   await expect(secondTrack).toBeVisible({ timeout: 20_000 });
+  await firstTrack.click();
+  await page.getByRole("button", { name: "Tocando agora" }).click();
+  await expect(page.getByRole("heading", { name: "cover-track-one" })).toBeVisible();
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Personalizar visual da faixa" })).toBeVisible({ timeout: 20_000 });
 
   const transparentGif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64");
   const gifWithDistinctComment = Buffer.concat([
