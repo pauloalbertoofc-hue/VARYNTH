@@ -12,6 +12,7 @@ export default function KnowledgePage() {
   const [domains, setDomains] = useState<DomainDefinition[]>(() => domainRegistry.listAllDomains());
   const [domainRevision, setDomainRevision] = useState(0);
   const [domainPersistence, setDomainPersistence] = useState("LOADING");
+  const [knowledgePersistence, setKnowledgePersistence] = useState("LOADING");
   const [canManageDomains, setCanManageDomains] = useState(false);
   const [ownerTargets, setOwnerTargets] = useState<Record<string, string>>({});
   const [busyDomain, setBusyDomain] = useState<string | null>(null);
@@ -38,6 +39,15 @@ export default function KnowledgePage() {
     }).catch(() => { if (active) { setDomainPersistence("UNAVAILABLE"); setDomainMessage("Não foi possível carregar o Domain Registry persistente."); } });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/knowledge/items", { cache: "no-store" }).then(async (response) => {
+      const result = await response.json().catch(() => ({})) as { persistenceMode?: string; error?: string };
+      if (!response.ok) throw new Error(result.error || "Knowledge remoto indisponível.");
+      if (active) setKnowledgePersistence(result.persistenceMode || "UNAVAILABLE");
+    }).catch(() => { if (active) setKnowledgePersistence("UNAVAILABLE"); });
+    return () => { active = false; };
+  }, []);
   useEffect(() => { void Promise.all([queryKnowledge({ requester: "athena", query, domain: domain || undefined, purpose: "knowledge center retrieval", scope: "ALL" }), findKnowledgeConflicts(), listKnowledgeAccessLogs(), listKnowledgeRelationships()]).then(([nextItems, nextConflicts, logs, nextRelationships]) => { setItems(nextItems); setConflicts(nextConflicts); setAccessCount(logs.length); setRelationships(nextRelationships); }); }, [query, domain]);
   async function authorize(operation: "CLASSIFY" | "PUBLISH" | "REVOKE", itemId: string) {
     const response = await fetch("/api/knowledge/authorize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation, itemId }) });
@@ -49,7 +59,11 @@ export default function KnowledgePage() {
     try {
       await authorize("CLASSIFY", item.id);
       const classified = applyKnowledgeClassification(item, { primaryDomain: classificationTargets[item.id] || item.primaryDomain });
-      const updated = await updateKnowledge(item.id, "system", { primaryDomain: classified.primaryDomain, categories: classified.categories, tags: classified.tags, classification: classified.classification });
+      const patch = { primaryDomain: classified.primaryDomain, categories: classified.categories, tags: classified.tags, classification: classified.classification };
+      const response = await fetch("/api/knowledge/update", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id, patch }) });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível persistir a classificação compartilhada.");
+      const updated = await updateKnowledge(item.id, "system", patch);
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...updated, content: item.content } : candidate));
       setActionMessage("Classificação salva.");
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao classificar."); }
@@ -59,6 +73,9 @@ export default function KnowledgePage() {
     setBusyItem(item.id); setActionMessage("");
     try {
       await authorize("PUBLISH", item.id);
+      const response = await fetch("/api/knowledge/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id }) });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível persistir a publicação entre agentes.");
       const published = await publishKnowledge(item.id, "system");
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...published, content: item.content } : candidate));
       setActionMessage("Conhecimento publicado entre agentes.");
@@ -70,6 +87,9 @@ export default function KnowledgePage() {
     setBusyItem(item.id); setActionMessage("");
     try {
       await authorize("REVOKE", item.id);
+      const response = await fetch(`/api/knowledge/publish?id=${encodeURIComponent(item.id)}`, { method: "DELETE" });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível persistir a revogação entre agentes.");
       await revokeKnowledge(item.id);
       setItems((current) => current.filter((candidate) => candidate.id !== item.id));
       setActionMessage("Conhecimento revogado do retrieval.");
@@ -101,7 +121,7 @@ export default function KnowledgePage() {
         {[['Domínios', domains.length], ['Itens locais', items.length], ['Públicos entre agentes', publicCount], ['Consultas auditadas', accessCount]].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-white">{value}</p></div>)}
       </section>
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Domain Registry</h2><p className="mt-1 text-xs text-slate-500">Athena conhece o mapa; o conteúdo continua protegido por policy.</p></div><span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">Persistência: {domainPersistence}</span></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Domain Registry</h2><p className="mt-1 text-xs text-slate-500">Athena conhece o mapa; o conteúdo continua protegido por policy.</p></div><span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">Registry: {domainPersistence} · Knowledge: {knowledgePersistence}</span></div>
         {domainMessage && <p role="status" className="mt-3 text-xs text-violet-200">{domainMessage}</p>}
         <div className="mt-4 grid gap-3 md:grid-cols-2">{domains.map((entry) => <article key={entry.id} className="rounded-lg border border-white/10 bg-black/20 p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm text-violet-200">{entry.label}</h3><p className="mt-1 font-mono text-[10px] text-slate-500">{entry.id}{entry.parentId ? ` · pai ${entry.parentId}` : ""}</p></div><span className="rounded-full border border-emerald-500/30 px-2 py-1 text-[10px] text-emerald-300">{entry.primaryOwner || "sem owner"}</span></div><div className="mt-3 flex flex-wrap gap-2">{entry.specialists.map((specialist) => <span key={specialist} className="rounded border border-white/10 px-2 py-1 text-[10px] text-slate-400">{specialist}</span>)}{entry.capabilities.map((capability) => <span key={capability} className="rounded border border-violet-500/20 px-2 py-1 text-[10px] text-violet-200">{capability}</span>)}</div>{entry.ownershipHistory?.length ? <p className="mt-3 text-[10px] text-slate-500">Transferências anteriores: {entry.ownershipHistory.map((record) => `${record.agentId} (${new Date(record.transferredAt).toLocaleDateString()})`).join(" · ")}</p> : null}{canManageDomains && <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-3"><input aria-label={`Novo owner para ${entry.id}`} value={ownerTargets[entry.id] || ""} onChange={(event) => setOwnerTargets((current) => ({ ...current, [entry.id]: event.target.value }))} placeholder="id do agente responsável" className="min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-white" /><button type="button" disabled={busyDomain === entry.id} onClick={() => void transferDomainOwner(entry)} className="rounded border border-amber-500/30 px-2 py-1 text-[10px] text-amber-200 disabled:opacity-50">Transferir ownership</button></div>}</article>)}</div>
       </section>

@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/auth/require-session";
 import { askSpecialist } from "@/lib/knowledge";
 import { hydrateDomainRegistryFromPersistence } from "@/lib/knowledge/domain-registry-store";
+import { knowledgeAccountId, withKnowledgeAccount } from "@/lib/knowledge/knowledge-account-store";
 
 export async function POST(request: Request) {
   const session = await requireSession();
@@ -10,6 +11,10 @@ export async function POST(request: Request) {
   if (!body.query?.trim() || !body.purpose?.trim()) return Response.json({ error: "query e purpose obrigatórios." }, { status: 400 });
   const userId = (session.user as typeof session.user & { id?: string }).id;
   const requester = userId ? `user:${userId}` : "authenticated-user";
-  const response = await askSpecialist({ requester, domain: body.domain, query: body.query, purpose: body.purpose, projectId: body.projectId, scope: "PUBLIC" });
-  return Response.json({ response, generatedAt: new Date().toISOString() });
+  try {
+    const response = await withKnowledgeAccount(knowledgeAccountId(session.user as typeof session.user & { id?: string }), () => askSpecialist({ requester, domain: body.domain, query: body.query!, purpose: body.purpose!, projectId: body.projectId, scope: "PUBLIC" }));
+    return Response.json({ response, generatedAt: new Date().toISOString() });
+  } catch {
+    return Response.json({ error: "Knowledge persistente indisponível." }, { status: 503 });
+  }
 }

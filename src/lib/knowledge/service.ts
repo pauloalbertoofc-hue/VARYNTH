@@ -6,6 +6,11 @@ const queryCache = new Map<string, { revision: number; expiresAt: number; items:
 const knowledgeWriteQueues = new Map<string, Promise<void>>();
 let revision = 0;
 
+export function invalidateKnowledgeQueryCache(): void {
+  revision += 1;
+  queryCache.clear();
+}
+
 function currentKnowledge(items: KnowledgeItem[]): KnowledgeItem[] {
   const supersededIds = new Set(items.flatMap((item) => item.supersedesId ? [item.supersedesId] : []));
   return items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id));
@@ -46,8 +51,7 @@ async function persistKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
       stored,
     ];
     await knowledgeRepository.saveBatch(writes);
-    revision += 1;
-    queryCache.clear();
+    invalidateKnowledgeQueryCache();
     return stored;
   };
 
@@ -86,8 +90,7 @@ export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   const revoked = { ...current, invalidatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  revision += 1;
-  queryCache.clear();
+  invalidateKnowledgeQueryCache();
   const stored = await knowledgeRepository.save(revoked);
   const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
   const derivationGraph = await knowledgeRelationshipRepository.getAll((relation) => relation.type === "DERIVED_FROM");
@@ -107,7 +110,7 @@ export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
     const derivedItems = await knowledgeRepository.getAll((item) => invalidatedIds.has(item.id) && !item.invalidatedAt);
     const invalidatedAt = new Date().toISOString();
     await knowledgeRepository.saveBatch(derivedItems.map((item) => ({ ...item, freshness: "UNKNOWN" as const, invalidatedAt, updatedAt: invalidatedAt })));
-    queryCache.clear();
+    invalidateKnowledgeQueryCache();
   }
   return stored;
 }
@@ -120,8 +123,7 @@ export async function publishKnowledge(id: string, requester: string, visibility
   if (current.sensitivity === "PRIVATE") throw new Error("[KNOWLEDGE_PUBLISH_PRIVATE] Conhecimento PRIVATE não pode ser publicado entre agentes.");
   if (current.sensitivity === "SENSITIVE" && visibility !== "DOMAIN") throw new Error("[KNOWLEDGE_PUBLISH_SENSITIVE] Conhecimento SENSITIVE só pode ser compartilhado dentro do domínio.");
   const published = { ...current, visibility, updatedAt: new Date().toISOString(), provenance: { ...current.provenance, addedBy: requester === "system" ? "SYSTEM" as const : current.provenance.addedBy } };
-  revision += 1;
-  queryCache.clear();
+  invalidateKnowledgeQueryCache();
   return knowledgeRepository.save(published);
 }
 

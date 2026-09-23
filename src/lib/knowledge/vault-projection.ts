@@ -5,6 +5,17 @@ import { revokeKnowledge, storeKnowledge } from "./service";
 
 const operations = new Map<string, Promise<unknown>>();
 
+async function syncServer(operation: "UPSERT_VAULT" | "REVOKE_VAULT", data: { item?: VaultItem; id?: string }) {
+  if (typeof window === "undefined") return;
+  const response = await fetch("/api/knowledge/items", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ operation, ...data }),
+  });
+  const result = await response.json().catch(() => ({})) as { error?: string };
+  if (!response.ok) throw new Error(result.error || "Não foi possível sincronizar a projeção do Vault com Knowledge.");
+}
+
 function serializeByVaultId<T>(vaultId: string, operation: () => Promise<T>): Promise<T> {
   const key = `vault:${vaultId}`;
   const previous = operations.get(key) || Promise.resolve();
@@ -40,8 +51,9 @@ export function syncVaultKnowledgeItem(item: VaultItem) {
   return serializeByVaultId(item.id, async () => {
     const projected = knowledgeFromVaultItem(item);
     const existing = await knowledgeRepository.getById(projected.id);
-    if (projectionMatches(existing, projected)) return existing!;
-    return storeKnowledge(projected);
+    const stored = projectionMatches(existing, projected) ? existing! : await storeKnowledge(projected);
+    await syncServer("UPSERT_VAULT", { item });
+    return stored;
   });
 }
 
@@ -50,6 +62,8 @@ export function revokeVaultKnowledgeItem(vaultId: string) {
   return serializeByVaultId(vaultId, async () => {
     const knowledgeId = `vault:${vaultId}`;
     if (!await knowledgeRepository.getById(knowledgeId)) return null;
-    return revokeKnowledge(knowledgeId);
+    const revoked = await revokeKnowledge(knowledgeId);
+    await syncServer("REVOKE_VAULT", { id: knowledgeId });
+    return revoked;
   });
 }

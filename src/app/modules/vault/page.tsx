@@ -66,8 +66,9 @@ export default function VaultPage() {
     for (const item of vaultItems) {
       const projectionKey = JSON.stringify([item.title, item.content, item.summary, item.primarySubject, item.tags, item.relatedProjectIds, item.updatedAt]);
       if (projectedVaultItems.current.get(item.id) === projectionKey) continue;
-      projectedVaultItems.current.set(item.id, projectionKey);
-      void syncVaultKnowledgeItem(item).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
+      void syncVaultKnowledgeItem(item).then(() => {
+        projectedVaultItems.current.set(item.id, projectionKey);
+      }).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
     }
   }, [vaultItems]);
 
