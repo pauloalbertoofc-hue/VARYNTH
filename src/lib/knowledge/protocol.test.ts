@@ -14,6 +14,7 @@ async function main() {
   assert.equal(packet.facts.length, 1);
   assert.equal(packet.facts[0].domain, "music");
   assert.equal(packet.facts[0].authority, "INTERNAL_DOCUMENT");
+  assert.deepEqual(packet.facts[0].derivedFromIds, []);
   assert.deepEqual(packet.provenanceIds, packet.facts.map((fact) => fact.knowledgeId));
   assert.ok(packet.constraints.some((constraint) => constraint.includes("raciocínio")));
   assert.equal(packet.truncated, false);
@@ -30,6 +31,7 @@ async function main() {
   assert.equal(boundedPacket.facts[0].content.length, 1000);
   assert.equal(boundedPacket.facts[0].truncated, true);
   assert.equal(boundedPacket.truncated, true);
+  assert.equal(boundedPacket.facts[0].sourceSpan, undefined);
   console.log("Knowledge protocol tests passed");
 }
 void main();

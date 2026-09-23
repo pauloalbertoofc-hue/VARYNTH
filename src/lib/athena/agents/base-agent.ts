@@ -42,6 +42,8 @@ export interface AgentKnowledgeSource {
   content: string;
   domain: string;
   sourceReference?: string;
+  sourceSpan?: import("@/lib/knowledge/contracts").KnowledgeSourceSpan;
+  derivedFromIds?: string[];
   authority: string;
   assertion: string;
   freshness: string;

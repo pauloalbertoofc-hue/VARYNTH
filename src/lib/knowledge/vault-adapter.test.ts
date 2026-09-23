@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { knowledgeFromVaultItem } from "./vault-adapter";
+import { knowledgeChunksFromVaultItem } from "./vault-adapter";
 
 const item = knowledgeFromVaultItem({
   id: "v1", title: "Introdução ao Direito", type: "livro", tags: ["juridico"], category: "Direito",
@@ -45,4 +46,22 @@ const uncertain = knowledgeFromVaultItem({
 });
 assert.equal(uncertain.primaryDomain, "general-knowledge");
 assert.equal(uncertain.provenance.inferred, false);
-console.log("Vault knowledge adapter tests passed");
+async function verifySourceChunks() {
+  const content = `${"á🙂, texto com origem. ".repeat(100)}FIM-DA-FONTE`;
+  const source = { id: "chunk-source", title: "Fonte longa", type: "livro" as const, content, tags: [], category: "Não ficção", readingStatus: "lendo" as const, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+  const chunks = await knowledgeChunksFromVaultItem(source);
+  assert.ok(chunks.length > 1);
+  assert.equal(chunks[0].id, (await knowledgeChunksFromVaultItem(source))[0].id, "chunk IDs must be stable");
+  assert.equal(chunks[0].provenance.span?.unit, "UNICODE_CODE_POINTS");
+  assert.ok(chunks.every((chunk) => chunk.provenance.span?.sourceId === "vault:chunk-source"));
+  assert.ok(chunks.every((chunk) => chunk.provenance.span?.contentHash.length === 64));
+  const points = Array.from(content.trim());
+  for (const chunk of chunks) {
+    const span = chunk.provenance.span!;
+    assert.equal(points.slice(span.start, span.end).join(""), chunk.content);
+    assert.equal(chunk.provenance.derivedFromIds?.[0], "vault:chunk-source");
+  }
+  assert.equal(chunks.map((chunk) => chunk.content).join("").includes("FIM-DA-FONTE"), true);
+  console.log("Vault knowledge adapter tests passed");
+}
+void verifySourceChunks();

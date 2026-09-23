@@ -141,9 +141,11 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   const tokens = request.query?.trim().toLocaleLowerCase().split(/\s+/).filter((token) => token.length > 2) || [];
   const allKnowledge = await knowledgeRepository.getAll();
   const supersededIds = new Set(allKnowledge.filter((item) => item.supersedesId && item.supersedesId !== item.id).map((item) => item.supersedesId!));
+  const chunkedSourceIds = new Set(allKnowledge.filter((item) => item.provenance.span).flatMap((item) => item.provenance.derivedFromIds || []));
   const candidates = allKnowledge.filter((item) => {
     if (item.invalidatedAt) return false;
     if (supersededIds.has(item.id)) return false;
+    if (chunkedSourceIds.has(item.id)) return false;
     const now = Date.now();
     if (item.validFrom && new Date(item.validFrom).getTime() > now) return false;
     if (item.validUntil && new Date(item.validUntil).getTime() < now) return false;
@@ -194,6 +196,11 @@ export async function linkKnowledge(relation: Omit<KnowledgeRelationship, "creat
   if (sameId) {
     if (sameId.fromId !== normalized.fromId || sameId.toId !== normalized.toId || sameId.type !== normalized.type) throw new Error("[KNOWLEDGE_RELATION_ID_CONFLICT] O identificador já pertence a outra relação.");
     return sameId;
+  }
+  if (normalized.type === "DERIVED_FROM") {
+    const [derived, source] = await Promise.all([knowledgeRepository.getById(normalized.fromId), knowledgeRepository.getById(normalized.toId)]);
+    if (!derived || !source) throw new Error("[KNOWLEDGE_RELATION_ENDPOINT_MISSING] Relação de derivação exige os dois itens Knowledge persistidos.");
+    if (derived.invalidatedAt || source.invalidatedAt) throw new Error("[KNOWLEDGE_RELATION_ENDPOINT_REVOKED] Relação de derivação não pode usar itens revogados.");
   }
   const duplicate = await knowledgeRelationshipRepository.getAll((candidate) => candidate.fromId === normalized.fromId && candidate.toId === normalized.toId && candidate.type === normalized.type);
   if (duplicate.length) return duplicate[0];

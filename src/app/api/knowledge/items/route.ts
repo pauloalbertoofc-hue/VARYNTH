@@ -1,8 +1,9 @@
 import { requireSession } from "@/lib/auth/require-session";
 import { knowledgeAccountId, knowledgeAccountPersistenceMode, withKnowledgeAccount } from "@/lib/knowledge/knowledge-account-store";
 import { knowledgeRepository } from "@/lib/persistence/repositories";
-import { revokeKnowledge, storeKnowledge } from "@/lib/knowledge/service";
+import { revokeKnowledge } from "@/lib/knowledge/service";
 import { canonicalVaultProjection } from "@/lib/knowledge/vault-sync";
+import { persistVaultKnowledgeProjection } from "@/lib/knowledge/vault-persistence.server";
 
 export const runtime = "nodejs";
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     if (body.operation === "UPSERT_VAULT") {
       const projection = canonicalVaultProjection(body.item);
       if (!projection) return Response.json({ error: "Item do Vault inválido." }, { status: 400 });
-      const item = await withKnowledgeAccount(knowledgeAccountId(user), () => storeKnowledge(projection));
+      const item = await withKnowledgeAccount(knowledgeAccountId(user), () => persistVaultKnowledgeProjection(body.item as import("@/lib/types/vault").VaultItem));
       return Response.json({ item, persistenceMode: knowledgeAccountPersistenceMode(), persisted: true });
     }
     if (body.operation === "REVOKE_VAULT" && typeof body.id === "string" && body.id.startsWith("vault:")) {

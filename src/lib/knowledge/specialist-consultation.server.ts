@@ -76,6 +76,8 @@ export async function askSpecialist(request: KnowledgeQuery): Promise<DomainResp
       content: fact.content,
       domain: fact.domain,
       sourceReference: fact.sourceReference,
+      sourceSpan: fact.sourceSpan,
+      derivedFromIds: fact.derivedFromIds,
       authority: fact.authority,
       assertion: fact.assertion,
       freshness: fact.freshness,

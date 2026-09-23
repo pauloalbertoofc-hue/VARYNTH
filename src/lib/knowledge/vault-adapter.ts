@@ -58,3 +58,55 @@ export function knowledgeFromVaultItem(item: VaultItem, ownerAgent?: string): Kn
     classification: { confidence: userClassified ? 1 : inferredApplied ? suggestion.confidence : systemClassified ? item.classificationConfidence ?? 0.7 : explicitlyClassified ? 1 : suggestion.confidence, source: userClassified ? "USER_CORRECTED" : inferredApplied ? "INFERRED" : explicitlyClassified ? "SYSTEM" : "INFERRED", classifiedAt: item.classificationReviewedAt || now },
   };
 }
+
+const CHUNK_TARGET = 1200;
+const CHUNK_OVERLAP = 120;
+
+/** Produce stable, source-addressable text chunks without replacing the canonical Vault projection. */
+export async function knowledgeChunksFromVaultItem(item: VaultItem): Promise<KnowledgeItem[]> {
+  const parent = knowledgeFromVaultItem(item);
+  const text = parent.content;
+  if (!text.trim()) return [];
+  const points = Array.from(text);
+  const chunks: KnowledgeItem[] = [];
+  let start = 0;
+  while (start < points.length) {
+    let end = Math.min(points.length, start + CHUNK_TARGET);
+    if (end < points.length) {
+      const lowerBound = start + Math.floor(CHUNK_TARGET * 0.65);
+      let boundary = -1;
+      for (let index = end; index >= lowerBound; index -= 1) {
+        if (/[\s.!?;:。！？]/u.test(points[index - 1] || "")) { boundary = index; break; }
+      }
+      if (boundary > start) end = boundary;
+    }
+    const content = points.slice(start, end).join("");
+    const bytes = new TextEncoder().encode(content);
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const id = `${parent.id}::chunk:${start}-${end}:${digest.slice(0, 16)}`;
+    chunks.push({
+      ...parent,
+      id,
+      title: `${parent.title} · trecho ${chunks.length + 1}`,
+      content,
+      kind: "REFERENCE",
+      assertion: "REFERENCE",
+      provenance: {
+        ...parent.provenance,
+        sourceType: "VAULT_TEXT_CHUNK",
+        derivedFromIds: [parent.id],
+        span: {
+          sourceId: parent.id,
+          sourceReference: parent.provenance.sourceReference || `vault-item:${item.id}`,
+          start,
+          end,
+          unit: "UNICODE_CODE_POINTS",
+          contentHash: digest,
+        },
+      },
+    });
+    if (end === points.length) break;
+    start = Math.max(start + 1, end - CHUNK_OVERLAP);
+  }
+  return chunks;
+}

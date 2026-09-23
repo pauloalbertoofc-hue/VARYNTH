@@ -13,6 +13,17 @@ export interface KnowledgeProvenance {
   derivedFromIds?: string[];
   authority: SourceAuthority;
   inferred: boolean;
+  /** Exact source span when this item is a derived text chunk. Offsets are Unicode code points. */
+  span?: KnowledgeSourceSpan;
+}
+
+export interface KnowledgeSourceSpan {
+  sourceId: string;
+  sourceReference: string;
+  start: number;
+  end: number;
+  unit: "UNICODE_CODE_POINTS";
+  contentHash: string;
 }
 
 export interface KnowledgeItem {
