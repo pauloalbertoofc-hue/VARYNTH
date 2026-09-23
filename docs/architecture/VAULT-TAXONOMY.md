@@ -12,14 +12,14 @@ O classificador pode sugerir assunto e tags a partir de título, autoria, nome d
 
 ## Relação com domínios
 
-O assunto primário do Vault é traduzido para um domínio canônico somente para os assuntos atualmente mapeados (`legal`, `philosophy`, `technology`, `history`, `psychology`, `science` e `music`). Tags com ponto ou referência a áudio podem ser transportadas como domínios relacionados; isso é uma ponte compatível, não uma taxonomia hierárquica completa.
+Sem correção semântica, o assunto primário do Vault é traduzido para um domínio canônico somente para os assuntos atualmente mapeados (`legal`, `philosophy`, `technology`, `history`, `psychology`, `science` e `music`). Tags com ponto ou referência a áudio podem ser transportadas como domínios relacionados. Uma revisão explícita no Knowledge Center persiste IDs hierárquicos e domínios relacionados em `knowledgeDomains` (primário primeiro), além de categorias/tags Knowledge próprias; ela não move o arquivo nem altera a categoria editorial legada.
 
 O adaptador cria provenance `VAULT_ITEM`, preserva uma referência de origem namespaced e associa projetos. Itens ligados a projetos tornam-se `PROJECT`; os demais tornam-se `DOMAIN`. A projeção no Knowledge é serializada por ID, não incrementa versão quando nenhuma informação relevante mudou e preserva a provenance original em atualizações. Remover um item ativo do Vault revoga sua projeção e os derivados ligados por `DERIVED_FROM`; restaurá-lo reprojeta a fonte atual. O adaptador não infere que o conteúdo é público entre agentes.
 
 ## Limites atuais e evolução
 
 - `category` permanece uma string legada; os campos de obra/formato/assunto são taxonomia editorial, não substituem os domínios de conhecimento.
-- A hierarquia semântica de domínio ainda não é persistida pelo `DomainRegistry` nem sincronizada automaticamente ao corrigir a taxonomia do Vault.
+- IDs semânticos corrigidos são persistidos no item; o Vault não cria automaticamente novos nós no `DomainRegistry`, portanto a interface de correção oferece os domínios registrados.
 - A classificação sugerida usa regras estruturadas locais, não embeddings; casos ambíguos precisam permanecer não classificados ou ser corrigidos pelo usuário.
 - A relação física multi-arquivo, localização de trecho/página e proveniência de chunks ainda não é expressa integralmente no adaptador.
 
