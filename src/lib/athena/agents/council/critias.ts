@@ -2,8 +2,10 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
+import { renderAgentPersona } from "../base-agent";
 
 export class CritiasAgent implements AthenaAgent {
+  get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
   manifest: AgentManifest = {
     id: "critias",
     name: "Critias",
@@ -13,6 +15,7 @@ export class CritiasAgent implements AthenaAgent {
     skills: ["critica", "revisao", "validacao", "contra_argumento", "riscos", "consistencia_logica"],
     priority: 95,
     enabled: true,
+    persona: { identity: "Sou Critias; testo a proposta contra objeções reais, sem fabricar defeitos só para parecer rigoroso.", home: "Revisão crítica, riscos, consistência lógica e Reflection Engine", voice: "franca, respeitosa e exigente", approach: "aponto trecho ou premissa, explico o risco e proponho uma forma verificável de resolver", evidenceBoundary: "limito a crítica ao material recebido; quando o argumento não foi fornecido, peço-o em vez de simular uma revisão", authorityBoundary: "a revisão é consultiva; não altero nem rejeito artefatos em nome da pessoa" },
   };
 
   canHandle(task: AthenaTask): boolean {
@@ -28,7 +31,11 @@ export class CritiasAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
-    const content = `🔍 **Análise Crítica & Objeções (Critias):**\n\n1. **Identificação de Vulnerabilidades:** Premissas implícitas precisam ser explicitadas para evitar objeções imediatas.\n2. **Contra-argumento Principal:** Se um revisor cético avaliar esta proposta, o ponto mais vulnerável será a robustez probatória das fontes.\n3. **Diretriz de Blindagem:** Adicionar ressalvas e limitar o escopo da afirmação para fortalecer a solidez global da entrega.`;
+    const quoted = task.rawPrompt.match(/[“"]([^”"]{12,})[”"]/)?.[1];
+    const candidate = quoted || (context.activeProject?.description ? `${context.activeProject.title}: ${context.activeProject.description}` : undefined);
+    const content = candidate
+      ? `🔍 **Revisão crítica do material recebido**\n\nObjeto: “${candidate}”\n\nNão recebi critérios ou evidências específicas além desse enunciado. Portanto, não afirmo que encontrei uma falha. Para testar a proposta, precisamos explicitar: (1) qual evidência a sustentaria; (2) que observação a refutaria; (3) se a conclusão depende de uma premissa ainda não verificada. A vulnerabilidade atual é **lacuna de evidência no contexto recebido**, não prova de que a tese esteja errada.`
+      : `🔍 **Posso fazer uma revisão rigorosa, mas falta o objeto.** Não recebi texto, hipótese ou plano concreto para testar. Envie a afirmação e, se houver, as fontes e os critérios de sucesso; sem isso, apontar “falhas” seria inventar crítica.`;
 
     return {
       agentId: this.manifest.id,
@@ -36,8 +43,9 @@ export class CritiasAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.96,
-      recommendations: ["Blindar pontos vulneráveis", "Antecipar objeções contrárias"],
+      confidence: candidate ? 0.52 : 0.2,
+      recommendations: candidate ? ["Fornecer evidências e critério de refutação para avaliar a proposta"] : ["Enviar a proposta ou texto que deseja revisar"],
+      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false },
     };
   }
 
@@ -46,10 +54,13 @@ export class CritiasAgent implements AthenaAgent {
     if (!result.content || result.content.length < 20) {
       flaws.push("Conteúdo superficial ou excessivamente conciso");
     }
+    if (result.success && result.confidence > 0.8 && (!result.sources?.length || /não recebi|falta o objeto|não posso/i.test(result.content))) {
+      flaws.push("Confiança desproporcional ou afirmação não sustentada pelo contexto");
+    }
 
     return {
       ...result,
-      criticism: flaws.length > 0 ? flaws : ["Sem inconsistências graves detectadas"],
+      criticism: flaws.length > 0 ? flaws : ["Esta verificação superficial não detectou problemas estruturais óbvios; não equivale a validação factual ou jurídica."],
       confidence: flaws.length > 0 ? result.confidence * 0.9 : result.confidence,
     };
   }

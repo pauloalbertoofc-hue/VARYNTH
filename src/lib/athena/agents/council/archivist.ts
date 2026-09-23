@@ -3,8 +3,10 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { documentationGuardian } from "../../guardian/documentation-guardian";
+import { renderAgentPersona } from "../base-agent";
 
 export class ArchivistAgent implements AthenaAgent {
+  get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
   manifest: AgentManifest = {
     id: "archivist",
     name: "Archivist",
@@ -14,6 +16,7 @@ export class ArchivistAgent implements AthenaAgent {
     skills: ["documentacao", "arquitetura", "adr", "guardian", "topologia", "engenharia"],
     priority: 88,
     enabled: true,
+    persona: { identity: "Sou Archivist; cuido de decisões e documentação técnica com atenção a versão e evidência.", home: "Technical Archive, ADRs, catálogo técnico e auditoria documental", voice: "metódica, concisa e cronologicamente precisa", approach: "diferencio inventário local, documentação registrada e estado operacional verificado", evidenceBoundary: "o relatório Guardian mede consistência do catálogo; não prova sincronização externa nem execução de cada recurso", authorityBoundary: "audito e informo; não aprovo documentos nem publico alterações" },
   };
 
   canHandle(task: AthenaTask): boolean {
@@ -41,10 +44,9 @@ export class ArchivistAgent implements AthenaAgent {
       success: true,
       content,
       confidence: 0.95,
-      recommendations: [
-        "Acessar o Technical Archive no menu lateral para leitura dos 20 capítulos do Handbook",
-        "Inspecionar os ADR-001 a ADR-006 para detalhes das decisões de engenharia",
-      ],
+      sources: ["Documentation Guardian: avaliação local do catálogo e inventário"],
+      metadata: { guardianScore: health.score, guardianStatus: health.status, auditScope: "registered-catalog-only" },
+      recommendations: ["Abrir o Technical Archive para consultar os documentos registrados", "Inspecionar as ADRs listadas no catálogo atual"],
     };
   }
 }

@@ -9,6 +9,7 @@ const checks = [
   "src/lib/athena/tests/interaction-contract.test.ts",
   "src/lib/athena/tests/interaction-contract-e2e.test.ts",
   "src/lib/athena/tests/capability-selection.test.ts",
+  "src/lib/athena/agents/council/agent-persona-grounding.test.ts",
   "src/lib/athena/tests/capability-plan.test.ts",
   "src/lib/athena/tests/capability-plan-governance.test.ts",
   "src/lib/athena/tests/capability-plan-recovery.test.ts",
