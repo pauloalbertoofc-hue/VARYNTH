@@ -1,11 +1,13 @@
 import { get } from "@vercel/blob";
 import { requireMusicAccount, musicRedis, validMusicArtworkBlobPath, validMusicBlobPath } from "@/lib/music/music-cloud";
+import { isMusicVisualSettings } from "@/lib/music/music-cloud-contracts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const idPattern = /^[a-f0-9-]{36}$/i;
 const assetsKey = (namespace: string) => `varynth:music:artwork-assets:v1:${namespace}`;
 const profilesKey = (namespace: string) => `varynth:music:artwork:v1:${namespace}`;
+const settingsKey = (namespace: string) => `varynth:music:visual-settings:v1:${namespace}`;
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const account = await requireMusicAccount();
@@ -19,14 +21,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!track.blobPathname || !validMusicBlobPath(track.blobPathname, account.namespace)) return Response.json({ error: "Faixa não encontrada nesta conta." }, { status: 404 });
     const kind = new URL(request.url).searchParams.get("kind");
     if (!kind) {
-      const [cover, background] = await Promise.all(["cover", "background"].map((item) => musicRedis(["HGET", profilesKey(account.namespace), `${id}:${item}`])));
+      const [cover, background, rawSettings] = await Promise.all([
+        musicRedis(["HGET", profilesKey(account.namespace), `${id}:cover`]),
+        musicRedis(["HGET", profilesKey(account.namespace), `${id}:background`]),
+        musicRedis(["HGET", settingsKey(account.namespace), id]),
+      ]);
       const assetIds = [cover, background].filter((value): value is string => typeof value === "string");
       const assets = await Promise.all(assetIds.map((assetId) => musicRedis(["HGET", assetsKey(account.namespace), assetId])));
       const paths = new Map(assetIds.map((assetId, index) => {
         try { const asset = JSON.parse(String(assets[index])) as { pathname?: string }; return [assetId, asset.pathname || ""]; } catch { return [assetId, ""]; }
       }));
       const resolve = (value: unknown, visualKind: string) => typeof value === "string" && paths.get(value) && validMusicArtworkBlobPath(paths.get(value)!, account.namespace) ? `/api/music/tracks/${encodeURIComponent(id)}/artwork?kind=${visualKind}` : undefined;
-      return Response.json({ coverUrl: resolve(cover, "cover"), backgroundUrl: resolve(background, "background") }, { headers: { "cache-control": "private, no-store" } });
+      let visualSettings: unknown;
+      try { visualSettings = typeof rawSettings === "string" ? JSON.parse(rawSettings) : undefined; } catch { visualSettings = undefined; }
+      return Response.json({ coverUrl: resolve(cover, "cover"), backgroundUrl: resolve(background, "background"), visualSettings: isMusicVisualSettings(visualSettings) ? visualSettings : undefined }, { headers: { "cache-control": "private, no-store" } });
     }
     if (kind !== "cover" && kind !== "background") return Response.json({ error: "Tipo de imagem inválido." }, { status: 400 });
     const assetId = await musicRedis(["HGET", profilesKey(account.namespace), `${id}:${kind}`]);

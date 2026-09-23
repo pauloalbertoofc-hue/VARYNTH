@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
+import { isMusicVisualSettings, validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
 
 const ownerA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ownerB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -15,4 +15,8 @@ assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/${id}.webp`, own
 assert.equal(validMusicArtworkBlobPath(`music/${ownerB}/artwork/${id}.png`, ownerA), false);
 assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/../${id}.png`, ownerA), false);
 assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/${id}.exe`, ownerA), false);
+assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 0.4, motionSpeed: 0.16, reducedMotion: false }), true);
+assert.equal(isMusicVisualSettings({ particleType: "explosion", particleDensity: 0.4, motionSpeed: 0.16, reducedMotion: false }), false);
+assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 1.1, motionSpeed: 0.16, reducedMotion: false }), false);
+assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 0.4, motionSpeed: 1, reducedMotion: false }), false);
 console.log("Music account-storage namespace isolation passed.");
