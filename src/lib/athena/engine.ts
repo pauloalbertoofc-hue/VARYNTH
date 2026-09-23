@@ -36,6 +36,7 @@ import { athenaObservabilityJournal } from "./observability/local-observability-
 import { processStudioConversation } from "./conversation/studio-continuity";
 import { athenaConversationFeedback } from "./conversation/quality-feedback";
 import { buildExperienceContext } from "@/lib/experience/context-builder";
+import { applyConfirmedCommunicationStyle } from "@/lib/experience/communication-style";
 
 export interface AthenaEngineContext {
   experienceOwnerId?: string;
@@ -327,7 +328,7 @@ export async function processAthenaQueryAsync(
 
   // 2. Response Strategy Layer (Plans structured response intent grounded in real state)
   const strategySemantic = alignSemanticWithConversationIntent(semantic, parsed);
-  const responseIntent = AthenaResponseStrategyEngine.plan(
+  const plannedResponseIntent = AthenaResponseStrategyEngine.plan(
     strategySemantic,
     sessionState,
     ctx,
@@ -335,6 +336,25 @@ export async function processAthenaQueryAsync(
     resolvedProjectId,
     prompt
   );
+
+  // Personalization is restricted to manually confirmed, allowlisted style enums.
+  // Fetch separately from cognitive recall so the deterministic path stays offline-safe.
+  let responseIntent = plannedResponseIntent;
+  try {
+    const communicationContext = await buildExperienceContext({
+      requester: ctx.experienceOwnerId ? `user:${ctx.experienceOwnerId}` : "local-owner",
+      ownerId: ctx.experienceOwnerId,
+      agentId: "athena",
+      moduleId: "athena",
+      projectId: resolvedProjectId,
+      sessionId,
+      currentInstruction: prompt,
+      budget: 12,
+    });
+    responseIntent = applyConfirmedCommunicationStyle(plannedResponseIntent, communicationContext.preferences, prompt);
+  } catch {
+    // Personalization is optional; retain the deterministic baseline on storage errors.
+  }
 
   // 3. Ambiguity & Clarification Handling
   if (responseIntent.mode === "CLARIFICATION" || (parsed.isAmbiguous && parsed.clarificationPrompt)) {
