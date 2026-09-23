@@ -350,7 +350,7 @@ export function useVarynthStore() {
       triggerStoreUpdate();
       return entity;
     },
-    [logActivity]
+    [logActivity, vaultStorageKey]
   );
 
   const moveToTrash = useCallback(
@@ -648,7 +648,7 @@ export function useVarynthStore() {
       triggerStoreUpdate();
       return newItem;
     },
-    [logActivity]
+    [logActivity, vaultStorageKey]
   );
 
   const updateVaultItem = useCallback((id: string, updates: Partial<VaultItem>) => {
@@ -676,7 +676,7 @@ export function useVarynthStore() {
       void fetch(`/api/vault/sync?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
       triggerStoreUpdate();
     },
-    [moveToTrash]
+    [moveToTrash, vaultStorageKey]
   );
 
   // --- CHRONOS ---
