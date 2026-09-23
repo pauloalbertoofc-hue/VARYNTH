@@ -6,7 +6,7 @@ A classificação semântica do Vault não determina a localização física de 
 
 ## Metadados persistidos atualmente
 
-`VaultItem` mantém tipo de item, categoria literária, tipo de obra, formato, assunto primário, tags, estado de leitura, origem, versão da taxonomia, origem/confiança da classificação e IDs de projetos relacionados. A migração para `taxonomyVersion: 2` preserva os dados legados e marca sua classificação como `migration`; não equivale a uma revisão humana.
+`VaultItem` mantém tipo de item, categoria literária, tipo de obra, formato, assunto primário, tags, estado de leitura, origem, versão da taxonomia, origem/confiança da classificação e IDs de projetos relacionados. Os campos aditivos `knowledgeDomains`, `knowledgeCategories` e `knowledgeTags` persistem correções semânticas separadas da categoria editorial e das tags da fonte. A migração para `taxonomyVersion: 2` preserva os dados legados e marca sua classificação como `migration`; não equivale a uma revisão humana.
 
 O classificador pode sugerir assunto e tags a partir de título, autoria, nome de arquivo e URL. Sugestões continuam distinguíveis de correções explícitas. A adaptação para `KnowledgeItem` só aplica inferência quando há um domínio não genérico reconhecível com confiança mínima de 0,8; classificação manual, aceita ou migrada é tratada como explícita, inclusive quando o usuário escolheu conhecimento geral. Confidence permanece metadata epistêmica, não autoridade da fonte nem prova factual.
 

@@ -659,7 +659,7 @@ export function useVarynthStore() {
     localStorage.setItem(vaultStorageKey || STORAGE_KEYS.VAULT, JSON.stringify(updated));
     pushVaultItems(updated);
     triggerStoreUpdate();
-  }, []);
+  }, [vaultStorageKey]);
 
   const deleteVaultItem = useCallback(
     (id: string, actorType: ActorType = "user") => {

@@ -6,8 +6,10 @@ import { applyKnowledgeClassification, domainRegistry, findKnowledgeConflicts, l
 import type { KnowledgeItem } from "@/lib/knowledge";
 import type { KnowledgeRelationship } from "@/lib/knowledge";
 import type { DomainDefinition } from "@/lib/knowledge/domain-registry";
+import { useVarynthStore } from "@/lib/store/useVarynthStore";
 
 export default function KnowledgePage() {
+  const { isLoaded: vaultLoaded, vaultItems, updateVaultItem } = useVarynthStore();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [domains, setDomains] = useState<DomainDefinition[]>(() => domainRegistry.listAllDomains());
   const [domainRevision, setDomainRevision] = useState(0);
@@ -58,12 +60,26 @@ export default function KnowledgePage() {
     setBusyItem(item.id); setActionMessage("");
     try {
       await authorize("CLASSIFY", item.id);
+      const vaultSourceId = item.provenance.sourceType === "VAULT_ITEM" && item.id.startsWith("vault:") ? item.id.slice("vault:".length) : null;
+      if (vaultSourceId && (!vaultLoaded || !vaultItems.some((source) => source.id === vaultSourceId))) {
+        throw new Error("Aguarde o Vault carregar a fonte antes de corrigir sua classificação.");
+      }
       const classified = applyKnowledgeClassification(item, { primaryDomain: classificationTargets[item.id] || item.primaryDomain });
       const patch = { primaryDomain: classified.primaryDomain, categories: classified.categories, tags: classified.tags, classification: classified.classification };
       const response = await fetch("/api/knowledge/update", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id, patch }) });
       const result = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(result.error || "Não foi possível persistir a classificação compartilhada.");
       const updated = await updateKnowledge(item.id, "system", patch);
+      if (vaultSourceId) {
+          updateVaultItem(vaultSourceId, {
+            knowledgeDomains: [classified.primaryDomain, ...classified.relatedDomains],
+            knowledgeCategories: classified.categories,
+            knowledgeTags: classified.tags,
+            classificationSource: "manual",
+            classificationConfidence: 1,
+            classificationReviewedAt: classified.classification?.classifiedAt,
+          });
+      }
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...updated, content: item.content } : candidate));
       setActionMessage("Classificação salva.");
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao classificar."); }

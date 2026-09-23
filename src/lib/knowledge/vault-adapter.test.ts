@@ -20,6 +20,16 @@ const explicitGeneral = knowledgeFromVaultItem({
 assert.equal(explicitGeneral.primaryDomain, "general-knowledge");
 assert.equal(explicitGeneral.classification?.source, "USER_CORRECTED");
 assert.equal(explicitGeneral.classification?.confidence, 1);
+const correctedTaxonomy = knowledgeFromVaultItem({
+  id: "v5", title: "Correção interdisciplinar", type: "artigo", tags: ["original-tag"], category: "Não ficção",
+  readingStatus: "para_ler", createdAt: "2026-05-01T00:00:00.000Z", updatedAt: "2026-05-02T00:00:00.000Z",
+  knowledgeDomains: ["music.composition.harmony", "game-development"], knowledgeCategories: ["Composition"], knowledgeTags: ["human-reviewed"],
+});
+assert.equal(correctedTaxonomy.primaryDomain, "music.composition.harmony");
+assert.deepEqual(correctedTaxonomy.relatedDomains, ["game-development"]);
+assert.deepEqual(correctedTaxonomy.categories, ["Composition"]);
+assert.deepEqual(correctedTaxonomy.tags, ["human-reviewed"]);
+assert.equal(correctedTaxonomy.classification?.source, "USER_CORRECTED");
 assert.equal(explicitGeneral.provenance.inferred, false);
 
 const inferred = knowledgeFromVaultItem({

@@ -16,6 +16,9 @@ export function canonicalVaultProjection(value: unknown): KnowledgeItem | null {
     || (item.content !== undefined && typeof item.content !== "string") || (item.summary !== undefined && typeof item.summary !== "string")
     || (item.notes !== undefined && typeof item.notes !== "string") || (item.url !== undefined && typeof item.url !== "string")
     || (item.relatedProjectIds !== undefined && (!Array.isArray(item.relatedProjectIds) || !item.relatedProjectIds.every((id) => typeof id === "string")))
+    || (item.knowledgeDomains !== undefined && (!Array.isArray(item.knowledgeDomains) || !item.knowledgeDomains.every((id) => typeof id === "string")))
+    || (item.knowledgeCategories !== undefined && (!Array.isArray(item.knowledgeCategories) || !item.knowledgeCategories.every((value) => typeof value === "string")))
+    || (item.knowledgeTags !== undefined && (!Array.isArray(item.knowledgeTags) || !item.knowledgeTags.every((value) => typeof value === "string")))
   ) return null;
   return knowledgeFromVaultItem(item as VaultItem);
 }

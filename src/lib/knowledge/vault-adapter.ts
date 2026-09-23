@@ -15,23 +15,25 @@ const SUBJECT_DOMAINS: Record<string, string> = {
 export function knowledgeFromVaultItem(item: VaultItem, ownerAgent?: string): KnowledgeItem {
   const now = item.updatedAt || item.createdAt;
   const content = item.summary || item.notes || item.content || "";
-  const userClassified = item.classificationSource === "manual" || item.classificationSource === "athena_accepted";
+  const explicitDomains = [...new Set((item.knowledgeDomains || []).filter((domain) => typeof domain === "string" && domain.trim()))];
+  const userClassified = item.classificationSource === "manual" || item.classificationSource === "athena_accepted" || explicitDomains.length > 0;
   const systemClassified = item.classificationSource === "migration";
   const subjectIsGeneric = !item.primarySubject || ["Conhecimento geral", "Não classificado"].includes(item.primarySubject);
-  const explicitlyClassified = userClassified || systemClassified || (!subjectIsGeneric && Boolean(item.primarySubject));
+  const explicitlyClassified = explicitDomains.length > 0 || userClassified || systemClassified || (!subjectIsGeneric && Boolean(item.primarySubject));
   const suggestion = suggestKnowledgeClassification({ title: item.title, content, tags: item.tags, author: item.author, fileName: item.originalFileName, url: item.url, primarySubject: explicitlyClassified ? item.primarySubject : undefined });
   const explicitDomain = SUBJECT_DOMAINS[item.primarySubject || ""];
   const inferredApplied = !explicitlyClassified && subjectIsGeneric && suggestion.primaryDomain !== "general-knowledge" && suggestion.confidence >= 0.8;
-  const domain = explicitDomain || (inferredApplied ? suggestion.primaryDomain : "general-knowledge");
-  const categories = [...new Set([item.literaryCategory, item.workType].filter((value): value is NonNullable<typeof value> => Boolean(value)))];
+  const domain = explicitDomains[0] || explicitDomain || (inferredApplied ? suggestion.primaryDomain : "general-knowledge");
+  const relatedDomains = [...new Set([...explicitDomains.slice(1), ...item.tags.filter((tag) => tag.includes(".") || tag.toLowerCase().includes("audio"))])].filter((related) => related !== domain);
+  const categories = item.knowledgeCategories || [...new Set([item.literaryCategory, item.workType].filter((value): value is NonNullable<typeof value> => Boolean(value)))];
   return {
     id: `vault:${item.id}`,
     title: item.title,
     content,
     primaryDomain: domain,
-    relatedDomains: item.tags.filter((tag) => tag.includes(".") || tag.toLowerCase().includes("audio")),
+    relatedDomains,
     categories: categories.length ? categories : ["Não classificado", "Outro"],
-    tags: item.tags,
+    tags: item.knowledgeTags || item.tags,
     ownerAgent,
     contributingAgents: [],
     visibility: item.relatedProjectIds?.length ? "PROJECT" : "DOMAIN",

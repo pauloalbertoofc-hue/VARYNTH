@@ -20,6 +20,15 @@ async function main() {
   assert.equal(updated.provenance.createdAt, source.createdAt);
   assert.equal(updated.content, "Updated source content.");
 
+  const correctedSource = { ...edited, knowledgeDomains: ["music.composition.harmony", "game-development"], knowledgeCategories: ["Composition"], knowledgeTags: ["reviewed"] };
+  const corrected = await syncVaultKnowledgeItem(correctedSource);
+  const correctedAgain = await syncVaultKnowledgeItem(correctedSource);
+  assert.equal(corrected.primaryDomain, "music.composition.harmony");
+  assert.deepEqual(corrected.relatedDomains, ["game-development"]);
+  assert.deepEqual(corrected.categories, ["Composition"]);
+  assert.deepEqual(corrected.tags, ["reviewed"]);
+  assert.equal(correctedAgain.version, corrected.version);
+
   const [revoked, duplicateRevocation] = await Promise.all([
     revokeVaultKnowledgeItem(source.id),
     revokeVaultKnowledgeItem(source.id),

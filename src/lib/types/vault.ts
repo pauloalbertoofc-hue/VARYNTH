@@ -29,6 +29,10 @@ export interface VaultItem {
   workType?: VaultWorkType;
   format?: VaultFormat;
   primarySubject?: string;
+  /** Semantic Knowledge taxonomy, separate from the legacy editorial category. */
+  knowledgeDomains?: string[];
+  knowledgeCategories?: string[];
+  knowledgeTags?: string[];
   originalFileName?: string;
   sourceOrigin?: string;
   taxonomyVersion?: 2;
