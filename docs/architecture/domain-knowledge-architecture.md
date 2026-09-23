@@ -10,6 +10,7 @@ The implemented foundation provides:
 - `KnowledgeItem` with explicit kind, assertion, visibility, sensitivity, provenance, version, and freshness;
 - browser-local Knowledge persistence plus authenticated, account-scoped server snapshots for remote routes (Redis on Vercel; fail-closed when unavailable);
 - fail-closed access decisions for private agent, project, and public-agent scopes;
+- opt-in public capability contracts with explicit input/output and consumer lists; registered capabilities are not automatically advertised;
 - query filtering by domain, project, and text;
 - Vault projection with canonical server-side policy fields, immutable revisions, revocation, and persisted user-corrected semantic taxonomy.
 
@@ -27,7 +28,7 @@ The implemented foundation provides:
 2. Knowledge item and provenance persistence (implemented).
 3. Policy and local retrieval (implemented).
 4. Vault classification adapter and migration-safe backfill (implemented; taxonomy corrections persist on the source item).
-5. Public knowledge contracts and capability discovery through Athena (implemented incrementally; not every proposed capability is wired).
+5. Public knowledge contracts and capability discovery through Athena (explicit per-capability allowlist and consumer contract; discovery does not imply a generic executable adapter, and not every proposed capability is wired).
 6. Domain router, multi-domain decomposition, and knowledge packets (implemented incrementally).
 7. Knowledge Center UI and inspectors (implemented for registry, retrieval, classification, publication, revocation, conflicts, audit, and persistence state).
 8. Cache invalidation, conflict/version views, adversarial tests (implemented incrementally); multi-instance load testing and authenticated production end-to-end validation remain open.

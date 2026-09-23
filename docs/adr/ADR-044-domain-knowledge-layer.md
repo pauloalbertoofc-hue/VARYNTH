@@ -18,6 +18,7 @@ Aceito e implementado incrementalmente.
 9. Transferir conhecimento entre agentes em `KnowledgePacket`/`DomainResponse` com purpose e provenance, não em transcrições integrais.
 10. Separar Knowledge, Experience, Preference, Memory e Policy, com precedência de instruções/policy sobre personalização.
 11. Manter retrieval híbrido por filtros estruturados e busca lexical antes de considerar embeddings; nenhum índice semântico substitui a fonte de verdade local.
+12. Publicar capabilities somente por declaração explícita com contrato de entrada/saída e consumidores; capabilities registradas para awareness não são públicas por padrão, e descoberta não equivale a execução.
 
 ## Rationale
 

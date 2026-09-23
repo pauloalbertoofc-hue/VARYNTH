@@ -33,4 +33,13 @@ assert.ok(merged.resolveCapabilities("music.theory.harmony").includes("music.exp
 assert.equal(merged.isWithinDomain("legal.intellectual-property", "legal"), true);
 assert.equal(merged.isWithinDomain("legal", "legal.intellectual-property"), false);
 assert.equal(merged.isWithinDomain("music.theory.harmony", "legal"), false);
+assert.ok(merged.resolvePublicCapabilities("music").some((capability) => capability.id === "music.explainHarmony"));
+assert.ok(!merged.resolvePublicCapabilities("system.orchestration").length);
+const migrated = new DomainRegistry(false);
+migrated.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, [{ id: "music", label: "Music (stored)", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.inspectMetadata"], relatedDomains: [], enabled: true }]));
+assert.ok(migrated.resolvePublicCapabilities("music").some((capability) => capability.id === "music.inspectMetadata"));
+const revoked = new DomainRegistry(false);
+revoked.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, [{ id: "music", label: "Music", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.inspectMetadata"], publicCapabilities: [], relatedDomains: [], enabled: true }]));
+assert.equal(revoked.resolvePublicCapabilities("music").some((capability) => capability.domain === "music"), false);
+assert.throws(() => merged.register({ id: "unsafe", label: "Unsafe", primaryOwner: "agent", specialists: [], capabilities: ["unsafe.execute"], publicCapabilities: [{ id: "unsafe.execute", description: "", input: ["query"], output: ["result"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true }), /DOMAIN_PUBLIC_CAPABILITY_INVALID/);
 console.log("Domain registry tests passed");

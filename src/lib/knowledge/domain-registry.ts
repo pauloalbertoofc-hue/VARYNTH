@@ -5,6 +5,7 @@ export interface DomainDefinition {
   primaryOwner?: string;
   specialists: string[];
   capabilities: string[];
+  publicCapabilities?: Array<{ id: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }>;
   relatedDomains: string[];
   enabled: boolean;
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
@@ -45,7 +46,19 @@ export class DomainRegistry {
     const normalizeStrings = (values: string[]) => [...new Set(values.filter((value) => typeof value === "string").map((value) => value.trim()).filter(Boolean))];
     const specialists = normalizeStrings(domain.specialists);
     if (primaryOwner && !specialists.includes(primaryOwner)) specialists.unshift(primaryOwner);
-    this.domains.set(id, { ...domain, id, primaryOwner, specialists, capabilities: normalizeStrings(domain.capabilities), relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    const capabilities = normalizeStrings(domain.capabilities);
+    const publicCapabilities = (Array.isArray(domain.publicCapabilities) ? domain.publicCapabilities : []).map((capability) => {
+      const capabilityId = typeof capability?.id === "string" ? capability.id.trim() : "";
+      const description = typeof capability?.description === "string" ? capability.description.trim() : "";
+      const input = normalizeStrings(Array.isArray(capability?.input) ? capability.input : []);
+      const output = normalizeStrings(Array.isArray(capability?.output) ? capability.output : []);
+      const allowedConsumers = normalizeStrings(Array.isArray(capability?.allowedConsumers) ? capability.allowedConsumers : []);
+      if (!capabilityId || !description || !capabilities.includes(capabilityId) || !input.length || !output.length || !allowedConsumers.length) {
+        throw new Error("[DOMAIN_PUBLIC_CAPABILITY_INVALID] Capability pública precisa estar registrada e declarar descrição, contrato I/O e consumidores permitidos.");
+      }
+      return { id: capabilityId, description, input, output, allowedConsumers };
+    });
+    this.domains.set(id, { ...domain, id, primaryOwner, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
     this.persistBrowserSnapshot();
   }
 
@@ -132,6 +145,16 @@ export class DomainRegistry {
     return [...new Set([...domain.capabilities, ...(domain.parentId ? this.resolveCapabilities(domain.parentId) : [])])];
   }
 
+  resolvePublicCapabilities(id: string): Array<{ id: string; domain: string; providerAgent: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }> {
+    const domain = this.resolveDomain(id);
+    if (!domain) return [];
+    return this.listDomains().filter((candidate) => this.isWithinDomain(candidate.id, domain.id)).flatMap((candidate) => {
+      const providerAgent = this.resolveOwner(candidate.id);
+      if (!providerAgent) return [];
+      return (candidate.publicCapabilities || []).map((capability) => ({ ...capability, domain: candidate.id, providerAgent, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] }));
+    });
+  }
+
   isWithinDomain(candidateDomainId: string, scopeDomainId: string): boolean {
     if (!candidateDomainId || !scopeDomainId) return false;
     if (candidateDomainId === scopeDomainId || candidateDomainId.startsWith(`${scopeDomainId}.`)) return true;
@@ -170,7 +193,7 @@ export class DomainRegistry {
   }
 
   private cloneDomain(domain: DomainDefinition): DomainDefinition {
-    return { ...domain, specialists: [...domain.specialists], capabilities: [...domain.capabilities], relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
+    return { ...domain, specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
   }
 
   private persistBrowserSnapshot(): void {
@@ -181,27 +204,36 @@ export class DomainRegistry {
 
 export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
   { id: "system.orchestration", label: "System Orchestration", primaryOwner: "athena", specialists: ["athena"], capabilities: ["discoverDomain", "delegateTask"], relatedDomains: [], enabled: true },
-  { id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true },
-  { id: "legal", label: "Legal", primaryOwner: "justitia", specialists: ["justitia"], capabilities: ["legal.explainConcept", "legal.identifyRelevantDomain"], relatedDomains: ["music", "privacy"], enabled: true },
+  { id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], publicCapabilities: [
+    { id: "music.inspectMetadata", description: "Interpreta metadados musicais e técnicos fornecidos explicitamente na consulta.", input: ["query", "provided_metadata"], output: ["structured_context", "provenance"], allowedConsumers: ["*"] },
+    { id: "music.analyzeStructure", description: "Explica aspectos estruturais de uma composição com base no contexto fornecido.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
+  ], relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true },
+  { id: "legal", label: "Legal", primaryOwner: "justitia", specialists: ["justitia"], capabilities: ["legal.explainConcept", "legal.identifyRelevantDomain"], publicCapabilities: [
+    { id: "legal.explainConcept", description: "Fornece contexto conceitual jurídico público; não substitui análise profissional nem consulta de fontes atuais.", input: ["query", "jurisdiction_if_known"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
+    { id: "legal.identifyRelevantDomain", description: "Ajuda a identificar o ramo jurídico potencialmente relacionado à pergunta.", input: ["query"], output: ["candidate_domains", "limitations"], allowedConsumers: ["*"] },
+  ], relatedDomains: ["music", "privacy"], enabled: true },
   { id: "game-development", label: "Game Development", specialists: [], capabilities: [], relatedDomains: ["music.game-audio"], enabled: true },
   { id: "music.listening", label: "Listening & Curation", parentId: "music", specialists: [], capabilities: ["music.curate"], relatedDomains: [], enabled: true },
-  { id: "music.theory", label: "Music Theory", parentId: "music", specialists: [], capabilities: ["music.explainTheory"], relatedDomains: [], enabled: true },
-  { id: "music.theory.harmony", label: "Harmony", parentId: "music.theory", specialists: [], capabilities: ["music.explainHarmony"], relatedDomains: [], enabled: true },
-  { id: "music.theory.melody", label: "Melody", parentId: "music.theory", specialists: [], capabilities: ["music.explainMelody"], relatedDomains: [], enabled: true },
-  { id: "music.theory.rhythm", label: "Rhythm", parentId: "music.theory", specialists: [], capabilities: ["music.explainRhythm"], relatedDomains: [], enabled: true },
+  { id: "music.theory", label: "Music Theory", parentId: "music", specialists: [], capabilities: ["music.explainTheory"], publicCapabilities: [{ id: "music.explainTheory", description: "Explica conceitos gerais de teoria musical sem presumir dados ausentes.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
+  { id: "music.theory.harmony", label: "Harmony", parentId: "music.theory", specialists: [], capabilities: ["music.explainHarmony"], publicCapabilities: [{ id: "music.explainHarmony", description: "Explica conceitos de harmonia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
+  { id: "music.theory.melody", label: "Melody", parentId: "music.theory", specialists: [], capabilities: ["music.explainMelody"], publicCapabilities: [{ id: "music.explainMelody", description: "Explica conceitos de melodia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
+  { id: "music.theory.rhythm", label: "Rhythm", parentId: "music.theory", specialists: [], capabilities: ["music.explainRhythm"], publicCapabilities: [{ id: "music.explainRhythm", description: "Explica conceitos de ritmo musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
   { id: "music.theory.scales", label: "Scales", parentId: "music.theory", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.theory.notation", label: "Notation", parentId: "music.theory", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.composition", label: "Composition", parentId: "music", specialists: [], capabilities: ["music.analyzeStructure"], relatedDomains: [], enabled: true },
   { id: "music.composition.arrangement", label: "Arrangement", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.composition.orchestration", label: "Orchestration", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.composition.songwriting", label: "Songwriting", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
-  { id: "music.production", label: "Production", parentId: "music", specialists: [], capabilities: ["audio.getTechnicalInfo"], relatedDomains: [], enabled: true },
+  { id: "music.production", label: "Production", parentId: "music", specialists: [], capabilities: ["audio.getTechnicalInfo"], publicCapabilities: [{ id: "audio.getTechnicalInfo", description: "Interpreta especificações de áudio fornecidas na consulta; não lê assets locais por conta própria.", input: ["query", "provided_asset_metadata"], output: ["technical_context", "provenance", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
   { id: "music.production.recording", label: "Recording", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.production.mixing", label: "Mixing", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.production.mastering", label: "Mastering", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.voice", label: "Voice", parentId: "music", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.sound-design", label: "Sound Design", parentId: "music", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
-  { id: "music.game-audio", label: "Game Audio", parentId: "music", specialists: [], capabilities: ["music.gameAudio", "audio.describeAsset"], relatedDomains: ["game-development"], enabled: true },
+  { id: "music.game-audio", label: "Game Audio", parentId: "music", specialists: [], capabilities: ["music.gameAudio", "audio.describeAsset"], publicCapabilities: [
+    { id: "music.gameAudio", description: "Explica conceitos de áudio interativo a partir do contexto explicitamente compartilhado.", input: ["query", "provided_game_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
+    { id: "audio.describeAsset", description: "Descreve um asset de áudio usando somente metadados ou conteúdo fornecidos pelo solicitante.", input: ["query", "provided_asset_metadata"], output: ["description", "provenance", "limitations"], allowedConsumers: ["*"] },
+  ], relatedDomains: ["game-development"], enabled: true },
   { id: "music.technology", label: "Music Technology", parentId: "music", specialists: [], capabilities: ["music.inspectMetadata", "audio.getTechnicalInfo"], relatedDomains: [], enabled: true },
   { id: "music.asset-provenance", label: "Music Asset Provenance", parentId: "music", specialists: [], capabilities: ["music.inspectMetadata"], relatedDomains: ["legal.intellectual-property"], enabled: true },
   { id: "legal.constitutional", label: "Constitutional", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
@@ -216,8 +248,23 @@ export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
 ];
 
 export function mergeDomainDefinitions(defaults: DomainDefinition[], persisted: DomainDefinition[]): DomainDefinition[] {
+  const defaultsById = new Map(defaults.map((domain) => [domain.id, domain]));
   const domains = new Map(defaults.map((domain) => [domain.id, domain]));
-  for (const domain of persisted) domains.set(domain.id, domain);
+  for (const domain of persisted) {
+    const baseline = defaultsById.get(domain.id);
+    const mergedCapabilities = Array.isArray(domain.capabilities) ? domain.capabilities : baseline?.capabilities || [];
+    const publicCapabilities = Object.prototype.hasOwnProperty.call(domain, "publicCapabilities")
+      ? domain.publicCapabilities
+      : baseline?.publicCapabilities?.filter((capability) => mergedCapabilities.includes(capability.id));
+    domains.set(domain.id, {
+      ...baseline,
+      ...domain,
+      // Older snapshots predate explicit publication contracts. Preserve the
+      // reviewed defaults only when the field is absent; an explicit [] remains
+      // a deliberate revocation of all public capability exposure.
+      publicCapabilities: publicCapabilities?.filter((capability) => mergedCapabilities.includes(capability.id)),
+    });
+  }
   return [...domains.values()];
 }
 

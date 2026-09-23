@@ -1,6 +1,6 @@
 import { requireOwner, requireSession } from "@/lib/auth/require-session";
 import { domainRegistry, DomainRegistry } from "@/lib/knowledge";
-import type { DomainDefinition } from "@/lib/knowledge/domain-registry";
+import { DEFAULT_DOMAIN_DEFINITIONS, mergeDomainDefinitions, type DomainDefinition } from "@/lib/knowledge/domain-registry";
 import { domainRegistryPersistenceMode, readPersistedDomainRegistry, savePersistedDomainRegistry } from "@/lib/knowledge/domain-registry-store";
 
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ function sameOrigin(request: Request) {
 
 async function loadRegistry() {
   const stored = await readPersistedDomainRegistry();
-  if (stored) domainRegistry.replaceDomains(stored.domains);
+  if (stored) domainRegistry.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, stored.domains));
   return { revision: stored?.revision || 0, persisted: Boolean(stored) };
 }
 
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const currentRevision = stored?.revision || 0;
     if (expectedRevision !== currentRevision) return Response.json({ error: "Domain Registry desatualizado; atualize a tela e tente novamente." }, { status: 409 });
     const candidate = new DomainRegistry(false);
-    candidate.replaceDomains(stored?.domains || domainRegistry.listAllDomains());
+    candidate.replaceDomains(stored ? mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, stored.domains) : domainRegistry.listAllDomains());
 
     if (body.operation === "REGISTER_DOMAIN") {
       const definition = body.domain as DomainDefinition | undefined;

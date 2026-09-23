@@ -1,17 +1,19 @@
-import { KnowledgeItem, KnowledgeQuery } from "./contracts";
+import { KnowledgeQuery } from "./contracts";
 import { domainRegistry } from "./domain-registry";
 import { queryKnowledge } from "./service";
 import { decideKnowledgeAccess } from "./policy";
 
-export interface PublicKnowledgeCapability { id: string; agentId: string; domain: string; description: string; input: string[]; output: string[]; public: true; }
+export interface PublicKnowledgeCapability { id: string; agentId: string; domain: string; description: string; input: string[]; output: string[]; allowedConsumers: string[]; public: true; }
 export interface KnowledgeContract { domain: string; providerAgent: string; visibility: "PUBLIC_TO_AGENTS"; allowedConsumers: string[]; categories: string[]; capabilities: string[]; sensitivityPolicy: "PUBLIC_ONLY"; }
-export interface PublicKnowledgeProfile { domain: string; ownerAgent?: string; specialists: string[]; capabilities: PublicKnowledgeCapability[]; contract: KnowledgeContract; }
+export interface PublicKnowledgeProfile { domain: string; ownerAgent?: string; specialists: string[]; capabilities: PublicKnowledgeCapability[]; contracts: KnowledgeContract[]; }
 export interface KnowledgePacket { id: string; requester: string; provider: string; domain: string; purpose: string; facts: Array<{ knowledgeId: string; title: string; content: string }>; constraints: string[]; provenanceIds: string[]; createdAt: string; }
 export interface DomainResponse { domain: string; specialistAgent: string; answer: string; evidence: string[]; sources: string[]; confidence: number; assumptions: string[]; limitations: string[]; packet: KnowledgePacket; }
 
 export function listPublicCapabilities(): PublicKnowledgeCapability[] {
   domainRegistry.hydrateBrowserSnapshot();
-  return domainRegistry.listDomains().flatMap((domain) => (domain.primaryOwner ? domain.capabilities.map((id) => ({ id, agentId: domain.primaryOwner!, domain: domain.id, description: `Capability pública do domínio ${domain.label}.`, input: ["query", "purpose"], output: ["structured_context", "provenance"], public: true as const })) : []));
+  return domainRegistry.listDomains().flatMap((domain) => domainRegistry.resolvePublicCapabilities(domain.id)
+    .filter((capability) => capability.domain === domain.id)
+    .map((capability) => ({ ...capability, agentId: capability.providerAgent, public: true as const })));
 }
 
 export function getPublicKnowledgeProfile(domainId: string): PublicKnowledgeProfile | undefined {
@@ -19,8 +21,9 @@ export function getPublicKnowledgeProfile(domainId: string): PublicKnowledgeProf
   const domain = domainRegistry.resolveDomain(domainId);
   if (!domain) return undefined;
   const policy = domainRegistry.resolveKnowledgePolicy(domain.id);
-  const capabilities = listPublicCapabilities().filter((capability) => capability.domain === domain.id);
-  return { domain: domain.id, ownerAgent: policy?.ownerAgent, specialists: domainRegistry.resolveSpecialists(domain.id), capabilities, contract: { domain: domain.id, providerAgent: policy?.ownerAgent || "system", visibility: "PUBLIC_TO_AGENTS", allowedConsumers: ["*"], categories: ["public-capability", "public-knowledge"], capabilities: capabilities.map((capability) => capability.id), sensitivityPolicy: policy?.sensitivity || "PUBLIC_ONLY" } };
+  const capabilities = domainRegistry.resolvePublicCapabilities(domain.id).map((capability) => ({ ...capability, agentId: capability.providerAgent, public: true as const }));
+  const contracts = capabilities.map((capability): KnowledgeContract => ({ domain: capability.domain, providerAgent: capability.agentId, visibility: "PUBLIC_TO_AGENTS", allowedConsumers: [...capability.allowedConsumers], categories: ["public-capability", "public-knowledge"], capabilities: [capability.id], sensitivityPolicy: "PUBLIC_ONLY" }));
+  return { domain: domain.id, ownerAgent: policy?.ownerAgent, specialists: domainRegistry.resolveSpecialists(domain.id), capabilities, contracts };
 }
 
 export async function requestKnowledgePacket(request: KnowledgeQuery & { provider?: string }): Promise<KnowledgePacket> {
