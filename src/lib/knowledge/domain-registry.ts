@@ -25,7 +25,7 @@ export class DomainRegistry {
     this.browserSnapshotHydrated = true;
     try {
       const stored = JSON.parse(window.localStorage.getItem(DOMAIN_REGISTRY_LOCAL_KEY) || "null") as unknown;
-      if (Array.isArray(stored) && stored.length) this.replaceDomains(stored as DomainDefinition[]);
+      if (Array.isArray(stored) && stored.length) this.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, stored as DomainDefinition[]));
     } catch { /* Defaults remain available if the local cache is unreadable. */ }
   }
 
@@ -122,12 +122,18 @@ export class DomainRegistry {
   resolveRelatedDomains(id: string): string[] {
     const domain = this.resolveDomain(id);
     if (!domain) return [];
-    const descendants = this.listDomains().filter((candidate) => candidate.parentId === domain.id).map((candidate) => candidate.id);
+    const descendants = this.listDomains().filter((candidate) => this.isDescendantOf(candidate, domain.id)).map((candidate) => candidate.id);
     return [...new Set([...domain.relatedDomains, ...descendants])];
   }
 
+  resolveCapabilities(id: string): string[] {
+    const domain = this.resolveDomain(id);
+    if (!domain) return [];
+    return [...new Set([...domain.capabilities, ...(domain.parentId ? this.resolveCapabilities(domain.parentId) : [])])];
+  }
+
   listHierarchy(rootId?: string): DomainDefinition[] {
-    return this.listDomains().filter((domain) => !rootId || domain.id === rootId || domain.id.startsWith(`${rootId}.`) || domain.parentId === rootId);
+    return this.listDomains().filter((domain) => !rootId || domain.id === rootId || this.isDescendantOf(domain, rootId));
   }
   getAwarenessIndex(): KnowledgeAwarenessIndex {
     return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
@@ -137,6 +143,17 @@ export class DomainRegistry {
     const domain = this.domains.get(id);
     if (!domain) throw new Error(`[DOMAIN_NOT_FOUND] Domínio inexistente: ${id}`);
     return domain;
+  }
+
+  private isDescendantOf(domain: DomainDefinition, ancestorId: string): boolean {
+    const visited = new Set<string>();
+    let parentId = domain.parentId;
+    while (parentId && !visited.has(parentId)) {
+      if (parentId === ancestorId) return true;
+      visited.add(parentId);
+      parentId = this.domains.get(parentId)?.parentId;
+    }
+    return false;
   }
 
   private cloneDomain(domain: DomainDefinition): DomainDefinition {
@@ -149,10 +166,47 @@ export class DomainRegistry {
   }
 }
 
-export const domainRegistry = new DomainRegistry();
-for (const domain of [
+export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
   { id: "system.orchestration", label: "System Orchestration", primaryOwner: "athena", specialists: ["athena"], capabilities: ["discoverDomain", "delegateTask"], relatedDomains: [], enabled: true },
   { id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true },
   { id: "legal", label: "Legal", primaryOwner: "justitia", specialists: ["justitia"], capabilities: ["legal.explainConcept", "legal.identifyRelevantDomain"], relatedDomains: ["music", "privacy"], enabled: true },
   { id: "game-development", label: "Game Development", specialists: [], capabilities: [], relatedDomains: ["music.game-audio"], enabled: true },
-]) if (!domainRegistry.getDomain(domain.id)) domainRegistry.register(domain);
+  { id: "music.listening", label: "Listening & Curation", parentId: "music", specialists: [], capabilities: ["music.curate"], relatedDomains: [], enabled: true },
+  { id: "music.theory", label: "Music Theory", parentId: "music", specialists: [], capabilities: ["music.explainTheory"], relatedDomains: [], enabled: true },
+  { id: "music.theory.harmony", label: "Harmony", parentId: "music.theory", specialists: [], capabilities: ["music.explainHarmony"], relatedDomains: [], enabled: true },
+  { id: "music.theory.melody", label: "Melody", parentId: "music.theory", specialists: [], capabilities: ["music.explainMelody"], relatedDomains: [], enabled: true },
+  { id: "music.theory.rhythm", label: "Rhythm", parentId: "music.theory", specialists: [], capabilities: ["music.explainRhythm"], relatedDomains: [], enabled: true },
+  { id: "music.theory.scales", label: "Scales", parentId: "music.theory", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.theory.notation", label: "Notation", parentId: "music.theory", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.composition", label: "Composition", parentId: "music", specialists: [], capabilities: ["music.analyzeStructure"], relatedDomains: [], enabled: true },
+  { id: "music.composition.arrangement", label: "Arrangement", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.composition.orchestration", label: "Orchestration", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.composition.songwriting", label: "Songwriting", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.production", label: "Production", parentId: "music", specialists: [], capabilities: ["audio.getTechnicalInfo"], relatedDomains: [], enabled: true },
+  { id: "music.production.recording", label: "Recording", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.production.mixing", label: "Mixing", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.production.mastering", label: "Mastering", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.voice", label: "Voice", parentId: "music", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.sound-design", label: "Sound Design", parentId: "music", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "music.game-audio", label: "Game Audio", parentId: "music", specialists: [], capabilities: ["music.gameAudio", "audio.describeAsset"], relatedDomains: ["game-development"], enabled: true },
+  { id: "music.technology", label: "Music Technology", parentId: "music", specialists: [], capabilities: ["music.inspectMetadata", "audio.getTechnicalInfo"], relatedDomains: [], enabled: true },
+  { id: "music.asset-provenance", label: "Music Asset Provenance", parentId: "music", specialists: [], capabilities: ["music.inspectMetadata"], relatedDomains: ["legal.intellectual-property"], enabled: true },
+  { id: "legal.constitutional", label: "Constitutional", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.criminal", label: "Criminal", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.civil", label: "Civil", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.labor", label: "Labor", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.family", label: "Family", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.procedural", label: "Procedural", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.intellectual-property", label: "Intellectual Property", parentId: "legal", specialists: [], capabilities: ["legal.explainConcept", "legal.getPublicReferenceContext"], relatedDomains: ["music.asset-provenance", "game-development"], enabled: true },
+  { id: "legal.privacy", label: "Privacy", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
+  { id: "legal.technology", label: "Technology Law", parentId: "legal", specialists: [], capabilities: [], relatedDomains: ["music.technology"], enabled: true },
+];
+
+export function mergeDomainDefinitions(defaults: DomainDefinition[], persisted: DomainDefinition[]): DomainDefinition[] {
+  const domains = new Map(defaults.map((domain) => [domain.id, domain]));
+  for (const domain of persisted) domains.set(domain.id, domain);
+  return [...domains.values()];
+}
+
+export const domainRegistry = new DomainRegistry();
+for (const domain of DEFAULT_DOMAIN_DEFINITIONS) if (!domainRegistry.getDomain(domain.id)) domainRegistry.register(domain);
