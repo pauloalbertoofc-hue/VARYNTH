@@ -33,5 +33,18 @@ assert.match(specialist.suggest({ id: "a", name: "Demo", artist: "", durationMs:
 void (async () => {
   const visual = await new LocalVisualGenerationProvider().generate({ prompt: "noite azul", style: "abstrato", createdAt: "" });
   assert.match(visual.description, /noite azul/);
+  assert.match(visual.description, /Não usa um modelo de IA/);
+  assert.match(visual.coverDataUrl ?? "", /^data:image\/svg\+xml,/);
+  assert.match(visual.backgroundDataUrl ?? "", /^data:image\/svg\+xml,/);
+  const coverSvg = decodeURIComponent(visual.coverDataUrl!.slice("data:image/svg+xml,".length));
+  const backgroundSvg = decodeURIComponent(visual.backgroundDataUrl!.slice("data:image/svg+xml,".length));
+  assert.match(coverSvg, /@keyframes orbit/);
+  assert.match(backgroundSvg, /@keyframes drift/);
+  assert.match(coverSvg, /@keyframes breathe/);
+  const safe = await new LocalVisualGenerationProvider().generate({ prompt: "x", style: "abstrato", createdAt: "", palette: ['red"/><script>alert(1)</script>'] });
+  assert.doesNotMatch(decodeURIComponent(safe.coverDataUrl!.slice("data:image/svg+xml,".length)), /<script>/i);
+  const still = await new LocalVisualGenerationProvider().generate({ prompt: "noite azul", style: "abstrato", createdAt: "", reducedMotion: true });
+  assert.match(still.description, /estática para movimento reduzido/);
+  assert.doesNotMatch(decodeURIComponent(still.coverDataUrl!.slice("data:image/svg+xml,".length)), /@keyframes/);
   console.log("Music DSP, DNA, section heuristic, advisor boundary, and local provider regression passed.");
 })();

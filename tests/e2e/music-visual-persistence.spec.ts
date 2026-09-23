@@ -57,8 +57,8 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await expect(page.getByRole("button", { name: "Suave" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Efeito do ambiente musical")).toHaveValue("rain");
-  await page.getByRole("button", { name: "Animado" }).click();
-  await expect(page.getByRole("button", { name: "Animado" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Animado", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Animado", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Tocando agora" }).click();
   const scene = page.locator('[data-visual-scene="true"]');
   await expect(scene).toHaveAttribute("data-particle-effect", "rain");
@@ -78,6 +78,75 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await expect(scene).toHaveAttribute("data-motion-duration", "0");
   await expect(backgroundLayer).toHaveCSS("animation-name", "none");
   await expect(cover).toHaveAttribute("data-cover-motion-duration", "0");
+});
+
+test("creates and persists an animated local cover and background with visible completion status", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/modules/music");
+  await page.locator('input[type="file"][accept*="audio"]').setInputFiles({
+    name: "generated-animated-visual.wav",
+    mimeType: "audio/wav",
+    buffer: shortWav(),
+  });
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(page.getByRole("button", { name: /generated-animated-visual/i }).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Criar visual animado", exact: true }).click();
+  await expect(page.getByText("Euterpe está compondo uma animação visual local…")).toBeVisible();
+  await expect(page.getByRole("status").last()).toContainText(/Capa e fundo animados criados localmente e aplicados à faixa/i, { timeout: 20_000 });
+
+  const generated = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("varynth-music-library");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const profiles = await new Promise<Array<{ trackId: string; coverDataUrl?: string; backgroundDataUrl?: string }>>((resolve, reject) => {
+        const request = db.transaction("visualProfiles", "readonly").objectStore("visualProfiles").getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return profiles.find((profile) => profile.coverDataUrl && profile.backgroundDataUrl) ?? null;
+    } finally { db.close(); }
+  });
+  expect(generated?.coverDataUrl).toMatch(/^data:image\/svg\+xml,/);
+  expect(generated?.backgroundDataUrl).toMatch(/^data:image\/svg\+xml,/);
+  const coverSvg = decodeURIComponent(generated!.coverDataUrl!.slice("data:image/svg+xml,".length));
+  const backgroundSvg = decodeURIComponent(generated!.backgroundDataUrl!.slice("data:image/svg+xml,".length));
+  expect(coverSvg).toContain("@keyframes orbit");
+  expect(backgroundSvg).toContain("@keyframes drift");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(async (source) => {
+    const image = new Image();
+    image.src = source.replaceAll("17s", ".65s").replaceAll("48s", ".65s").replaceAll("9s", ".65s");
+    image.id = "music-animation-probe";
+    image.style.cssText = "position:fixed;top:8px;left:8px;width:128px;height:128px;z-index:99999";
+    document.body.append(image);
+    await image.decode();
+  }, generated!.coverDataUrl!);
+  const motionProbe = page.locator("#music-animation-probe");
+  const animationFrameA = await motionProbe.screenshot({ animations: "allow" });
+  await page.waitForTimeout(240);
+  const animationFrameB = await motionProbe.screenshot({ animations: "allow" });
+  expect(animationFrameB.equals(animationFrameA)).toBe(false);
+
+  await page.reload();
+  const restored = await page.evaluate(async (trackId) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("varynth-music-library");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise<{ coverDataUrl?: string; backgroundDataUrl?: string } | undefined>((resolve, reject) => {
+        const request = db.transaction("visualProfiles", "readonly").objectStore("visualProfiles").get(trackId);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } finally { db.close(); }
+  }, generated!.trackId);
+  expect(restored?.coverDataUrl).toBe(generated?.coverDataUrl);
+  expect(restored?.backgroundDataUrl).toBe(generated?.backgroundDataUrl);
 });
 
 test("keeps covers attached to their own tracks when the selection changes", async ({ page }) => {
@@ -105,7 +174,10 @@ test("keeps covers attached to their own tracks when the selection changes", asy
   await page.getByRole("button", { name: "Tocando agora" }).click();
   await expect(page.getByRole("heading", { name: "cover-track-two" })).toBeVisible();
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
-  await page.getByRole("button", { name: "Remover capa" }).click();
+  await expect(page.getByRole("heading", { name: "Personalizar visual da faixa" })).toBeVisible({ timeout: 20_000 });
+  const removeCoverButton = page.getByRole("button", { name: "Remover capa", exact: true });
+  await expect(removeCoverButton).toBeVisible({ timeout: 20_000 });
+  await removeCoverButton.click();
   await expect(page.getByRole("status").last()).toContainText(/Capa removido desta faixa/i);
   await page.locator('input[type="file"][accept*="image/gif"]').first().setInputFiles({ name: "cover-two.gif", mimeType: "image/gif", buffer: gifWithDistinctComment });
   await expect(page.getByRole("status").last()).toContainText(/Capa animado salvo de forma permanente nesta faixa/i);
@@ -229,14 +301,14 @@ test("restores a track's saved motion and environment effect on another signed-i
     await expect(page.getByRole("button", { name: /account-track/i }).first()).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => artworkRequests.length).toBeGreaterThan(0);
     await expect.poll(() => artworkSettingsReads.length).toBeGreaterThan(0);
-    await expect(page.getByRole("button", { name: expectedMode })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: expectedMode, exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel("Efeito do ambiente musical")).toHaveValue(expectedEffect);
     return { context, page };
   }
 
   const firstDevice = await openSignedInDevice();
-  await firstDevice.page.getByRole("button", { name: "Animado" }).click();
-  await expect(firstDevice.page.getByRole("button", { name: "Animado" })).toHaveAttribute("aria-pressed", "true");
+  await firstDevice.page.getByRole("button", { name: "Animado", exact: true }).click();
+  await expect(firstDevice.page.getByRole("button", { name: "Animado", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(firstDevice.page.getByRole("status").last()).toContainText(/Movimento animado aplicado/i);
   await expect.poll(() => settingsUpdates.at(-1)?.motionSpeed).toBe(0.3);
   await firstDevice.page.getByLabel("Efeito do ambiente musical").selectOption("rain");
@@ -245,7 +317,7 @@ test("restores a track's saved motion and environment effect on another signed-i
   await firstDevice.context.close();
 
   const secondDevice = await openSignedInDevice("Animado", "rain");
-  await expect(secondDevice.page.getByRole("button", { name: "Animado" })).toHaveAttribute("aria-pressed", "true");
+  await expect(secondDevice.page.getByRole("button", { name: "Animado", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(secondDevice.page.getByLabel("Efeito do ambiente musical")).toHaveValue("rain");
   await secondDevice.page.getByRole("button", { name: "Tocando agora" }).click();
   await expect(secondDevice.page.locator('[data-visual-scene="true"]')).toHaveAttribute("data-particle-effect", "rain");

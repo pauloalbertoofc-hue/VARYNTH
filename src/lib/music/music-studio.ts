@@ -40,7 +40,7 @@ export type MusicPlaylist = { id: string; name: string; color: string; trackIds:
 export type MusicFeedback = { id: string; trackId: string; rating: number; tags: string[]; note: string; createdAt: string };
 export type MusicPreferenceMemory = { id: string; scopeId?: string; key: string; value: string; confidence: number; source: "explicit" | "feedback"; updatedAt: string };
 export type MusicAgentMemory = { id: string; scopeId?: string; kind: "favorite" | "rejected-style" | "visual-preference" | "decision"; value: string; trackId?: string; createdAt: string };
-export type MusicVisualPrompt = { prompt: string; style: string; createdAt: string };
+export type MusicVisualPrompt = { prompt: string; style: string; createdAt: string; reducedMotion?: boolean };
 export const MUSIC_ANALYSIS_LIMITS = { fftSize: { low: 512, balanced: 2048, high: 4096 }, visualUpdateIntervalMs: 50, dnaSaveIntervalMs: 5000, sectionSampleIntervalSeconds: 0.5, maxSectionSamples: 3600 } as const;
 
 const openStore = async <T>(storeName: string, mode: IDBTransactionMode, operation: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> => {
@@ -127,6 +127,10 @@ export interface VisualGenerationProvider { readonly id: string; generate(input:
 
 function escapeXml(value: string): string { return value.replace(/[<>&"']/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;", "'": "&apos;" })[ch]!); }
 function svgData(svg: string): string { return `data:image/svg+xml,${encodeURIComponent(svg)}`; }
+function safeVisualColor(value: string | undefined, fallback: string): string {
+  const color = value?.trim() ?? "";
+  return /^(#[\da-f]{3,8}|(?:rgb|hsl)a?\([\d.%\s,/-]+\)|[a-z]{1,20})$/i.test(color) ? escapeXml(color) : fallback;
+}
 
 /** Deterministic offline vector artwork; this is generative design, not a claim of AI image synthesis. */
 export class LocalVisualGenerationProvider implements VisualGenerationProvider {
@@ -134,11 +138,13 @@ export class LocalVisualGenerationProvider implements VisualGenerationProvider {
   async generate(input: MusicVisualPrompt & { title?: string; artist?: string; palette?: string[] }): Promise<VisualGenerationResult> {
     const seed = Array.from(`${input.title || input.prompt}${input.artist || ""}`).reduce((n, ch) => (n * 33 + ch.charCodeAt(0)) >>> 0, 5381);
     const hues = [seed % 360, (seed + 110) % 360, (seed + 225) % 360];
-    const palette = input.palette?.length ? input.palette.slice(0, 3) : hues.map((h) => `hsl(${h} 82% 62%)`);
+    const rawPalette = input.palette?.length ? input.palette.slice(0, 3) : hues.map((h) => `hsl(${h} 82% 62%)`);
+    const palette = rawPalette.map((color, index) => safeVisualColor(color, `hsl(${hues[index] ?? hues[0]} 82% 62%)`));
     const title = escapeXml((input.title || input.prompt).slice(0, 72)); const artist = escapeXml((input.artist || input.style).slice(0, 56));
-    const cover = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="#090914"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="36"/></filter></defs><rect width="600" height="600" fill="#080811"/><circle cx="190" cy="210" r="190" fill="${palette[1]}" opacity=".55" filter="url(#b)"/><circle cx="440" cy="380" r="170" fill="${palette[2]}" opacity=".45" filter="url(#b)"/><path d="M0 470 Q140 330 280 470 T600 450 V600 H0Z" fill="url(#g)" opacity=".75"/><text x="42" y="500" fill="white" font-size="34" font-family="sans-serif" font-weight="700">${title}</text><text x="44" y="540" fill="#ddd" font-size="19" font-family="sans-serif">${artist}</text></svg>`;
-    const background = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="a"><stop stop-color="${palette[0]}" stop-opacity=".62"/><stop offset="1" stop-color="#090914" stop-opacity="0"/></radialGradient><linearGradient id="b" x2="1" y2="1"><stop stop-color="#06060c"/><stop offset=".5" stop-color="${palette[1]}" stop-opacity=".28"/><stop offset="1" stop-color="#070711"/></linearGradient></defs><rect width="1600" height="900" fill="url(#b)"/><ellipse cx="420" cy="390" rx="550" ry="350" fill="url(#a)"/><ellipse cx="1250" cy="660" rx="500" ry="380" fill="url(#a)"/></svg>`;
-    return { description: `Arte vetorial local para “${input.title || input.prompt}” — ${input.style}.`, palette, coverDataUrl: svgData(cover), backgroundDataUrl: svgData(background) };
+    const motion = input.reducedMotion ? "" : `<style>@keyframes drift{from{transform:translate(-18px,-8px) scale(.96)}to{transform:translate(26px,14px) scale(1.08)}}@keyframes orbit{to{transform:rotate(360deg)}}@keyframes breathe{0%,100%{opacity:.28}50%{opacity:.68}}.drift{transform-box:fill-box;transform-origin:center;animation:drift 17s ease-in-out infinite alternate}.orbit{transform-box:fill-box;transform-origin:center;animation:orbit 48s linear infinite}.pulse{animation:breathe 9s ease-in-out infinite}</style>`;
+    const cover = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="${palette[0]}"/><stop offset="1" stop-color="#090914"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="36"/></filter></defs>${motion}<rect width="600" height="600" fill="#080811"/><circle class="drift" cx="190" cy="210" r="190" fill="${palette[1]}" opacity=".55" filter="url(#b)"/><circle class="drift" cx="440" cy="380" r="170" fill="${palette[2]}" opacity=".45" filter="url(#b)"/><g class="orbit" fill="none" stroke="${palette[0]}" opacity=".42"><ellipse cx="300" cy="300" rx="238" ry="115" stroke-width="2"/><ellipse cx="300" cy="300" rx="195" ry="85" stroke-width="1" transform="rotate(60 300 300)"/></g><path class="pulse" d="M0 470 Q140 330 280 470 T600 450 V600 H0Z" fill="url(#g)" opacity=".75"/><text x="42" y="500" fill="white" font-size="34" font-family="sans-serif" font-weight="700">${title}</text><text x="44" y="540" fill="#ddd" font-size="19" font-family="sans-serif">${artist}</text></svg>`;
+    const background = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="a"><stop stop-color="${palette[0]}" stop-opacity=".62"/><stop offset="1" stop-color="#090914" stop-opacity="0"/></radialGradient><linearGradient id="b" x2="1" y2="1"><stop stop-color="#06060c"/><stop offset=".5" stop-color="${palette[1]}" stop-opacity=".28"/><stop offset="1" stop-color="#070711"/></linearGradient></defs>${motion}<rect width="1600" height="900" fill="url(#b)"/><ellipse class="drift" cx="420" cy="390" rx="550" ry="350" fill="url(#a)"/><ellipse class="drift" cx="1250" cy="660" rx="500" ry="380" fill="url(#a)"/><path class="pulse" d="M0 730 Q360 510 760 740 T1600 660 V900 H0Z" fill="${palette[2]}" opacity=".13"/></svg>`;
+    return { description: `Composição vetorial ${input.reducedMotion ? "estática para movimento reduzido" : "animada"} local para “${input.title || input.prompt}” — ${input.style}. Não usa um modelo de IA.`, palette, coverDataUrl: svgData(cover), backgroundDataUrl: svgData(background) };
   }
 }
 

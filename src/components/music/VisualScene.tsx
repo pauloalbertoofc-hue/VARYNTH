@@ -34,8 +34,8 @@ export function VisualScene({ sceneId, background, coverArtwork, previousBackgro
   } as CSSProperties;
   return <div key={sceneId} data-visual-scene="true" data-particle-effect={particleType} data-motion-duration={activeMotion ? duration : 0} className="pointer-events-none absolute inset-0 z-0 overflow-hidden" style={style} aria-hidden="true">
     <div data-scene-layer="BackgroundLayer" className="scene-background absolute -inset-[8%] bg-cover bg-center">
-      {background ? <img key={background} className="scene-art absolute inset-0 h-full w-full object-cover" src={background} alt="" /> : <div key="fallback" className="scene-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: fallbackImage }} />}
-      {previousBackground && <img key={previousBackground} className="scene-art-exit absolute inset-0 h-full w-full object-cover" src={previousBackground} alt="" />}
+      {background ? <img key={`background-${background}`} className="scene-art absolute inset-0 h-full w-full object-cover" src={background} alt="" /> : <div key="fallback" className="scene-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: fallbackImage }} />}
+      {previousBackground && <img key={`previous-${previousBackground}`} className="scene-art-exit absolute inset-0 h-full w-full object-cover" src={previousBackground} alt="" />}
       {coverArtwork && <img data-scene-layer="CoverArtworkLayer" key={`cover-${coverArtwork}`} className="absolute inset-[12%] h-[76%] w-[76%] object-contain opacity-20 mix-blend-screen blur-[1px]" src={coverArtwork} alt="" />}
     </div>
     <div data-scene-layer="MidgroundLayer" className="scene-midground absolute -inset-[10%] bg-cover bg-center opacity-35 mix-blend-screen" style={{ backgroundImage: image }} />
