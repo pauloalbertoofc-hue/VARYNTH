@@ -15,7 +15,7 @@ import { readMusicMetadata } from "@/lib/music/music-metadata";
 import { importMusicBatch } from "@/lib/music/music-import";
 import { MusicTrack } from "@/lib/music/types";
 import { applyVisualDirective, applyVisualMotionPreset, createVisualProfile, visualFrameStyle, type ParticleType, type VisualMotionMode, type VisualProfile } from "@/lib/music/visual-profile";
-import { authorizeEuterpeProposal, interpretEuterpeRequest, type EuterpeProposal } from "@/lib/music/euterpe";
+import { authorizeEuterpeProposal, interpretEuterpeRequest, type EuterpeConversationTurn, type EuterpeProposal } from "@/lib/music/euterpe";
 import { PermissionPolicyEngine } from "@/lib/permissions/permission-policy";
 import { EuterpePresence } from "@/components/music/EuterpePresence";
 import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
@@ -543,7 +543,8 @@ export default function MusicPage() {
       if (!musicAgentShouldConsultAthena(messageText)) {
         const scopeId = musicLibrary.getIdentityNamespace();
         const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
-        const result = interpretEuterpeRequest(messageText, { track: selectedTrack ?? undefined, dna, preferences, memories });
+        const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text }));
+        const result = interpretEuterpeRequest(messageText, { track: selectedTrack ?? undefined, dna, preferences, memories }, recentConversation);
         resultOutcome = result.proposal ? "proposal" : "response";
         setEuterpeExpression(result.proposal ? "CURIOUS" : "SPEAKING");
         if (!result.proposal) window.setTimeout(() => setEuterpeExpression("HAPPY"), 800);

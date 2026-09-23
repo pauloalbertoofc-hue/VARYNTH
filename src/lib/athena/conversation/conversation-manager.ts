@@ -745,6 +745,13 @@ export class ConversationManager {
     }
   }
 
+  getRecentTurns(sessionId: string, limit = 8): ConversationTurn[] {
+    const safeLimit = Math.max(0, Math.min(20, Math.floor(limit)));
+    return (this.sessionHistories.get(sessionId) || [])
+      .slice(-safeLimit)
+      .map((turn) => ({ ...turn }));
+  }
+
   updateSessionWithHistory(sessionId: string, messages: AthenaMessage[]): void {
     const state = this.getOrCreateSession(sessionId);
     const relevant = messages.slice(-20);

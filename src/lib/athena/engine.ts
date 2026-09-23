@@ -391,6 +391,13 @@ export async function processAthenaQueryAsync(
         keyFacts: responseIntent.keyFacts,
         responseMode: responseIntent.mode,
         responseTone: responseIntent.tone,
+        recentConversation: athenaConversationManager.getRecentTurns(sessionId, 8).map((turn) => ({ role: turn.role, text: turn.text })),
+        specialist: capabilitySelection?.selected ? {
+          id: capabilitySelection.selected.id,
+          name: capabilitySelection.selected.name,
+          description: capabilitySelection.selected.description,
+          skills: capabilitySelection.selected.skills,
+        } : null,
         experience: {
           preferences: experienceContext.preferences,
           priorExperiences: experienceContext.experiences,
@@ -400,11 +407,12 @@ export async function processAthenaQueryAsync(
 
       const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
 Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
-Respeite estritamente os fatos fornecidos em keyFacts. O bloco experience contém preferências e experiências anteriores da conta autenticada, não fatos universais. Trate inferências como incertas, use apenas o que for pertinente e nunca as aplique quando conflitarem com a instrução atual do usuário; instrução atual, política de projeto e permissões têm precedência. Você está conversando com o Paulo, criador do VARYNTH OS.`;
+Respeite estritamente os fatos fornecidos em keyFacts e no contexto vivo. O bloco recentConversation contém apenas turnos anteriores desta sessão: use-o para resolver referências e continuidade, nunca para inventar fatos ausentes. O especialista indicado contribui apenas com o recorte de domínio; você continua sendo a interlocutora e não afirme que ele executou análise, consulta ou ação sem resultado explícito.
+O bloco experience contém preferências e experiências anteriores da conta autenticada, não fatos universais. Trate inferências como incertas, use apenas o que for pertinente e nunca as aplique quando conflitarem com a instrução atual; instrução atual, política do projeto e permissões têm precedência. Adapte formalidade e vocabulário ao usuário e ao pedido. Se a evidência não bastar, diga o que falta e faça uma pergunta objetiva. Não presuma nome, identidade ou relação do usuário.`;
 
       const modelResponse = await athenaInteractionContractGateway.executeAsync(
         contractDecision,
-        () => ollamaAdapter.generate({ systemPrompt, userPrompt: prompt, contextData, temperature: 0.7 })
+        () => ollamaAdapter.generate({ systemPrompt, userPrompt: prompt, contextData, temperature: 0.35 })
       );
 
       if (modelResponse.content && modelResponse.content.trim().length > 0) {
