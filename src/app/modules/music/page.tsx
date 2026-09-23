@@ -30,6 +30,21 @@ import { CoverPresentation } from "@/components/music/CoverPresentation";
 import { resolveVisualAssetTargetIds, type VisualAssetScope } from "@/lib/music/visual-asset-targets";
 
 const visualProvider = new LocalVisualGenerationProvider();
+type EuterpeOverlayBridge = {
+  checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean }>;
+  requestNotificationPermission(): Promise<{ granted: boolean }>;
+  show(options: { state: EuterpeVisualState }): Promise<{ enabled: boolean; permissionRequired: boolean }>;
+  update(options: { state: EuterpeVisualState }): Promise<void>;
+  hide(): Promise<void>;
+};
+function getEuterpeOverlayBridge(): EuterpeOverlayBridge | undefined {
+  if (typeof window === "undefined") return undefined;
+  const native = (window as Window & { Capacitor?: { getPlatform?: () => string; isPluginAvailable?: (name: string) => boolean; registerPlugin?: (name: string) => EuterpeOverlayBridge; Plugins?: { EuterpeOverlay?: EuterpeOverlayBridge } } }).Capacitor;
+  if (native?.getPlatform?.() !== "android") return undefined;
+  if (native.Plugins?.EuterpeOverlay) return native.Plugins.EuterpeOverlay;
+  if (native.isPluginAvailable?.("EuterpeOverlay") && native.registerPlugin) return native.registerPlugin("EuterpeOverlay");
+  return undefined;
+}
 async function persistAccountVisualProfile(profile: VisualProfile): Promise<VisualProfile> {
   if (!musicLibrary.isAccountStorageAvailable()) return profile;
   const next = { ...profile };
@@ -100,6 +115,9 @@ export default function MusicPage() {
   const [euterpeExpression, setEuterpeExpression] = useState<EuterpeVisualState | null>(null);
   const [agentState, setAgentState] = useState<EuterpeAgentState>("IDLE");
   const [euterpeHidden, setEuterpeHidden] = useState(false);
+  const [nativeOverlaySupported, setNativeOverlaySupported] = useState(false);
+  const [nativeOverlayGranted, setNativeOverlayGranted] = useState(false);
+  const [nativeOverlayEnabled, setNativeOverlayEnabled] = useState(false);
   const [reactiveMotion, setReactiveMotion] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   const [reducedMotionSetting, setReducedMotionSetting] = useState(false);
@@ -129,6 +147,12 @@ export default function MusicPage() {
     return () => window.clearTimeout(timer);
   }, [euterpeExpression]);
   useEffect(() => () => { if (previousSceneTimerRef.current !== null) window.clearTimeout(previousSceneTimerRef.current); }, []);
+  useEffect(() => {
+    const bridge = getEuterpeOverlayBridge();
+    if (!bridge) return;
+    setNativeOverlaySupported(true);
+    void bridge.checkPermission().then((result) => { setNativeOverlaySupported(result.supported); setNativeOverlayGranted(result.granted); }).catch(() => setNativeOverlaySupported(false));
+  }, []);
 
   const reloadLibrary = useCallback(async () => {
     try {
@@ -308,6 +332,38 @@ export default function MusicPage() {
     else { audio.pause(); setPlaying(false); athenaEventBus.emit("MUSIC_PAUSE", { trackId: selectedId }); }
   }, [audioUrl, selectedId]);
   const stepTrack = useCallback((direction: -1 | 1) => { const index = adjacentTrackIndex(visibleTracks.findIndex((track) => track.id === selectedId), visibleTracks.length, direction); if (index >= 0) selectTrack(visibleTracks[index]); }, [visibleTracks, selectedId, selectTrack]);
+  const toggleNativeOverlay = useCallback(async () => {
+    const bridge = getEuterpeOverlayBridge();
+    if (!bridge) return;
+    try {
+      if (nativeOverlayEnabled) {
+        await bridge.hide(); setNativeOverlayEnabled(false); setMessage("Personagem flutuante desativada."); return;
+      }
+      const permission = await bridge.checkPermission();
+      setNativeOverlayGranted(permission.granted);
+      if (!permission.granted) {
+        await bridge.show({ state: euterpeState });
+        setMessage("O Android abriu a permissão ‘Aparecer sobre outros apps’. Autorize e toque novamente em ‘Ativar personagem flutuante’.");
+        return;
+      }
+      if (!permission.notificationsGranted) {
+        const notificationPermission = await bridge.requestNotificationPermission();
+        if (!notificationPermission.granted) {
+          setMessage("Para manter Euterpe ativa fora do Music, permita as notificações do VARYNTH e tente novamente.");
+          return;
+        }
+      }
+      const result = await bridge.show({ state: euterpeState });
+      if (result.permissionRequired) { setNativeOverlayGranted(false); setMessage("Autorize a sobreposição nas configurações do Android e tente novamente."); return; }
+      setNativeOverlayEnabled(result.enabled);
+      setMessage("Euterpe está flutuando sobre outros apps. A notificação oferece o comando para desativar.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível ativar a personagem flutuante."); }
+  }, [nativeOverlayEnabled, euterpeState]);
+  useEffect(() => {
+    if (!nativeOverlayEnabled) return;
+    const bridge = getEuterpeOverlayBridge();
+    if (bridge) void bridge.update({ state: euterpeState }).catch(() => { setNativeOverlayEnabled(false); setMessage("A permissão da personagem flutuante foi removida pelo Android."); });
+  }, [nativeOverlayEnabled, euterpeState]);
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator) || !selectedTrack) return;
     const session = navigator.mediaSession;
@@ -568,7 +624,7 @@ export default function MusicPage() {
         <p className="px-4 pb-3 text-[10px] text-slate-600">Você conversa com Euterpe; quando o pedido exige recursos gerais, ela consulta Athena e traz a resposta. Histórico e memória ficam neste navegador.</p>
         </section>
       </>}
-      {!euterpeHidden && !focusMode && <EuterpePresence state={euterpeState} audio={{ bass: audioFrame.bass, mids: audioFrame.mids, treble: audioFrame.treble, energy: audioFrame.loudness, calmness: dna?.calmness ?? .5 }} quality={quality} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} reactiveMotion={reactiveMotion} onClick={() => { setChatOpen(true); varynthEventBus.emit("AGENT.LISTENING", { agentId: "euterpe" }); }} onHide={() => setEuterpeHidden(true)} onBackToMusic={() => setActiveView("now-playing")} />}
+      {!euterpeHidden && !focusMode && <EuterpePresence state={euterpeState} audio={{ bass: audioFrame.bass, mids: audioFrame.mids, treble: audioFrame.treble, energy: audioFrame.loudness, calmness: dna?.calmness ?? .5 }} quality={quality} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} reactiveMotion={reactiveMotion} onClick={() => { setChatOpen(true); varynthEventBus.emit("AGENT.LISTENING", { agentId: "euterpe" }); }} onHide={() => setEuterpeHidden(true)} onBackToMusic={() => setActiveView("now-playing")} onNativeOverlay={nativeOverlaySupported ? () => void toggleNativeOverlay() : undefined} nativeOverlayLabel={!nativeOverlayGranted ? "Ativar · requer permissão do Android" : nativeOverlayEnabled ? "Desativar personagem flutuante" : "Ativar personagem flutuante"} />}
       {(euterpeHidden || focusMode) && activeView !== "now-playing" && <button onClick={() => { setEuterpeHidden(false); setFocusMode(false); }} className="fixed bottom-4 right-4 z-30 rounded-full border border-white/15 bg-[#15131bf0] px-4 py-2 text-xs text-white shadow-xl">Mostrar Euterpe</button>}
 
       <div hidden={activeView !== "library"} className="grid gap-5 lg:grid-cols-[1fr_360px]">

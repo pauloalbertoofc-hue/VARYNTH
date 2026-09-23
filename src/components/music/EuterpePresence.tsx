@@ -11,8 +11,8 @@ const label: Record<EuterpeVisualState, string> = { IDLE:"disponível", LISTENIN
 const avatarSize = { width: 88, height: 116 };
 
 /** In-page presence only; web browsers do not provide a cross-app character overlay. */
-export function EuterpePresence({ state, audio, quality, onClick, onHide, onBackToMusic, reducedMotion = false, reactiveMotion = true }: {
-  state: EuterpeVisualState; audio: EuterpeAudioMetrics; quality: VisualQuality; onClick: () => void; onHide?: () => void; onBackToMusic?: () => void; reducedMotion?: boolean; reactiveMotion?: boolean;
+export function EuterpePresence({ state, audio, quality, onClick, onHide, onBackToMusic, onNativeOverlay, nativeOverlayLabel, reducedMotion = false, reactiveMotion = true }: {
+  state: EuterpeVisualState; audio: EuterpeAudioMetrics; quality: VisualQuality; onClick: () => void; onHide?: () => void; onBackToMusic?: () => void; onNativeOverlay?: () => void; nativeOverlayLabel?: string; reducedMotion?: boolean; reactiveMotion?: boolean;
 }) {
   const [smooth, setSmooth] = useState(audio);
   const [position, setPosition] = useState<NormalizedPosition>({ x: .88, y: .78 });
@@ -85,6 +85,7 @@ export function EuterpePresence({ state, audio, quality, onClick, onHide, onBack
     {menuOpen&&<div role="group" aria-label="Opções de Euterpe" className="absolute bottom-[calc(100%-8px)] right-0 z-20 w-40 space-y-1 rounded-xl border border-amber-100/15 bg-[#17151bf2] p-2 text-left shadow-xl backdrop-blur-xl" onPointerDown={(e)=>e.stopPropagation()}>
       <button data-menu-action type="button" onClick={onClick} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Conversar</button>
       <button data-menu-action type="button" disabled title="Interação por voz ainda não está disponível" className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white/45">Falar · indisponível</button>
+      {onNativeOverlay && <button data-menu-action type="button" onClick={()=>{setMenuOpen(false);onNativeOverlay();}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-amber-100 hover:bg-white/10">{nativeOverlayLabel || "Ativar personagem flutuante"}</button>}
       <button data-menu-action type="button" onClick={()=>{setMenuOpen(false);onBackToMusic?.();}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Voltar ao Music</button>
       <button data-menu-action type="button" onClick={()=>{saveEuterpePosition(window.localStorage,{x:.88,y:.78});setFromNormalized({x:.88,y:.78});}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Redefinir posição</button>
       <button data-menu-action type="button" onClick={()=>{setMenuOpen(false);onHide?.();}} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-white hover:bg-white/10">Ocultar Euterpe</button>
