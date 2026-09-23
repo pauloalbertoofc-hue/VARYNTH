@@ -101,6 +101,8 @@ import { GameBuildModal } from "@/components/studio/game/GameBuildModal";
 import { GameTemplatesModal } from "@/components/studio/game/GameTemplatesModal";
 import { GameChangeSetModal } from "@/components/studio/game/GameChangeSetModal";
 import { gameService } from "@/lib/studio/game/game-service";
+import { collectGameLearningObservation, gameLearningAdapter } from "@/lib/experience/game-learning-adapter";
+import { documentLearningAdapter } from "@/lib/experience/document-learning-adapter";
 import { athenaGameActions } from "@/lib/studio/game/athena-game-actions";
 import { GameItem, GameDocumentState, GameEntity, GameComponent, GameScene, GameRule, GameVariable, ComponentType } from "@/lib/studio/game/types";
 import { StudioAssetPanel } from "@/components/studio/common/StudioAssetPanel";
@@ -506,6 +508,9 @@ export default function StudioPage() {
       try {
         const res = await documentService.saveDocumentContent(activeDoc.artifact.id, newContent, {}, "USER");
         if (res.success) {
+          if (newContent !== activeDoc.content) {
+            void documentLearningAdapter.record({ action: "CONTENT_EDITED", projectId: activeDoc.artifact.projectId, artifactId: activeDoc.artifact.id, before: { characters: activeDoc.content.length }, after: { characters: newContent.length }, domain: "writing" }).catch(() => undefined);
+          }
           setDocSaveState("SAVED");
           loadData();
         } else {
@@ -1081,6 +1086,10 @@ export default function StudioPage() {
       try {
         const res = await gameService.saveDocumentState(activeGame.artifact.id, newState, "USER");
         if (res.success) {
+          const observation = collectGameLearningObservation(activeGame.documentState, newState);
+          if (observation) {
+            void gameLearningAdapter.record({ action: observation.action, projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id, targetId: activeGame.artifact.id, before: observation.before, after: observation.after }).catch(() => undefined);
+          }
           setGameSaveState("SAVED");
           loadData();
         } else {
