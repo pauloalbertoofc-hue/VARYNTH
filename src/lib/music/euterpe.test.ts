@@ -18,6 +18,12 @@ const memoryAware = interpretEuterpeRequest("Que estilo combina comigo?", { ...c
 assert.match(memoryAware.response, /jazz, trilhas instrumentais/, "Euterpe should use both scoped preference and music-memory context");
 const conversational = interpretEuterpeRequest("Por quê?", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "A faixa Noite tem tags dark no Music DNA." }, { sender: "user", text: "Por quê?" }]);
 assert.match(conversational.response, /retomando|Music DNA/, "Follow-ups should use the immediate conversation rather than generic boilerplate");
+assert.doesNotMatch(conversational.response, /A faixa Noite tem tags dark no Music DNA\./, "A follow-up must explain rather than repeat the prior answer");
+const whyVisual = interpretEuterpeRequest("Por quê?", context, [{ sender: "user", text: "Faça uma capa escura" }, { sender: "curator", text: "Posso preparar uma proposta visual." }, { sender: "user", text: "Por quê?" }]);
+assert.match(whyVisual.response, /Faça uma capa escura/, "Why questions should cite the preceding user request, not themselves");
+assert.doesNotMatch(whyVisual.response, /Por quê\?/i);
+const unsupportedFollowUp = interpretEuterpeRequest("Fala mais", { ...context, dna: undefined }, [{ sender: "user", text: "Descreva a faixa" }, { sender: "curator", text: "Ainda não há dados." }, { sender: "user", text: "Fala mais" }]);
+assert.match(unsupportedFollowUp.response, /não recebi Music DNA/i, "Continuation without evidence must preserve the acoustic knowledge boundary");
 const unsupportedListening = interpretEuterpeRequest("Analise a faixa", { ...context, dna: undefined });
 assert.match(unsupportedListening.response, /não há Music DNA suficiente/i, "No acoustic facts should be fabricated without analysis data");
 console.log("Euterpe identity, context, structured proposals, and confirmation policy passed.");
