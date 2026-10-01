@@ -2,8 +2,9 @@ import type { AgentKnowledgeConsultation, AthenaAgent, AgentManifest } from "../
 import type { AthenaTask } from "../../domain/task";
 import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
-import { musicSpecialist, type MusicDNA } from "@/lib/music/music-studio";
+import type { MusicAgentMemory, MusicDNA, MusicPreferenceMemory } from "@/lib/music/music-studio";
 import { EUTERPE_PERSONALITY } from "@/lib/music/euterpe";
+import { interpretEuterpeRequest, type EuterpeContext } from "@/lib/music/euterpe";
 import { renderAgentPersona } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
 
@@ -51,21 +52,26 @@ export class EuterpeAgent implements AthenaAgent {
     const dna = candidateDNA && typeof candidateDNA === "object" && [1, 2].includes(Number((candidateDNA as { schemaVersion?: unknown }).schemaVersion)) && (candidateDNA as MusicDNA).trackId === track?.id
       ? candidateDNA as MusicDNA
       : undefined;
-    const normalized = task.rawPrompt.trim().toLowerCase();
-    const greeting = /^(oi|olá|ola|bom dia|boa tarde|boa noite|tudo bem|quem é você|quem e voce)[!.?\s]*$/i.test(normalized);
-    const content = greeting
-      ? "Oi! Eu sou Euterpe, sua sub-IA musical, subordinada à Athena. Aqui no Music eu converso diretamente com você; quando o pedido precisar de capacidades gerais da plataforma, consulto Athena e retorno nesta conversa."
-      : track ? musicSpecialist.suggest(track, dna) : "Sou Euterpe e posso conversar sobre música, faixas e Music DNA com o contexto fornecido pelo módulo. Para recursos gerais da plataforma, consulto Athena. Não acesso a arquivos nem executo alterações por conta própria.";
+    const candidatePreferences = task.metadata?.musicPreferences;
+    const candidateMemories = task.metadata?.musicMemories;
+    const musicContext: EuterpeContext = {
+      track,
+      dna: dna ? { trackId: dna.trackId, schemaVersion: dna.schemaVersion, status: dna.status, visualTags: dna.visualTags, intensity: dna.intensity, calmness: dna.calmness } : undefined,
+      preferences: Array.isArray(candidatePreferences) ? candidatePreferences as MusicPreferenceMemory[] : [],
+      memories: Array.isArray(candidateMemories) ? candidateMemories as MusicAgentMemory[] : [],
+    };
+    const interpretation = interpretEuterpeRequest(task.rawPrompt, musicContext);
+    const content = interpretation.response;
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
       role: this.manifest.role,
       success: true,
       content,
-      confidence: dna ? 0.7 : 0.45,
-      sources: [dna ? "Music DNA fornecido na tarefa" : "Prompt e metadados fornecidos na tarefa"],
-      recommendations: ["A decisão final e qualquer ação sobre a biblioteca pertencem à pessoa usuária."],
-      metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", ...musicSpecialist.capabilities], toolAccess: false, localFileAccess: false },
+      confidence: interpretation.proposal ? 0.55 : dna ? 0.65 : track ? 0.5 : 0.35,
+      sources: [...(track ? [`Faixa selecionada fornecida na tarefa: ${track.name} — ${track.artist}`] : []), ...(dna ? ["Music DNA fornecido na tarefa; estimativas derivadas de amostras de reprodução"] : []), ...(musicContext.preferences.length || musicContext.memories.length ? ["Preferências e memórias musicais fornecidas na tarefa"] : [])],
+      recommendations: interpretation.proposal ? ["Revise a proposta e confirme antes de aplicar qualquer alteração."] : ["A decisão final e qualquer ação sobre a biblioteca pertencem à pessoa usuária."],
+      metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", "READ_PROVIDED_METADATA"], toolAccess: false, localFileAccess: false, ...(interpretation.proposal ? { proposal: interpretation.proposal } : {}), musicDNAUsed: Boolean(dna), proposalOnly: true },
     };
   }
 

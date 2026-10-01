@@ -66,15 +66,17 @@ Experience Center (/modules/experience)
 | N/O — performance, automated and adversarial tests | PARTIAL, CORE TESTS PASS | Experience, ownership, exclusion, conflict, forgetting, and candidate adversarial tests pass; production event-volume and cross-module E2E coverage remain. |
 | P — docs, migration, production validation | PARTIAL | Core model and learning policy are documented; the complete manual plan, test report, privacy/integration/limitations/changelog deliverables and production walkthrough remain. |
 
-## Verified validation snapshot (2026-09-23)
+## Verified validation snapshot (2026-10-01)
 
 - `npm run test:experience` — passed, all 21 registered Experience tests.
-- Athena intelligence suite — 100/100 passed, including colloquial task queries, project readiness, and post-Studio project reference continuity.
+- `npm run test:athena-intelligence` — 100/100 passed, including colloquial task queries, project readiness, and post-Studio project reference continuity.
 - Athena system suite — 50/50 passed; response-quality suite — 30/30 passed.
 - Athena certification — 16/16 passed; TypeScript and full Next production build passed.
+- `npm run test:music:complete` — passed, covering library, import, cloud contracts, studio, chat, Athena bridge, visual AI and advanced Euterpe/engine tests.
+- Euterpe refinements in this release share the same grounded interpreter across the Music module and Athena agent workflow. Tests cover selected-track/DNA boundaries, missing evidence, saved tastes as uncertain hints, explicit refusal/negation, conversational follow-ups and review-only proposals.
 - Knowledge/Vault suite — passed after source-addressable Vault chunk changes were integrated.
 - Documentation regression inventory at build — 44 routes, 36 tools, 12 agents, 18 modules.
-- Production deployment `dpl_B7SAf2GGAJ5tANCTf6KaDSZgxA6a` reached `READY`, received `https://varynth-ynqv-plum.vercel.app`, and `/modules/athena` returned HTTP 200 with the expected unauthenticated redirect to login.
+- Production deployment evidence above applies only to the 2026-09-23 snapshot. For any later snapshot, verify the deployment associated with its exact commit and the public route; do not reuse that historical deployment ID as evidence.
 
 ## Next implementation sequence
 
