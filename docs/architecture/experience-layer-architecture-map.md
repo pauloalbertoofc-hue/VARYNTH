@@ -28,7 +28,7 @@ Experience Center (/modules/experience)
 | --- | --- | --- |
 | Event contract and persistence | `src/lib/experience/contracts.ts`, `experience-service.ts`, IndexedDB repositories | Typed validation, owner assignment, ID deduplication, size limits, policy and exclusion checks are implemented and tested. |
 | Existing event buses | `src/lib/events/varynth-event-bus.ts`; `src/lib/athena/events/event-bus.ts` | Kept separate. There is not yet a general adapter that subscribes all production events into Experience. |
-| Feedback and signal evidence | `feedback-service.ts`, `signals.ts`, `preference-candidate-service.ts` | Explicit feedback and evidence-weighted candidates exist. Passive behavior is evidence, not an automatic confirmed preference. |
+| Feedback and signal evidence | `feedback-service.ts`, `signals.ts`, `preference-candidate-service.ts`, `conversation/experience-feedback-bridge.ts` | Athena's explicit response-quality controls now create account-owned Experience events linked to response/session/agent, while only storing the category and omitting prompt/response text. Passive behavior remains evidence, not an automatic confirmed preference. Other Studios still need equivalent intentional feedback surfaces. |
 | Preference and experience lifecycle | `preference-service.ts`, `experience-service.ts`, `pattern-service.ts`, `outcome-service.ts`, `retrospective-service.ts` | Scope, confidence, conflicts/decay, provenance, outcomes, retrospective, and forget cascades have automated tests. |
 | Privacy and learning policy | `learning-policy.ts`, `learning-exclusion-service.ts`, `identity.ts` | Account ownership, actor/source eligibility, scoped exclusions, and agent-event safeguards are enforced locally. |
 | Retrieval/context budget | `context-builder.ts`, `knowledge/context-assembler.ts` | Scope-filtered and bounded packets feed the Knowledge route; Athena's direct Experience packet is used on the selected local-model path, not every deterministic/offline response. Agent workflows now also receive up to six bounded turns from the active in-memory session for reference resolution; agents must not treat assistant turns as evidence. |
@@ -52,7 +52,7 @@ Experience Center (/modules/experience)
 | --- | --- | --- |
 | A — audit and architecture map | DONE, refreshed | This map is based on the checked-out implementation and test inventory. |
 | B — schemas, events, provenance, persistence | IMPLEMENTED | `npm run test:experience` covers contracts, persistence, ownership, and deduplication. Broader production event sourcing remains open. |
-| C — feedback and signals | IMPLEMENTED CORE | Feedback/signal services and tests exist; expand real module producers and user-facing feedback entry points. |
+| C — feedback and signals | IMPLEMENTED CORE, ATHENA WIRED | Feedback/signal services, Athena response controls, and privacy-minimal bridge are tested; add intentional feedback entry points to remaining module result surfaces. |
 | D — preferences, confidence, scope | IMPLEMENTED CORE | Candidate thresholds, conflict/decay, manual declaration, and scoped resolution are tested. |
 | E — experiences, patterns, outcomes | IMPLEMENTED CORE | Services and retrospective tests pass; increase evidence from real completed project workflows. |
 | F — retrieval and context builder | IMPLEMENTED, LIMITED CONSUMERS | Knowledge and local-model Athena consume bounded context; deterministic Athena and most direct agent executions do not yet consume it. |
@@ -78,7 +78,7 @@ Experience Center (/modules/experience)
 
 ## Next implementation sequence
 
-1. Add explicit feedback controls to Athena/agent and remaining Studio result surfaces; persist only deliberate feedback or well-attributed edits.
+1. Extend the Athena feedback-to-Experience bridge pattern to remaining Studio result surfaces; persist only deliberate feedback or well-attributed edits.
 2. Wire real, scoped Experience producers into each Studio and governed action lifecycle, including cancellation/undo/redo without false causal learning.
 3. Integrate bounded Experience and conversation context into deterministic Athena and each specialist path, with instruction/policy precedence and cross-account/session isolation tests per consumer.
 4. Complete the manual test plan, privacy and agent-integration docs, and user-visible explanations/decision traces.

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AthenaFeedbackCategory } from "@/lib/athena/conversation/quality-feedback";
 import { athenaConversationFeedback } from "@/lib/athena/conversation/quality-feedback";
+import { recordAthenaFeedbackInExperience } from "@/lib/athena/conversation/experience-feedback-bridge";
 
 interface AthenaFeedbackControlsProps {
   messageId: string;
@@ -23,10 +24,19 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
   const [selected, setSelected] = useState<AthenaFeedbackCategory>();
   const [correction, setCorrection] = useState("");
   const [saved, setSaved] = useState(false);
+  const [experienceStatus, setExperienceStatus] = useState<"idle" | "saving" | "saved" | "local-only">("idle");
 
-  const choose = (category: AthenaFeedbackCategory) => {
-    athenaConversationFeedback.record({ ...props, category });
+  const choose = async (category: AthenaFeedbackCategory) => {
+    if (selected === category) return;
+    const feedback = athenaConversationFeedback.record({ ...props, category });
     setSelected(category);
+    setExperienceStatus("saving");
+    try {
+      await recordAthenaFeedbackInExperience(feedback);
+      setExperienceStatus("saved");
+    } catch {
+      setExperienceStatus("local-only");
+    }
   };
 
   return (
@@ -35,7 +45,8 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
         <button
           key={choice.category}
           type="button"
-          onClick={() => choose(choice.category)}
+          onClick={() => { void choose(choice.category); }}
+          disabled={experienceStatus === "saving"}
           aria-pressed={selected === choice.category}
           className={`rounded-md border px-2 py-1 text-[10px] transition-colors ${
             selected === choice.category
@@ -53,6 +64,9 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
           <p role="status" className="text-[10px] text-slate-400">{saved ? "Correção salva. Diga “corrija a resposta” para retomar este pedido." : "Feedback registrado. Você pode explicar o ajuste e pedir “corrija a resposta”."}</p>
         </div>
       )}
+      {selected && <p role="status" className="basis-full text-[10px] text-slate-400">
+        {experienceStatus === "saving" ? "Associando sua avaliação à Experience…" : experienceStatus === "saved" ? "Avaliação explícita registrada na Experience desta conta. O texto da conversa não foi copiado." : experienceStatus === "local-only" ? "Avaliação mantida localmente; não foi associada à Experience. Verifique se você está conectado." : ""}
+      </p>}
     </div>
   );
 }

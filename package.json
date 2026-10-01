@@ -57,7 +57,7 @@
     "test:athena-intelligence": "npx tsx src/lib/athena/tests/athena-intelligence-suite.test.ts",
     "test:athena-semantic": "npx tsx src/lib/athena/tests/semantic-regression.test.ts",
     "test:athena-response-quality": "npx tsx src/lib/athena/tests/athena-response-quality.test.ts",
-    "test:athena-communication": "npx tsx src/lib/athena/tests/athena-communication-regression.test.ts",
+    "test:athena-communication": "npx tsx src/lib/athena/tests/athena-communication-regression.test.ts && npx tsx src/lib/athena/conversation/experience-feedback-bridge.test.ts",
     "test:athena-outcomes": "npx tsx src/lib/athena/tests/athena-conversation-outcome.test.ts",
     "test:athena-conversations": "npx tsx src/lib/athena/tests/athena-conversation-store.test.ts",
     "test:athena-conversation-sync": "npx tsx src/lib/athena/tests/athena-conversation-sync.test.ts",
