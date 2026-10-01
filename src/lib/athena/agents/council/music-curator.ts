@@ -7,6 +7,7 @@ import { EUTERPE_PERSONALITY } from "@/lib/music/euterpe";
 import { interpretEuterpeRequest, type EuterpeContext } from "@/lib/music/euterpe";
 import { renderAgentPersona } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
+import { relevantExperienceGuidance } from "../experience-guidance";
 
 export type MusicAthenaConsult = (userRequest: string) => Promise<{ text: string; metadata?: Record<string, unknown> }>;
 
@@ -46,7 +47,7 @@ export class EuterpeAgent implements AthenaAgent {
     return /\b(music|música|musical|playlist|faixa|canção|álbum|artista|gênero)\b/i.test(task.rawPrompt);
   }
 
-  async execute(task: AthenaTask, _context: AthenaContext): Promise<AgentResult> {
+  async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const track = providedTrack(task);
     const candidateDNA = task.metadata?.musicDNA;
     const dna = candidateDNA && typeof candidateDNA === "object" && [1, 2].includes(Number((candidateDNA as { schemaVersion?: unknown }).schemaVersion)) && (candidateDNA as MusicDNA).trackId === track?.id
@@ -61,7 +62,11 @@ export class EuterpeAgent implements AthenaAgent {
       memories: Array.isArray(candidateMemories) ? candidateMemories as MusicAgentMemory[] : [],
     };
     const interpretation = interpretEuterpeRequest(task.rawPrompt, musicContext);
-    const content = interpretation.response;
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
+    const userDeclinedPreferenceRetention = /não vou propor guardar|não vou propor salvar/i.test(interpretation.response);
+    const content = !interpretation.proposal && !userDeclinedPreferenceRetention && priorOutcomes.length
+      ? `${interpretation.response}\n\n**Uma abordagem musical que pode valer testar:** ${priorOutcomes[0]}`
+      : interpretation.response;
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
@@ -71,7 +76,7 @@ export class EuterpeAgent implements AthenaAgent {
       confidence: interpretation.proposal ? 0.55 : dna ? 0.65 : track ? 0.5 : 0.35,
       sources: [...(track ? [`Faixa selecionada fornecida na tarefa: ${track.name} — ${track.artist}`] : []), ...(dna ? ["Music DNA fornecido na tarefa; estimativas derivadas de amostras de reprodução"] : []), ...(musicContext.preferences.length || musicContext.memories.length ? ["Preferências e memórias musicais fornecidas na tarefa"] : [])],
       recommendations: interpretation.proposal ? ["Revise a proposta e confirme antes de aplicar qualquer alteração."] : ["A decisão final e qualquer ação sobre a biblioteca pertencem à pessoa usuária."],
-      metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", "READ_PROVIDED_METADATA"], toolAccess: false, localFileAccess: false, ...(interpretation.proposal ? { proposal: interpretation.proposal } : {}), musicDNAUsed: Boolean(dna), proposalOnly: true },
+      metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", "READ_PROVIDED_METADATA"], toolAccess: false, localFileAccess: false, ...(interpretation.proposal ? { proposal: interpretation.proposal } : {}), musicDNAUsed: Boolean(dna), proposalOnly: true, priorOutcomeHints: priorOutcomes.length },
     };
   }
 
