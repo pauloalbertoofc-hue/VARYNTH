@@ -8,6 +8,8 @@ export interface KnowledgeRetrievalIndex {
   titleTextById: Map<string, string>;
   tagTextById: Map<string, string>;
   documentFrequency: Map<string, number>;
+  termFrequencyById: Map<string, Map<string, number>>;
+  documentLengthById: Map<string, number>;
   trigramPostings: Map<string, Set<string>>;
   primaryDomainPostings: Map<string, Set<string>>;
   relatedDomainPostings: Map<string, Set<string>>;
@@ -42,6 +44,8 @@ export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: n
     titleTextById: new Map(),
     tagTextById: new Map(),
     documentFrequency: new Map(),
+    termFrequencyById: new Map(),
+    documentLengthById: new Map(),
     trigramPostings: new Map(),
     primaryDomainPostings: new Map(),
     relatedDomainPostings: new Map(),
@@ -58,8 +62,12 @@ export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: n
     index.textById.set(item.id, text);
     index.titleTextById.set(item.id, item.title.toLocaleLowerCase());
     index.tagTextById.set(item.id, item.tags.join(" ").toLocaleLowerCase());
-    const uniqueTokens = new Set(text.match(/[\p{L}\p{N}]+/gu) || []);
-    for (const token of uniqueTokens) index.documentFrequency.set(token, (index.documentFrequency.get(token) || 0) + 1);
+    const tokens = text.match(/[\p{L}\p{N}]+/gu) || [];
+    const frequencies = new Map<string, number>();
+    for (const token of tokens) frequencies.set(token, (frequencies.get(token) || 0) + 1);
+    index.termFrequencyById.set(item.id, frequencies);
+    index.documentLengthById.set(item.id, tokens.length);
+    for (const token of frequencies.keys()) index.documentFrequency.set(token, (index.documentFrequency.get(token) || 0) + 1);
     for (const gram of trigrams(text)) addPosting(index.trigramPostings, gram, item.id);
     addPosting(index.primaryDomainPostings, item.primaryDomain, item.id);
     for (const domain of item.relatedDomains) addPosting(index.relatedDomainPostings, domain, item.id);
@@ -128,11 +136,11 @@ export function scoreKnowledgeRelevance(index: KnowledgeRetrievalIndex, id: stri
   if (!tokens.length) return 0;
   const title = index.titleTextById.get(id) || "";
   const tags = index.tagTextById.get(id) || "";
-  const text = index.textById.get(id) || "";
-  const documentTokenCount = Math.max(1, (text.match(/[\p{L}\p{N}]+/gu) || []).length);
+  const frequencies = index.termFrequencyById.get(id);
+  const documentTokenCount = Math.max(1, index.documentLengthById.get(id) || 0);
   const totalDocuments = Math.max(1, index.items.length);
   const relevance = tokens.reduce((sum, token) => {
-    const tokenFrequency = (text.match(new RegExp(`(^|[^\\p{L}\\p{N}])${token.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}(?=$|[^\\p{L}\\p{N}])`, "gu")) || []).length;
+    const tokenFrequency = frequencies?.get(token) || 0;
     const documentFrequency = index.documentFrequency.get(token) || 0;
     if (!tokenFrequency || !documentFrequency) return sum;
     const inverseDocumentFrequency = Math.log(1 + (totalDocuments - documentFrequency + 0.5) / (documentFrequency + 0.5));

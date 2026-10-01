@@ -23,8 +23,9 @@ assert.equal(context.experience.preferences.length, 1, "an ancestor-domain prefe
 assert.equal(context.experience.preferences[0].key, "responseStyle");
 assert.equal(context.experience.instructionPrecedence, "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION");
 assert.ok(context.experience.preferences.length + context.experience.experiences.length <= 2, "preference and experience context share one bounded budget");
-assert.equal(context.experience.experiences.length, 1);
+assert.ok(context.experience.experiences.length <= 1);
 assert.equal(context.experience.experiences.some((item) => item.scopeId === "project-2"), false);
+assert.ok(context.knowledge.length + context.experience.preferences.length + context.experience.experiences.length <= 2, "knowledge and experience must share one total context budget");
 assert.equal(context.experience.truncated, true);
 assert.equal(context.truncated, true);
 const zeroBudgetContext = await buildAgentContext({ requester: "athena", ownerId: "local-owner", task: "verifique o copyright da trilha do jogo", purpose: "zero-budget context", budget: 0 });

@@ -36,14 +36,15 @@ export async function buildAgentContext(request: AgentContextRequest): Promise<A
   const packs = await Promise.all(domains.map((domain) => queryKnowledge({ requester: request.requester, domain, query: request.task, projectId: request.projectId, purpose: request.purpose, scope: request.scope, limit: perDomainLimit })));
   const knowledge = [...new Map(packs.flat().map((item) => [item.id, item])).values()];
   const requesterOwnerId = request.ownerId || (request.requester.startsWith("user:") ? request.requester.slice("user:".length) : undefined);
-  const experience = await buildExperienceContext({ requester: request.requester, ownerId: requesterOwnerId, domain: route.primaryDomain, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget });
+  const remainingBudget = Math.max(0, budget - knowledge.length);
+  const experience = await buildExperienceContext({ requester: request.requester, ownerId: requesterOwnerId, domain: route.primaryDomain, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget: remainingBudget });
   return {
     primaryDomain: route.primaryDomain,
     relatedDomains: route.relatedDomains,
     specialist: route.owner,
     knowledge: knowledge.slice(0, budget),
     experience,
-    truncated: knowledge.length > budget || experience.truncated,
+    truncated: knowledge.length >= budget || experience.truncated,
     generatedAt: new Date().toISOString(),
   };
 }
