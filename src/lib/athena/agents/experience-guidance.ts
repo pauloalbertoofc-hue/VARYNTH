@@ -79,12 +79,12 @@ export function relevantExperienceGuidance(context: AthenaContext, agentId: stri
   }).slice(0, 2);
 
   return records.map((record) =>
-    `Pista de experiência anterior (não é fato sobre este caso): em “${record.situation.slice(0, 160)}”, a abordagem “${record.action.slice(0, 160)}” teve resultado registrado como “${record.outcome.slice(0, 160)}”. Use apenas como hipótese metodológica se o pedido atual for comparável; confirme tudo no contexto presente e descarte a pista se houver conflito com a instrução atual.`
+    `Em experiências anteriores, mostrou-se útil: ${record.action.slice(0, 120)}. Isto não é fato sobre este caso; considere apenas como hipótese metodológica, valide-a no contexto atual e descarte-a se conflitar com seu pedido.`
   );
 }
 
 export function formatExperienceMethodHints(hints: string[]): string {
   return hints.length
-    ? `\n\n**Pista metodológica (experiência anterior, não evidência deste caso):** ${hints.join(" ")}`
+    ? `\n\n**Abordagem que pode valer testar:** ${hints.join(" ")}`
     : "";
 }

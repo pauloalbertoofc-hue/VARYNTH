@@ -8,6 +8,7 @@ import { musaAgent } from "./council/musa";
 import { strategosAgent } from "./council/strategos";
 import { critiasAgent } from "./council/critias";
 import { logosAgent } from "./council/logos";
+import { justitiaAgent } from "./council/justitia";
 
 const pref = (key: string, value: string, overrides: Partial<Preference> = {}): Preference => ({
   id: `${key}-${value}`, ownerId: "guidance-owner", subject: "guidance-owner", domain: "communication", key, value,
@@ -61,7 +62,7 @@ async function main() {
   assert.equal(guidedCreative.metadata?.persistedToLabs, false);
   const guidedMusa = await musaAgent.execute(task("Me dê ideias para uma exposição", "CREATIVE_IDEATION"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [priorOutcome] } });
   assert.match(JSON.stringify(guidedMusa.metadata?.appliedExperienceGuidance), /não é fato sobre este caso/i);
-  assert.match(guidedMusa.content, /Pista metodológica/);
+  assert.match(guidedMusa.content, /Abordagem que pode valer testar/);
 
   const plan = await strategosAgent.execute(task("Planeje meu cronograma", "PRODUCTIVITY_OPTIMIZATION"), context([
     pref("planningDetail", "stepwise", { domain: "strategos", scope: "AGENT", scopeId: "strategos" }),
@@ -82,6 +83,9 @@ async function main() {
   assert.match(guidedResearch.content, /separar hipótese, evidência e inferência/);
   const guidedWriting = await sophiaAgent.execute(task("Escreva um texto sobre preservação de rios."), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "communication", scope: "AGENT", scopeId: "sophia", action: "apresentar a tese antes de desenvolver as razões" }] } });
   assert.match(guidedWriting.content, /apresentar a tese antes de desenvolver as razões/);
+  const guidedLegal = await justitiaAgent.execute(task("Analise a legislação aplicável", "GENERAL_DELIBERATION"), { ...experienceContext, scope: "juridico", experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "legal", scope: "AGENT", scopeId: "justitia", action: "separar a regra aplicável dos fatos ainda não provados" }] } });
+  assert.match(guidedLegal.content, /separar a regra aplicável dos fatos ainda não provados/);
+  assert.equal(guidedLegal.metadata?.legalAdvice, false);
   console.log("Athena specialist Experience guidance tests passed");
 }
 
