@@ -7,6 +7,7 @@ export interface KnowledgeRetrievalIndex {
   textById: Map<string, string>;
   titleTextById: Map<string, string>;
   tagTextById: Map<string, string>;
+  documentFrequency: Map<string, number>;
   trigramPostings: Map<string, Set<string>>;
   primaryDomainPostings: Map<string, Set<string>>;
   relatedDomainPostings: Map<string, Set<string>>;
@@ -40,6 +41,7 @@ export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: n
     textById: new Map(),
     titleTextById: new Map(),
     tagTextById: new Map(),
+    documentFrequency: new Map(),
     trigramPostings: new Map(),
     primaryDomainPostings: new Map(),
     relatedDomainPostings: new Map(),
@@ -56,6 +58,8 @@ export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: n
     index.textById.set(item.id, text);
     index.titleTextById.set(item.id, item.title.toLocaleLowerCase());
     index.tagTextById.set(item.id, item.tags.join(" ").toLocaleLowerCase());
+    const uniqueTokens = new Set(text.match(/[\p{L}\p{N}]+/gu) || []);
+    for (const token of uniqueTokens) index.documentFrequency.set(token, (index.documentFrequency.get(token) || 0) + 1);
     for (const gram of trigrams(text)) addPosting(index.trigramPostings, gram, item.id);
     addPosting(index.primaryDomainPostings, item.primaryDomain, item.id);
     for (const domain of item.relatedDomains) addPosting(index.relatedDomainPostings, domain, item.id);
@@ -120,13 +124,22 @@ export function selectKnowledgeCandidates(index: KnowledgeRetrievalIndex, reques
 export function scoreKnowledgeRelevance(index: KnowledgeRetrievalIndex, id: string, query?: string): number {
   const normalized = query?.trim().toLocaleLowerCase();
   if (!normalized) return 0;
-  const tokens = [...new Set(normalized.split(/\s+/).filter((token) => token.length > 2))];
+  const tokens = [...new Set(normalized.match(/[\p{L}\p{N}]+/gu) || [])].filter((token) => token.length > 2);
   if (!tokens.length) return 0;
   const title = index.titleTextById.get(id) || "";
   const tags = index.tagTextById.get(id) || "";
   const text = index.textById.get(id) || "";
-  const coverage = tokens.reduce((sum, token) => sum + (text.includes(token) ? 1 : 0), 0) / tokens.length;
-  return coverage * 3 + (title.includes(normalized) ? 4 : 0) + (tags.includes(normalized) ? 2 : 0);
+  const documentTokenCount = Math.max(1, (text.match(/[\p{L}\p{N}]+/gu) || []).length);
+  const totalDocuments = Math.max(1, index.items.length);
+  const relevance = tokens.reduce((sum, token) => {
+    const tokenFrequency = (text.match(new RegExp(`(^|[^\\p{L}\\p{N}])${token.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}(?=$|[^\\p{L}\\p{N}])`, "gu")) || []).length;
+    const documentFrequency = index.documentFrequency.get(token) || 0;
+    if (!tokenFrequency || !documentFrequency) return sum;
+    const inverseDocumentFrequency = Math.log(1 + (totalDocuments - documentFrequency + 0.5) / (documentFrequency + 0.5));
+    const lengthNormalization = tokenFrequency / (tokenFrequency + 1.2 * (0.25 + 0.75 * documentTokenCount / 100));
+    return sum + inverseDocumentFrequency * lengthNormalization;
+  }, 0);
+  return relevance * 4 + (title.includes(normalized) ? 4 : 0) + (tags.includes(normalized) ? 2 : 0);
 }
 
 export function nextKnowledgeValidityBoundary(index: KnowledgeRetrievalIndex, now: number): number {
