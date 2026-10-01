@@ -3,7 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona } from "../base-agent";
-import { agentGuidanceInstruction, confirmedAgentGuidance } from "../experience-guidance";
+import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class StrategosAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -39,6 +39,7 @@ export class StrategosAgent implements AthenaAgent {
     const urgentTasks = openTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
     const upcomingEvents = context.relevantChronosEvents.filter((event) => !event.completed && event.date >= context.systemTime.slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
     const planningDetail = confirmedAgentGuidance(context, this.manifest.id, "planningDetail", task.rawPrompt);
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
 
     let content = `⚡ **Diretriz Estratégica & Otimização (Strategos):**\n\n`;
 
@@ -56,6 +57,7 @@ export class StrategosAgent implements AthenaAgent {
     content += urgentTasks.length
       ? `• **Próximo passo sugerido:** escolha uma tarefa prioritária acima; antes de estimar duração, preciso do esforço previsto e de eventuais dependências.${planningDetail === "stepwise" ? "\n1. Confirme qual tarefa vem primeiro.\n2. Informe esforço e dependências.\n3. Só então distribuirei etapas em horários disponíveis." : ""}`
       : `• **Próximo passo sugerido:** informe seu objetivo e disponibilidade para eu montar uma sequência realista, sem inventar blocos ou prazos.${planningDetail === "stepwise" ? "\n1. Defina o resultado desejado.\n2. Informe a janela de tempo disponível.\n3. Indique restrições ou compromissos fixos." : ""}`;
+    content += formatExperienceMethodHints(priorOutcomes);
 
     return {
       agentId: this.manifest.id,
@@ -64,7 +66,7 @@ export class StrategosAgent implements AthenaAgent {
       success: true,
       content,
       confidence: context.relevantTasks.length || upcomingEvents.length ? 0.68 : 0.3,
-      metadata: { receivedTaskCount: context.relevantTasks.length, openTaskCount: openTasks.length, upcomingEventCount: upcomingEvents.length, scheduleMutated: false, appliedExperienceGuidance: agentGuidanceInstruction(context, this.manifest.id, task.rawPrompt), planningDetail },
+      metadata: { receivedTaskCount: context.relevantTasks.length, openTaskCount: openTasks.length, upcomingEventCount: upcomingEvents.length, scheduleMutated: false, appliedExperienceGuidance: { confirmedPreferences: agentGuidanceInstruction(context, this.manifest.id, task.rawPrompt), priorOutcomes }, planningDetail },
       recommendations: ["Priorizar tarefas urgentes primeiro", "Sincronizar prazos no Chronos"],
     };
   }

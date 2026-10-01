@@ -3,7 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona } from "../base-agent";
-import { agentGuidanceInstruction, confirmedAgentGuidance } from "../experience-guidance";
+import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class MusaAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -38,7 +38,8 @@ export class MusaAgent implements AthenaAgent {
     const mode = confirmedAgentGuidance(context, this.manifest.id, "ideationMode", task.rawPrompt);
     const style = confirmedAgentGuidance(context, this.manifest.id, "creativeStyle", task.rawPrompt);
     const framing = mode === "practical" ? "Vamos começar por uma possibilidade que possa ser testada." : mode === "narrative" ? "Vamos tratar a ideia como uma pequena história possível, não como previsão." : "Vou abrir ângulos diferentes sem escolher por você.";
-    const content = `🎨 **Vamos explorar: ${seed}**\n\n${framing} ${anchor ? `Usarei **${anchor}** como âncora, sem supor que as ideias abaixo já façam parte do projeto.` : "Como não há projeto âncora neste contexto, trato as propostas como possibilidades abertas."}\n\n1. **Inversão:** e se a premissa “${seed}” fosse temporariamente negada? Que necessidade continuaria válida?\n2. **Fusão improvável:** aproxime o tema de uma disciplina distante${style === "sensory" ? "; procure uma imagem sensorial que ajude a percebê-lo" : style === "playful" ? "; brinque com a combinação sem confundi-la com evidência" : style === "minimal" ? "; reduza a combinação à menor ideia útil" : style === "experimental" ? "; trate a combinação como hipótese experimental" : "; procure uma metáfora útil, não uma afirmação factual"}.\n3. **Teste mínimo:** transforme a hipótese escolhida em uma experiência de baixo custo e defina antecipadamente o que contaria como sinal de sucesso ou fracasso.\n\nSão provocações criativas, não fatos nem tarefas já registradas. Qual delas quer desenvolver?`;
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
+    const content = `🎨 **Vamos explorar: ${seed}**\n\n${framing} ${anchor ? `Usarei **${anchor}** como âncora, sem supor que as ideias abaixo já façam parte do projeto.` : "Como não há projeto âncora neste contexto, trato as propostas como possibilidades abertas."}\n\n1. **Inversão:** e se a premissa “${seed}” fosse temporariamente negada? Que necessidade continuaria válida?\n2. **Fusão improvável:** aproxime o tema de uma disciplina distante${style === "sensory" ? "; procure uma imagem sensorial que ajude a percebê-lo" : style === "playful" ? "; brinque com a combinação sem confundi-la com evidência" : style === "minimal" ? "; reduza a combinação à menor ideia útil" : style === "experimental" ? "; trate a combinação como hipótese experimental" : "; procure uma metáfora útil, não uma afirmação factual"}.\n3. **Teste mínimo:** transforme a hipótese escolhida em uma experiência de baixo custo e defina antecipadamente o que contaria como sinal de sucesso ou fracasso.${formatExperienceMethodHints(priorOutcomes)}\n\nSão provocações criativas, não fatos nem tarefas já registradas. Qual delas quer desenvolver?`;
 
     return {
       agentId: this.manifest.id,
@@ -48,7 +49,7 @@ export class MusaAgent implements AthenaAgent {
       content,
       confidence: 0.45,
       recommendations: ["Escolher uma hipótese e definir um teste de baixo custo", "Registrar no Labs somente se você decidir"],
-      metadata: { ideasAreHypotheses: true, projectAnchor: anchor || null, persistedToLabs: false, appliedExperienceGuidance: agentGuidanceInstruction(context, this.manifest.id, task.rawPrompt), ideationMode: mode, creativeStyle: style },
+      metadata: { ideasAreHypotheses: true, projectAnchor: anchor || null, persistedToLabs: false, appliedExperienceGuidance: { confirmedPreferences: agentGuidanceInstruction(context, this.manifest.id, task.rawPrompt), priorOutcomes }, ideationMode: mode, creativeStyle: style },
     };
   }
 }

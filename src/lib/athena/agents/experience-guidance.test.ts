@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import type { Preference } from "@/lib/experience/contracts";
+import type { ExperienceRecord, Preference } from "@/lib/experience/contracts";
 import type { AthenaContext } from "../domain/context";
 import type { AthenaTask } from "../domain/task";
-import { confirmedAgentGuidance } from "./experience-guidance";
+import { confirmedAgentGuidance, relevantExperienceGuidance } from "./experience-guidance";
 import { sophiaAgent } from "./council/sophia";
 import { musaAgent } from "./council/musa";
 import { strategosAgent } from "./council/strategos";
@@ -34,6 +34,20 @@ async function main() {
   assert.equal((detailed.metadata?.appliedExperienceGuidance as { verbosity?: string }).verbosity, undefined, "explicit request suppresses saved concision");
   assert.doesNotMatch(detailed.content, /Prefira uma resposta concisa/i);
 
+  const priorOutcome: ExperienceRecord = {
+    id: "prior-project-outcome", ownerId: "guidance-owner", domain: "creativity", context: {},
+    situation: "ideação para uma exposição", action: "gerar três conceitos e prototipar um", outcome: "a equipe escolheu o protótipo após a demonstração",
+    usefulness: 0.9, confidence: 0.8, evidence: [], scope: "AGENT", scopeId: "musa", createdAt: "2026-01-01",
+  };
+  const experienceContext = { ...context(), experienceContext: { preferences: [], experiences: [priorOutcome], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION" as const, generatedAt: "now", truncated: false } };
+  const experienceHints = relevantExperienceGuidance(experienceContext, "musa");
+  assert.equal(experienceHints.length, 1);
+  assert.match(experienceHints[0], /não é fato sobre este caso/i);
+  assert.match(experienceHints[0], /prototipar um/);
+  assert.deepEqual(relevantExperienceGuidance(experienceContext, "sophia"), [], "agent-scoped precedent cannot leak to other specialists");
+  assert.deepEqual(relevantExperienceGuidance({ ...experienceContext, activeProject: { id: "different-project", title: "Outro projeto", description: "", category: "pessoal", status: "ativo", priority: "media", tags: [], createdAt: "", updatedAt: "" } }, "strategos"), [], "project precedent cannot leave its project");
+  assert.deepEqual(relevantExperienceGuidance({ ...context(), experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, usefulness: 0 }] } }, "musa"), [], "neutral or negative outcomes do not become positive method hints");
+
   const scopedPreference = pref("ideationMode", "practical", { domain: "musa", scope: "AGENT", scopeId: "musa" });
   assert.equal(confirmedAgentGuidance(context([scopedPreference]), "musa", "ideationMode", "Me dê ideias"), "practical");
 
@@ -44,17 +58,24 @@ async function main() {
   assert.match(guidedCreative.content, /possibilidade que possa ser testada/i);
   assert.match(guidedCreative.content, /imagem sensorial/i);
   assert.equal(guidedCreative.metadata?.persistedToLabs, false);
+  const guidedMusa = await musaAgent.execute(task("Me dê ideias para uma exposição", "CREATIVE_IDEATION"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [priorOutcome] } });
+  assert.match(JSON.stringify(guidedMusa.metadata?.appliedExperienceGuidance), /não é fato sobre este caso/i);
+  assert.match(guidedMusa.content, /Pista metodológica/);
 
   const plan = await strategosAgent.execute(task("Planeje meu cronograma", "PRODUCTIVITY_OPTIMIZATION"), context([
     pref("planningDetail", "stepwise", { domain: "strategos", scope: "AGENT", scopeId: "strategos" }),
   ]));
   assert.match(plan.content, /1\. Defina o resultado desejado/i);
+  const guidedPlan = await strategosAgent.execute(task("Planeje meu cronograma", "PRODUCTIVITY_OPTIMIZATION"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "productivity", scope: "AGENT", scopeId: "strategos", action: "dividir o objetivo em etapas verificáveis" }] } });
+  assert.match(guidedPlan.content, /etapas verificáveis/);
   assert.equal(plan.metadata?.scheduleMutated, false);
 
   const critique = await critiasAgent.execute(task("Critique minha ideia: criar um canal de relatos."), context([
     pref("critiqueLens", "logic", { domain: "critias", scope: "AGENT", scopeId: "critias" }),
   ]));
   assert.match(critique.content, /salto inferencial/i);
+  const guidedCritique = await critiasAgent.execute(task("Critique minha ideia: criar um canal de relatos."), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "critical-review", scope: "AGENT", scopeId: "critias", action: "separar premissas e evidências" }] } });
+  assert.match(guidedCritique.content, /separar premissas e evidências/);
   assert.equal(critique.metadata?.verifiedDefect, false, "a selected lens does not fabricate a defect");
   console.log("Athena specialist Experience guidance tests passed");
 }

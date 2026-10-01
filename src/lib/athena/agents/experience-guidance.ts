@@ -58,3 +58,33 @@ export function agentGuidanceInstruction(context: AthenaContext, agentId: string
   if (formality) guidance.push(formality === "formal" ? "Use registro formal, mantendo clareza e naturalidade." : "Use registro informal respeitoso, sem perder precisão.");
   return guidance;
 }
+
+/**
+ * Convert only positively useful, properly scoped past outcomes into a bounded
+ * method hint. Experience is precedent, not evidence about the current task.
+ */
+export function relevantExperienceGuidance(context: AthenaContext, agentId: string): string[] {
+  const records = (context.experienceContext?.experiences ?? []).filter((record) => {
+    if (!record.outcome.trim() || !record.action.trim() || (record.usefulness ?? 0) <= 0) return false;
+    if (record.scope === "GLOBAL") return true;
+    if (record.scope === "AGENT") return record.scopeId === agentId;
+    if (record.scope === "DOMAIN") {
+      return record.scopeId === record.domain || record.domain === agentId || record.scopeId === agentId;
+    }
+    if (record.scope === "PROJECT") {
+      const projectId = context.activeProject?.id;
+      return !!projectId && record.scopeId === projectId;
+    }
+    return false;
+  }).slice(0, 2);
+
+  return records.map((record) =>
+    `Pista de experiência anterior (não é fato sobre este caso): em “${record.situation.slice(0, 160)}”, a abordagem “${record.action.slice(0, 160)}” teve resultado registrado como “${record.outcome.slice(0, 160)}”. Use apenas como hipótese metodológica se o pedido atual for comparável; confirme tudo no contexto presente e descarte a pista se houver conflito com a instrução atual.`
+  );
+}
+
+export function formatExperienceMethodHints(hints: string[]): string {
+  return hints.length
+    ? `\n\n**Pista metodológica (experiência anterior, não evidência deste caso):** ${hints.join(" ")}`
+    : "";
+}
