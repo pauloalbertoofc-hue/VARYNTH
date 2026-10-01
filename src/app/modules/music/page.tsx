@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Disc3, ListMusic, Music2, Pause, Play, Send, SkipBack, SkipForward, Volume2, X, Mic2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { athenaEventBus } from "@/lib/athena/events/event-bus";
@@ -35,19 +36,16 @@ import { MusicVisualProviderSettings } from "@/components/music/MusicVisualProvi
 const visualProvider = new LocalVisualGenerationProvider();
 const athenaVisualProvider = new RemoteVisualGenerationProvider();
 type EuterpeOverlayBridge = {
-  checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean }>;
+  checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean; enabled: boolean }>;
   requestNotificationPermission(): Promise<{ granted: boolean }>;
   show(options: { state: EuterpeVisualState }): Promise<{ enabled: boolean; permissionRequired: boolean }>;
   update(options: { state: EuterpeVisualState }): Promise<void>;
   hide(): Promise<void>;
 };
+const euterpeOverlayPlugin = registerPlugin<EuterpeOverlayBridge>("EuterpeOverlay");
 function getEuterpeOverlayBridge(): EuterpeOverlayBridge | undefined {
-  if (typeof window === "undefined") return undefined;
-  const native = (window as Window & { Capacitor?: { getPlatform?: () => string; isPluginAvailable?: (name: string) => boolean; registerPlugin?: (name: string) => EuterpeOverlayBridge; Plugins?: { EuterpeOverlay?: EuterpeOverlayBridge } } }).Capacitor;
-  if (native?.getPlatform?.() !== "android") return undefined;
-  if (native.Plugins?.EuterpeOverlay) return native.Plugins.EuterpeOverlay;
-  if (native.isPluginAvailable?.("EuterpeOverlay") && native.registerPlugin) return native.registerPlugin("EuterpeOverlay");
-  return undefined;
+  if (typeof window === "undefined" || Capacitor.getPlatform() !== "android") return undefined;
+  return euterpeOverlayPlugin;
 }
 async function persistAccountVisualProfile(profile: VisualProfile): Promise<VisualProfile> {
   if (!musicLibrary.isAccountStorageAvailable()) return profile;
@@ -156,7 +154,7 @@ export default function MusicPage() {
     const bridge = getEuterpeOverlayBridge();
     if (!bridge) return;
     setNativeOverlaySupported(true);
-    void bridge.checkPermission().then((result) => { setNativeOverlaySupported(result.supported); setNativeOverlayGranted(result.granted); }).catch(() => setNativeOverlaySupported(false));
+    void bridge.checkPermission().then((result) => { setNativeOverlaySupported(result.supported); setNativeOverlayGranted(result.granted); setNativeOverlayEnabled(result.enabled); }).catch(() => setNativeOverlaySupported(false));
   }, []);
 
   const reloadLibrary = useCallback(async () => {

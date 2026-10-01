@@ -3,7 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
-import { agentGuidanceInstruction, confirmedAgentGuidance } from "../experience-guidance";
+import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class CritiasAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -38,19 +38,21 @@ export class CritiasAgent implements AthenaAgent {
     const candidate = quoted || statedObject || (context.activeProject?.description ? `${context.activeProject.title}: ${context.activeProject.description}` : undefined);
     const lens = confirmedAgentGuidance(context, this.manifest.id, "critiqueLens", resolved.prompt);
     const lensQuestion = lens === "logic" ? "A conclusão decorre das premissas ou há um salto inferencial?" : lens === "usability" ? "A proposta é compreensível e utilizável pelas pessoas a quem se destina?" : lens === "risk" ? "Que dano plausível, reversibilidade ou contingência precisa ser examinada?" : "Que evidência sustentaria a afirmação e que observação poderia refutá-la?";
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const content = candidate
       ? `🔍 **Revisão crítica do material recebido**\n\nObjeto: “${candidate}”\n\nNão recebi critérios ou evidências específicas além desse enunciado. Portanto, não afirmo que encontrei uma falha. Para testar a proposta, precisamos perguntar: ${lensQuestion} Também é necessário identificar se a conclusão depende de uma premissa ainda não verificada. A vulnerabilidade atual é **lacuna de evidência no contexto recebido**, não prova de que a tese esteja errada.`
       : `🔍 **Posso fazer uma revisão rigorosa, mas falta o objeto.** Não recebi texto, hipótese ou plano concreto para testar. Envie a afirmação e, se houver, as fontes e os critérios de sucesso; sem isso, apontar “falhas” seria inventar crítica.`;
+    const groundedContent = content + formatExperienceMethodHints(priorOutcomes);
 
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
       role: this.manifest.role,
       success: true,
-      content,
+      content: groundedContent,
       confidence: candidate ? 0.52 : 0.2,
       recommendations: candidate ? ["Fornecer evidências e critério de refutação para avaliar a proposta"] : ["Enviar a proposta ou texto que deseja revisar"],
-      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false, conversationReferenceResolved: resolved.usedHistory, critiqueLens: lens, appliedExperienceGuidance: agentGuidanceInstruction(context, this.manifest.id, resolved.prompt) },
+      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false, conversationReferenceResolved: resolved.usedHistory, critiqueLens: lens, appliedExperienceGuidance: { confirmedPreferences: agentGuidanceInstruction(context, this.manifest.id, resolved.prompt), priorOutcomes } },
     };
   }
 

@@ -92,6 +92,7 @@
     "test:security:browser": "npx tsx src/lib/tests/forge-browser-security.test.ts"
   },
   "dependencies": {
+    "@capacitor/core": "^7.6.9",
     "@types/pdfkit": "^0.17.6",
     "@vercel/blob": "^2.8.0",
     "clsx": "^2.1.1",

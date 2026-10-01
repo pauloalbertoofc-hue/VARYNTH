@@ -13,9 +13,10 @@ export const euterpeManifest = { id: "euterpe", name: "Euterpe", role: "Sub-IA m
 
 function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conversation: EuterpeConversationTurn[]): string | undefined {
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const isWhy = /\b(por que|porque|qual o motivo|qual a razao)\b/.test(normalized);
-  const isExplain = /\b(como assim|me explica|explique melhor|o que quis dizer|qual delas)\b/.test(normalized);
-  const isContinue = /\b(continua|continue|fala mais|aprofunda|detalha mais)\b/.test(normalized);
+  const shortTurn = normalized.split(/\s+/).length <= 10;
+  const isWhy = shortTurn && /^(?:(?:mas|e)\s+)?(?:por que|porque|qual o motivo|qual a razao)\b/.test(normalized);
+  const isExplain = shortTurn && /\b(como assim|(?:me )?explica(?:r)?(?: melhor)?|poderia explicar|explique melhor|o que quis dizer|qual delas|me conta mais)\b/.test(normalized);
+  const isContinue = shortTurn && /\b(continua|continue|fala mais|me fala mais|aprofunda|detalha mais|pode desenvolver|desenvolva mais)\b/.test(normalized);
   if (!isWhy && !isExplain && !isContinue) return undefined;
 
   const currentUserIndex = conversation.map((turn) => turn.sender).lastIndexOf("user");
@@ -49,6 +50,22 @@ function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conver
   return `Posso continuar a partir do contexto disponível: ${context.track ? `a faixa selecionada é “${context.track.name}”, de ${context.track.artist},` : "não há uma faixa selecionada,"} mas não recebi Music DNA para descrever o áudio. Se quiser, diga qual aspecto você percebeu e desenvolvo a leitura junto com você.`;
 }
 
+function describeSelectedTrack(context: EuterpeContext, formal: boolean): string {
+  if (!context.track) return formal
+    ? "Não há uma faixa selecionada nesta conversa. Selecione uma faixa ou diga o título para eu saber a que você se refere."
+    : "Ainda não tenho uma faixa selecionada para saber a que você se refere. Escolha uma ou me diga o nome?";
+
+  const opening = formal ? "A faixa selecionada é" : "A que está selecionada é";
+  if (!context.dna || context.dna.trackId !== context.track.id) {
+    return `${opening} “${context.track.name}”, de ${context.track.artist}. Ainda não recebi Music DNA correspondente a essa faixa, então não vou fingir que ouvi ou inferir gênero, instrumentos ou clima. O que você percebeu nela? Posso desenvolver a leitura a partir disso.`;
+  }
+
+  const tags = context.dna.visualTags.length ? context.dna.visualTags.join(", ") : "sem tags visuais registradas";
+  const intensity = Math.round(context.dna.intensity * 100);
+  const calmness = Math.round(context.dna.calmness * 100);
+  return `${opening} “${context.track.name}”, de ${context.track.artist}. No Music DNA ${context.dna.status === "COMPLETE" ? "marcado como completo" : "ainda parcial"}, há as tags “${tags}” e estimativas de intensidade (${intensity}%) e calmaria (${calmness}%). São medidas do áudio amostrado durante a reprodução — não identificam, por si sós, gênero, instrumentos, letra ou qualidade artística. O que chamou sua atenção nela?`;
+}
+
 /** Domain intent parser returns reviewable drafts; it never writes to the library or plays audio. */
 export function interpretEuterpeRequest(message: string, context: EuterpeContext, conversation: EuterpeConversationTurn[] = []) {
   const text = message.trim();
@@ -56,20 +73,25 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   const formal = /\b(senhor|senhora|gostaria|poderia|por gentileza|formalmente)\b/.test(normalized);
   const followUpResponse = resolveEuterpeFollowUp(text, context, conversation);
   if (followUpResponse) return { response: followUpResponse, proposal: undefined };
-  const match = text.match(/(?:visual(?:mente)?|capa|fundo|tema|apar[eê]ncia|atmosfera|clima).{0,48}(?:escuro|claro|urbano|calmo|agressivo|chuva|estrelas|sem movimento|noturno|minimalista|quente|frio|cinematogr[aá]fico|suave|dram[aá]tico)/i)
+  const match = text.match(/(?:visual(?:mente)?|capa|fundo|tema|apar[eê]ncia|atmosfera|clima).{0,48}(?:escur[oa]|clar[oa]|urban[oa]|calm[oa]|agressiv[oa]|chuva|estrelas|sem movimento|noturn[oa]|minimalista|quente|fri[oa]|cinematogr[aá]fic[oa]|suave|dram[aá]tic[oa])/i)
     ?? text.match(/(?:deixe|deixa|quero|fa[cç]a|fazer|coloque|coloca).{0,32}(?:escuro|claro|urbano|calmo|agressivo|chuva|estrelas|noturno|minimalista|quente|frio|cinematogr[aá]fico|suave|dram[aá]tico|est[aá]tico)/i);
   if (match && context.track) return { response: `Posso preparar um perfil visual ${match[0].trim()} para “${context.track.name}”.`, proposal: { kind: "visual-profile", trackId: context.track.id, instruction: match[0].trim() } satisfies EuterpeProposal };
   const playlist = text.match(/playlist(?: chamada| com nome)?\s+["“]?([^"”.,!?]+)["”]?/i);
   if (playlist) return { response: `Preparei um rascunho de playlist “${playlist[1].trim()}”. Revise antes de aplicar.`, proposal: { kind: "playlist", name: playlist[1].trim(), trackIds: context.track ? [context.track.id] : [] } satisfies EuterpeProposal };
-  const fav = text.match(/(?:gosto|prefiro|adoro|curto|me interessa|tenho apre[cç]o por)\s+(?:muito\s+)?(?:de\s+)?(.{2,70})/i);
-  if (fav) return { response: `Entendi sua preferência por “${fav[1].trim()}”. Posso guardar isso na memória musical local após sua confirmação.`, proposal: { kind: "preference", key: "explicit-style-preference", value: fav[1].trim() } satisfies EuterpeProposal };
-  const conversational = /\b(o que acha|e essa|e esse|e aquele|e aquela)\b/i.test(normalized);
-  if (conversational && conversation.some((turn) => turn.sender === "curator")) {
-    return { response: "Você está retomando minha resposta anterior, mas ainda não sei a que faixa ou opção se refere. Pode nomeá-la?", proposal: undefined };
+  if (/\b(estilo|gosto|preferencia|preferência|combina comigo|meu gosto)\b/.test(normalized)) {
+    const savedValues = [...new Set([...context.preferences.map((item) => item.value), ...context.memories.map((item) => item.value)].map((value) => value.trim()).filter(Boolean))].slice(0, 5);
+    if (savedValues.length) return { response: `Pelo que está salvo na sua memória musical local, aparecem ${savedValues.join(", ")}. Posso usar isso como pista para conversar — não como certeza sobre tudo de que você gosta. Alguma dessas referências você quer priorizar agora?`, proposal: undefined };
+    if (/combina comigo|meu gosto/.test(normalized)) return { response: "Ainda não tenho preferências musicais salvas para personalizar essa sugestão. Você pode me dizer dois ou três artistas, estilos ou faixas de que gosta; vou tratá-los como referências suas, não como uma regra fixa.", proposal: undefined };
   }
-  if (/\b(analise|analisa|descreva|descreve|o que sente|que sensacao|que sensação|qual a vibe|qual o clima)\b/i.test(normalized) && context.track) {
-    const evidence = context.dna?.visualTags.length ? `O Music DNA disponível marca ${context.dna.visualTags.join(", ")}; essa leitura vem dessas tags, não de uma análise subjetiva do áudio.` : "Ainda não há Music DNA suficiente para descrever características sonoras verificadas; se você me disser o que percebe, construo a leitura junto com você.";
-    return { response: `${formal ? "A faixa" : "Essa faixa"} “${context.track.name}”, de ${context.track.artist}, está selecionada. ${evidence}`, proposal: undefined };
+  const negatedPreference = /\b(?:nao|nunca|jamais)\s+(?:gosto|prefiro|adoro|curto|me interessa)\b|\bnao\s+guarde\b|\bnao\s+salve\b/.test(normalized);
+  const fav = text.match(/(?:gosto|prefiro|adoro|curto|me interessa|tenho apre[cç]o por)\s+(?:muito\s+)?(?:de\s+)?(.{2,70})/i);
+  if (negatedPreference && /\b(?:gosto|prefiro|adoro|curto|me interessa)\b/.test(normalized)) return { response: "Entendi que isso não é uma preferência sua; não vou propor guardar essa informação como gosto musical.", proposal: undefined };
+  if (/\bnao\s+(?:guarde|salve)\b/.test(normalized)) return { response: "Entendido. Não vou propor guardar isso na memória musical.", proposal: undefined };
+  if (fav) return { response: `Entendi sua preferência por “${fav[1].trim()}”. Posso guardar isso na memória musical local após sua confirmação.`, proposal: { kind: "preference", key: "explicit-style-preference", value: fav[1].trim() } satisfies EuterpeProposal };
+  const asksCurrentTrack = /\b(o que acha|o que voce acha|e essa|e esse|e ela|e essa faixa|e essa musica|o que sente|que sensacao|qual a vibe|qual o clima|combina comigo|o que percebeu)\b/.test(normalized);
+  const asksForListening = /\b(analise|analisa|descreva|descreve|o que sente|que sensacao|qual a vibe|qual o clima|o que percebeu)\b/.test(normalized);
+  if (asksCurrentTrack || asksForListening) {
+    return { response: describeSelectedTrack(context, formal), proposal: undefined };
   }
   const track = context.track ? ` A faixa atual é “${context.track.name}”${context.dna ? `, com análise ${context.dna.status.toLowerCase()} e tags ${context.dna.visualTags.join(", ") || "ainda sem tags"}` : ", ainda sem Music DNA"}.` : " Selecione uma faixa para eu usar o contexto musical dela.";
   const saved = context.preferences.length || context.memories.length ? ` Nas suas memórias musicais locais constam ${[...context.preferences.map((item) => item.value), ...context.memories.map((item) => item.value)].slice(0, 5).join(", ")}.` : " Ainda não há preferências musicais salvas.";

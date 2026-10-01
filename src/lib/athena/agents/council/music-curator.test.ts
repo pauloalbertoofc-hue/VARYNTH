@@ -16,11 +16,16 @@ void (async () => {
   assert.equal(result.success, true);
   assert.equal((result.metadata as { toolAccess: boolean }).toolAccess, false);
   assert.equal((result.metadata as { localFileAccess: boolean }).localFileAccess, false);
-  assert.match(result.content, /Não acesso a arquivos/);
+  assert.match(result.content, /selecione uma faixa/i);
 
   const withTrack = await euterpeAgent.execute(task("Sugestão para minha música", { musicTrack: { id: "t1", name: "Demo" } }), {} as never);
   assert.match(withTrack.content, /Demo/);
   assert.equal((withTrack.metadata as { authority: string }).authority, "advisory-only");
+
+  const visualProposal = await euterpeAgent.execute(task("Faça uma capa escura", { musicTrack: { id: "t1", name: "Demo" } }), {} as never);
+  assert.match(visualProposal.content, /perfil visual.*capa escura/i);
+  assert.deepEqual((visualProposal.metadata as { proposal: unknown }).proposal, { kind: "visual-profile", trackId: "t1", instruction: "capa escura" });
+  assert.equal((visualProposal.metadata as { proposalOnly: boolean }).proposalOnly, true, "agent workflows may propose but never apply a visual edit");
 
   let calls = 0;
   const delegated = await euterpeAgent.converse(task("Crie uma tarefa para o álbum"), {} as never, async () => { calls++; return { text: "Athena respondeu." }; });
