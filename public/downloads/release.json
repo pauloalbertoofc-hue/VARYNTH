@@ -1,18 +1,22 @@
 {
-  "schemaVersion": 1,
-  "latestVersion": "0.1.0",
-  "publishedAt": "2026-09-15T04:00:00.000Z",
+  "schemaVersion": 2,
+  "latestVersion": "1.1.0",
+  "publishedAt": "2026-10-01T16:07:07.876Z",
   "channels": {
     "android": {
+      "version": "1.1.0",
       "channel": "test",
-      "url": "/downloads/varynth-android-0.1.0-debug.apk",
-      "sha256": "BED30AB5983C7A126AA060248B763DC238717E4003998F19D3994ADBF05957BB",
+      "url": "/downloads/varynth-android-1.1.0-debug.apk",
+      "sizeBytes": 4186946,
+      "sha256": "7D562E528A0915D7A4F0DAA4EB516FDF65FE6810F1BCFF3F3B8B977F6336A4FA",
       "requiresManualInstall": true
     },
     "windows": {
+      "version": "0.2.0",
       "channel": "test",
-      "url": "/downloads/varynth-desktop-0.1.0-x64-setup.exe",
-      "sha256": "D7AEA33A929793F58F63C8EF82B1C20C538416C9F6CE73F399A8976CEFA1EAB4",
+      "url": "/downloads/varynth-desktop-0.2.0-x64-setup.exe",
+      "sizeBytes": 1845162,
+      "sha256": "F26224C51ECE49F495369CA6D3B2F2B6A67F2BC2E91D82ACCE0E927590C0A309",
       "requiresManualInstall": true
     }
   }

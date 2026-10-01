@@ -1,10 +1,10 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "VARYNTH",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.varynth.os",
   "build": {
-    "frontendDist": "../../../out",
+    "frontendDist": "https://varynth-ynqv-plum.vercel.app",
     "devUrl": "https://varynth-ynqv-plum.vercel.app",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": ""
