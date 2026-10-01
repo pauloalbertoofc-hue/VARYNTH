@@ -12,6 +12,7 @@ import { mnemosyneAgent } from "./mnemosyne";
 import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
 import { euterpeAgent } from "./music-curator";
+import { prepareAgentConversationHistory, resolveAgentFollowUp } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
 
@@ -25,8 +26,25 @@ for (const agent of agents) {
   assert.ok(persona.evidenceBoundary.length > 20, `${agent.manifest.id} needs an evidence boundary`);
   assert.ok(persona.authorityBoundary.length > 20, `${agent.manifest.id} needs an authority boundary`);
 }
-assert.equal(new Set(personas.map((persona) => persona.identity)).size, agents.length, "Every subagent must have its own identity");
-assert.equal(agentRegistry.listAgents().length, agents.length, "All persona-bearing agents must be registered");
+  assert.equal(new Set(personas.map((persona) => persona.identity)).size, agents.length, "Every subagent must have its own identity");
+  assert.equal(agentRegistry.listAgents().length, agents.length, "All persona-bearing agents must be registered");
+
+const followUpContext = { recentConversation: [
+  { role: "user" as const, text: "Quero um texto sobre preservação de rios." },
+  { role: "athena" as const, text: "Posso ajudar com um rascunho." },
+] } as unknown as AthenaContext;
+const resolvedFollowUp = resolveAgentFollowUp("Escreva mais sobre isso.", followUpContext);
+assert.equal(resolvedFollowUp.usedHistory, true);
+assert.match(resolvedFollowUp.prompt, /preservação de rios/i);
+assert.equal(resolveAgentFollowUp("Explique preservação de rios", followUpContext).usedHistory, false, "Explicit current topics must not be overwritten by history");
+assert.equal(resolveAgentFollowUp("E literatura brasileira?", followUpContext).usedHistory, false, "A new explicit topic joined by 'e' must not inherit the previous subject");
+const suppliedHistory = prepareAgentConversationHistory([
+  { role: "user", text: "Quero um texto sobre preservação de rios." },
+  { role: "athena", text: "Posso ajudar com um rascunho." },
+  { role: "user", text: "Escreva mais sobre isso." },
+], "Escreva mais sobre isso.");
+assert.equal(suppliedHistory.length, 2, "The current message is removed from the prior-turn packet");
+assert.match(suppliedHistory[0].text, /preservação de rios/i);
 
 const ctx = { scope: "geral", relevantProjects: [], relevantTasks: [], relevantVaultItems: [], relevantChronosEvents: [], relevantTheses: [], relevantEvidences: [], relevantOpportunities: [], systemTime: "2026-09-23T12:00:00.000Z" } as unknown as AthenaContext;
 const task = (rawPrompt: string): AthenaTask => ({ id: "agent-grounding", title: rawPrompt, rawPrompt, type: "GENERAL_DELIBERATION", priority: "media", status: "CREATED", scope: "geral", entities: {}, createdAt: "", updatedAt: "" });
@@ -39,8 +57,24 @@ void (async () => {
   assert.match(research.content, /não recebi evidências catalogadas/i);
   assert.equal(research.metadata?.externalSearchPerformed, false);
   const draft = await sophiaAgent.execute(task("Escreva um texto"), ctx);
-  assert.match(draft.content, /ainda não recebi um trecho/i);
-  assert.ok(draft.confidence < 0.5);
+  assert.match(draft.content, /falta o assunto/i);
+  assert.equal(draft.metadata?.draftGenerated, false);
+  const scopedDraft = await sophiaAgent.execute(task("Escreva um texto sobre preservação de rios para estudantes do ensino médio."), ctx);
+  assert.match(scopedDraft.content, /Texto-base — preservação de rios/i);
+  assert.match(scopedDraft.content, /Público: estudantes do ensino médio/i);
+  assert.match(scopedDraft.content, /ponto de partida editável/i);
+  assert.match(scopedDraft.content, /nenhuma fonte foi consultada/i);
+  assert.equal(scopedDraft.metadata?.draftGenerated, true);
+  assert.equal(scopedDraft.metadata?.citedExternalSources, false);
+  const contextualDraft = await sophiaAgent.execute(task("Escreva mais sobre isso."), { ...ctx, ...followUpContext });
+  assert.match(contextualDraft.content, /preservação de rios/i);
+  assert.equal(contextualDraft.metadata?.conversationReferenceResolved, true);
+  const thesisDraft = await sophiaAgent.execute(task("Redija um artigo sobre educação pública. Defenda que investir em bibliotecas amplia oportunidades."), ctx);
+  assert.match(thesisDraft.content, /investir em bibliotecas amplia oportunidades/i);
+  assert.equal(thesisDraft.metadata?.topic, "educação pública");
+  const emailDraft = await sophiaAgent.execute(task("Escreva um e-mail sobre reunião de planejamento para a equipe de design."), ctx);
+  assert.match(emailDraft.content, /Olá,/);
+  assert.match(emailDraft.content, /E-mail — reunião de planejamento/i);
   const ideas = await musaAgent.execute(task("Me dê ideias para um novo produto"), ctx);
   assert.match(ideas.content, /provocações criativas, não fatos/i);
   assert.equal(ideas.metadata?.persistedToLabs, false);
@@ -49,6 +83,13 @@ void (async () => {
   const critique = await critiasAgent.execute(task("Critique minha ideia"), ctx);
   assert.match(critique.content, /falta o objeto/i);
   assert.equal(critique.metadata?.verifiedDefect, false);
+  const contextualCritique = await critiasAgent.execute(task("E os riscos disso?"), {
+    ...ctx,
+    recentConversation: [{ role: "user", text: "Avalie a proposta: “Criar um canal público de denúncias sem explicar como os relatos serão verificados.”" }],
+  });
+  assert.match(contextualCritique.content, /Criar um canal público de denúncias/i);
+  assert.equal(contextualCritique.metadata?.conversationReferenceResolved, true);
+  assert.equal(contextualCritique.metadata?.verifiedDefect, false, "Grounding the object must not turn an unverified concern into a proven defect");
   const memory = await mnemosyneAgent.execute(task("O que você lembra sobre um projeto ausente?"), ctx);
   assert.equal(memory.metadata?.queriedGraph, false);
   assert.match(memory.content, /não consultei o Graph/i);

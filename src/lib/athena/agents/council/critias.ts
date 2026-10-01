@@ -2,7 +2,7 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 
 export class CritiasAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -31,8 +31,10 @@ export class CritiasAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
-    const quoted = task.rawPrompt.match(/[“"]([^”"]{12,})[”"]/)?.[1];
-    const candidate = quoted || (context.activeProject?.description ? `${context.activeProject.title}: ${context.activeProject.description}` : undefined);
+    const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
+    const quoted = resolved.prompt.match(/[“"]([^”"]{12,})[”"]/)?.[1];
+    const statedObject = resolved.prompt.match(/(?:minha|esta|a)\s+(?:ideia|proposta|tese|hip[oó]tese|plano|argumento)\s*(?:é|:|sobre)\s*(.+?)(?:[.!?]|$)/i)?.[1];
+    const candidate = quoted || statedObject || (context.activeProject?.description ? `${context.activeProject.title}: ${context.activeProject.description}` : undefined);
     const content = candidate
       ? `🔍 **Revisão crítica do material recebido**\n\nObjeto: “${candidate}”\n\nNão recebi critérios ou evidências específicas além desse enunciado. Portanto, não afirmo que encontrei uma falha. Para testar a proposta, precisamos explicitar: (1) qual evidência a sustentaria; (2) que observação a refutaria; (3) se a conclusão depende de uma premissa ainda não verificada. A vulnerabilidade atual é **lacuna de evidência no contexto recebido**, não prova de que a tese esteja errada.`
       : `🔍 **Posso fazer uma revisão rigorosa, mas falta o objeto.** Não recebi texto, hipótese ou plano concreto para testar. Envie a afirmação e, se houver, as fontes e os critérios de sucesso; sem isso, apontar “falhas” seria inventar crítica.`;
@@ -45,7 +47,7 @@ export class CritiasAgent implements AthenaAgent {
       content,
       confidence: candidate ? 0.52 : 0.2,
       recommendations: candidate ? ["Fornecer evidências e critério de refutação para avaliar a proposta"] : ["Enviar a proposta ou texto que deseja revisar"],
-      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false },
+      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false, conversationReferenceResolved: resolved.usedHistory },
     };
   }
 

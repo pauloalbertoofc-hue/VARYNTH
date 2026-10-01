@@ -13,6 +13,8 @@ export interface AthenaContext {
   relevantTheses: ArgumentThesis[];
   relevantEvidences: EvidenceItem[];
   relevantOpportunities: Opportunity[];
+  /** Bounded turns from the active session, supplied only for conversational reference resolution. */
+  recentConversation?: Array<{ role: "user" | "athena"; text: string }>;
   systemTime: string;
 }
 

@@ -21,6 +21,7 @@ import { athenaPersonaEngine } from "../persona/persona-engine";
 import { athenaInteractionContractRouter } from "./interaction-contract-router";
 import { athenaInteractionContractGateway } from "../runtime/interaction-contract-gateway";
 import { athenaCapabilitySelector } from "./capability-selector";
+import { prepareAgentConversationHistory } from "../agents/base-agent";
 
 export class ExecutiveController {
   async process(
@@ -132,6 +133,9 @@ export class ExecutiveController {
 
     // 5. Memory & Context: build surgical workspace context
     const context = athenaContextBuilder.buildContext(task, scope, storeCtx, resolvedProjectId);
+    context.recentConversation = prepareAgentConversationHistory(
+      athenaConversationManager.getRecentTurns(sessionId, 7), rawPrompt,
+    );
     if (context.activeProject) {
       provenanceTracker.record("VAULT", `Projeto: ${context.activeProject.title}`, context.activeProject.id);
     }

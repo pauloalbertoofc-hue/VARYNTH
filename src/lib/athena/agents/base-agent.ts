@@ -36,6 +36,30 @@ export function renderAgentPersona(manifest: AgentManifest): string {
   ].join(" ");
 }
 
+/** Resolves only clear follow-up references from the active session's user turns.
+ * Assistant turns are intentionally excluded: they are not independent evidence. */
+export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { prompt: string; usedHistory: boolean } {
+  const followUp = /^(?:(?:e|mas\s+e)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|quanto\s+a\s+isso)\b[^.!?]{0,70}|(?:continue|desenvolva|explique\s+melhor|fale\s+mais|escreva\s+mais|redija\s+mais|e\s+agora)\b[^.!?]{0,70}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,70})[.!?]?$/i.test(prompt.trim());
+  if (!followUp) return { prompt, usedHistory: false };
+  const previousUserTurn = [...(context.recentConversation ?? [])].reverse().find((turn) => turn.role === "user" && turn.text.trim());
+  if (!previousUserTurn) return { prompt, usedHistory: false };
+  return { prompt: `${previousUserTurn.text.slice(0, 500)}\n\nContinuação solicitada agora: ${prompt.trim()}`, usedHistory: true };
+}
+
+export function prepareAgentConversationHistory(
+  turns: ReadonlyArray<{ role: string; text: string }>,
+  currentPrompt: string,
+  limit = 6,
+): Array<{ role: "user" | "athena"; text: string }> {
+  const priorTurns = [...turns];
+  const latest = priorTurns.at(-1);
+  if (latest?.role === "user" && latest.text.trim() === currentPrompt.trim()) priorTurns.pop();
+  return priorTurns
+    .filter((turn): turn is { role: "user" | "athena"; text: string } => (turn.role === "user" || turn.role === "athena") && typeof turn.text === "string")
+    .slice(-Math.max(0, Math.min(6, Math.floor(limit))))
+    .map((turn) => ({ ...turn, text: turn.text.slice(0, 1_200) }));
+}
+
 export interface AgentKnowledgeSource {
   id: string;
   title: string;
