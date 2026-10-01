@@ -3,6 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
+import { agentGuidanceInstruction, confirmedAgentGuidance } from "../experience-guidance";
 
 export class CritiasAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -35,8 +36,10 @@ export class CritiasAgent implements AthenaAgent {
     const quoted = resolved.prompt.match(/[“"]([^”"]{12,})[”"]/)?.[1];
     const statedObject = resolved.prompt.match(/(?:minha|esta|a)\s+(?:ideia|proposta|tese|hip[oó]tese|plano|argumento)\s*(?:é|:|sobre)\s*(.+?)(?:[.!?]|$)/i)?.[1];
     const candidate = quoted || statedObject || (context.activeProject?.description ? `${context.activeProject.title}: ${context.activeProject.description}` : undefined);
+    const lens = confirmedAgentGuidance(context, this.manifest.id, "critiqueLens", resolved.prompt);
+    const lensQuestion = lens === "logic" ? "A conclusão decorre das premissas ou há um salto inferencial?" : lens === "usability" ? "A proposta é compreensível e utilizável pelas pessoas a quem se destina?" : lens === "risk" ? "Que dano plausível, reversibilidade ou contingência precisa ser examinada?" : "Que evidência sustentaria a afirmação e que observação poderia refutá-la?";
     const content = candidate
-      ? `🔍 **Revisão crítica do material recebido**\n\nObjeto: “${candidate}”\n\nNão recebi critérios ou evidências específicas além desse enunciado. Portanto, não afirmo que encontrei uma falha. Para testar a proposta, precisamos explicitar: (1) qual evidência a sustentaria; (2) que observação a refutaria; (3) se a conclusão depende de uma premissa ainda não verificada. A vulnerabilidade atual é **lacuna de evidência no contexto recebido**, não prova de que a tese esteja errada.`
+      ? `🔍 **Revisão crítica do material recebido**\n\nObjeto: “${candidate}”\n\nNão recebi critérios ou evidências específicas além desse enunciado. Portanto, não afirmo que encontrei uma falha. Para testar a proposta, precisamos perguntar: ${lensQuestion} Também é necessário identificar se a conclusão depende de uma premissa ainda não verificada. A vulnerabilidade atual é **lacuna de evidência no contexto recebido**, não prova de que a tese esteja errada.`
       : `🔍 **Posso fazer uma revisão rigorosa, mas falta o objeto.** Não recebi texto, hipótese ou plano concreto para testar. Envie a afirmação e, se houver, as fontes e os critérios de sucesso; sem isso, apontar “falhas” seria inventar crítica.`;
 
     return {
@@ -47,7 +50,7 @@ export class CritiasAgent implements AthenaAgent {
       content,
       confidence: candidate ? 0.52 : 0.2,
       recommendations: candidate ? ["Fornecer evidências e critério de refutação para avaliar a proposta"] : ["Enviar a proposta ou texto que deseja revisar"],
-      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false, conversationReferenceResolved: resolved.usedHistory },
+      metadata: { reviewedProvidedMaterial: Boolean(candidate), verifiedDefect: false, conversationReferenceResolved: resolved.usedHistory, critiqueLens: lens, appliedExperienceGuidance: agentGuidanceInstruction(context, this.manifest.id, resolved.prompt) },
     };
   }
 

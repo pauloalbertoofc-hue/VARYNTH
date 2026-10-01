@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { assessSourceGovernance } from "../../quality/source-governance";
 import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
+import { agentGuidanceInstruction, confirmedAgentGuidance } from "../experience-guidance";
 
 export class SophiaAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -44,6 +45,9 @@ export class SophiaAgent implements AthenaAgent {
     const format = inferFormat(prompt);
     const audience = inferAudience(prompt);
     const userThesis = extractThesis(prompt);
+    const guidance = agentGuidanceInstruction(context, this.manifest.id, prompt);
+    const verbosity = confirmedAgentGuidance(context, this.manifest.id, "verbosity", prompt);
+    const formality = confirmedAgentGuidance(context, this.manifest.id, "formality", prompt);
     let content = `🖋️ **Sophia — ${requestedText ? "revisão textual" : "rascunho inicial"}**\n\n`;
 
     if (requestedText) {
@@ -56,6 +60,9 @@ export class SophiaAgent implements AthenaAgent {
       const projectNote = project ? `O projeto ativo, **“${project.title}”**, foi considerado apenas como contexto${project.description ? ` (${project.description})` : ""}.` : "";
       content += `${projectNote ? `${projectNote}\n\n` : ""}**${format} — ${topic}**${audience ? `\n*Público: ${audience}*` : ""}\n\n`;
       content += draftForTopic(topic, subject, format, audience);
+      if (guidance.length) content += `\n\n*${guidance.join(" ")}*`;
+      if (verbosity === "detailed") content += `\n\nPara aprofundar, posso organizar a próxima versão em contexto, argumento central, objeções e conclusão — sem acrescentar fatos ou fontes ausentes.`;
+      if (formality === "informal") content = content.replace(/\*Texto-base —/g, "*Rascunho —");
       content += `\n\n*Este é um ponto de partida editável. Não acrescentei citações nem tratei afirmações externas como verificadas; se o texto for factual ou acadêmico, as fontes precisam ser fornecidas ou pesquisadas antes da versão final.*`;
     } else {
       content += `Consigo redigir ou revisar, mas ainda falta o assunto do texto. Qual tema ou trecho você quer trabalhar? Se tiver preferência, diga também o formato e para quem será escrito.`;
@@ -75,7 +82,7 @@ export class SophiaAgent implements AthenaAgent {
       sources: references,
       recommendations: topic ? ["Ajustar o tom à sua voz e ao público", "Acrescentar exemplos ou posições que queira defender", "Verificar fontes para afirmações factuais antes de publicar"] : ["Indicar o tema ou enviar o trecho a revisar"],
       limitations: topic ? ["Rascunho sem verificação externa de fatos ou fontes"] : ["Tema ausente; é necessária uma informação para redigir"],
-      metadata: { ...(references.length ? { sourceGovernance: governance } : {}), draftGenerated: Boolean(topic && !requestedText), topic, requestedFormat: format, audience, citedExternalSources: false, conversationReferenceResolved: resolved.usedHistory },
+      metadata: { ...(references.length ? { sourceGovernance: governance } : {}), draftGenerated: Boolean(topic && !requestedText), topic, requestedFormat: format, audience, citedExternalSources: false, conversationReferenceResolved: resolved.usedHistory, appliedExperienceGuidance: guidance.length > 0 ? { verbosity, formality } : undefined },
     };
   }
 }

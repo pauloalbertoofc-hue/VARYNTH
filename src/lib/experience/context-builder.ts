@@ -31,9 +31,11 @@ export async function buildExperienceContext(request: ExperienceContextRequest):
   // both and must let explicit instructions win when they conflict.
   const { currentInstruction: _currentInstruction, ...retrievalRequest } = request;
   const ownerId = await getExperienceOwnerId(request.ownerId);
-  const preferences = (await preferenceService.resolve({ ...retrievalRequest, ownerId })).filter((preference) =>
-    preference.scope !== "GLOBAL" || (preference.status === "CONFIRMED" && preference.source === "MANUAL")
-  );
+  const allPreferences = await preferenceService.resolve({ ...retrievalRequest, ownerId });
+  const preferences = allPreferences.filter((preference) => {
+    if (preference.scope === "GLOBAL") return preference.status === "CONFIRMED" && preference.source === "MANUAL";
+    return true;
+  });
   const experiences = await retrieveExperiences(request.domain, request.projectId, 50, { ownerId, agentId: request.agentId, moduleId: request.moduleId, artifactId: request.artifactId, sessionId: request.sessionId });
   const preferenceQuota = Math.ceil(budget / 2);
   const experienceQuota = budget - preferenceQuota;

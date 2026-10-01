@@ -9,7 +9,17 @@ const agentDomains: Record<string, string> = {
   euterpe: "music",
   "music-curator": "music",
   strategos: "productivity",
+  sophia: "communication",
+  musa: "creativity",
+  critias: "critical-review",
+  mnemosyne: "memory",
+  archivist: "archival-research",
+  bibliotecario: "knowledge-management",
 };
+
+export function experienceDomainForAgent(agentId: string, taskScope: string): string | undefined {
+  return agentDomains[agentId] || (taskScope === "juridico" ? "legal" : taskScope === "pesquisa" ? "research" : taskScope === "produtividade" ? "productivity" : undefined);
+}
 
 export async function prepareAgentExperienceContext(
   agentId: string,
@@ -21,7 +31,7 @@ export async function prepareAgentExperienceContext(
     return await buildExperienceContext({
       requester: `athena-agent:${agentId}`,
       ownerId,
-      domain: agentDomains[agentId] || (task.scope === "juridico" ? "legal" : task.scope === "pesquisa" ? "research" : task.scope === "produtividade" ? "productivity" : undefined),
+      domain: experienceDomainForAgent(agentId, task.scope),
       agentId,
       moduleId: "athena",
       projectId: context.activeProject?.id || task.targetProjectId,
