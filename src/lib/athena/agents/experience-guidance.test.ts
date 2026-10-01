@@ -7,6 +7,7 @@ import { sophiaAgent } from "./council/sophia";
 import { musaAgent } from "./council/musa";
 import { strategosAgent } from "./council/strategos";
 import { critiasAgent } from "./council/critias";
+import { logosAgent } from "./council/logos";
 
 const pref = (key: string, value: string, overrides: Partial<Preference> = {}): Preference => ({
   id: `${key}-${value}`, ownerId: "guidance-owner", subject: "guidance-owner", domain: "communication", key, value,
@@ -77,6 +78,10 @@ async function main() {
   const guidedCritique = await critiasAgent.execute(task("Critique minha ideia: criar um canal de relatos."), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "critical-review", scope: "AGENT", scopeId: "critias", action: "separar premissas e evidências" }] } });
   assert.match(guidedCritique.content, /separar premissas e evidências/);
   assert.equal(critique.metadata?.verifiedDefect, false, "a selected lens does not fabricate a defect");
+  const guidedResearch = await logosAgent.execute(task("Analise esta hipótese", "GENERAL_DELIBERATION"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "research", scope: "AGENT", scopeId: "logos", action: "separar hipótese, evidência e inferência" }] } });
+  assert.match(guidedResearch.content, /separar hipótese, evidência e inferência/);
+  const guidedWriting = await sophiaAgent.execute(task("Escreva um texto sobre preservação de rios."), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "communication", scope: "AGENT", scopeId: "sophia", action: "apresentar a tese antes de desenvolver as razões" }] } });
+  assert.match(guidedWriting.content, /apresentar a tese antes de desenvolver as razões/);
   console.log("Athena specialist Experience guidance tests passed");
 }
 

@@ -4,7 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { assessSourceGovernance } from "../../quality/source-governance";
 import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
-import { agentGuidanceInstruction, confirmedAgentGuidance } from "../experience-guidance";
+import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class SophiaAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -71,6 +71,8 @@ export class SophiaAgent implements AthenaAgent {
     const references = [...context.relevantVaultItems.map((item) => `${item.title}${item.chapters?.[0] ? ` — ${item.chapters[0]}` : ""}`), ...context.relevantEvidences.map((item) => item.source)].slice(0, 8);
     if (references.length) content += `\n\n**Referências consultáveis:**\n${references.map((reference) => `- ${reference}`).join("\n")}`;
     else if (topic && !requestedText) content += "\n\n**Fontes:** nenhuma fonte foi consultada. Afirmações factuais, dados e citações devem ser verificados antes do uso.";
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
+    if (topic && !requestedText) content += formatExperienceMethodHints(priorOutcomes);
     const governance = assessSourceGovernance(content, references);
     return {
       agentId: this.manifest.id,
@@ -82,7 +84,7 @@ export class SophiaAgent implements AthenaAgent {
       sources: references,
       recommendations: topic ? ["Ajustar o tom à sua voz e ao público", "Acrescentar exemplos ou posições que queira defender", "Verificar fontes para afirmações factuais antes de publicar"] : ["Indicar o tema ou enviar o trecho a revisar"],
       limitations: topic ? ["Rascunho sem verificação externa de fatos ou fontes"] : ["Tema ausente; é necessária uma informação para redigir"],
-      metadata: { ...(references.length ? { sourceGovernance: governance } : {}), draftGenerated: Boolean(topic && !requestedText), topic, requestedFormat: format, audience, citedExternalSources: false, conversationReferenceResolved: resolved.usedHistory, appliedExperienceGuidance: guidance.length > 0 ? { verbosity, formality } : undefined },
+      metadata: { ...(references.length ? { sourceGovernance: governance } : {}), draftGenerated: Boolean(topic && !requestedText), topic, requestedFormat: format, audience, citedExternalSources: false, conversationReferenceResolved: resolved.usedHistory, appliedExperienceGuidance: guidance.length > 0 ? { verbosity, formality } : undefined, priorOutcomeHints: priorOutcomes },
     };
   }
 }
