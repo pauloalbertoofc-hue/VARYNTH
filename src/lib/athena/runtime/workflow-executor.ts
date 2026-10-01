@@ -7,6 +7,7 @@ import { AgentResult } from "../domain/result";
 import { athenaEventBus } from "../events/event-bus";
 import { AthenaEngineContext } from "@/lib/athena/engine";
 import { athenaCapabilitySelector } from "../kernel/capability-selector";
+import { prepareAgentExperienceContext } from "./agent-experience-context";
 
 export interface WorkflowExecutionResult {
   workflowId: string;
@@ -91,7 +92,11 @@ export class WorkflowExecutor {
           }
           const agent = agentRegistry.getAgent(selection.selected.id);
           if (agent) {
-            const agentRes = await agent.execute(task, context);
+            const agentContext = {
+              ...context,
+              experienceContext: await prepareAgentExperienceContext(agent.manifest.id, task, context, storeCtx.experienceOwnerId),
+            };
+            const agentRes = await agent.execute(task, agentContext);
             agentResults.push(agentRes);
             step.result = agentRes;
             athenaEventBus.emit("AGENT_CONTRIBUTION", { agentId: agent.manifest.id, result: agentRes }, task.id);
