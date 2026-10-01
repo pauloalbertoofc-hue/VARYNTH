@@ -26,8 +26,14 @@ export interface AgentContextPack {
 export async function buildAgentContext(request: AgentContextRequest): Promise<AgentContextPack> {
   const route = routeKnowledgeIntent({ task: request.task, currentModule: request.currentModule, projectId: request.projectId });
   const budget = Math.max(0, Math.min(request.budget ?? 8, 20));
+  if (budget === 0) {
+    const requesterOwnerId = request.ownerId || (request.requester.startsWith("user:") ? request.requester.slice("user:".length) : undefined);
+    const experience = await buildExperienceContext({ requester: request.requester, ownerId: requesterOwnerId, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget: 0 });
+    return { relatedDomains: [], knowledge: [], experience, truncated: experience.truncated, generatedAt: new Date().toISOString() };
+  }
   const domains = [...new Set([route.primaryDomain, ...route.relatedDomains].filter((domain): domain is string => Boolean(domain)))].slice(0, 5);
-  const packs = await Promise.all(domains.map((domain) => queryKnowledge({ requester: request.requester, domain, query: request.task, projectId: request.projectId, purpose: request.purpose, scope: request.scope, limit: Math.max(1, budget) })));
+  const perDomainLimit = Math.max(1, Math.ceil(budget / Math.max(1, domains.length)));
+  const packs = await Promise.all(domains.map((domain) => queryKnowledge({ requester: request.requester, domain, query: request.task, projectId: request.projectId, purpose: request.purpose, scope: request.scope, limit: perDomainLimit })));
   const knowledge = [...new Map(packs.flat().map((item) => [item.id, item])).values()];
   const requesterOwnerId = request.ownerId || (request.requester.startsWith("user:") ? request.requester.slice("user:".length) : undefined);
   const experience = await buildExperienceContext({ requester: request.requester, ownerId: requesterOwnerId, domain: route.primaryDomain, agentId: request.agentId, moduleId: request.currentModule, projectId: request.projectId, artifactId: request.artifactId, sessionId: request.sessionId, currentInstruction: request.task, budget });

@@ -1,7 +1,7 @@
 import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistence/repositories";
 import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationship } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
-import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, selectKnowledgeCandidates, type KnowledgeRetrievalIndex } from "./retrieval-index";
+import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, scoreKnowledgeRelevance, selectKnowledgeCandidates, type KnowledgeRetrievalIndex } from "./retrieval-index";
 
 const queryCache = new Map<string, { revision: number; expiresAt: number; items: KnowledgeItem[] }>();
 const knowledgeWriteQueues = new Map<string, Promise<void>>();
@@ -185,7 +185,8 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
     const freshnessScore = { CURRENT: 3, POSSIBLY_STALE: 1, HISTORICAL: 0, UNKNOWN: 0 }[item.freshness];
     const recencyScore = Math.max(0, 2 - Math.floor((Date.now() - new Date(item.updatedAt).getTime()) / 31536000000));
     const domainScore = request.domain && item.primaryDomain === request.domain ? 3 : 0;
-    return { item, decision, score: authorityScore + freshnessScore + recencyScore + domainScore };
+    const relevanceScore = scoreKnowledgeRelevance(index, item.id, request.query);
+    return { item, decision, score: authorityScore + freshnessScore + recencyScore + domainScore + relevanceScore };
   }).filter((entry): entry is { item: KnowledgeItem; decision: ReturnType<typeof decideKnowledgeAccess>; score: number } => Boolean(entry));
   scored.sort((left, right) => right.score - left.score || left.item.title.localeCompare(right.item.title));
   const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.decision.decision === "ALLOW_SUMMARY" ? { ...entry.item, content: `${entry.item.content.slice(0, 280)}${entry.item.content.length > 280 ? "…" : ""}` } : entry.item);

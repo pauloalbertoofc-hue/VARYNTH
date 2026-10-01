@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, selectKnowledgeCandidates } from "./retrieval-index";
+import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, scoreKnowledgeRelevance, selectKnowledgeCandidates } from "./retrieval-index";
 import type { KnowledgeItem } from "./contracts";
 
 const now = Date.now();
@@ -12,7 +12,7 @@ const item = (id: string, overrides: Partial<KnowledgeItem> = {}): KnowledgeItem
 });
 
 const items = [
-  item("primary", { primaryDomain: "arts.music.theory", relatedProjectIds: ["p1"], validFrom: new Date(now + 10_000).toISOString() }),
+  item("primary", { primaryDomain: "arts.music.theory", categories: ["theory"], relatedProjectIds: ["p1"], validFrom: new Date(now + 10_000).toISOString() }),
   item("related", { primaryDomain: "arts.visual", relatedDomains: ["arts.music"], relatedProjectIds: [] }),
   item("other-project", { relatedProjectIds: ["p2"] }),
   item("superseded"),
@@ -26,6 +26,8 @@ const request = { requester: "athena", purpose: "index test" };
 assert.deepEqual(selectKnowledgeCandidates(index, { ...request, query: "harmonic" }).map(({ id }) => id), ["primary", "related", "other-project", "replacement", "chunk"]);
 assert.deepEqual(selectKnowledgeCandidates(index, { ...request, domain: "arts.music" }).map(({ id }) => id), ["primary", "related", "other-project", "replacement", "chunk"]);
 assert.deepEqual(selectKnowledgeCandidates(index, { ...request, projectId: "p1" }).map(({ id }) => id), ["primary", "related", "replacement", "chunk"]);
+assert.deepEqual(selectKnowledgeCandidates(index, { ...request, category: " THEORY " }).map(({ id }) => id), ["primary"]);
+assert.ok(scoreKnowledgeRelevance(index, "primary", "Title primary") > scoreKnowledgeRelevance(index, "related", "Title primary"));
 assert.equal(nextKnowledgeValidityBoundary(index, now), now + 10_000);
 assert.equal(nextKnowledgeValidityBoundary(index, now + 20_000), Number.POSITIVE_INFINITY);
 console.log("Knowledge retrieval index tests passed");

@@ -27,6 +27,8 @@ assert.equal(context.experience.experiences.length, 1);
 assert.equal(context.experience.experiences.some((item) => item.scopeId === "project-2"), false);
 assert.equal(context.experience.truncated, true);
 assert.equal(context.truncated, true);
+const zeroBudgetContext = await buildAgentContext({ requester: "athena", ownerId: "local-owner", task: "verifique o copyright da trilha do jogo", purpose: "zero-budget context", budget: 0 });
+assert.equal(zeroBudgetContext.knowledge.length, 0, "a zero context budget must not retrieve knowledge");
 console.log("Agent context assembler tests passed");
 }
 

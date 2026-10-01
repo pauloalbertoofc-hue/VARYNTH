@@ -62,6 +62,7 @@ export interface KnowledgeQuery {
   requester: string;
   provider?: string;
   domain?: string;
+  category?: string;
   query?: string;
   projectId?: string;
   purpose: string;

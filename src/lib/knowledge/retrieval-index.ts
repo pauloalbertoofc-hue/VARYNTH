@@ -5,10 +5,13 @@ export interface KnowledgeRetrievalIndex {
   items: KnowledgeItem[];
   ordinalById: Map<string, number>;
   textById: Map<string, string>;
+  titleTextById: Map<string, string>;
+  tagTextById: Map<string, string>;
   trigramPostings: Map<string, Set<string>>;
   primaryDomainPostings: Map<string, Set<string>>;
   relatedDomainPostings: Map<string, Set<string>>;
   projectPostings: Map<string, Set<string>>;
+  categoryPostings: Map<string, Set<string>>;
   unscopedProjectIds: Set<string>;
   chunkedSourceIds: Set<string>;
   validityBoundaries: number[];
@@ -35,10 +38,13 @@ export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: n
     items: activeItems,
     ordinalById: new Map(),
     textById: new Map(),
+    titleTextById: new Map(),
+    tagTextById: new Map(),
     trigramPostings: new Map(),
     primaryDomainPostings: new Map(),
     relatedDomainPostings: new Map(),
     projectPostings: new Map(),
+    categoryPostings: new Map(),
     unscopedProjectIds: new Set(),
     chunkedSourceIds: new Set(activeItems.filter((item) => item.provenance.span).flatMap((item) => item.provenance.derivedFromIds || [])),
     validityBoundaries: [],
@@ -48,9 +54,12 @@ export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: n
     index.ordinalById.set(item.id, ordinal);
     const text = `${item.title} ${item.content} ${item.tags.join(" ")}`.toLocaleLowerCase();
     index.textById.set(item.id, text);
+    index.titleTextById.set(item.id, item.title.toLocaleLowerCase());
+    index.tagTextById.set(item.id, item.tags.join(" ").toLocaleLowerCase());
     for (const gram of trigrams(text)) addPosting(index.trigramPostings, gram, item.id);
     addPosting(index.primaryDomainPostings, item.primaryDomain, item.id);
     for (const domain of item.relatedDomains) addPosting(index.relatedDomainPostings, domain, item.id);
+    for (const category of item.categories) addPosting(index.categoryPostings, category.trim().toLocaleLowerCase(), item.id);
     if (item.relatedProjectIds.length) {
       for (const projectId of item.relatedProjectIds) addPosting(index.projectPostings, projectId, item.id);
     } else index.unscopedProjectIds.add(item.id);
@@ -96,6 +105,7 @@ function intersect(left: Set<string>, right: Set<string>): Set<string> {
 export function selectKnowledgeCandidates(index: KnowledgeRetrievalIndex, request: KnowledgeQuery): KnowledgeItem[] {
   let ids = textCandidates(index, request.query);
   if (request.domain) ids = intersect(ids, domainCandidates(index, request.domain));
+  if (request.category) ids = intersect(ids, index.categoryPostings.get(request.category.trim().toLocaleLowerCase()) || new Set<string>());
   if (request.projectId) {
     const projectIds = index.projectPostings.get(request.projectId) || new Set<string>();
     ids = new Set([...ids].filter((id) => index.unscopedProjectIds.has(id) || projectIds.has(id)));
@@ -104,6 +114,19 @@ export function selectKnowledgeCandidates(index: KnowledgeRetrievalIndex, reques
     .filter((id) => !index.chunkedSourceIds.has(id))
     .map((id) => index.items[index.ordinalById.get(id)!])
     .sort((left, right) => index.ordinalById.get(left.id)! - index.ordinalById.get(right.id)!);
+}
+
+/** Weighted lexical relevance used only for ranking; policy filtering remains in the service. */
+export function scoreKnowledgeRelevance(index: KnowledgeRetrievalIndex, id: string, query?: string): number {
+  const normalized = query?.trim().toLocaleLowerCase();
+  if (!normalized) return 0;
+  const tokens = [...new Set(normalized.split(/\s+/).filter((token) => token.length > 2))];
+  if (!tokens.length) return 0;
+  const title = index.titleTextById.get(id) || "";
+  const tags = index.tagTextById.get(id) || "";
+  const text = index.textById.get(id) || "";
+  const coverage = tokens.reduce((sum, token) => sum + (text.includes(token) ? 1 : 0), 0) / tokens.length;
+  return coverage * 3 + (title.includes(normalized) ? 4 : 0) + (tags.includes(normalized) ? 2 : 0);
 }
 
 export function nextKnowledgeValidityBoundary(index: KnowledgeRetrievalIndex, now: number): number {
