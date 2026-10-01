@@ -3,6 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona } from "../base-agent";
+import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class LogosAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -34,6 +35,7 @@ export class LogosAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const evidences = context.relevantEvidences;
     const strongEvs = evidences.filter((e) => e.strength === "forte");
     const moderateEvs = evidences.filter((e) => e.strength === "moderada");
@@ -52,6 +54,7 @@ export class LogosAgent implements AthenaAgent {
     } else {
       content += `Ainda não recebi evidências catalogadas para este pedido; isso não demonstra que não existam estudos. Posso ajudar a formular a pergunta e o protocolo de busca, mas não alegar achados sem fontes.`;
     }
+    content += formatExperienceMethodHints(priorOutcomes);
 
     return {
       agentId: this.manifest.id,
@@ -60,7 +63,7 @@ export class LogosAgent implements AthenaAgent {
       success: true,
       content,
       confidence: evidences.length ? 0.68 : 0.25,
-      metadata: { evidenceCount: evidences.length, strengthCounts: { strong: strongEvs.length, moderate: moderateEvs.length, preliminary: preliminaryEvs.length, refuted: refutedEvs.length }, externalSearchPerformed: false },
+      metadata: { evidenceCount: evidences.length, strengthCounts: { strong: strongEvs.length, moderate: moderateEvs.length, preliminary: preliminaryEvs.length, refuted: refutedEvs.length }, externalSearchPerformed: false, priorOutcomeHints: priorOutcomes.length },
       sources: evidences.map((e) => e.source),
       recommendations: [
         "Indexar novas referências no Vault",

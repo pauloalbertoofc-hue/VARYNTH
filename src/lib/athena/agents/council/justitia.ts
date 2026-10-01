@@ -3,6 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona } from "../base-agent";
+import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class JustitiaAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -36,6 +37,7 @@ export class JustitiaAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const thesis = context.relevantTheses[0];
     const vaultLegal = context.relevantVaultItems.filter((v) => v.type === "jurisprudencia" || v.type === "lei");
 
@@ -63,6 +65,7 @@ export class JustitiaAgent implements AthenaAgent {
     if (vaultLegal.length > 0) {
       content += `\n\n📚 **Obras e Precedentes Relacionados no Vault:**\n${vaultLegal.map((v) => `• ${v.title} (${v.author || "Acervo"})`).join("\n")}`;
     }
+    content += formatExperienceMethodHints(priorOutcomes);
 
     return {
       agentId: this.manifest.id,
@@ -72,7 +75,7 @@ export class JustitiaAgent implements AthenaAgent {
       content,
       confidence: thesis ? 0.82 : vaultLegal.length ? 0.48 : 0.2,
       sources: [...(thesis?.precedents || []), ...vaultLegal.map((item) => item.title)],
-      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false },
+      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false, priorOutcomeHints: priorOutcomes.length },
       recommendations: [
         "Verificar conformidade com súmulas vinculantes",
         "Confrontar argumentos contrários no Codex",
