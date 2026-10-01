@@ -2,6 +2,8 @@ package com.varynth.os;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -21,6 +23,20 @@ import androidx.core.content.ContextCompat;
     permissions = @Permission(strings = { Manifest.permission.POST_NOTIFICATIONS }, alias = "overlayNotifications")
 )
 public class EuterpeOverlayPlugin extends Plugin {
+    private BroadcastReceiver mediaActionReceiver;
+
+    @Override
+    public void load() {
+        mediaActionReceiver = new BroadcastReceiver() {
+            @Override public void onReceive(Context context, Intent intent) {
+                JSObject data = new JSObject();
+                data.put("action", intent.getStringExtra(EuterpeOverlayService.EXTRA_MEDIA_ACTION));
+                notifyListeners("mediaAction", data, true);
+            }
+        };
+        ContextCompat.registerReceiver(getContext(), mediaActionReceiver,
+            new IntentFilter(EuterpeOverlayService.ACTION_MEDIA_CONTROL), ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
 
     @PluginMethod
     public void checkPermission(PluginCall call) {
@@ -62,7 +78,7 @@ public class EuterpeOverlayPlugin extends Plugin {
             call.resolve(result);
             return;
         }
-        startService(EuterpeOverlayService.ACTION_SHOW, call.getString("state", "IDLE"));
+        startService(EuterpeOverlayService.ACTION_SHOW, call);
         JSObject result = new JSObject();
         result.put("enabled", true);
         result.put("permissionRequired", false);
@@ -75,7 +91,7 @@ public class EuterpeOverlayPlugin extends Plugin {
             call.reject("A permissão de sobreposição foi removida nas configurações do Android.");
             return;
         }
-        startService(EuterpeOverlayService.ACTION_UPDATE, call.getString("state", "IDLE"));
+        startService(EuterpeOverlayService.ACTION_UPDATE, call);
         call.resolve();
     }
 
@@ -87,11 +103,23 @@ public class EuterpeOverlayPlugin extends Plugin {
         call.resolve();
     }
 
-    private void startService(String action, String state) {
+    private void startService(String action, PluginCall call) {
         Intent service = new Intent(getContext(), EuterpeOverlayService.class);
         service.setAction(action);
-        service.putExtra(EuterpeOverlayService.EXTRA_STATE, state);
+        service.putExtra(EuterpeOverlayService.EXTRA_STATE, call.getString("state", "IDLE"));
+        service.putExtra(EuterpeOverlayService.EXTRA_TITLE, call.getString("title", "VARYNTH Music"));
+        service.putExtra(EuterpeOverlayService.EXTRA_ARTIST, call.getString("artist", "Euterpe está com você"));
+        service.putExtra(EuterpeOverlayService.EXTRA_PLAYING, call.getBoolean("playing", false));
+        service.putExtra(EuterpeOverlayService.EXTRA_COVER, call.getString("coverDataUrl", ""));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ContextCompat.startForegroundService(getContext(), service);
         else getContext().startService(service);
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (mediaActionReceiver != null) {
+            try { getContext().unregisterReceiver(mediaActionReceiver); } catch (IllegalArgumentException ignored) { }
+            mediaActionReceiver = null;
+        }
     }
 }

@@ -38,14 +38,32 @@ const athenaVisualProvider = new RemoteVisualGenerationProvider();
 type EuterpeOverlayBridge = {
   checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean; enabled: boolean }>;
   requestNotificationPermission(): Promise<{ granted: boolean }>;
-  show(options: { state: EuterpeVisualState }): Promise<{ enabled: boolean; permissionRequired: boolean }>;
-  update(options: { state: EuterpeVisualState }): Promise<void>;
+  show(options: EuterpeNativePlayerState): Promise<{ enabled: boolean; permissionRequired: boolean }>;
+  update(options: EuterpeNativePlayerState): Promise<void>;
+  addListener(eventName: "mediaAction", listener: (event: { action?: "play" | "pause" | "previous" | "next" }) => void): Promise<{ remove(): Promise<void> }>;
   hide(): Promise<void>;
 };
+type EuterpeNativePlayerState = { state: EuterpeVisualState; title: string; artist: string; playing: boolean; coverDataUrl?: string };
 const euterpeOverlayPlugin = registerPlugin<EuterpeOverlayBridge>("EuterpeOverlay");
 function getEuterpeOverlayBridge(): EuterpeOverlayBridge | undefined {
   if (typeof window === "undefined" || Capacitor.getPlatform() !== "android") return undefined;
   return euterpeOverlayPlugin;
+}
+async function toNativeArtworkDataUrl(source: string | undefined): Promise<string | undefined> {
+  if (!source || typeof createImageBitmap === "undefined") return undefined;
+  try {
+    const response = await fetch(source, { credentials: "include", cache: "no-store" });
+    if (!response.ok) return undefined;
+    const bitmap = await createImageBitmap(await response.blob());
+    const canvas = document.createElement("canvas"); canvas.width = 256; canvas.height = 256;
+    const context = canvas.getContext("2d");
+    if (!context) { bitmap.close(); return undefined; }
+    const scale = Math.max(canvas.width / bitmap.width, canvas.height / bitmap.height);
+    const width = bitmap.width * scale; const height = bitmap.height * scale;
+    context.drawImage(bitmap, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+    bitmap.close();
+    return canvas.toDataURL("image/png");
+  } catch { return undefined; }
 }
 async function persistAccountVisualProfile(profile: VisualProfile): Promise<VisualProfile> {
   if (!musicLibrary.isAccountStorageAvailable()) return profile;
@@ -336,6 +354,13 @@ export default function MusicPage() {
     else { audio.pause(); setPlaying(false); athenaEventBus.emit("MUSIC_PAUSE", { trackId: selectedId }); }
   }, [audioUrl, selectedId]);
   const stepTrack = useCallback((direction: -1 | 1) => { const index = adjacentTrackIndex(visibleTracks.findIndex((track) => track.id === selectedId), visibleTracks.length, direction); if (index >= 0) selectTrack(visibleTracks[index]); }, [visibleTracks, selectedId, selectTrack]);
+  const nativePlayerState = useCallback(async (): Promise<EuterpeNativePlayerState> => ({
+    state: euterpeState,
+    title: selectedTrack?.name ?? "VARYNTH Music",
+    artist: selectedTrack?.artist || "Euterpe está com você",
+    playing,
+    coverDataUrl: await toNativeArtworkDataUrl(visualProfile?.coverDataUrl),
+  }), [euterpeState, selectedTrack, playing, visualProfile?.coverDataUrl]);
   const toggleNativeOverlay = useCallback(async () => {
     const bridge = getEuterpeOverlayBridge();
     if (!bridge) return;
@@ -346,7 +371,7 @@ export default function MusicPage() {
       const permission = await bridge.checkPermission();
       setNativeOverlayGranted(permission.granted);
       if (!permission.granted) {
-        await bridge.show({ state: euterpeState });
+        await bridge.show(await nativePlayerState());
         setMessage("O Android abriu a permissão ‘Aparecer sobre outros apps’. Autorize e toque novamente em ‘Ativar personagem flutuante’.");
         return;
       }
@@ -357,17 +382,31 @@ export default function MusicPage() {
           return;
         }
       }
-      const result = await bridge.show({ state: euterpeState });
+      const result = await bridge.show(await nativePlayerState());
       if (result.permissionRequired) { setNativeOverlayGranted(false); setMessage("Autorize a sobreposição nas configurações do Android e tente novamente."); return; }
       setNativeOverlayEnabled(result.enabled);
       setMessage("Euterpe está flutuando sobre outros apps. A notificação oferece o comando para desativar.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível ativar a personagem flutuante."); }
-  }, [nativeOverlayEnabled, euterpeState]);
+  }, [nativeOverlayEnabled, nativePlayerState]);
   useEffect(() => {
     if (!nativeOverlayEnabled) return;
     const bridge = getEuterpeOverlayBridge();
-    if (bridge) void bridge.update({ state: euterpeState }).catch(() => { setNativeOverlayEnabled(false); setMessage("A permissão da personagem flutuante foi removida pelo Android."); });
-  }, [nativeOverlayEnabled, euterpeState]);
+    if (bridge) void nativePlayerState().then((state) => bridge.update(state)).catch(() => { setNativeOverlayEnabled(false); setMessage("A permissão da personagem flutuante foi removida pelo Android."); });
+  }, [nativeOverlayEnabled, nativePlayerState]);
+  useEffect(() => {
+    const bridge = getEuterpeOverlayBridge();
+    if (!bridge) return;
+    let active = true;
+    let listener: { remove(): Promise<void> } | undefined;
+    void bridge.addListener("mediaAction", ({ action }) => {
+      if (!active) return;
+      if (action === "play" && !playing) void togglePlayback();
+      else if (action === "pause" && playing) void togglePlayback();
+      else if (action === "previous") { stepTrack(-1); setActiveView("now-playing"); }
+      else if (action === "next") { stepTrack(1); setActiveView("now-playing"); }
+    }).then((handle) => { if (active) listener = handle; else void handle.remove(); }).catch(() => undefined);
+    return () => { active = false; if (listener) void listener.remove(); };
+  }, [playing, togglePlayback, stepTrack]);
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator) || !selectedTrack) return;
     const session = navigator.mediaSession;
