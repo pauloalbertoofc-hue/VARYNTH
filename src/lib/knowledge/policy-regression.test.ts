@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { decideKnowledgeAccess } from "./policy";
+import { domainRegistry } from "./domain-registry";
 import type { KnowledgeItem } from "./contracts";
 
 const base: KnowledgeItem = { id: "policy-1", title: "Policy test", content: "private", primaryDomain: "legal", relatedDomains: [], categories: [], tags: [], ownerAgent: "justitia", contributingAgents: [], visibility: "PUBLIC_TO_AGENTS", sensitivity: "PUBLIC", kind: "PUBLIC_DOMAIN", assertion: "FACT", provenance: { sourceType: "TEST", addedBy: "SYSTEM", createdAt: new Date().toISOString(), authority: "INTERNAL_DOCUMENT", inferred: false }, version: 1, freshness: "CURRENT", relatedProjectIds: [], relatedArtifactIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
@@ -16,4 +17,8 @@ assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity:
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "PUBLIC_TO_AGENTS", sensitivity: "SENSITIVE" }, { requester: "euterpe", purpose: "sensitive public knowledge" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity: "SENSITIVE" }, { requester: "athena", purpose: "sensitive system knowledge" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "SENSITIVE" }, { requester: "justitia", purpose: "sensitive owner domain" }).decision, "ALLOW");
+domainRegistry.registerCoOwner("legal", "legal-co-owner-test");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "legal-co-owner-test", domain: "legal", purpose: "co-owner domain access" }).decision, "ALLOW");
+domainRegistry.removeCoOwner("legal", "legal-co-owner-test");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "legal-co-owner-test", domain: "legal", purpose: "removed co-owner domain access" }).decision, "DENY");
 console.log("Knowledge policy regression tests passed");

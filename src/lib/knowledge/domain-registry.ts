@@ -3,6 +3,7 @@ export interface DomainDefinition {
   label: string;
   parentId?: string;
   primaryOwner?: string;
+  coOwners?: string[];
   specialists: string[];
   capabilities: string[];
   publicCapabilities?: Array<{ id: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }>;
@@ -11,7 +12,7 @@ export interface DomainDefinition {
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
 export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
-export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; specialists: string[]; capabilities: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
+export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; coOwners: string[]; specialists: string[]; capabilities: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
 
 const DOMAIN_REGISTRY_LOCAL_KEY = "varynth:knowledge:domains:v1";
 
@@ -44,6 +45,7 @@ export class DomainRegistry {
     }
     const primaryOwner = typeof domain.primaryOwner === "string" ? domain.primaryOwner.trim() || undefined : undefined;
     const normalizeStrings = (values: string[]) => [...new Set(values.filter((value) => typeof value === "string").map((value) => value.trim()).filter(Boolean))];
+    const coOwners = normalizeStrings(Array.isArray(domain.coOwners) ? domain.coOwners : []).filter((agent) => agent !== primaryOwner);
     const specialists = normalizeStrings(domain.specialists);
     if (primaryOwner && !specialists.includes(primaryOwner)) specialists.unshift(primaryOwner);
     const capabilities = normalizeStrings(domain.capabilities);
@@ -58,7 +60,7 @@ export class DomainRegistry {
       }
       return { id: capabilityId, description, input, output, allowedConsumers };
     });
-    this.domains.set(id, { ...domain, id, primaryOwner, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
     this.persistBrowserSnapshot();
   }
 
@@ -81,7 +83,25 @@ export class DomainRegistry {
       domain.specialists = domain.specialists.filter((agent) => agent !== domain.primaryOwner);
     }
     domain.primaryOwner = normalizedOwner;
+    domain.coOwners = (domain.coOwners || []).filter((agent) => agent !== normalizedOwner);
     if (!domain.specialists.includes(normalizedOwner)) domain.specialists.unshift(normalizedOwner);
+    this.persistBrowserSnapshot();
+  }
+
+  registerCoOwner(domainId: string, coOwner: string): void {
+    const domain = this.requireDomain(domainId);
+    const normalizedCoOwner = typeof coOwner === "string" ? coOwner.trim() : "";
+    if (!normalizedCoOwner) throw new Error("[DOMAIN_CO_OWNER_INVALID] Co-owner obrigatório.");
+    if (normalizedCoOwner === domain.primaryOwner) throw new Error("[DOMAIN_CO_OWNER_IS_PRIMARY] O owner primário não pode ser registrado novamente como co-owner.");
+    domain.coOwners = [...new Set([...(domain.coOwners || []), normalizedCoOwner])];
+    this.persistBrowserSnapshot();
+  }
+
+  removeCoOwner(domainId: string, coOwner: string): void {
+    const domain = this.requireDomain(domainId);
+    const normalizedCoOwner = typeof coOwner === "string" ? coOwner.trim() : "";
+    if (!normalizedCoOwner || !(domain.coOwners || []).includes(normalizedCoOwner)) throw new Error("[DOMAIN_CO_OWNER_NOT_FOUND] Co-owner não registrado neste domínio.");
+    domain.coOwners = domain.coOwners!.filter((agent) => agent !== normalizedCoOwner);
     this.persistBrowserSnapshot();
   }
 
@@ -125,8 +145,9 @@ export class DomainRegistry {
     const current = this.resolveDomain(id);
     if (!current) return [];
     const inherited = current.parentId ? this.resolveSpecialists(current.parentId) : [];
-    return [...new Set([...current.specialists, ...inherited])];
+    return [...new Set([...current.specialists, ...(current.coOwners || []), ...inherited])];
   }
+  resolveCoOwners(id: string): string[] { return this.resolveDomain(id)?.coOwners || []; }
   resolveKnowledgePolicy(id: string): DomainKnowledgePolicy | undefined {
     const domain = this.resolveDomain(id);
     if (!domain) return undefined;
@@ -172,7 +193,7 @@ export class DomainRegistry {
     return this.listDomains().filter((domain) => !rootId || domain.id === rootId || this.isDescendantOf(domain, rootId));
   }
   getAwarenessIndex(): KnowledgeAwarenessIndex {
-    return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
+    return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), coOwners: this.resolveCoOwners(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
   }
 
   private requireDomain(id: string): DomainDefinition {
@@ -193,7 +214,7 @@ export class DomainRegistry {
   }
 
   private cloneDomain(domain: DomainDefinition): DomainDefinition {
-    return { ...domain, specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
+    return { ...domain, coOwners: [...(domain.coOwners || [])], specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
   }
 
   private persistBrowserSnapshot(): void {
@@ -259,6 +280,7 @@ export function mergeDomainDefinitions(defaults: DomainDefinition[], persisted: 
     domains.set(domain.id, {
       ...baseline,
       ...domain,
+      coOwners: Object.prototype.hasOwnProperty.call(domain, "coOwners") ? domain.coOwners : baseline?.coOwners,
       // Older snapshots predate explicit publication contracts. Preserve the
       // reviewed defaults only when the field is absent; an explicit [] remains
       // a deliberate revocation of all public capability exposure.
