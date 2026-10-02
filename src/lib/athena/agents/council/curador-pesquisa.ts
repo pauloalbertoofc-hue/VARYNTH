@@ -3,6 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { renderAgentPersona } from "../base-agent";
+import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class CuradorPesquisaAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -23,13 +24,15 @@ export class CuradorPesquisaAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const evidence = context.relevantEvidences.slice(0, 6);
     const sources = evidence.map((item) => item.source);
     const strengths = evidence.reduce<Record<string, number>>((counts, item) => { counts[item.strength] = (counts[item.strength] || 0) + 1; return counts; }, {});
     const content = evidence.length
       ? `🔎 **Evidências recebidas para “${task.title}”**\n\nEncontrei ${evidence.length} registro(s) no contexto do Research. A classificação de força é a já atribuída no acervo e não foi reavaliada independentemente.\n\n${evidence.map((item) => `- **${item.source}** (${item.strength}${item.page ? `, p. ${item.page}` : ""}): ${item.claim}\n  Trecho: “${item.quote}”`).join("\n")}\n\nNão realizei pesquisa externa nem registrei novos achados.`
       : `🔎 **A pergunta ainda precisa de fontes**\n\nNão recebi evidências catalogadas para “${task.title}”. Isso não significa que não existam estudos: esta execução não pesquisou a web. Posso ajudar a definir uma busca com bases, termos, recorte temporal e critérios de inclusão.`;
-    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.62 : 0.28, content, sources, metadata: { evidenceCount: evidence.length, recordedStrengths: strengths, externalSearchPerformed: false, writesPerformed: false }, recommendations: evidence.length ? ["Conferir método e contexto de cada fonte antes de sintetizar resultados"] : ["Delimitar bases, termos e período de busca"] };
+    const groundedContent = content + formatExperienceMethodHints(priorOutcomes);
+    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.62 : 0.28, content: groundedContent, sources, metadata: { evidenceCount: evidence.length, recordedStrengths: strengths, externalSearchPerformed: false, writesPerformed: false, priorOutcomeHints: priorOutcomes.length }, recommendations: evidence.length ? ["Conferir método e contexto de cada fonte antes de sintetizar resultados"] : ["Delimitar bases, termos e período de busca"] };
   }
 }
 
