@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { persistVaultKnowledgeProjection } from "./vault-persistence.server";
 import { requestDomainResponse } from "./protocol";
 import { knowledgeRepository } from "../persistence/repositories";
+import { queryKnowledge, revokeKnowledge } from "./service";
 
 async function main() {
   const sourceContent = `A fonte descreve licenciamento e copyright. ${"Condições de uso comercial e licenças dependem do contrato e da jurisdição. ".repeat(35)}`;
@@ -26,9 +27,19 @@ async function main() {
   assert.ok(response.packet.constraints.some((constraint) => constraint.includes("raciocínio interno")));
   assert.ok(response.packet.constraints.some((constraint) => constraint.includes("oito fatos")));
   const consultedChunkId = response.sources[0];
+  const reclassified = await persistVaultKnowledgeProjection({ ...vaultItem, primarySubject: "Filosofia", classificationSource: "manual", knowledgeCategories: ["Direito autoral"], knowledgeTags: ["human-reviewed-copyright"] });
+  const reclassifiedChunks = await knowledgeRepository.getAll((item) => item.provenance.derivedFromIds?.includes(reclassified.id) === true && !item.invalidatedAt);
+  assert.ok(reclassifiedChunks.length > 0);
+  assert.ok(reclassifiedChunks.every((chunk) => chunk.primaryDomain === "philosophy" && chunk.categories.includes("Direito autoral") && chunk.tags.includes("human-reviewed-copyright")), "same-content taxonomy edits must refresh indexed chunks");
   const revised = await persistVaultKnowledgeProjection({ ...vaultItem, content: "Versão revisada sem o conteúdo anterior.", updatedAt: new Date(Date.now() + 1000).toISOString() });
   assert.equal(revised.id, "vault:e2e-vault");
   assert.ok((await knowledgeRepository.getById(consultedChunkId))?.invalidatedAt, "content updates must revoke stale source chunks");
+  const activeChunks = await knowledgeRepository.getAll((item) => item.provenance.derivedFromIds?.includes(revised.id) === true && !item.invalidatedAt);
+  assert.ok(activeChunks.length > 0, "the revised Vault source should still have searchable chunks before revocation");
+  await revokeKnowledge(revised.id);
+  for (const chunk of activeChunks) assert.ok((await knowledgeRepository.getById(chunk.id))?.invalidatedAt, "revoking a Vault source must cascade to every derived chunk");
+  const afterRevocation = await queryKnowledge({ requester: "justitia", domain: "legal", query: "versão revisada conteúdo anterior", purpose: "verify Vault source revocation cascade", scope: "DOMAIN" });
+  assert.equal(afterRevocation.some((item) => item.id === revised.id || item.provenance.derivedFromIds?.includes(revised.id)), false, "revoked Vault content and all derived chunks must disappear from retrieval");
   console.log("Knowledge Vault-to-domain end-to-end test passed");
 }
 void main();

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { knowledgeFromVaultItem } from "./vault-adapter";
-import { knowledgeChunksFromVaultItem } from "./vault-adapter";
+import { knowledgeFromVaultItem, knowledgeChunksFromVaultItem, knowledgeProjectionMatches } from "./vault-adapter";
 
 const item = knowledgeFromVaultItem({
   id: "v1", title: "Introdução ao Direito", type: "livro", tags: ["juridico"], category: "Direito",
@@ -52,6 +51,9 @@ async function verifySourceChunks() {
   const chunks = await knowledgeChunksFromVaultItem(source);
   assert.ok(chunks.length > 1);
   assert.equal(chunks[0].id, (await knowledgeChunksFromVaultItem(source))[0].id, "chunk IDs must be stable");
+  assert.equal(knowledgeProjectionMatches(chunks[0], chunks[0]), true);
+  assert.equal(knowledgeProjectionMatches({ ...chunks[0], tags: ["stale-tag"] }, chunks[0]), false, "taxonomy changes must refresh stable chunk IDs");
+  assert.equal(knowledgeProjectionMatches({ ...chunks[0], provenance: { ...chunks[0].provenance, sourceReference: "stale-reference" } }, chunks[0]), false, "source metadata changes must refresh stable chunk IDs");
   assert.equal(chunks[0].provenance.span?.unit, "UNICODE_CODE_POINTS");
   assert.ok(chunks.every((chunk) => chunk.provenance.span?.sourceId === "vault:chunk-source"));
   assert.ok(chunks.every((chunk) => chunk.provenance.span?.contentHash.length === 64));

@@ -59,6 +59,25 @@ export function knowledgeFromVaultItem(item: VaultItem, ownerAgent?: string): Kn
   };
 }
 
+/** Compare the complete canonical projection so stable chunk IDs refresh when metadata changes. */
+export function knowledgeProjectionMatches(existing: KnowledgeItem | null | undefined, projected: KnowledgeItem): boolean {
+  if (!existing) return false;
+  const scalarFields: (keyof KnowledgeItem)[] = [
+    "id", "title", "content", "primaryDomain", "ownerAgent", "visibility", "sensitivity", "kind", "assertion",
+    "version", "freshness", "validFrom", "validUntil", "createdAt", "updatedAt", "conflictGroupId", "supersedesId", "invalidatedAt",
+  ];
+  const structuredFields: (keyof KnowledgeItem)[] = [
+    "relatedDomains", "categories", "tags", "contributingAgents", "provenance", "classification", "relatedProjectIds", "relatedArtifactIds",
+  ];
+  return scalarFields.every((field) => existing[field] === projected[field])
+    && structuredFields.every((field) => JSON.stringify(existing[field]) === JSON.stringify(projected[field]));
+}
+
+/** Metadata-only projection updates should not create historical content snapshots. */
+export function mergeKnowledgeProjection(existing: KnowledgeItem, projected: KnowledgeItem): KnowledgeItem {
+  return { ...projected, createdAt: existing.createdAt, version: existing.version, supersedesId: existing.supersedesId, conflictGroupId: existing.conflictGroupId };
+}
+
 const CHUNK_TARGET = 1200;
 const CHUNK_OVERLAP = 120;
 

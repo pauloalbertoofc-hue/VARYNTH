@@ -1,6 +1,6 @@
 import type { VaultItem } from "../types/vault";
 import { knowledgeRepository } from "../persistence/repositories";
-import { knowledgeChunksFromVaultItem, knowledgeFromVaultItem } from "./vault-adapter";
+import { knowledgeChunksFromVaultItem, knowledgeFromVaultItem, knowledgeProjectionMatches, mergeKnowledgeProjection } from "./vault-adapter";
 import { linkKnowledge, revokeKnowledge, storeKnowledge } from "./service";
 
 /** Canonically persist the Vault parent and its hashed text chunks within the account scope. */
@@ -13,7 +13,11 @@ export async function persistVaultKnowledgeProjection(item: VaultItem) {
   const stored = await storeKnowledge(parent);
   for (const chunk of chunks) {
     const current = await knowledgeRepository.getById(chunk.id);
-    if (!current || current.invalidatedAt || current.updatedAt !== chunk.updatedAt || current.title !== chunk.title || current.primaryDomain !== chunk.primaryDomain || JSON.stringify(current.provenance.span) !== JSON.stringify(chunk.provenance.span)) await storeKnowledge(chunk);
+    if (!knowledgeProjectionMatches(current, chunk)) {
+      if (current && !current.invalidatedAt && current.content === chunk.content) {
+        await knowledgeRepository.save(mergeKnowledgeProjection(current, chunk));
+      } else await storeKnowledge(chunk);
+    }
     await linkKnowledge({ id: `derived:${chunk.id}`, fromId: chunk.id, toId: parent.id, type: "DERIVED_FROM" });
   }
   return stored;
