@@ -27,10 +27,14 @@ async function main() {
   assert.ok(response.packet.constraints.some((constraint) => constraint.includes("raciocínio interno")));
   assert.ok(response.packet.constraints.some((constraint) => constraint.includes("oito fatos")));
   const consultedChunkId = response.sources[0];
-  const reclassified = await persistVaultKnowledgeProjection({ ...vaultItem, primarySubject: "Filosofia", classificationSource: "manual", knowledgeCategories: ["Direito autoral"], knowledgeTags: ["human-reviewed-copyright"] });
+  const preclassifiedChunk = await knowledgeRepository.getById(consultedChunkId);
+  const reclassified = await persistVaultKnowledgeProjection({ ...vaultItem, classificationSource: "manual", knowledgeCategories: ["Direito autoral"], knowledgeTags: ["human-reviewed-copyright"] });
   const reclassifiedChunks = await knowledgeRepository.getAll((item) => item.provenance.derivedFromIds?.includes(reclassified.id) === true && !item.invalidatedAt);
   assert.ok(reclassifiedChunks.length > 0);
-  assert.ok(reclassifiedChunks.every((chunk) => chunk.primaryDomain === "philosophy" && chunk.categories.includes("Direito autoral") && chunk.tags.includes("human-reviewed-copyright")), "same-content taxonomy edits must refresh indexed chunks");
+  assert.ok(reclassifiedChunks.every((chunk) => chunk.categories.includes("Direito autoral") && chunk.tags.includes("human-reviewed-copyright")), "same-content taxonomy edits must refresh indexed chunks");
+  assert.equal((await knowledgeRepository.getById(consultedChunkId))?.version, preclassifiedChunk?.version, "metadata-only updates must not create content-history versions");
+  const reclassifiedSearch = await queryKnowledge({ requester: "justitia", domain: "legal", category: "Direito autoral", purpose: "verify metadata-only Vault reindexing", scope: "DOMAIN" });
+  assert.ok(reclassifiedSearch.some((chunk) => chunk.id === consultedChunkId), "metadata-only projection updates must invalidate retrieval indexes and apply new taxonomy filters");
   const revised = await persistVaultKnowledgeProjection({ ...vaultItem, content: "Versão revisada sem o conteúdo anterior.", updatedAt: new Date(Date.now() + 1000).toISOString() });
   assert.equal(revised.id, "vault:e2e-vault");
   assert.ok((await knowledgeRepository.getById(consultedChunkId))?.invalidatedAt, "content updates must revoke stale source chunks");

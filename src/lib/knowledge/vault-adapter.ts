@@ -73,11 +73,6 @@ export function knowledgeProjectionMatches(existing: KnowledgeItem | null | unde
     && structuredFields.every((field) => JSON.stringify(existing[field]) === JSON.stringify(projected[field]));
 }
 
-/** Metadata-only projection updates should not create historical content snapshots. */
-export function mergeKnowledgeProjection(existing: KnowledgeItem, projected: KnowledgeItem): KnowledgeItem {
-  return { ...projected, createdAt: existing.createdAt, version: existing.version, supersedesId: existing.supersedesId, conflictGroupId: existing.conflictGroupId };
-}
-
 const CHUNK_TARGET = 1200;
 const CHUNK_OVERLAP = 120;
 

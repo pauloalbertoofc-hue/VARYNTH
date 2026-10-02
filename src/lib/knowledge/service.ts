@@ -104,6 +104,36 @@ export function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
   });
 }
 
+/** Persist an authoritative projection update without creating a content-history snapshot. */
+export function storeKnowledgeProjection(item: KnowledgeItem): Promise<KnowledgeItem> {
+  const previous = knowledgeWriteQueues.get(item.id) || Promise.resolve();
+  const current = previous.catch(() => undefined).then(async () => {
+    const existing = await knowledgeRepository.getById(item.id);
+    if (!existing || existing.invalidatedAt || existing.content !== item.content) return persistKnowledge(item);
+    const projected: KnowledgeItem = {
+      ...item,
+      createdAt: existing.createdAt,
+      version: existing.version,
+      supersedesId: existing.supersedesId,
+      conflictGroupId: existing.conflictGroupId,
+      provenance: {
+        ...item.provenance,
+        createdAt: existing.provenance.createdAt,
+        derivedFromIds: item.provenance.derivedFromIds || existing.provenance.derivedFromIds,
+      },
+    };
+    if (JSON.stringify(projected) === JSON.stringify(existing)) return existing;
+    const stored = await knowledgeRepository.save(projected);
+    invalidateKnowledgeQueryCache();
+    return stored;
+  });
+  const queueEntry = current.then(() => undefined, () => undefined);
+  knowledgeWriteQueues.set(item.id, queueEntry);
+  return current.finally(() => {
+    if (knowledgeWriteQueues.get(item.id) === queueEntry) knowledgeWriteQueues.delete(item.id);
+  });
+}
+
 export async function updateKnowledge(id: string, requester: string, patch: Partial<KnowledgeItem>): Promise<KnowledgeItem> {
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
