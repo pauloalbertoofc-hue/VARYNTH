@@ -24,6 +24,8 @@ export interface KnowledgeSourceSpan {
   end: number;
   unit: "UNICODE_CODE_POINTS";
   contentHash: string;
+  /** Markdown heading ancestry for this chunk, when the source contains headings. */
+  sectionPath?: string[];
 }
 
 export interface KnowledgeItem {

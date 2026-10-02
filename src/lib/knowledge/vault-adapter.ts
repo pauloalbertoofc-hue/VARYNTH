@@ -81,32 +81,95 @@ export function mergeKnowledgeProjection(existing: KnowledgeItem, projected: Kno
 const CHUNK_TARGET = 1200;
 const CHUNK_OVERLAP = 120;
 
+interface SourceHeading { start: number; end: number; level: number; title: string; sectionPath: string[]; }
+
+function sourceHeadings(points: string[]): SourceHeading[] {
+  const headings: SourceHeading[] = [];
+  const ancestry: Array<{ level: number; title: string }> = [];
+  let lineStart = 0;
+  while (lineStart < points.length) {
+    let lineEnd = lineStart;
+    while (lineEnd < points.length && points[lineEnd] !== "\n") lineEnd += 1;
+    const line = points.slice(lineStart, lineEnd).join("").replace(/\r$/u, "");
+    const match = /^(#{1,6})\s+(.+?)\s*#*$/u.exec(line);
+    if (match) {
+      const level = match[1].length;
+      while (ancestry.length && ancestry[ancestry.length - 1].level >= level) ancestry.pop();
+      ancestry.push({ level, title: match[2] });
+      headings.push({ start: lineStart, end: lineEnd, level, title: match[2], sectionPath: ancestry.map((heading) => heading.title) });
+    }
+    lineStart = lineEnd + 1;
+  }
+  return headings;
+}
+
+function sectionPathAt(headings: SourceHeading[], offset: number): string[] {
+  let low = 0;
+  let high = headings.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (headings[middle].start <= offset) low = middle + 1;
+    else high = middle;
+  }
+  return low ? [...headings[low - 1].sectionPath] : [];
+}
+
+function chooseChunkEnd(points: string[], start: number, headingStarts: Set<number>): number {
+  const maximum = Math.min(points.length, start + CHUNK_TARGET);
+  if (maximum === points.length) return maximum;
+  const lowerBound = start + Math.floor(CHUNK_TARGET * 0.65);
+  let best = -1;
+  let bestScore = -1;
+  for (let index = lowerBound; index <= maximum; index += 1) {
+    const previous = points[index - 1];
+    const next = points[index];
+    let score = -1;
+    if (previous === "\n" && next === "\n") score = 3;
+    else if (previous === "\n" && headingStarts.has(index)) score = 4;
+    else if (/[.!?;:。！？]/u.test(previous || "") && /\s/u.test(next || "")) score = 2;
+    else if (/\s/u.test(previous || "")) score = 1;
+    if (score > bestScore || (score === bestScore && score >= 0)) { best = index; bestScore = score; }
+  }
+  return best > start ? best : maximum;
+}
+
+function overlapStart(points: string[], end: number, headingStarts: Set<number>): number {
+  const desired = Math.max(0, end - CHUNK_OVERLAP);
+  if (headingStarts.has(end)) return end;
+  // Prefer the beginning of a paragraph/heading after the overlap target. The prior chunk
+  // already covers skipped overlap text, so advancing never creates a source gap.
+  for (let index = desired; index < end; index += 1) {
+    if (headingStarts.has(index)) return index;
+    if (points[index - 1] === "\n" && points[index] === "\n") {
+      let next = index + 1;
+      while (next < end && /\s/u.test(points[next])) next += 1;
+      return next < end ? next : desired;
+    }
+  }
+  return desired;
+}
+
 /** Produce stable, source-addressable text chunks without replacing the canonical Vault projection. */
 export async function knowledgeChunksFromVaultItem(item: VaultItem): Promise<KnowledgeItem[]> {
   const parent = knowledgeFromVaultItem(item);
   const text = parent.content;
   if (!text.trim()) return [];
   const points = Array.from(text);
+  const headings = sourceHeadings(points);
+  const headingStarts = new Set(headings.map((heading) => heading.start));
   const chunks: KnowledgeItem[] = [];
   let start = 0;
   while (start < points.length) {
-    let end = Math.min(points.length, start + CHUNK_TARGET);
-    if (end < points.length) {
-      const lowerBound = start + Math.floor(CHUNK_TARGET * 0.65);
-      let boundary = -1;
-      for (let index = end; index >= lowerBound; index -= 1) {
-        if (/[\s.!?;:。！？]/u.test(points[index - 1] || "")) { boundary = index; break; }
-      }
-      if (boundary > start) end = boundary;
-    }
+    const end = chooseChunkEnd(points, start, headingStarts);
     const content = points.slice(start, end).join("");
+    const sectionPath = sectionPathAt(headings, start);
     const bytes = new TextEncoder().encode(content);
     const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const id = `${parent.id}::chunk:${start}-${end}:${digest.slice(0, 16)}`;
     chunks.push({
       ...parent,
       id,
-      title: `${parent.title} · trecho ${chunks.length + 1}`,
+      title: `${parent.title} · ${sectionPath.join(" › ") || `trecho ${chunks.length + 1}`}`,
       content,
       kind: "REFERENCE",
       assertion: "REFERENCE",
@@ -121,11 +184,12 @@ export async function knowledgeChunksFromVaultItem(item: VaultItem): Promise<Kno
           end,
           unit: "UNICODE_CODE_POINTS",
           contentHash: digest,
+          ...(sectionPath.length ? { sectionPath } : {}),
         },
       },
     });
     if (end === points.length) break;
-    start = Math.max(start + 1, end - CHUNK_OVERLAP);
+    start = Math.max(start + 1, overlapStart(points, end, headingStarts));
   }
   return chunks;
 }

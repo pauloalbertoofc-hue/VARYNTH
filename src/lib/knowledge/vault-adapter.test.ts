@@ -66,4 +66,22 @@ async function verifySourceChunks() {
   assert.equal(chunks.map((chunk) => chunk.content).join("").includes("FIM-DA-FONTE"), true);
   console.log("Vault knowledge adapter tests passed");
 }
+
+async function verifySemanticSections() {
+  const firstParagraph = `${"Conteúdo da seção inicial, preservado em parágrafos. ".repeat(18)}\n\n`;
+  const secondSection = `## Segunda seção\n\n${"Conteúdo da segunda seção com rastreabilidade. ".repeat(36)}`;
+  const content = `# Documento\n\n${firstParagraph}${secondSection}`;
+  const source = { id: "section-source", title: "Documento estruturado", type: "pdf" as const, content, tags: [], category: "Referência", readingStatus: "lendo" as const, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+  const chunks = await knowledgeChunksFromVaultItem(source);
+  assert.ok(chunks.some((chunk) => chunk.provenance.span?.sectionPath?.includes("Segunda seção")), "chunks must retain Markdown section ancestry");
+  assert.ok(chunks.some((chunk) => chunk.title.includes("Segunda seção")), "section titles must aid retrieval");
+  assert.ok(chunks.some((chunk) => chunk.content.startsWith("## Segunda seção") && chunk.provenance.span?.sectionPath?.includes("Segunda seção")), "chunk boundaries must align to a section heading when the boundary is nearby");
+  const points = Array.from(content);
+  for (const chunk of chunks) {
+    const span = chunk.provenance.span!;
+    assert.equal(points.slice(span.start, span.end).join(""), chunk.content);
+    assert.ok(chunk.content.length <= 1200);
+  }
+}
 void verifySourceChunks();
+void verifySemanticSections();

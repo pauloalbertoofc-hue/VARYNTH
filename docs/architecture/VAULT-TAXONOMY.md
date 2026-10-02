@@ -16,6 +16,8 @@ Sem correção semântica, o assunto primário do Vault é traduzido para um dom
 
 O adaptador cria provenance `VAULT_ITEM`, preserva uma referência de origem namespaced e associa projetos. Itens ligados a projetos tornam-se `PROJECT`; os demais tornam-se `DOMAIN`. A projeção no Knowledge é serializada por ID, não incrementa versão quando nenhuma informação relevante mudou e preserva a provenance original em atualizações. Remover um item ativo do Vault revoga sua projeção e os derivados ligados por `DERIVED_FROM`; restaurá-lo reprojeta a fonte atual. O adaptador não infere que o conteúdo é público entre agentes.
 
+Conteúdo textual longo é dividido em chunks estáveis, limitados em code points, com sobreposição curta e offsets/hash sobre o texto efetivamente indexado. O segmentador prefere fronteiras de parágrafo, títulos Markdown e sentenças dentro da janela-alvo; documentos sem estrutura continuam recebendo cortes por whitespace. Títulos Markdown anteriores são carregados em `provenance.span.sectionPath` e no título pesquisável do chunk. Isso melhora a recuperação e a navegação lógica sem alegar paginação física: PDF, EPUB e documentos multi-arquivo ainda precisam de extração que forneça localização nativa (página/capítulo/arquivo) para provenance exata.
+
 ## Limites atuais e evolução
 
 - `category` permanece uma string legada; os campos de obra/formato/assunto são taxonomia editorial, não substituem os domínios de conhecimento.
