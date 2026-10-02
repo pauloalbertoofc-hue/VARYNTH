@@ -1,9 +1,12 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 import { isClientApiPath, isClientPath, isClientRole } from "@/lib/auth/client-access";
+import { isMusicBlobCallbackRequest } from "@/lib/auth/music-blob-callback";
 export async function proxy(request: NextRequest) {
   // The product homepage and installation guide are public entry points.
   if (request.nextUrl.pathname === "/" || request.nextUrl.pathname === "/manifest.json" || request.nextUrl.pathname === "/api/app-icon" || request.nextUrl.pathname.startsWith("/download")) return NextResponse.next();
+  // Vercel Blob callbacks are authenticated by the route's signature verifier, not a browser session.
+  if (isMusicBlobCallbackRequest(request.method, request.nextUrl.pathname, request.headers.get("x-vercel-signature"))) return NextResponse.next();
   // A ativação é explícita para que um deploy não bloqueie a plataforma antes
   // de NEXTAUTH_SECRET, usuários e OAuth estarem configurados na Vercel.
   if (process.env.VARYNTH_AUTH_ENABLED !== "true") return NextResponse.next();
