@@ -156,7 +156,9 @@ test("creates and persists an animated local cover and background with visible c
 test("connects a private image provider then asks Athena for separate saved Music artwork", async ({ page }) => {
   test.setTimeout(60_000);
   const secret = "sk-test_account_specific_visual_generation_123456789";
-  const webp = Buffer.from("RIFF0000WEBPpayload").toString("base64");
+  // A real 2×2 WebP lets this test verify browser decoding and player rendering,
+  // rather than only checking that a data URL was copied into IndexedDB.
+  const webp = "UklGRjQAAABXRUJQVlA4ICgAAABwAQCdASoCAAIAAUAmJaACdAFAAAD+7Qcv/JT/7yv9d24bdJ+p7cAA";
   let configured = false;
   let receivedPrompt: Record<string, unknown> | undefined;
   await page.route("**/api/athena/music/visual", async (route) => {
@@ -198,6 +200,21 @@ test("connects a private image provider then asks Athena for separate saved Musi
     finally { db.close(); }
   });
   expect(stored.find((profile) => profile.coverDataUrl?.startsWith("data:image/webp"))).toMatchObject({ coverDataUrl: `data:image/webp;base64,${webp}`, backgroundDataUrl: `data:image/webp;base64,${webp}` });
+
+  const generatedCover = page.locator(`img[src="data:image/webp;base64,${webp}"]`).first();
+  await expect.poll(() => generatedCover.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBe(2);
+  await page.getByRole("button", { name: "Animado", exact: true }).click();
+  await expect(page.getByTestId("music-visual-status")).toContainText(/Movimento animado aplicado e salvo/);
+  await page.getByLabel("Efeito do ambiente musical").selectOption("stars");
+  await expect(page.getByTestId("music-visual-status")).toContainText(/Efeito estrelas salvo/);
+  await page.getByRole("button", { name: "Tocando agora" }).click();
+  const scene = page.locator('[data-visual-scene="true"]');
+  await expect(scene).toHaveAttribute("data-motion-duration", "5");
+  await expect(scene).toHaveAttribute("data-particle-effect", "stars");
+  await expect(page.locator("[data-cover-motion-duration]")).toHaveAttribute("data-cover-motion-duration", "5");
+  await expect(page.locator(`[data-scene-layer="BackgroundLayer"] > img.scene-art[src="data:image/webp;base64,${webp}"]`)).toBeVisible();
+  await expect(page.locator(`.cover-presentation img[src="data:image/webp;base64,${webp}"]`)).toBeVisible();
+  await expect(page.locator('[data-scene-layer="BackgroundLayer"]')).toHaveCSS("animation-name", /scene-crossfade, scene-drift/);
 });
 
 test("shows an actionable error when Athena has no image provider configured", async ({ page }) => {
