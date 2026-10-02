@@ -1,39 +1,57 @@
-import { domainRegistry } from "./domain-registry";
+import { domainRegistry, type DomainRegistry } from "./domain-registry";
 
-export interface DomainRoute { primaryDomain?: string; relatedDomains: string[]; owner?: string; specialists: string[]; recommendedDelegation: boolean; reason: string; }
+export interface DomainRoute {
+  primaryDomain?: string;
+  relatedDomains: string[];
+  owner?: string;
+  specialists: string[];
+  matchedDomains: Array<{ domain: string; matchedTerms: string[]; owner?: string; specialists: string[] }>;
+  recommendedDelegation: boolean;
+  reason: string;
+}
 export interface DomainDecomposition extends DomainRoute { requiredCapabilities: string[]; }
 
-const rules: Array<{ pattern: RegExp; domain: string; related?: string[] }> = [
-  { pattern: /copyright|direito autoral|royalty[- ]free|licen[cç]a.{0,24}(?:comercial|m[uú]sic|trilha|[áa]udio)|(?:m[uú]sic|trilha|[áa]udio).{0,24}licen[cç]a/i, domain: "legal.intellectual-property", related: ["music.asset-provenance"] },
-  { pattern: /propriedade intelectual|patente|marca registrada|uso comercial/i, domain: "legal.intellectual-property", related: [] },
-  { pattern: /game[ -]?audio|adaptive music|trilha.{0,48}adaptativa|[áa]udio.{0,48}jogo|trilha.{0,48}(?:jogo|game)|m[uú]sica.{0,48}(?:jogo|game)/i, domain: "music.game-audio", related: ["game-development"] },
-  { pattern: /harmonia|acorde|progress[aã]o harm[oô]nica/i, domain: "music.theory.harmony" },
-  { pattern: /(?:composi[cç][aã]o|arranjo|orquestra[cç][aã]o|songwriting)/i, domain: "music.composition" },
-  { pattern: /copyright|licen[cç]a|contrato|direito|lei|jur[ií]dic/i, domain: "legal", related: ["music"] },
-  { pattern: /m[uú]sic|[áa]udio|trilha|melodia|bpm|stem/i, domain: "music", related: ["game-development"] },
-  { pattern: /jogo|game|mec[aâ]nica|gameplay/i, domain: "game-development", related: ["music"] },
-];
-
-export function routeKnowledgeIntent(input: { task: string; currentModule?: string; projectId?: string }): DomainRoute {
-  domainRegistry.hydrateBrowserSnapshot();
-  const context = `${input.task} ${input.currentModule || ""}`;
-  const matches = rules.filter((rule) => rule.pattern.test(context));
-  const primary = matches[0];
-  if (!primary) return { relatedDomains: [], specialists: [], recommendedDelegation: false, reason: "Domínio não identificado com confiança suficiente." };
-  const relatedDomains = [...new Set([
-    ...(primary.related || []),
-    ...domainRegistry.resolveRelatedDomains(primary.domain),
-    ...matches.slice(1).map((match) => match.domain),
-    ...matches.slice(1).flatMap((match) => match.related || []),
-  ])].filter((domain) => domain !== primary.domain);
-  const owner = domainRegistry.resolveOwner(primary.domain);
-  const specialists = domainRegistry.resolveSpecialists(primary.domain);
-  return { primaryDomain: primary.domain, relatedDomains, owner, specialists, recommendedDelegation: specialists.length > 0, reason: matches.length > 1 ? "Rota interdisciplinar determinada por múltiplas regras estruturadas de domínio." : "Rota determinada por contexto estruturado e vocabulário do domínio." };
+function normalizeRoutingText(value: string): string {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase().replace(/[^\p{Letter}\p{Number}]+/gu, " ").trim();
 }
 
-export function decomposeKnowledgeTask(input: { task: string; currentModule?: string; projectId?: string }): DomainDecomposition {
+export function routeKnowledgeIntent(input: { task: string; currentModule?: string; projectId?: string; registry?: DomainRegistry }): DomainRoute {
+  const registry = input.registry || domainRegistry;
+  registry.hydrateBrowserSnapshot();
+  const context = ` ${normalizeRoutingText(`${input.task} ${input.currentModule || ""}`)} `;
+  const matches = registry.listDomains().flatMap((domain) => {
+    const matchedTerms = [...new Set((domain.routingTerms || []).filter((term) => {
+      const normalizedTerm = normalizeRoutingText(term);
+      return normalizedTerm.length > 0 && context.includes(` ${normalizedTerm} `);
+    }))];
+    if (!matchedTerms.length) return [];
+    return [{ domain: domain.id, matchedTerms, priority: domain.routingPriority || 0, owner: registry.resolveOwner(domain.id), specialists: registry.resolveSpecialists(domain.id) }];
+  }).sort((left, right) => right.priority - left.priority
+    || Math.max(...right.matchedTerms.map((term) => normalizeRoutingText(term).length)) - Math.max(...left.matchedTerms.map((term) => normalizeRoutingText(term).length))
+    || left.domain.localeCompare(right.domain));
+  const primary = matches[0];
+  if (!primary) return { relatedDomains: [], specialists: [], matchedDomains: [], recommendedDelegation: false, reason: "Domínio não identificado com confiança suficiente." };
+  const matchedDomainIds = matches.map((match) => match.domain);
+  const relatedDomains = [...new Set([
+    ...matchedDomainIds.slice(1),
+    ...matches.flatMap((match) => registry.resolveRelatedDomains(match.domain)),
+  ])].filter((domain) => domain !== primary.domain);
+  const specialists = [...new Set(matches.flatMap((match) => match.specialists))];
+  return {
+    primaryDomain: primary.domain,
+    relatedDomains,
+    owner: primary.owner,
+    specialists,
+    matchedDomains: matches.map(({ domain, matchedTerms, owner, specialists: domainSpecialists }) => ({ domain, matchedTerms, owner, specialists: domainSpecialists })),
+    recommendedDelegation: specialists.length > 0,
+    reason: matches.length > 1 ? "Rota interdisciplinar determinada pelos termos e prioridades declarados nos domínios registrados." : "Rota determinada pelos termos estruturados declarados no Domain Registry.",
+  };
+}
+
+export function decomposeKnowledgeTask(input: { task: string; currentModule?: string; projectId?: string; registry?: DomainRegistry }): DomainDecomposition {
   const route = routeKnowledgeIntent(input);
   const domains = [route.primaryDomain, ...route.relatedDomains].filter(Boolean) as string[];
-  const requiredCapabilities = domains.flatMap((domain) => domainRegistry.resolveCapabilities(domain));
+  const registry = input.registry || domainRegistry;
+  const requiredCapabilities = domains.flatMap((domain) => registry.resolveCapabilities(domain));
   return { ...route, requiredCapabilities: [...new Set(requiredCapabilities)] };
 }

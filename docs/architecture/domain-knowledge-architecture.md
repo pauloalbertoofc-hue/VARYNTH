@@ -6,7 +6,7 @@ The transversal knowledge layer extends the existing Vault and local persistence
 
 The implemented foundation provides:
 
-- `DomainRegistry` with hierarchical resolution, owners, specialists, capabilities, and related domains;
+- `DomainRegistry` with hierarchical resolution, owners/co-owners, specialists, capabilities, related domains, and administrator-managed routing terms/priorities;
 - `KnowledgeItem` with explicit kind, assertion, visibility, sensitivity, provenance, version, and freshness;
 - browser-local Knowledge persistence plus authenticated, account-scoped server snapshots for remote routes (Redis on Vercel; fail-closed when unavailable);
 - fail-closed access decisions for private agent, project, and public-agent scopes;
@@ -29,7 +29,7 @@ The implemented foundation provides:
 3. Policy and local retrieval (implemented; structured domain/category/project filters and weighted lexical ranking; hybrid semantic retrieval remains future work).
 4. Vault classification adapter and migration-safe backfill (implemented; taxonomy corrections persist on the source item).
 5. Public knowledge contracts and capability discovery through Athena (explicit per-capability allowlist and consumer contract; discovery does not imply a generic executable adapter, and not every proposed capability is wired).
-6. Domain router, multi-domain decomposition, and bounded knowledge packets (implemented incrementally; matching structured domain rules are combined and knowledge/experience share the context item budget; Euterpe and Justitia expose explicit, source-only consultation methods, not neural domain reasoning).
+6. Domain router, multi-domain decomposition, and bounded knowledge packets (implemented incrementally; routes are derived from registry routing terms/priorities, expose matching evidence and all matched-domain specialists, and knowledge/experience share the context item budget; Euterpe and Justitia expose explicit, source-only consultation methods, not neural domain reasoning).
 7. Knowledge Center UI and inspectors (implemented for registry, retrieval, classification, publication, revocation, conflicts, audit, and persistence state).
 8. Cache invalidation, conflict/version views, adversarial tests (implemented incrementally); multi-instance load testing and authenticated production end-to-end validation remain open.
 

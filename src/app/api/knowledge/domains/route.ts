@@ -32,8 +32,8 @@ export async function GET() {
 export async function POST(request: Request) {
   if (!await requireOwner()) return Response.json({ error: "Acesso de proprietário necessário." }, { status: 403 });
   if (!sameOrigin(request)) return Response.json({ error: "Origem inválida." }, { status: 403 });
-  const body = await request.json().catch(() => ({})) as { operation?: unknown; domainId?: unknown; agentId?: unknown; expectedRevision?: unknown; domain?: unknown };
-  if (typeof body.operation !== "string" || !["TRANSFER_OWNER", "REGISTER_CO_OWNER", "REMOVE_CO_OWNER", "REGISTER_SPECIALIST", "REGISTER_CAPABILITY", "REGISTER_DOMAIN"].includes(body.operation)) return Response.json({ error: "Operação inválida." }, { status: 400 });
+  const body = await request.json().catch(() => ({})) as { operation?: unknown; domainId?: unknown; agentId?: unknown; expectedRevision?: unknown; domain?: unknown; routingTerms?: unknown; routingPriority?: unknown };
+  if (typeof body.operation !== "string" || !["TRANSFER_OWNER", "REGISTER_CO_OWNER", "REMOVE_CO_OWNER", "UPDATE_ROUTING", "REGISTER_SPECIALIST", "REGISTER_CAPABILITY", "REGISTER_DOMAIN"].includes(body.operation)) return Response.json({ error: "Operação inválida." }, { status: 400 });
   try {
     const stored = await readPersistedDomainRegistry();
     const expectedRevision = typeof body.expectedRevision === "number" ? body.expectedRevision : -1;
@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       if (body.operation === "TRANSFER_OWNER" && typeof body.agentId === "string") candidate.transferOwnership(body.domainId, body.agentId);
       else if (body.operation === "REGISTER_CO_OWNER" && typeof body.agentId === "string") candidate.registerCoOwner(body.domainId, body.agentId);
       else if (body.operation === "REMOVE_CO_OWNER" && typeof body.agentId === "string") candidate.removeCoOwner(body.domainId, body.agentId);
+      else if (body.operation === "UPDATE_ROUTING" && Array.isArray(body.routingTerms)) candidate.setRouting(body.domainId, body.routingTerms as string[], body.routingPriority === undefined ? undefined : typeof body.routingPriority === "number" ? body.routingPriority : Number.NaN);
       else if (body.operation === "REGISTER_SPECIALIST" && typeof body.agentId === "string") candidate.registerSpecialist(body.domainId, body.agentId);
       else if (body.operation === "REGISTER_CAPABILITY" && typeof body.agentId === "string") candidate.registerCapability(body.domainId, body.agentId);
       else return Response.json({ error: "Agente ou capability inválidos." }, { status: 400 });

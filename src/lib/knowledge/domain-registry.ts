@@ -4,6 +4,8 @@ export interface DomainDefinition {
   parentId?: string;
   primaryOwner?: string;
   coOwners?: string[];
+  routingTerms?: string[];
+  routingPriority?: number;
   specialists: string[];
   capabilities: string[];
   publicCapabilities?: Array<{ id: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }>;
@@ -12,7 +14,7 @@ export interface DomainDefinition {
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
 export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
-export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; coOwners: string[]; specialists: string[]; capabilities: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
+export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; coOwners: string[]; specialists: string[]; capabilities: string[]; routingTerms: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
 
 const DOMAIN_REGISTRY_LOCAL_KEY = "varynth:knowledge:domains:v1";
 
@@ -46,6 +48,9 @@ export class DomainRegistry {
     const primaryOwner = typeof domain.primaryOwner === "string" ? domain.primaryOwner.trim() || undefined : undefined;
     const normalizeStrings = (values: string[]) => [...new Set(values.filter((value) => typeof value === "string").map((value) => value.trim()).filter(Boolean))];
     const coOwners = normalizeStrings(Array.isArray(domain.coOwners) ? domain.coOwners : []).filter((agent) => agent !== primaryOwner);
+    const routingTerms = normalizeStrings(Array.isArray(domain.routingTerms) ? domain.routingTerms : []);
+    if (routingTerms.some((term) => term.length > 120)) throw new Error("[DOMAIN_ROUTING_TERM_INVALID] Termo de roteamento excede 120 caracteres.");
+    const routingPriority = Number.isFinite(domain.routingPriority) ? Math.max(-1000, Math.min(1000, Math.trunc(domain.routingPriority!))) : 0;
     const specialists = normalizeStrings(domain.specialists);
     if (primaryOwner && !specialists.includes(primaryOwner)) specialists.unshift(primaryOwner);
     const capabilities = normalizeStrings(domain.capabilities);
@@ -60,7 +65,7 @@ export class DomainRegistry {
       }
       return { id: capabilityId, description, input, output, allowedConsumers };
     });
-    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
     this.persistBrowserSnapshot();
   }
 
@@ -94,6 +99,15 @@ export class DomainRegistry {
     if (!normalizedCoOwner) throw new Error("[DOMAIN_CO_OWNER_INVALID] Co-owner obrigatório.");
     if (normalizedCoOwner === domain.primaryOwner) throw new Error("[DOMAIN_CO_OWNER_IS_PRIMARY] O owner primário não pode ser registrado novamente como co-owner.");
     domain.coOwners = [...new Set([...(domain.coOwners || []), normalizedCoOwner])];
+    this.persistBrowserSnapshot();
+  }
+
+  setRouting(domainId: string, terms: string[], priority?: number): void {
+    const domain = this.requireDomain(domainId);
+    if (!Array.isArray(terms) || !terms.every((term) => typeof term === "string" && term.trim() && term.trim().length <= 120)) throw new Error("[DOMAIN_ROUTING_TERMS_INVALID] Termos devem ser strings não vazias de até 120 caracteres.");
+    if (priority !== undefined && (!Number.isInteger(priority) || priority < -1000 || priority > 1000)) throw new Error("[DOMAIN_ROUTING_PRIORITY_INVALID] Prioridade deve ser um inteiro entre -1000 e 1000.");
+    domain.routingTerms = [...new Set(terms.map((term) => term.trim().replace(/\s+/g, " ")))];
+    if (priority !== undefined) domain.routingPriority = priority;
     this.persistBrowserSnapshot();
   }
 
@@ -193,7 +207,7 @@ export class DomainRegistry {
     return this.listDomains().filter((domain) => !rootId || domain.id === rootId || this.isDescendantOf(domain, rootId));
   }
   getAwarenessIndex(): KnowledgeAwarenessIndex {
-    return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), coOwners: this.resolveCoOwners(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
+    return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), coOwners: this.resolveCoOwners(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], routingTerms: [...(domain.routingTerms || [])], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
   }
 
   private requireDomain(id: string): DomainDefinition {
@@ -214,7 +228,7 @@ export class DomainRegistry {
   }
 
   private cloneDomain(domain: DomainDefinition): DomainDefinition {
-    return { ...domain, coOwners: [...(domain.coOwners || [])], specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
+    return { ...domain, coOwners: [...(domain.coOwners || [])], routingTerms: [...(domain.routingTerms || [])], specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
   }
 
   private persistBrowserSnapshot(): void {
@@ -228,20 +242,20 @@ export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
   { id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], publicCapabilities: [
     { id: "music.inspectMetadata", description: "Interpreta metadados musicais e técnicos fornecidos explicitamente na consulta.", input: ["query", "provided_metadata"], output: ["structured_context", "provenance"], allowedConsumers: ["*"] },
     { id: "music.analyzeStructure", description: "Explica aspectos estruturais de uma composição com base no contexto fornecido.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
-  ], relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true },
+  ], routingTerms: ["music", "música", "musica", "audio", "áudio", "trilha", "melody", "melodia", "bpm", "stem"], routingPriority: 40, relatedDomains: ["game-development", "legal.intellectual-property"], enabled: true },
   { id: "legal", label: "Legal", primaryOwner: "justitia", specialists: ["justitia"], capabilities: ["legal.explainConcept", "legal.identifyRelevantDomain"], publicCapabilities: [
     { id: "legal.explainConcept", description: "Fornece contexto conceitual jurídico público; não substitui análise profissional nem consulta de fontes atuais.", input: ["query", "jurisdiction_if_known"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
     { id: "legal.identifyRelevantDomain", description: "Ajuda a identificar o ramo jurídico potencialmente relacionado à pergunta.", input: ["query"], output: ["candidate_domains", "limitations"], allowedConsumers: ["*"] },
-  ], relatedDomains: ["music", "privacy"], enabled: true },
-  { id: "game-development", label: "Game Development", specialists: [], capabilities: [], relatedDomains: ["music.game-audio"], enabled: true },
+  ], routingTerms: ["copyright", "licença", "licenca", "contrato", "direito", "lei", "jurídico", "juridico"], routingPriority: 50, relatedDomains: ["music", "privacy"], enabled: true },
+  { id: "game-development", label: "Game Development", specialists: [], capabilities: [], routingTerms: ["jogo", "game", "mecânica", "mecanica", "gameplay"], routingPriority: 30, relatedDomains: ["music.game-audio"], enabled: true },
   { id: "music.listening", label: "Listening & Curation", parentId: "music", specialists: [], capabilities: ["music.curate"], relatedDomains: [], enabled: true },
   { id: "music.theory", label: "Music Theory", parentId: "music", specialists: [], capabilities: ["music.explainTheory"], publicCapabilities: [{ id: "music.explainTheory", description: "Explica conceitos gerais de teoria musical sem presumir dados ausentes.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
-  { id: "music.theory.harmony", label: "Harmony", parentId: "music.theory", specialists: [], capabilities: ["music.explainHarmony"], publicCapabilities: [{ id: "music.explainHarmony", description: "Explica conceitos de harmonia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
-  { id: "music.theory.melody", label: "Melody", parentId: "music.theory", specialists: [], capabilities: ["music.explainMelody"], publicCapabilities: [{ id: "music.explainMelody", description: "Explica conceitos de melodia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
+  { id: "music.theory.harmony", label: "Harmony", parentId: "music.theory", specialists: [], capabilities: ["music.explainHarmony"], publicCapabilities: [{ id: "music.explainHarmony", description: "Explica conceitos de harmonia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], routingTerms: ["harmonia", "harmony", "acorde", "acordes", "progressão harmônica", "progressao harmonica"], routingPriority: 80, relatedDomains: [], enabled: true },
+  { id: "music.theory.melody", label: "Melody", parentId: "music.theory", specialists: [], capabilities: ["music.explainMelody"], publicCapabilities: [{ id: "music.explainMelody", description: "Explica conceitos de melodia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], routingTerms: ["melodia", "melody"], routingPriority: 70, relatedDomains: [], enabled: true },
   { id: "music.theory.rhythm", label: "Rhythm", parentId: "music.theory", specialists: [], capabilities: ["music.explainRhythm"], publicCapabilities: [{ id: "music.explainRhythm", description: "Explica conceitos de ritmo musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
   { id: "music.theory.scales", label: "Scales", parentId: "music.theory", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.theory.notation", label: "Notation", parentId: "music.theory", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
-  { id: "music.composition", label: "Composition", parentId: "music", specialists: [], capabilities: ["music.analyzeStructure"], relatedDomains: [], enabled: true },
+  { id: "music.composition", label: "Composition", parentId: "music", specialists: [], capabilities: ["music.analyzeStructure"], routingTerms: ["composição", "composicao", "arranjo", "orquestração", "orquestracao", "songwriting"], routingPriority: 70, relatedDomains: [], enabled: true },
   { id: "music.composition.arrangement", label: "Arrangement", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.composition.orchestration", label: "Orchestration", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.composition.songwriting", label: "Songwriting", parentId: "music.composition", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
@@ -251,7 +265,7 @@ export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
   { id: "music.production.mastering", label: "Mastering", parentId: "music.production", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.voice", label: "Voice", parentId: "music", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "music.sound-design", label: "Sound Design", parentId: "music", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
-  { id: "music.game-audio", label: "Game Audio", parentId: "music", specialists: [], capabilities: ["music.gameAudio", "audio.describeAsset"], publicCapabilities: [
+  { id: "music.game-audio", label: "Game Audio", parentId: "music", specialists: [], capabilities: ["music.gameAudio", "audio.describeAsset"], routingTerms: ["game audio", "adaptive music", "adaptativa", "trilha sonora", "trilha adaptativa", "audio jogo", "áudio jogo", "trilha jogo", "trilha game", "música jogo", "musica jogo"], routingPriority: 90, publicCapabilities: [
     { id: "music.gameAudio", description: "Explica conceitos de áudio interativo a partir do contexto explicitamente compartilhado.", input: ["query", "provided_game_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
     { id: "audio.describeAsset", description: "Descreve um asset de áudio usando somente metadados ou conteúdo fornecidos pelo solicitante.", input: ["query", "provided_asset_metadata"], output: ["description", "provenance", "limitations"], allowedConsumers: ["*"] },
   ], relatedDomains: ["game-development"], enabled: true },
@@ -263,7 +277,7 @@ export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
   { id: "legal.labor", label: "Labor", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "legal.family", label: "Family", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "legal.procedural", label: "Procedural", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
-  { id: "legal.intellectual-property", label: "Intellectual Property", parentId: "legal", specialists: [], capabilities: ["legal.explainConcept", "legal.getPublicReferenceContext"], relatedDomains: ["music.asset-provenance", "game-development"], enabled: true },
+  { id: "legal.intellectual-property", label: "Intellectual Property", parentId: "legal", specialists: [], capabilities: ["legal.explainConcept", "legal.getPublicReferenceContext"], routingTerms: ["copyright", "direito autoral", "royalty free", "royalty-free", "licença", "licenca", "propriedade intelectual", "patente", "marca registrada", "uso comercial", "licença de música", "licenca de musica", "licença de trilha", "licenca de trilha", "licença de áudio", "licenca de audio"], routingPriority: 100, relatedDomains: ["music.asset-provenance", "game-development"], enabled: true },
   { id: "legal.privacy", label: "Privacy", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "legal.technology", label: "Technology Law", parentId: "legal", specialists: [], capabilities: [], relatedDomains: ["music.technology"], enabled: true },
 ];
@@ -281,6 +295,8 @@ export function mergeDomainDefinitions(defaults: DomainDefinition[], persisted: 
       ...baseline,
       ...domain,
       coOwners: Object.prototype.hasOwnProperty.call(domain, "coOwners") ? domain.coOwners : baseline?.coOwners,
+      routingTerms: Object.prototype.hasOwnProperty.call(domain, "routingTerms") ? domain.routingTerms : baseline?.routingTerms,
+      routingPriority: Object.prototype.hasOwnProperty.call(domain, "routingPriority") ? domain.routingPriority : baseline?.routingPriority,
       // Older snapshots predate explicit publication contracts. Preserve the
       // reviewed defaults only when the field is absent; an explicit [] remains
       // a deliberate revocation of all public capability exposure.

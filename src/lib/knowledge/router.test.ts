@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DomainRegistry } from "./domain-registry";
 import { routeKnowledgeIntent } from "./router";
 
 const route = routeKnowledgeIntent({ task: "verifique o copyright da trilha do jogo" });
@@ -8,6 +9,7 @@ assert.ok(route.relatedDomains.includes("music.game-audio"));
 assert.ok(route.relatedDomains.includes("game-development"));
 assert.equal(route.owner, "justitia");
 assert.equal(route.recommendedDelegation, true);
+assert.ok(route.matchedDomains[0].matchedTerms.length > 0, "the route should expose the registered evidence that selected it");
 assert.equal(routeKnowledgeIntent({ task: "algo sem domínio conhecido" }).recommendedDelegation, false);
 const harmony = routeKnowledgeIntent({ task: "Explique a harmonia e os acordes" });
 assert.equal(harmony.primaryDomain, "music.theory.harmony");
@@ -26,4 +28,16 @@ const interdisciplinary = routeKnowledgeIntent({ task: "Prepare a trilha sonora 
 assert.equal(interdisciplinary.primaryDomain, "legal.intellectual-property");
 assert.ok(interdisciplinary.relatedDomains.includes("music.game-audio"));
 assert.ok(interdisciplinary.relatedDomains.includes("game-development"));
+assert.ok(interdisciplinary.specialists.includes("justitia"));
+assert.ok(interdisciplinary.specialists.includes("euterpe"), "multi-domain routing should expose specialists for every matched domain");
+
+const extensibleRegistry = new DomainRegistry(false);
+extensibleRegistry.register({ id: "climate-resilience", label: "Climate Resilience", primaryOwner: "climate-agent", specialists: [], capabilities: ["climate.assessRisk"], routingTerms: ["mudança climática", "climate resilience"], routingPriority: 120, relatedDomains: [], enabled: true });
+const dynamic = routeKnowledgeIntent({ task: "Planeje adaptação à MUDANÇA CLIMATICA", registry: extensibleRegistry });
+assert.equal(dynamic.primaryDomain, "climate-resilience", "new registered domains should route without editing router code");
+assert.equal(dynamic.owner, "climate-agent");
+assert.deepEqual(dynamic.matchedDomains[0].matchedTerms, ["mudança climática"]);
+extensibleRegistry.setRouting("climate-resilience", ["resiliência territorial"], 130);
+assert.equal(routeKnowledgeIntent({ task: "resiliência territorial", registry: extensibleRegistry }).primaryDomain, "climate-resilience");
+assert.equal(routeKnowledgeIntent({ task: "mudança climática", registry: extensibleRegistry }).primaryDomain, undefined, "replacing registry routing terms must remove stale matches");
 console.log("Knowledge router tests passed");

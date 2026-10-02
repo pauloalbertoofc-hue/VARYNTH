@@ -57,4 +57,13 @@ assert.throws(() => merged.register({ id: "unsafe", label: "Unsafe", primaryOwne
 const defaultsWithCoOwner = [{ id: "shared", label: "Shared", coOwners: ["baseline-co-owner"], specialists: [], capabilities: [], relatedDomains: [], enabled: true }];
 assert.deepEqual(mergeDomainDefinitions(defaultsWithCoOwner, [{ id: "shared", label: "Persisted", specialists: [], capabilities: [], relatedDomains: [], enabled: true }])[0].coOwners, ["baseline-co-owner"]);
 assert.deepEqual(mergeDomainDefinitions(defaultsWithCoOwner, [{ id: "shared", label: "Persisted", coOwners: [], specialists: [], capabilities: [], relatedDomains: [], enabled: true }])[0].coOwners, [], "explicit empty co-owner list must revoke inherited defaults");
+const defaultsWithRouting = [{ id: "routed", label: "Routed", routingTerms: ["baseline phrase"], routingPriority: 12, specialists: [], capabilities: [], relatedDomains: [], enabled: true }];
+assert.deepEqual(mergeDomainDefinitions(defaultsWithRouting, [{ id: "routed", label: "Persisted", specialists: [], capabilities: [], relatedDomains: [], enabled: true }])[0].routingTerms, ["baseline phrase"]);
+assert.deepEqual(mergeDomainDefinitions(defaultsWithRouting, [{ id: "routed", label: "Persisted", routingTerms: [], routingPriority: 0, specialists: [], capabilities: [], relatedDomains: [], enabled: true }])[0].routingTerms, [], "explicit empty routing terms must disable inherited routes");
+const routingRegistry = new DomainRegistry(false);
+routingRegistry.register({ id: "routing-test", label: "Routing Test", specialists: [], capabilities: [], relatedDomains: [], enabled: true });
+routingRegistry.setRouting("routing-test", ["first term", "first term"], 4);
+assert.deepEqual(routingRegistry.getDomain("routing-test")?.routingTerms, ["first term"]);
+assert.throws(() => routingRegistry.setRouting("routing-test", [""], 4), /DOMAIN_ROUTING_TERMS_INVALID/);
+assert.throws(() => routingRegistry.setRouting("routing-test", ["valid"], 1001), /DOMAIN_ROUTING_PRIORITY_INVALID/);
 console.log("Domain registry tests passed");

@@ -9,6 +9,7 @@ O `DomainRegistry` resolve owners e especialistas por domínio hierárquico. Ath
 - `primaryOwner`: especialista preferencial;
 - `coOwners`: agentes com responsabilidade compartilhada explícita; continuam distintos do owner primário;
 - `specialists`: agentes secundários;
+- `routingTerms` / `routingPriority`: sinais declarativos para o DomainRouter, editáveis pelo owner e sem vínculo a agente específico;
 - `capabilities`: operações públicas declaradas;
 - `relatedDomains`: fronteiras interdisciplinares;
 - `enabled`: disponibilidade do domínio.
