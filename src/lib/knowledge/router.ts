@@ -19,7 +19,7 @@ export function routeKnowledgeIntent(input: { task: string; currentModule?: stri
   const registry = input.registry || domainRegistry;
   registry.hydrateBrowserSnapshot();
   const context = ` ${normalizeRoutingText(`${input.task} ${input.currentModule || ""}`)} `;
-  const matches = registry.listDomains().flatMap((domain) => {
+  const directMatches = registry.listDomains().flatMap((domain) => {
     const matchedTerms = [...new Set((domain.routingTerms || []).filter((term) => {
       const normalizedTerm = normalizeRoutingText(term);
       return normalizedTerm.length > 0 && context.includes(` ${normalizedTerm} `);
@@ -29,6 +29,21 @@ export function routeKnowledgeIntent(input: { task: string; currentModule?: stri
   }).sort((left, right) => right.priority - left.priority
     || Math.max(...right.matchedTerms.map((term) => normalizeRoutingText(term).length)) - Math.max(...left.matchedTerms.map((term) => normalizeRoutingText(term).length))
     || left.domain.localeCompare(right.domain));
+  const matchedBridges = registry.listDomainBridges().filter((bridge) => bridge.concepts.some((term) => context.includes(` ${normalizeRoutingText(term)} `)));
+  const bridgeMatches = matchedBridges.flatMap((bridge) => {
+    const matchedTerms = bridge.concepts.filter((term) => context.includes(` ${normalizeRoutingText(term)} `));
+    if (!matchedTerms.length) return [];
+    return bridge.domains.map((domainId) => ({ domain: domainId, matchedTerms, priority: registry.getDomain(domainId)?.routingPriority || 0, owner: registry.resolveOwner(domainId), specialists: registry.resolveSpecialists(domainId) }));
+  });
+  const combinedMatches = new Map<string, typeof directMatches[number]>();
+  for (const match of [...directMatches, ...bridgeMatches]) {
+    const existing = combinedMatches.get(match.domain);
+    combinedMatches.set(match.domain, { ...match, matchedTerms: [...new Set([...(existing?.matchedTerms || []), ...match.matchedTerms])] });
+  }
+  const matches = [...combinedMatches.values()]
+    .sort((left, right) => right.priority - left.priority
+      || Math.max(...right.matchedTerms.map((term) => normalizeRoutingText(term).length)) - Math.max(...left.matchedTerms.map((term) => normalizeRoutingText(term).length))
+      || left.domain.localeCompare(right.domain));
   const primary = matches[0];
   if (!primary) return { relatedDomains: [], specialists: [], matchedDomains: [], recommendedDelegation: false, reason: "Domínio não identificado com confiança suficiente." };
   const matchedDomainIds = matches.map((match) => match.domain);
@@ -44,7 +59,7 @@ export function routeKnowledgeIntent(input: { task: string; currentModule?: stri
     specialists,
     matchedDomains: matches.map(({ domain, matchedTerms, owner, specialists: domainSpecialists }) => ({ domain, matchedTerms, owner, specialists: domainSpecialists })),
     recommendedDelegation: specialists.length > 0,
-    reason: matches.length > 1 ? "Rota interdisciplinar determinada pelos termos e prioridades declarados nos domínios registrados." : "Rota determinada pelos termos estruturados declarados no Domain Registry.",
+    reason: matchedBridges.length ? "Rota interdisciplinar determinada por conceitos de DomainBridge registrados e pelos termos declarados nos domínios." : matches.length > 1 ? "Rota interdisciplinar determinada pelos termos e prioridades declarados nos domínios registrados." : "Rota determinada pelos termos estruturados declarados no Domain Registry.",
   };
 }
 

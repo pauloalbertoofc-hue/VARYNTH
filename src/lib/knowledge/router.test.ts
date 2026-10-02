@@ -40,4 +40,13 @@ assert.deepEqual(dynamic.matchedDomains[0].matchedTerms, ["mudança climática"]
 extensibleRegistry.setRouting("climate-resilience", ["resiliência territorial"], 130);
 assert.equal(routeKnowledgeIntent({ task: "resiliência territorial", registry: extensibleRegistry }).primaryDomain, "climate-resilience");
 assert.equal(routeKnowledgeIntent({ task: "mudança climática", registry: extensibleRegistry }).primaryDomain, undefined, "replacing registry routing terms must remove stale matches");
+const bridgeRegistry = new DomainRegistry(false);
+bridgeRegistry.register({ id: "interactive-design", label: "Interactive Design", primaryOwner: "designer", specialists: [], capabilities: [], routingTerms: ["gameplay"], routingPriority: 20, relatedDomains: [], enabled: true });
+bridgeRegistry.register({ id: "audio-engineering", label: "Audio Engineering", primaryOwner: "composer", specialists: [], capabilities: ["audio.adaptive"], routingTerms: [], routingPriority: 10, relatedDomains: [], enabled: true });
+bridgeRegistry.registerDomainBridge("interactive-design", { id: "interactive-audio", domains: ["interactive-design", "audio-engineering"], concepts: ["adaptive soundscape"], description: "Bridges player interaction and responsive sound.", enabled: true });
+const bridgeRoute = routeKnowledgeIntent({ task: "Build an adaptive soundscape", registry: bridgeRegistry });
+assert.equal(bridgeRoute.primaryDomain, "interactive-design");
+assert.ok(bridgeRoute.relatedDomains.includes("audio-engineering"));
+assert.ok(bridgeRoute.specialists.includes("composer"));
+assert.ok(bridgeRoute.reason.includes("DomainBridge"));
 console.log("Knowledge router tests passed");

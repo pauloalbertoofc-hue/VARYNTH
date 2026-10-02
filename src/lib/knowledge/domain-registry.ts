@@ -6,6 +6,7 @@ export interface DomainDefinition {
   coOwners?: string[];
   routingTerms?: string[];
   routingPriority?: number;
+  bridges?: DomainBridge[];
   specialists: string[];
   capabilities: string[];
   publicCapabilities?: Array<{ id: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }>;
@@ -13,6 +14,7 @@ export interface DomainDefinition {
   enabled: boolean;
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
+export interface DomainBridge { id: string; domains: [string, string]; concepts: string[]; description: string; enabled: boolean; }
 export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
 export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; coOwners: string[]; specialists: string[]; capabilities: string[]; routingTerms: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
 
@@ -65,7 +67,15 @@ export class DomainRegistry {
       }
       return { id: capabilityId, description, input, output, allowedConsumers };
     });
-    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    const bridges = (Array.isArray(domain.bridges) ? domain.bridges : []).map((bridge) => {
+      const bridgeId = typeof bridge?.id === "string" ? bridge.id.trim() : "";
+      const endpoints = Array.isArray(bridge?.domains) ? [...new Set(bridge.domains.map((value) => typeof value === "string" ? value.trim() : ""))] : [];
+      const concepts = normalizeStrings(Array.isArray(bridge?.concepts) ? bridge.concepts : []);
+      const description = typeof bridge?.description === "string" ? bridge.description.trim() : "";
+      if (!bridgeId || !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(bridgeId) || endpoints.length !== 2 || endpoints.some((endpoint) => !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(endpoint)) || !concepts.length || concepts.some((concept) => concept.length > 120) || !description || !endpoints.includes(id)) throw new Error("[DOMAIN_BRIDGE_INVALID] Bridge precisa de id, dois domínios canônicos, conceitos e descrição, e deve pertencer a um dos domínios.");
+      return { id: bridgeId, domains: endpoints as [string, string], concepts, description, enabled: bridge.enabled !== false };
+    });
+    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, bridges, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
     this.persistBrowserSnapshot();
   }
 
@@ -73,6 +83,9 @@ export class DomainRegistry {
     if (!Array.isArray(definitions) || !definitions.length) throw new Error("[DOMAIN_REGISTRY_EMPTY] O registro precisa conter ao menos um domínio.");
     const candidate = new DomainRegistry(false);
     for (const definition of definitions) candidate.register(definition);
+    for (const domain of candidate.domains.values()) for (const bridge of domain.bridges || []) {
+      if (bridge.domains.some((endpoint) => !candidate.domains.has(endpoint))) throw new Error("[DOMAIN_BRIDGE_DOMAIN_NOT_FOUND] Os dois domínios do bridge devem estar registrados.");
+    }
     this.domains.clear();
     for (const domain of candidate.domains.values()) this.domains.set(domain.id, this.cloneDomain(domain));
     this.browserSnapshotHydrated = true;
@@ -109,6 +122,35 @@ export class DomainRegistry {
     domain.routingTerms = [...new Set(terms.map((term) => term.trim().replace(/\s+/g, " ")))];
     if (priority !== undefined) domain.routingPriority = priority;
     this.persistBrowserSnapshot();
+  }
+
+  registerDomainBridge(anchorDomainId: string, bridge: DomainBridge): void {
+    const domain = this.requireDomain(anchorDomainId);
+    const endpoints = Array.isArray(bridge?.domains) ? [...new Set(bridge.domains.filter((value): value is string => typeof value === "string").map((value) => value.trim()))] : [];
+    const concepts = Array.isArray(bridge?.concepts) ? bridge.concepts.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean) : [];
+    const next = { ...bridge, id: typeof bridge?.id === "string" ? bridge.id.trim() : "", domains: endpoints as [string, string], concepts };
+    if (!next.id || endpoints.length !== 2 || !concepts.length || concepts.some((term) => term.length > 120) || typeof bridge?.description !== "string" || !bridge.description.trim()) throw new Error("[DOMAIN_BRIDGE_INVALID] Bridge requer id, dois domínios, conceitos e descrição válidos.");
+    if (next.domains.some((endpoint) => !this.domains.has(endpoint))) throw new Error("[DOMAIN_BRIDGE_DOMAIN_NOT_FOUND] Os dois domínios do bridge devem estar registrados.");
+    if (!next.domains.includes(anchorDomainId)) throw new Error("[DOMAIN_BRIDGE_INVALID] O domínio proprietário deve ser um endpoint do bridge.");
+    if (this.listDomainBridges().some((candidate) => candidate.id === next.id || candidate.domains.slice().sort().join("|") === next.domains.slice().sort().join("|"))) throw new Error("[DOMAIN_BRIDGE_DUPLICATE] Bridge ou par de domínios já registrado.");
+    domain.bridges = [...(domain.bridges || []), next];
+    // Re-register through validation so the new bridge is checked against the canonical registry.
+    this.register({ ...domain });
+  }
+
+  removeDomainBridge(anchorDomainId: string, bridgeId: string): void {
+    const domain = this.requireDomain(anchorDomainId);
+    if (!(domain.bridges || []).some((bridge) => bridge.id === bridgeId)) throw new Error("[DOMAIN_BRIDGE_NOT_FOUND] Bridge não encontrado neste domínio.");
+    domain.bridges = domain.bridges!.filter((bridge) => bridge.id !== bridgeId);
+    this.persistBrowserSnapshot();
+  }
+
+  listDomainBridges(): DomainBridge[] {
+    return this.listDomains().flatMap((domain) => (domain.bridges || []).filter((bridge) => bridge.enabled).map((bridge) => ({ ...bridge, domains: [...bridge.domains] as [string, string], concepts: [...bridge.concepts] })));
+  }
+
+  resolveDomainBridges(domainId: string): DomainBridge[] {
+    return this.listDomainBridges().filter((bridge) => bridge.domains.includes(domainId));
   }
 
   removeCoOwner(domainId: string, coOwner: string): void {
@@ -171,7 +213,8 @@ export class DomainRegistry {
     const domain = this.resolveDomain(id);
     if (!domain) return [];
     const descendants = this.listDomains().filter((candidate) => this.isDescendantOf(candidate, domain.id)).map((candidate) => candidate.id);
-    return [...new Set([...domain.relatedDomains, ...descendants])];
+    const bridged = this.resolveDomainBridges(domain.id).flatMap((bridge) => bridge.domains.filter((endpoint) => endpoint !== domain.id));
+    return [...new Set([...domain.relatedDomains, ...descendants, ...bridged])];
   }
 
   resolveCapabilities(id: string): string[] {
@@ -228,7 +271,7 @@ export class DomainRegistry {
   }
 
   private cloneDomain(domain: DomainDefinition): DomainDefinition {
-    return { ...domain, coOwners: [...(domain.coOwners || [])], routingTerms: [...(domain.routingTerms || [])], specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
+    return { ...domain, coOwners: [...(domain.coOwners || [])], routingTerms: [...(domain.routingTerms || [])], bridges: domain.bridges?.map((bridge) => ({ ...bridge, domains: [...bridge.domains] as [string, string], concepts: [...bridge.concepts] })), specialists: [...domain.specialists], capabilities: [...domain.capabilities], publicCapabilities: domain.publicCapabilities?.map((capability) => ({ ...capability, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] })), relatedDomains: [...domain.relatedDomains], ownershipHistory: domain.ownershipHistory?.map((entry) => ({ ...entry })) };
   }
 
   private persistBrowserSnapshot(): void {
@@ -247,7 +290,7 @@ export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
     { id: "legal.explainConcept", description: "Fornece contexto conceitual jurídico público; não substitui análise profissional nem consulta de fontes atuais.", input: ["query", "jurisdiction_if_known"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
     { id: "legal.identifyRelevantDomain", description: "Ajuda a identificar o ramo jurídico potencialmente relacionado à pergunta.", input: ["query"], output: ["candidate_domains", "limitations"], allowedConsumers: ["*"] },
   ], routingTerms: ["copyright", "licença", "licenca", "contrato", "direito", "lei", "jurídico", "juridico"], routingPriority: 50, relatedDomains: ["music", "privacy"], enabled: true },
-  { id: "game-development", label: "Game Development", specialists: [], capabilities: [], routingTerms: ["jogo", "game", "mecânica", "mecanica", "gameplay"], routingPriority: 30, relatedDomains: ["music.game-audio"], enabled: true },
+  { id: "game-development", label: "Game Development", specialists: [], capabilities: [], routingTerms: ["jogo", "game", "mecânica", "mecanica", "gameplay"], routingPriority: 30, bridges: [{ id: "gameplay-interactive-audio", domains: ["game-development", "music.game-audio"], concepts: ["interactive audio", "adaptive music", "game audio"], description: "Conecta o desenho de gameplay à implementação e à experiência de áudio interativo.", enabled: true }], relatedDomains: ["music.game-audio"], enabled: true },
   { id: "music.listening", label: "Listening & Curation", parentId: "music", specialists: [], capabilities: ["music.curate"], relatedDomains: [], enabled: true },
   { id: "music.theory", label: "Music Theory", parentId: "music", specialists: [], capabilities: ["music.explainTheory"], publicCapabilities: [{ id: "music.explainTheory", description: "Explica conceitos gerais de teoria musical sem presumir dados ausentes.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], relatedDomains: [], enabled: true },
   { id: "music.theory.harmony", label: "Harmony", parentId: "music.theory", specialists: [], capabilities: ["music.explainHarmony"], publicCapabilities: [{ id: "music.explainHarmony", description: "Explica conceitos de harmonia musical com contexto compacto e rastreável.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] }], routingTerms: ["harmonia", "harmony", "acorde", "acordes", "progressão harmônica", "progressao harmonica"], routingPriority: 80, relatedDomains: [], enabled: true },
@@ -277,7 +320,7 @@ export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
   { id: "legal.labor", label: "Labor", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "legal.family", label: "Family", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "legal.procedural", label: "Procedural", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
-  { id: "legal.intellectual-property", label: "Intellectual Property", parentId: "legal", specialists: [], capabilities: ["legal.explainConcept", "legal.getPublicReferenceContext"], routingTerms: ["copyright", "direito autoral", "royalty free", "royalty-free", "licença", "licenca", "propriedade intelectual", "patente", "marca registrada", "uso comercial", "licença de música", "licenca de musica", "licença de trilha", "licenca de trilha", "licença de áudio", "licenca de audio"], routingPriority: 100, relatedDomains: ["music.asset-provenance", "game-development"], enabled: true },
+  { id: "legal.intellectual-property", label: "Intellectual Property", parentId: "legal", specialists: [], capabilities: ["legal.explainConcept", "legal.getPublicReferenceContext"], routingTerms: ["copyright", "direito autoral", "royalty free", "royalty-free", "licença", "licenca", "propriedade intelectual", "patente", "marca registrada", "uso comercial", "licença de música", "licenca de musica", "licença de trilha", "licenca de trilha", "licença de áudio", "licenca de audio"], routingPriority: 100, bridges: [{ id: "ip-music-provenance", domains: ["legal.intellectual-property", "music.asset-provenance"], concepts: ["copyright", "music licensing", "chain of title"], description: "Distingue a análise de direitos e licenciamento da proveniência documental do asset musical.", enabled: true }], relatedDomains: ["music.asset-provenance", "game-development"], enabled: true },
   { id: "legal.privacy", label: "Privacy", parentId: "legal", specialists: [], capabilities: [], relatedDomains: [], enabled: true },
   { id: "legal.technology", label: "Technology Law", parentId: "legal", specialists: [], capabilities: [], relatedDomains: ["music.technology"], enabled: true },
 ];
@@ -297,6 +340,7 @@ export function mergeDomainDefinitions(defaults: DomainDefinition[], persisted: 
       coOwners: Object.prototype.hasOwnProperty.call(domain, "coOwners") ? domain.coOwners : baseline?.coOwners,
       routingTerms: Object.prototype.hasOwnProperty.call(domain, "routingTerms") ? domain.routingTerms : baseline?.routingTerms,
       routingPriority: Object.prototype.hasOwnProperty.call(domain, "routingPriority") ? domain.routingPriority : baseline?.routingPriority,
+      bridges: Object.prototype.hasOwnProperty.call(domain, "bridges") ? domain.bridges : baseline?.bridges,
       // Older snapshots predate explicit publication contracts. Preserve the
       // reviewed defaults only when the field is absent; an explicit [] remains
       // a deliberate revocation of all public capability exposure.
