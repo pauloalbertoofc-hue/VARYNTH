@@ -390,3 +390,114 @@ test("restores a track's saved motion and environment effect on another signed-i
   await expect(secondDevice.page.locator('[data-visual-scene="true"]')).toHaveAttribute("data-motion-duration", "5");
   await secondDevice.context.close();
 });
+
+test("keeps an explicitly removed account cover cleared when another device has stale local artwork", async ({ browser }) => {
+  test.setTimeout(90_000);
+  const trackId = "9f71c3be-48c4-4f40-a9a7-1590754935b7";
+  const gif = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+  let coverCleared = false;
+  let artworkUploadAttempts = 0;
+
+  async function createAccountDevice(seedStaleLocalArtwork: boolean) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    if (seedStaleLocalArtwork) {
+      await page.goto("/");
+      await page.evaluate(async ({ id, staleCover }) => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("varynth-music-library", 5);
+          request.onupgradeneeded = () => {
+            for (const store of ["tracks", "dna", "waveforms", "visualIdentities", "playlists", "feedback", "visualProfiles", "preferences", "agentMemory", "identities"]) {
+              if (!request.result.objectStoreNames.contains(store)) request.result.createObjectStore(store, { keyPath: "id" });
+            }
+            if (!request.result.objectStoreNames.contains("audio")) request.result.createObjectStore("audio");
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        const transaction = db.transaction("visualProfiles", "readwrite");
+        transaction.objectStore("visualProfiles").put({
+          id, schemaVersion: 1, trackId: id, palette: ["#e879f9", "#818cf8"], accentColor: "#e879f9",
+          coverDataUrl: staleCover, backgroundDataUrl: staleCover, particleType: "stars", particleDensity: .3,
+          glowIntensity: .3, parallaxIntensity: .1, motionSpeed: .16, shaderPreset: "gradient", mood: "calm",
+          beatResponse: .2, bassResponse: .4, midResponse: .3, trebleResponse: .3, reducedMotion: false,
+          updatedAt: new Date().toISOString(),
+        });
+        await new Promise<void>((resolve, reject) => {
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+        });
+        db.close();
+      }, { id: trackId, staleCover: gif });
+    }
+    await page.route("**/api/music/library", async (route) => {
+      if (route.request().method() !== "GET") return route.fulfill({ status: 405 });
+      return route.fulfill({ json: { uploadPrefix: "music/test-owner/tracks", storageMode: "account", tracks: [{ id: trackId, name: "artwork-tombstone-track", artist: "VARYNTH", durationMs: 30_000, mimeType: "audio/mpeg", sizeBytes: 128, addedAt: "2026-10-01T00:00:00.000Z", storageMode: "account" }] } });
+    });
+    await page.route(`**/api/music/tracks/${trackId}/artwork*`, async (route) => route.fulfill({ json: {
+      coverUrl: coverCleared ? undefined : `/mock-music-art/${trackId}-cover.gif`,
+      backgroundUrl: `/mock-music-art/${trackId}-background.gif`,
+      coverCleared, backgroundCleared: false,
+    } }));
+    await page.route("**/api/music/artwork", async (route) => {
+      if (route.request().method() !== "POST") return route.fulfill({ status: 405 });
+      const body = route.request().postDataJSON() as { kind?: string; trackIds?: string[]; assetId?: string; visualSettings?: unknown };
+      if (body.kind === "cover" && !body.assetId && body.trackIds?.includes(trackId)) coverCleared = true;
+      return route.fulfill({ json: { ok: true } });
+    });
+    await page.route("**/api/music/artwork/upload", async (route) => {
+      artworkUploadAttempts += 1;
+      return route.fulfill({ status: 400, json: { error: "Este teste não espera novos uploads." } });
+    });
+    await page.route(`**/api/music/tracks/${trackId}/audio`, async (route) => route.fulfill({ status: 404 }));
+    await page.route("**/mock-music-art/**", async (route) => route.fulfill({ status: 200, contentType: "image/gif", body: Buffer.from(gif.split(",")[1], "base64") }));
+    return { context, page };
+  }
+
+  const first = await createAccountDevice(false);
+  await first.page.goto("/modules/music");
+  await first.page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(first.page.getByRole("button", { name: /artwork-tombstone-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  await first.page.getByRole("button", { name: "Remover capa", exact: true }).click();
+  await expect(first.page.getByTestId("music-visual-status")).toContainText(/Capa removido desta faixa/i);
+  expect(coverCleared).toBe(true);
+  await first.context.close();
+
+  const second = await createAccountDevice(true);
+  await second.page.goto("/modules/music");
+  await second.page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(second.page.getByRole("button", { name: /artwork-tombstone-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => second.page.evaluate(async (id) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("varynth-music-library", 5);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const profile = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const request = db.transaction("visualProfiles", "readonly").objectStore("visualProfiles").get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return { coverCleared: profile?.coverCleared === true, hasCoverData: typeof profile?.coverDataUrl === "string" };
+  }, trackId)).toEqual({ coverCleared: true, hasCoverData: false });
+  expect(artworkUploadAttempts).toBe(0);
+  const localProfile = await second.page.evaluate(async (id) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("varynth-music-library", 5);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const profile = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      const request = db.transaction("visualProfiles", "readonly").objectStore("visualProfiles").get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return profile;
+  }, trackId);
+  expect(localProfile.coverCleared).toBe(true);
+  expect(localProfile.coverDataUrl).toBeUndefined();
+  expect(localProfile.backgroundDataUrl).toBe(`/mock-music-art/${trackId}-background.gif`);
+  await second.context.close();
+});

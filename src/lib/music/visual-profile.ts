@@ -11,6 +11,8 @@ export interface VisualProfile {
   accentColor: string;
   coverDataUrl?: string;
   backgroundDataUrl?: string;
+  coverCleared?: boolean;
+  backgroundCleared?: boolean;
   particleType: ParticleType;
   particleDensity: number;
   glowIntensity: number;

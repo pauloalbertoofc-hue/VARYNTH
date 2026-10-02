@@ -3,6 +3,7 @@ import { isMusicVisualSettings } from "@/lib/music/music-cloud-contracts";
 
 export const dynamic = "force-dynamic";
 const idPattern = /^[a-f0-9-]{36}$/i;
+const clearedArtworkMarker = "CLEARED";
 const key = (namespace: string) => `varynth:music:artwork:v1:${namespace}`;
 const settingsKey = (namespace: string) => `varynth:music:visual-settings:v1:${namespace}`;
 
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
       if (!asset.pathname || !validMusicArtworkBlobPath(asset.pathname, account.namespace)) return Response.json({ error: "Imagem não encontrada nesta conta." }, { status: 404 });
       for (const trackId of body.trackIds as string[]) await musicRedis(["HSET", key(account.namespace), `${trackId}:${body.kind}`, body.assetId]);
     } else {
-      for (const trackId of body.trackIds as string[]) await musicRedis(["HDEL", key(account.namespace), `${trackId}:${body.kind}`]);
+      for (const trackId of body.trackIds as string[]) await musicRedis(["HSET", key(account.namespace), `${trackId}:${body.kind}`, clearedArtworkMarker]);
     }
     return Response.json({ ok: true }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {

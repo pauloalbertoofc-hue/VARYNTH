@@ -54,7 +54,7 @@ export const musicLibrary = {
   streamingUrl(track: MusicTrack): string | undefined {
     return track.storageMode === "account" ? `/api/music/tracks/${encodeURIComponent(track.id)}/audio` : undefined;
   },
-  async getArtworkUrls(trackId: string): Promise<{ coverUrl?: string; backgroundUrl?: string; visualSettings?: MusicVisualSettings }> {
+  async getArtworkUrls(trackId: string): Promise<{ coverUrl?: string; backgroundUrl?: string; coverCleared?: boolean; backgroundCleared?: boolean; visualSettings?: MusicVisualSettings }> {
     if (!accountStorageAvailable) return {};
     const response = await fetch(`/api/music/tracks/${encodeURIComponent(trackId)}/artwork`, { cache: "no-store" });
     if (!response.ok) throw new Error("Não foi possível carregar as imagens salvas na sua conta.");

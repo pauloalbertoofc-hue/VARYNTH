@@ -71,7 +71,7 @@ async function persistAccountVisualProfile(profile: VisualProfile): Promise<Visu
   for (const kind of ["cover", "background"] as const) {
     const field = kind === "cover" ? "coverDataUrl" : "backgroundDataUrl";
     const value = next[field];
-    if (value?.startsWith("data:")) {
+    if (value?.startsWith("data:") && !(kind === "cover" ? profile.coverCleared : profile.backgroundCleared)) {
       const blob = await fetch(value).then((response) => response.blob());
       const extension = blob.type === "image/jpeg" ? "jpg" : blob.type.split("/")[1]?.replace("svg+xml", "svg") || "png";
       const file = new File([blob], `${profile.trackId}.${extension}`, { type: blob.type || "image/png" });
@@ -250,19 +250,25 @@ export default function MusicPage() {
         const stored = await musicStudio.getVisualProfile(selectedTrack.id) as VisualProfile | undefined;
         if (cancelled) return;
         if (stored?.schemaVersion === 1) {
-          const art = (!stored.coverDataUrl || !stored.backgroundDataUrl) ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() }) : undefined;
-          let refreshed: VisualProfile = { ...stored, coverDataUrl: stored.coverDataUrl ?? art?.coverDataUrl, backgroundDataUrl: stored.backgroundDataUrl ?? art?.backgroundDataUrl };
+          const art = ((!stored.coverDataUrl && !stored.coverCleared) || (!stored.backgroundDataUrl && !stored.backgroundCleared)) ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() }) : undefined;
+          let refreshed: VisualProfile = {
+            ...stored,
+            coverDataUrl: stored.coverCleared ? undefined : stored.coverDataUrl ?? art?.coverDataUrl,
+            backgroundDataUrl: stored.backgroundCleared ? undefined : stored.backgroundDataUrl ?? art?.backgroundDataUrl,
+          };
           if (musicLibrary.isAccountStorageAvailable()) {
             const cloud = await musicLibrary.getArtworkUrls(selectedTrack.id);
             const persisted = resolveAccountArtwork(
-              { cover: cloud.coverUrl, background: cloud.backgroundUrl },
-              { cover: stored.coverDataUrl, background: stored.backgroundDataUrl },
+              { cover: cloud.coverUrl, background: cloud.backgroundUrl, coverCleared: cloud.coverCleared, backgroundCleared: cloud.backgroundCleared },
+              { cover: stored.coverDataUrl, background: stored.backgroundDataUrl, coverCleared: stored.coverCleared, backgroundCleared: stored.backgroundCleared },
               { cover: art?.coverDataUrl, background: art?.backgroundDataUrl },
             );
             refreshed = {
               ...refreshed,
               coverDataUrl: persisted.cover,
               backgroundDataUrl: persisted.background,
+              coverCleared: persisted.coverCleared,
+              backgroundCleared: persisted.backgroundCleared,
               ...(cloud.visualSettings ?? {}),
             };
             refreshed = await persistAccountVisualProfile(refreshed);
@@ -271,9 +277,11 @@ export default function MusicPage() {
         }
         else {
           const cloud = musicLibrary.isAccountStorageAvailable() ? await musicLibrary.getArtworkUrls(selectedTrack.id) : {};
-          const generated = !cloud.coverUrl || !cloud.backgroundUrl ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() }) : undefined;
-          const persisted = resolveAccountArtwork({ cover: cloud.coverUrl, background: cloud.backgroundUrl }, {}, { cover: generated?.coverDataUrl, background: generated?.backgroundDataUrl });
-          let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: persisted.cover, backgroundDataUrl: persisted.background, ...(generated ? { palette: generated.palette, accentColor: generated.palette[0] } : {}), ...(cloud.visualSettings ?? {}) };
+          const generateCover = !cloud.coverUrl && !cloud.coverCleared;
+          const generateBackground = !cloud.backgroundUrl && !cloud.backgroundCleared;
+          const generated = generateCover || generateBackground ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() }) : undefined;
+          const persisted = resolveAccountArtwork({ cover: cloud.coverUrl, background: cloud.backgroundUrl, coverCleared: cloud.coverCleared, backgroundCleared: cloud.backgroundCleared }, {}, { cover: generated?.coverDataUrl, background: generated?.backgroundDataUrl });
+          let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: persisted.cover, backgroundDataUrl: persisted.background, coverCleared: persisted.coverCleared, backgroundCleared: persisted.backgroundCleared, ...(generated ? { palette: generated.palette, accentColor: generated.palette[0] } : {}), ...(cloud.visualSettings ?? {}) };
           if (musicLibrary.isAccountStorageAvailable()) profile = await persistAccountVisualProfile(profile);
           await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) setVisualProfile(profile);
         }
@@ -527,8 +535,8 @@ export default function MusicPage() {
         await musicLibrary.uploadArtwork(await asFile(background, "euterpe-background"), "background", targets.map((track) => track.id));
         const urls = await musicLibrary.getArtworkUrls(selectedTrack.id); cover = urls.coverUrl || cover; background = urls.backgroundUrl || background;
       }
-      await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); let profile = { ...base, coverDataUrl: cover, backgroundDataUrl: background, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; if (musicLibrary.isAccountStorageAvailable()) { const urls = await musicLibrary.getArtworkUrls(track.id); profile = { ...profile, coverDataUrl: urls.coverUrl || cover, backgroundDataUrl: urls.backgroundUrl || background }; } await musicStudio.saveVisualProfile(profile); }));
-      const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; setVisualProfile(next); setVisualConcept(result.description);
+      await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); let profile = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; if (musicLibrary.isAccountStorageAvailable()) { const urls = await musicLibrary.getArtworkUrls(track.id); profile = { ...profile, coverDataUrl: urls.coverUrl || cover, backgroundDataUrl: urls.backgroundUrl || background }; } await musicStudio.saveVisualProfile(profile); }));
+      const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; setVisualProfile(next); setVisualConcept(result.description);
       const destination = visualAssetScope === "LIBRARY" ? "à biblioteca inteira" : visualAssetScope === "SELECTED" ? `a ${targets.length} faixas selecionadas` : "à faixa"; const status = `${reduceMotionForArtwork ? "Capa e fundo estáticos" : "Capa e fundo animados"} criados localmente e aplicados ${destination}.`; setVisualActionStatus(status); setMessage(status);
     } catch (error) { const detail = error instanceof Error ? error.message : "Provider indisponível."; setVisualConcept(""); const status = `Erro ao criar visual: ${detail}`; setVisualActionStatus(status); setMessage(status); }
     finally { setVisualBusy(false); }
@@ -561,7 +569,7 @@ export default function MusicPage() {
       await Promise.all(targets.map(async (track) => {
         const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined;
         const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined);
-        let profile: VisualProfile = { ...base, coverDataUrl: cover, backgroundDataUrl: background, updatedAt: stamp };
+        let profile: VisualProfile = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, updatedAt: stamp };
         if (musicLibrary.isAccountStorageAvailable()) {
           const saved = await musicLibrary.getArtworkUrls(track.id);
           profile = { ...profile, coverDataUrl: saved.coverUrl || cover, backgroundDataUrl: saved.backgroundUrl || background, ...(saved.visualSettings ?? {}) };
@@ -569,7 +577,7 @@ export default function MusicPage() {
         await musicStudio.saveVisualProfile({ ...profile });
       }));
       const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna);
-      const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, updatedAt: stamp };
+      const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, updatedAt: stamp };
       setVisualProfile(next); setVisualConcept(result.description);
       const destination = visualAssetScope === "LIBRARY" ? "à biblioteca inteira" : visualAssetScope === "SELECTED" ? `a ${targets.length} faixas selecionadas` : "à faixa";
       const status = `A Athena criou capa e fundo próprios e os salvou ${destination}. O movimento usa o efeito visual escolhido no Music.`; setVisualActionStatus(status); setMessage(status);
@@ -597,15 +605,15 @@ export default function MusicPage() {
         dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error("Não foi possível ler a imagem selecionada.")); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file); });
       }
       const stamp = new Date().toISOString();
-      await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp }); }));
-      const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl } : { backgroundDataUrl: dataUrl }), updatedAt: stamp };
+      await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp }); }));
+      const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp };
       setVisualProfile(current);
       const label = kind === "cover" ? "Capa" : "Fundo"; const animation = file.type === "image/gif" || file.type === "image/webp" ? " animado" : "";
       const destination = visualAssetScope === "LIBRARY" ? "em toda a biblioteca" : visualAssetScope === "SELECTED" ? `em ${targets.length} faixas selecionadas` : "nesta faixa";
       const status = `${label}${animation} salvo de forma permanente ${destination}.`; setVisualActionStatus(status); setMessage(status);
     } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível salvar a imagem."; setVisualActionStatus(status); setMessage(status); }
   };
-  const clearVisualAsset = async (kind: "cover" | "background") => { if (!selectedTrack) return; const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); const stamp = new Date().toISOString(); try { await musicLibrary.clearArtwork(kind, targets.map((track) => track.id)); await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); const next = { ...base, updatedAt: stamp }; if (kind === "cover") delete next.coverDataUrl; else delete next.backgroundDataUrl; await musicStudio.saveVisualProfile(next); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), updatedAt: stamp }; if (kind === "cover") delete current.coverDataUrl; else delete current.backgroundDataUrl; setVisualProfile(current); const status = `${kind === "cover" ? "Capa" : "Fundo"} removido ${visualAssetScope === "LIBRARY" ? "da biblioteca" : visualAssetScope === "SELECTED" ? "das faixas selecionadas" : "desta faixa"}.`; setVisualActionStatus(status); setMessage(status); } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível remover a imagem."; setVisualActionStatus(status); setMessage(status); } };
+  const clearVisualAsset = async (kind: "cover" | "background") => { if (!selectedTrack) return; const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); const stamp = new Date().toISOString(); try { await musicLibrary.clearArtwork(kind, targets.map((track) => track.id)); await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); const next = { ...base, updatedAt: stamp }; if (kind === "cover") { delete next.coverDataUrl; next.coverCleared = true; } else { delete next.backgroundDataUrl; next.backgroundCleared = true; } await musicStudio.saveVisualProfile(next); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), updatedAt: stamp }; if (kind === "cover") { delete current.coverDataUrl; current.coverCleared = true; } else { delete current.backgroundDataUrl; current.backgroundCleared = true; } setVisualProfile(current); const status = `${kind === "cover" ? "Capa" : "Fundo"} removido ${visualAssetScope === "LIBRARY" ? "da biblioteca" : visualAssetScope === "SELECTED" ? "das faixas selecionadas" : "desta faixa"}.`; setVisualActionStatus(status); setMessage(status); } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível remover a imagem."; setVisualActionStatus(status); setMessage(status); } };
   const setVisualMotion = async (mode: VisualMotionMode) => {
     if (!selectedTrack) { const status = "Escolha uma faixa antes de ajustar o movimento."; setVisualActionStatus(status); setMessage(status); return; }
     const modeLabel = mode === "STATIC" ? "estático" : mode === "SMOOTH" ? "suave" : "animado";
