@@ -78,15 +78,15 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   if (match && context.track) return { response: `Posso preparar um perfil visual ${match[0].trim()} para “${context.track.name}”.`, proposal: { kind: "visual-profile", trackId: context.track.id, instruction: match[0].trim() } satisfies EuterpeProposal };
   const playlist = text.match(/playlist(?: chamada| com nome)?\s+["“]?([^"”.,!?]+)["”]?/i);
   if (playlist) return { response: `Preparei um rascunho de playlist “${playlist[1].trim()}”. Revise antes de aplicar.`, proposal: { kind: "playlist", name: playlist[1].trim(), trackIds: context.track ? [context.track.id] : [] } satisfies EuterpeProposal };
+  const negatedPreference = /\b(?:nao|nunca|jamais)\s+(?:gosto|prefiro|adoro|curto|me interessa)\b|\bnao\s+guarde\b|\bnao\s+salve\b/.test(normalized);
+  if (negatedPreference && /\b(?:gosto|prefiro|adoro|curto|me interessa)\b/.test(normalized)) return { response: "Entendi que isso não é uma preferência sua; não vou propor guardar essa informação como gosto musical.", proposal: undefined };
+  if (/\bnao\s+(?:guarde|salve)\b/.test(normalized)) return { response: "Entendido. Não vou propor guardar isso na memória musical.", proposal: undefined };
   if (/\b(estilo|gosto|preferencia|preferência|combina comigo|meu gosto)\b/.test(normalized)) {
     const savedValues = [...new Set([...context.preferences.map((item) => item.value), ...context.memories.map((item) => item.value)].map((value) => value.trim()).filter(Boolean))].slice(0, 5);
     if (savedValues.length) return { response: `Pelo que está salvo na sua memória musical local, aparecem ${savedValues.join(", ")}. Posso usar isso como pista para conversar — não como certeza sobre tudo de que você gosta. Alguma dessas referências você quer priorizar agora?`, proposal: undefined };
     if (/combina comigo|meu gosto/.test(normalized)) return { response: "Ainda não tenho preferências musicais salvas para personalizar essa sugestão. Você pode me dizer dois ou três artistas, estilos ou faixas de que gosta; vou tratá-los como referências suas, não como uma regra fixa.", proposal: undefined };
   }
-  const negatedPreference = /\b(?:nao|nunca|jamais)\s+(?:gosto|prefiro|adoro|curto|me interessa)\b|\bnao\s+guarde\b|\bnao\s+salve\b/.test(normalized);
   const fav = text.match(/(?:gosto|prefiro|adoro|curto|me interessa|tenho apre[cç]o por)\s+(?:muito\s+)?(?:de\s+)?(.{2,70})/i);
-  if (negatedPreference && /\b(?:gosto|prefiro|adoro|curto|me interessa)\b/.test(normalized)) return { response: "Entendi que isso não é uma preferência sua; não vou propor guardar essa informação como gosto musical.", proposal: undefined };
-  if (/\bnao\s+(?:guarde|salve)\b/.test(normalized)) return { response: "Entendido. Não vou propor guardar isso na memória musical.", proposal: undefined };
   if (fav) return { response: `Entendi sua preferência por “${fav[1].trim()}”. Posso guardar isso na memória musical local após sua confirmação.`, proposal: { kind: "preference", key: "explicit-style-preference", value: fav[1].trim() } satisfies EuterpeProposal };
   const asksCurrentTrack = /\b(o que acha|o que voce acha|e essa|e esse|e ela|e essa faixa|e essa musica|o que sente|que sensacao|qual a vibe|qual o clima|combina comigo|o que percebeu)\b/.test(normalized);
   const asksForListening = /\b(analise|analisa|descreva|descreve|o que sente|que sensacao|qual a vibe|qual o clima|o que percebeu)\b/.test(normalized);

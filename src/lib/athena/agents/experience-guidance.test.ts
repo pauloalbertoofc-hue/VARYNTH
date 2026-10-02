@@ -9,6 +9,8 @@ import { strategosAgent } from "./council/strategos";
 import { critiasAgent } from "./council/critias";
 import { logosAgent } from "./council/logos";
 import { justitiaAgent } from "./council/justitia";
+import { curadorPesquisaAgent } from "./council/curador-pesquisa";
+import { mnemosyneAgent } from "./council/mnemosyne";
 
 const pref = (key: string, value: string, overrides: Partial<Preference> = {}): Preference => ({
   id: `${key}-${value}`, ownerId: "guidance-owner", subject: "guidance-owner", domain: "communication", key, value,
@@ -86,6 +88,12 @@ async function main() {
   const guidedLegal = await justitiaAgent.execute(task("Analise a legislação aplicável", "GENERAL_DELIBERATION"), { ...experienceContext, scope: "juridico", experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "legal", scope: "AGENT", scopeId: "justitia", action: "separar a regra aplicável dos fatos ainda não provados" }] } });
   assert.match(guidedLegal.content, /separar a regra aplicável dos fatos ainda não provados/);
   assert.equal(guidedLegal.metadata?.legalAdvice, false);
+  const guidedResearchCuration = await curadorPesquisaAgent.execute(task("Defina uma pesquisa sobre rios"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "research", scope: "AGENT", scopeId: "curador-pesquisa", action: "definir critérios de inclusão antes de comparar fontes" }] } });
+  assert.match(guidedResearchCuration.content, /critérios de inclusão antes de comparar fontes/);
+  assert.equal(guidedResearchCuration.metadata?.externalSearchPerformed, false);
+  const guidedMemory = await mnemosyneAgent.execute(task("Que aprendizado ficou registrado?"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "memory", scope: "AGENT", scopeId: "mnemosyne", action: "separar lembrança registrada de interpretação inferida" }] } });
+  assert.match(guidedMemory.content, /separar lembrança registrada de interpretação inferida/);
+  assert.equal(guidedMemory.metadata?.queriedGraph, false);
   console.log("Athena specialist Experience guidance tests passed");
 }
 
