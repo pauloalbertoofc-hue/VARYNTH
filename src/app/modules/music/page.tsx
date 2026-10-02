@@ -32,6 +32,7 @@ import { resolveVisualAssetTargetIds, type VisualAssetScope } from "@/lib/music/
 import { VisualEffectControls } from "@/components/music/VisualEffectControls";
 import { musicLearningAdapter } from "@/lib/experience/music-learning-adapter";
 import { MusicVisualProviderSettings } from "@/components/music/MusicVisualProviderSettings";
+import { LEGACY_ATHENA_SESSION_STORAGE_KEY, LEGACY_MUSIC_CHAT_STORAGE_KEY, musicChatScopeFromSession, musicChatStorageKeys } from "@/lib/music/music-chat-storage";
 
 const visualProvider = new LocalVisualGenerationProvider();
 const athenaVisualProvider = new RemoteVisualGenerationProvider();
@@ -85,8 +86,6 @@ async function persistAccountVisualProfile(profile: VisualProfile): Promise<Visu
 }
 const colors = ["violet", "cyan", "rose", "amber"];
 const playlistDot: Record<string, string> = { violet: "bg-violet-400", cyan: "bg-cyan-400", rose: "bg-rose-400", amber: "bg-amber-400" };
-const CHAT_STORAGE_KEY = "varynth_music_curator_chat_v1";
-const ATHENA_SESSION_KEY = "varynth_music_curator_athena_session_v1";
 type CuratorMessage = { id: string; sender: "user" | "curator"; text: string; createdAt: string; consultedAthena?: boolean; athenaPlanId?: string; proposal?: EuterpeProposal };
 type MusicView = "home" | "library" | "playlists" | "now-playing";
 const WELCOME: CuratorMessage = { id: "euterpe-welcome-v1", sender: "curator", text: "Euterpe online. Já estou ouvindo com você. Sou sua sub-IA musical, subordinada à Athena; quando o pedido ultrapassa o Music, consulto Athena e retorno para esta conversa.", createdAt: "" };
@@ -109,6 +108,7 @@ export default function MusicPage() {
   const [waveform, setWaveform] = useState<number[]>([]);
   const [dna, setDna] = useState<MusicDNA | undefined>();
   const [visualProfile, setVisualProfile] = useState<VisualProfile | undefined>();
+  const [visualProfileReadyTrackId, setVisualProfileReadyTrackId] = useState<string | null>(null);
   const [previousSceneBackground, setPreviousSceneBackground] = useState<string | undefined>();
   const [reducedMotion, setReducedMotion] = useState(false);
   const [audioFrame, setAudioFrame] = useState({ bass: 0, mids: 0, treble: 0, loudness: 0 });
@@ -128,6 +128,7 @@ export default function MusicPage() {
   const [feedbackRows, setFeedbackRows] = useState<MusicFeedback[]>([]);
   const [activeView, setActiveView] = useState<MusicView>("now-playing");
   const [chatMessages, setChatMessages] = useState<CuratorMessage[]>([WELCOME]);
+  const [chatStorageKey, setChatStorageKey] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const [chatStatus, setChatStatus] = useState("");
@@ -156,8 +157,11 @@ export default function MusicPage() {
   if (!euterpeAgentRef.current) euterpeAgentRef.current = new EuterpeAgent();
   const dnaAccumRef = useRef({ count: 0, loudness: 0, centroid: 0, bass: 0, mids: 0, treble: 0 });
   const sectionSamplesRef = useRef<number[]>([]);
-  const selectedTrack = useMemo(() => tracks.find((track) => track.id === selectedId) ?? null, [tracks, selectedId]);
   const visualProfileRef = useRef<VisualProfile | undefined>(undefined);
+  const selectedTrack = useMemo(() => tracks.find((track) => track.id === selectedId) ?? null, [tracks, selectedId]);
+  const visualProfileReady = !selectedTrack || visualProfileReadyTrackId === selectedTrack.id;
+  const selectedVisualProfile = visualProfile?.trackId === selectedTrack?.id ? visualProfile : undefined;
+  const selectedVisualProfileRef = visualProfileRef.current?.trackId === selectedTrack?.id ? visualProfileRef.current : undefined;
   useEffect(() => { visualProfileRef.current = visualProfile; }, [visualProfile]);
   const permissionEngine = useMemo(() => new PermissionPolicyEngine(), []);
   const visibleTracks = useMemo(() => { const p = playlists.find((item) => item.id === activePlaylist); return p ? tracks.filter((track) => p.trackIds.includes(track.id)) : tracks; }, [tracks, playlists, activePlaylist]);
@@ -201,16 +205,39 @@ export default function MusicPage() {
     return () => offs.forEach((off) => off());
   }, []);
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-      if (raw) { const saved: unknown = JSON.parse(raw); if (Array.isArray(saved) && saved.every((item) => item && (item.sender === "user" || item.sender === "curator") && typeof item.text === "string")) setChatMessages(saved.map((item) => item.sender === "curator" && (item.id === WELCOME.id || item.text.startsWith("Oi! Eu sou a Curadora Musical.")) ? { ...item, id: WELCOME.id, text: WELCOME.text } : item)); }
-      let sessionId = localStorage.getItem(ATHENA_SESSION_KEY);
-      if (!sessionId) { sessionId = `music-curator-${crypto.randomUUID()}`; localStorage.setItem(ATHENA_SESSION_KEY, sessionId); }
-      athenaSessionIdRef.current = sessionId;
-    } catch { /* The chat can still be used for this tab if local storage is blocked. */ }
-    setChatReady(true);
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        if (!response.ok) throw new Error("A identidade da conversa não foi confirmada.");
+        const scope = musicChatScopeFromSession(await response.json());
+        if (!scope) throw new Error("A identidade da conversa não foi confirmada.");
+        const keys = musicChatStorageKeys(scope);
+        const legacyChatKey = LEGACY_MUSIC_CHAT_STORAGE_KEY;
+        const legacySessionKey = LEGACY_ATHENA_SESSION_STORAGE_KEY;
+        const raw = localStorage.getItem(keys.chat) ?? (scope.kind === "device" ? localStorage.getItem(legacyChatKey) : null);
+        if (raw) {
+          const saved: unknown = JSON.parse(raw);
+          if (Array.isArray(saved) && saved.every((item) => item && (item.sender === "user" || item.sender === "curator") && typeof item.text === "string")) {
+            if (active) setChatMessages(saved.map((item) => item.sender === "curator" && (item.id === WELCOME.id || item.text.startsWith("Oi! Eu sou a Curadora Musical.")) ? { ...item, id: WELCOME.id, text: WELCOME.text } : item));
+          }
+        }
+        let sessionId = localStorage.getItem(keys.athenaSession) ?? (scope.kind === "device" ? localStorage.getItem(legacySessionKey) : null);
+        if (!sessionId) sessionId = `music-curator-${crypto.randomUUID()}`;
+        localStorage.setItem(keys.athenaSession, sessionId);
+        if (active) { athenaSessionIdRef.current = sessionId; setChatStorageKey(keys.chat); setChatReady(true); }
+      } catch {
+        if (active) {
+          athenaSessionIdRef.current = `music-curator-ephemeral-${crypto.randomUUID()}`;
+          setChatStorageKey(null);
+          setChatStatus("Não consegui confirmar a conta para salvar a conversa; ela ficará somente nesta sessão.");
+          setChatReady(true);
+        }
+      }
+    })();
+    return () => { active = false; };
   }, []);
-  useEffect(() => { if (chatReady) { try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatMessages)); } catch { /* Keep the current conversation in memory. */ } } }, [chatMessages, chatReady]);
+  useEffect(() => { if (chatReady && chatStorageKey) { try { localStorage.setItem(chatStorageKey, JSON.stringify(chatMessages)); } catch { /* Keep the current conversation in memory. */ } } }, [chatMessages, chatReady, chatStorageKey]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, chatBusy]);
 
   useEffect(() => {
@@ -222,9 +249,10 @@ export default function MusicPage() {
       if (previousSceneTimerRef.current !== null) window.clearTimeout(previousSceneTimerRef.current);
       previousSceneTimerRef.current = window.setTimeout(() => setPreviousSceneBackground(undefined), 1900);
     }
-    setPlaying(false); setCurrentTime(0); setDuration((selectedTrack?.durationMs ?? 0) / 1000); setAudioUrl(null); setDna(undefined); setSections([]); setVisualProfile(undefined);
+    setPlaying(false); setCurrentTime(0); setDuration((selectedTrack?.durationMs ?? 0) / 1000); setAudioUrl(null); setDna(undefined); setSections([]); setVisualProfile(undefined); setVisualProfileReadyTrackId(null);
     dnaAccumRef.current = { count: 0, loudness: 0, centroid: 0, bass: 0, mids: 0, treble: 0 }; sectionSamplesRef.current = [];
-    if (!selectedTrack) return;
+    if (!selectedTrack) { setVisualActionStatus(""); return; }
+    setVisualActionStatus("Carregando o perfil visual desta faixa…");
     setWaveform([]);
     void Promise.all([musicStudio.getDNA(selectedTrack.id), musicStudio.getWaveform(selectedTrack.id)]).then(async ([savedDNA, storedWaveform]) => {
       const streamingUrl = musicLibrary.streamingUrl(selectedTrack);
@@ -273,7 +301,7 @@ export default function MusicPage() {
             };
             refreshed = await persistAccountVisualProfile(refreshed);
           }
-          await musicStudio.saveVisualProfile({ ...refreshed }); if (!cancelled) setVisualProfile(refreshed);
+          await musicStudio.saveVisualProfile({ ...refreshed }); if (!cancelled) { setVisualProfile(refreshed); setVisualProfileReadyTrackId(selectedTrack.id); setVisualActionStatus(""); }
         }
         else {
           const cloud = musicLibrary.isAccountStorageAvailable() ? await musicLibrary.getArtworkUrls(selectedTrack.id) : {};
@@ -283,10 +311,18 @@ export default function MusicPage() {
           const persisted = resolveAccountArtwork({ cover: cloud.coverUrl, background: cloud.backgroundUrl, coverCleared: cloud.coverCleared, backgroundCleared: cloud.backgroundCleared }, {}, { cover: generated?.coverDataUrl, background: generated?.backgroundDataUrl });
           let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: persisted.cover, backgroundDataUrl: persisted.background, coverCleared: persisted.coverCleared, backgroundCleared: persisted.backgroundCleared, ...(generated ? { palette: generated.palette, accentColor: generated.palette[0] } : {}), ...(cloud.visualSettings ?? {}) };
           if (musicLibrary.isAccountStorageAvailable()) profile = await persistAccountVisualProfile(profile);
-          await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) setVisualProfile(profile);
+          await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) { setVisualProfile(profile); setVisualProfileReadyTrackId(selectedTrack.id); setVisualActionStatus(""); }
         }
       }
-    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : "Não foi possível abrir esta faixa."); });
+    }).catch(async (error: unknown) => {
+      if (cancelled) return;
+      setMessage(error instanceof Error ? error.message : "Não foi possível abrir esta faixa.");
+      try {
+        const stored = await musicStudio.getVisualProfile(selectedTrack.id) as VisualProfile | undefined;
+        if (!cancelled) setVisualProfile(stored?.schemaVersion === 1 ? stored : createVisualProfile(selectedTrack.id));
+      } catch { if (!cancelled) setVisualProfile(createVisualProfile(selectedTrack.id)); }
+      if (!cancelled) setVisualProfileReadyTrackId(selectedTrack.id);
+    });
     return () => { cancelled = true; if (temporaryUrl && nextUrl) URL.revokeObjectURL(nextUrl); };
   }, [selectedTrack]);
 
@@ -522,6 +558,7 @@ export default function MusicPage() {
   const generateVisualPrompt = async () => {
     if (visualBusy) return;
     if (!selectedTrack) { const status = "Escolha uma faixa antes de criar o visual."; setVisualActionStatus(status); setMessage(status); return; }
+    if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; }
     const reduceMotionForArtwork = reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false);
     const visualPrompt = prompt.trim() || selectedTrack.name; setVisualBusy(true); setVisualConcept(reduceMotionForArtwork ? "Euterpe está criando uma composição estática para movimento reduzido…" : "Euterpe está compondo uma animação visual local…"); setMessage(reduceMotionForArtwork ? "Criando capa e fundo sem animação…" : "Criando capa animada e fundo em movimento…");
     try {
@@ -536,7 +573,7 @@ export default function MusicPage() {
         const urls = await musicLibrary.getArtworkUrls(selectedTrack.id); cover = urls.coverUrl || cover; background = urls.backgroundUrl || background;
       }
       await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); let profile = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; if (musicLibrary.isAccountStorageAvailable()) { const urls = await musicLibrary.getArtworkUrls(track.id); profile = { ...profile, coverDataUrl: urls.coverUrl || cover, backgroundDataUrl: urls.backgroundUrl || background }; } await musicStudio.saveVisualProfile(profile); }));
-      const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; setVisualProfile(next); setVisualConcept(result.description);
+      const base = selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna); const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, palette: result.palette, accentColor: result.palette[0] ?? base.accentColor, updatedAt: stamp }; setVisualProfile(next); setVisualConcept(result.description);
       const destination = visualAssetScope === "LIBRARY" ? "à biblioteca inteira" : visualAssetScope === "SELECTED" ? `a ${targets.length} faixas selecionadas` : "à faixa"; const status = `${reduceMotionForArtwork ? "Capa e fundo estáticos" : "Capa e fundo animados"} criados localmente e aplicados ${destination}.`; setVisualActionStatus(status); setMessage(status);
     } catch (error) { const detail = error instanceof Error ? error.message : "Provider indisponível."; setVisualConcept(""); const status = `Erro ao criar visual: ${detail}`; setVisualActionStatus(status); setMessage(status); }
     finally { setVisualBusy(false); }
@@ -544,6 +581,7 @@ export default function MusicPage() {
   const generateImagesWithAthena = async () => {
     if (visualBusy) return;
     if (!selectedTrack) { setMessage("Escolha uma faixa antes de pedir imagens à Athena."); return; }
+    if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; }
     const scenePrompt = prompt.trim() || `Uma arte original inspirada no clima de ${selectedTrack.name}`;
     setVisualBusy(true); setVisualConcept("Euterpe enviou seu pedido à Athena. As imagens estão sendo criadas…"); setMessage("Aguardando a capa e o fundo personalizados. Isso pode levar alguns instantes.");
     try {
@@ -576,7 +614,7 @@ export default function MusicPage() {
         }
         await musicStudio.saveVisualProfile({ ...profile });
       }));
-      const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna);
+      const base = selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna);
       const next = { ...base, coverDataUrl: cover, backgroundDataUrl: background, coverCleared: false, backgroundCleared: false, updatedAt: stamp };
       setVisualProfile(next); setVisualConcept(result.description);
       const destination = visualAssetScope === "LIBRARY" ? "à biblioteca inteira" : visualAssetScope === "SELECTED" ? `a ${targets.length} faixas selecionadas` : "à faixa";
@@ -589,6 +627,7 @@ export default function MusicPage() {
   const uploadVisualAsset = async (event: ChangeEvent<HTMLInputElement>, kind: "cover" | "background") => {
     const file = event.target.files?.[0]; event.target.value = "";
     if (!file || !selectedTrack || !file.type.startsWith("image/")) { if (file) { const status = "Escolha uma imagem animada ou estática válida."; setVisualActionStatus(status); setMessage(status); } return; }
+    if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; }
     if (file.size > 20 * 1024 * 1024) { const status = "A imagem pode ter no máximo 20 MB."; setVisualActionStatus(status); setMessage(status); return; }
     const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id));
     const targets = tracks.filter((track) => targetIds.includes(track.id));
@@ -606,19 +645,20 @@ export default function MusicPage() {
       }
       const stamp = new Date().toISOString();
       await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp }); }));
-      const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp };
+      const current = { ...(selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp };
       setVisualProfile(current);
       const label = kind === "cover" ? "Capa" : "Fundo"; const animation = file.type === "image/gif" || file.type === "image/webp" ? " animado" : "";
       const destination = visualAssetScope === "LIBRARY" ? "em toda a biblioteca" : visualAssetScope === "SELECTED" ? `em ${targets.length} faixas selecionadas` : "nesta faixa";
       const status = `${label}${animation} salvo de forma permanente ${destination}.`; setVisualActionStatus(status); setMessage(status);
     } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível salvar a imagem."; setVisualActionStatus(status); setMessage(status); }
   };
-  const clearVisualAsset = async (kind: "cover" | "background") => { if (!selectedTrack) return; const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); const stamp = new Date().toISOString(); try { await musicLibrary.clearArtwork(kind, targets.map((track) => track.id)); await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); const next = { ...base, updatedAt: stamp }; if (kind === "cover") { delete next.coverDataUrl; next.coverCleared = true; } else { delete next.backgroundDataUrl; next.backgroundCleared = true; } await musicStudio.saveVisualProfile(next); })); const current = { ...(visualProfile ?? createVisualProfile(selectedTrack.id, dna)), updatedAt: stamp }; if (kind === "cover") { delete current.coverDataUrl; current.coverCleared = true; } else { delete current.backgroundDataUrl; current.backgroundCleared = true; } setVisualProfile(current); const status = `${kind === "cover" ? "Capa" : "Fundo"} removido ${visualAssetScope === "LIBRARY" ? "da biblioteca" : visualAssetScope === "SELECTED" ? "das faixas selecionadas" : "desta faixa"}.`; setVisualActionStatus(status); setMessage(status); } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível remover a imagem."; setVisualActionStatus(status); setMessage(status); } };
+  const clearVisualAsset = async (kind: "cover" | "background") => { if (!selectedTrack) return; if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; } const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id)); const targets = tracks.filter((track) => targetIds.includes(track.id)); const stamp = new Date().toISOString(); try { await musicLibrary.clearArtwork(kind, targets.map((track) => track.id)); await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); const next = { ...base, updatedAt: stamp }; if (kind === "cover") { delete next.coverDataUrl; next.coverCleared = true; } else { delete next.backgroundDataUrl; next.backgroundCleared = true; } await musicStudio.saveVisualProfile(next); })); const current = { ...(selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna)), updatedAt: stamp }; if (kind === "cover") { delete current.coverDataUrl; current.coverCleared = true; } else { delete current.backgroundDataUrl; current.backgroundCleared = true; } setVisualProfile(current); const status = `${kind === "cover" ? "Capa" : "Fundo"} removido ${visualAssetScope === "LIBRARY" ? "da biblioteca" : visualAssetScope === "SELECTED" ? "das faixas selecionadas" : "desta faixa"}.`; setVisualActionStatus(status); setMessage(status); } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível remover a imagem."; setVisualActionStatus(status); setMessage(status); } };
   const setVisualMotion = async (mode: VisualMotionMode) => {
     if (!selectedTrack) { const status = "Escolha uma faixa antes de ajustar o movimento."; setVisualActionStatus(status); setMessage(status); return; }
+    if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; }
     const modeLabel = mode === "STATIC" ? "estático" : mode === "SMOOTH" ? "suave" : "animado";
     setVisualActionStatus(`Aplicando movimento ${modeLabel} à faixa…`);
-    const base = visualProfileRef.current ?? visualProfile ?? createVisualProfile(selectedTrack.id, dna);
+    const base = selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna);
     const next = applyVisualMotionPreset(base, mode);
     visualProfileRef.current = next;
     setVisualProfile(next);
@@ -633,9 +673,10 @@ export default function MusicPage() {
   };
   const setVisualEffect = async (effect: ParticleType) => {
     if (!selectedTrack) { const status = "Escolha uma faixa antes de mudar o efeito."; setVisualActionStatus(status); setMessage(status); return; }
+    if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; }
     const labels: Record<ParticleType, string> = { none: "sem partículas", dust: "poeira luminosa", rain: "chuva", stars: "estrelas", wave: "ondas de luz" };
     setVisualActionStatus(`Aplicando efeito ${labels[effect]} à faixa…`);
-    const base = visualProfileRef.current ?? visualProfile ?? createVisualProfile(selectedTrack.id, dna);
+    const base = selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna);
     const next = { ...base, particleType: effect, updatedAt: new Date().toISOString() };
     visualProfileRef.current = next;
     setVisualProfile(next);
@@ -649,7 +690,7 @@ export default function MusicPage() {
     }
   };
   const sendToCurator = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const messageText = chatInput.trim(); if (!messageText || chatBusy) return;
+    event.preventDefault(); const messageText = chatInput.trim(); if (!messageText || chatBusy || !chatReady) return;
     const userMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "user", text: messageText, createdAt: new Date().toISOString() };
     setChatMessages((current) => [...current, userMessage]); setChatInput(""); setChatBusy(true);
     let resultOutcome: "response" | "proposal" | "error" = "response";
@@ -698,7 +739,7 @@ export default function MusicPage() {
     try {
       if (proposal.kind === "visual-profile") {
         if (!selectedTrack || selectedTrack.id !== proposal.trackId) throw new Error("Selecione novamente a faixa da proposta.");
-        const base = visualProfile ?? createVisualProfile(selectedTrack.id, dna);
+        const base = selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna);
         const directed = applyVisualDirective(base, proposal.instruction);
         const art = await visualProvider.generate({ prompt: proposal.instruction, title: selectedTrack.name, artist: selectedTrack.artist, style: directed.mood, palette: directed.palette, createdAt: new Date().toISOString() });
         const updated = { ...directed, coverDataUrl: art.coverDataUrl, backgroundDataUrl: art.backgroundDataUrl };
@@ -724,7 +765,7 @@ export default function MusicPage() {
             <p className="mt-5 text-sm text-slate-300">{tracks.length} faixa(s) na sua biblioteca · importe uma ou várias de uma vez pelo botão acima.</p>
             {message && <p role="status" className="mt-3 text-xs text-slate-300">{message}</p>}
           </div>
-          <div className="relative flex aspect-[1.45] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-500/15 via-slate-900 to-cyan-500/10 bg-cover bg-center p-4" style={{ backgroundImage: visualProfile?.backgroundDataUrl ? `linear-gradient(#08081199,#08081199),url("${visualProfile.backgroundDataUrl}")` : undefined, ...visualFrameStyle({ ...(visualProfile ?? createVisualProfile(selectedId ?? "empty", dna)), reducedMotion: reducedMotion || (visualProfile?.reducedMotion ?? false) }, { ...audioFrame, playing }) } as CSSProperties} aria-label={`Visualização musical, qualidade ${quality}`}>
+          <div className="relative flex aspect-[1.45] items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-500/15 via-slate-900 to-cyan-500/10 bg-cover bg-center p-4" style={{ backgroundImage: selectedVisualProfile?.backgroundDataUrl ? `linear-gradient(#08081199,#08081199),url("${selectedVisualProfile.backgroundDataUrl}")` : undefined, ...visualFrameStyle({ ...(selectedVisualProfile ?? createVisualProfile(selectedId ?? "empty", dna)), reducedMotion: reducedMotion || (selectedVisualProfile?.reducedMotion ?? false) }, { ...audioFrame, playing }) } as CSSProperties} aria-label={`Visualização musical, qualidade ${quality}`}>
             <div className="flex h-full w-full items-end justify-center gap-[3px]" aria-hidden="true">{spectrum.map((value, i) => <span key={i} className="min-h-1 flex-1 rounded-t-full bg-gradient-to-t from-violet-500 to-cyan-300 transition-[height] duration-75" style={{ height: `${Math.max(3, value * 100)}%`, opacity: playing ? 0.35 + value * 0.65 : 0.25 }} />)}</div>
             <svg aria-hidden="true" className="pointer-events-none absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points={waveform.map((sample, i) => `${(i / Math.max(1, waveform.length - 1)) * 100},${50 - sample * 45}`).join(" ")} fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" /></svg>
             <Disc3 size={45} className={`absolute text-white/60 ${playing ? "animate-spin [animation-duration:8s]" : ""}`} strokeWidth={0.8} />
@@ -734,11 +775,11 @@ export default function MusicPage() {
       </section>
 
       <section hidden={activeView !== "now-playing"} className="absolute inset-0 isolate overflow-hidden bg-[#080811]" aria-label="Cena Tocando agora">
-        <VisualScene sceneId={selectedTrack?.id ?? "empty-scene"} background={visualProfile?.backgroundDataUrl} coverArtwork={visualProfile?.coverDataUrl} previousBackground={previousSceneBackground} accent={visualProfile?.accentColor} energy={reactiveMotion ? audioFrame : { bass: 0, mids: 0, treble: 0, loudness: 0 }} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} motionSpeed={visualProfile?.motionSpeed ?? 0.2} particleType={visualProfile?.particleType ?? "stars"} particleDensity={visualProfile?.particleDensity ?? 0.3} />
+        <VisualScene sceneId={selectedTrack?.id ?? "empty-scene"} background={selectedVisualProfile?.backgroundDataUrl} coverArtwork={selectedVisualProfile?.coverDataUrl} previousBackground={previousSceneBackground} accent={selectedVisualProfile?.accentColor} energy={reactiveMotion ? audioFrame : { bass: 0, mids: 0, treble: 0, loudness: 0 }} reducedMotion={reducedMotion || reducedMotionSetting || (selectedVisualProfile?.reducedMotion ?? false)} motionSpeed={selectedVisualProfile?.motionSpeed ?? 0.2} particleType={selectedVisualProfile?.particleType ?? "stars"} particleDensity={selectedVisualProfile?.particleDensity ?? 0.3} />
         {!selectedTrack ? <div className="relative z-10 grid h-full place-items-center px-6 text-center"><div><Music2 className="mx-auto mb-4 text-slate-300/70" size={42} /><h2 className="text-2xl text-white">A música ainda não chegou</h2><p className="mt-2 text-sm text-white/60">Escolha uma faixa para abrir seu ambiente sonoro.</p><button onClick={() => setActiveView("library")} className="mt-5 rounded-lg bg-violet-500 px-4 py-2 text-sm text-white">Abrir biblioteca</button></div></div>
           : <div className="pointer-events-none absolute inset-0 z-10">
             <div className="absolute left-[7%] top-[25%] max-w-[44%] text-left sm:top-[30%]"><p className="text-[10px] uppercase tracking-[0.38em] text-violet-100/75">VARYNTH · MUSIC · NOW PLAYING</p><p className="mt-5 text-xs uppercase tracking-[0.24em] text-violet-100">{playing ? "Em reprodução" : "Em pausa"}</p><h2 className="mt-3 break-words text-3xl font-semibold text-white drop-shadow-lg sm:text-5xl lg:text-6xl">{selectedTrack.name}</h2><p className="mt-2 text-sm text-white/75 sm:text-lg">{selectedTrack.artist}{selectedTrack.album ? ` · ${selectedTrack.album}` : ""}</p></div>
-            <div className="pointer-events-auto absolute right-[7%] top-[16%] w-[min(43vw,520px)] sm:top-[15%]"><CoverPresentation src={visualProfile?.coverDataUrl} title={selectedTrack.name} accent={visualProfile?.accentColor ?? "#b997f4"} bass={reactiveMotion ? audioFrame.bass : 0} mids={reactiveMotion ? audioFrame.mids : 0} playing={playing} reducedMotion={reducedMotion || reducedMotionSetting || (visualProfile?.reducedMotion ?? false)} motionSpeed={visualProfile?.motionSpeed ?? 0.2} /></div>
+            <div className="pointer-events-auto absolute right-[7%] top-[16%] w-[min(43vw,520px)] sm:top-[15%]"><CoverPresentation src={selectedVisualProfile?.coverDataUrl} title={selectedTrack.name} accent={selectedVisualProfile?.accentColor ?? "#b997f4"} bass={reactiveMotion ? audioFrame.bass : 0} mids={reactiveMotion ? audioFrame.mids : 0} playing={playing} reducedMotion={reducedMotion || reducedMotionSetting || (selectedVisualProfile?.reducedMotion ?? false)} motionSpeed={selectedVisualProfile?.motionSpeed ?? 0.2} /></div>
             <div className="pointer-events-auto absolute bottom-5 left-[6%] right-[6%] sm:bottom-7 sm:left-[8%] sm:right-[8%]">
               <div role="slider" aria-label={waveform.length ? "Waveform da faixa. Toque ou arraste para buscar" : "Posição na faixa. Toque ou arraste para buscar; waveform indisponível"} aria-valuemin={0} aria-valuemax={duration || 0} aria-valuenow={Math.min(currentTime, duration || 0)} tabIndex={audioUrl && duration > 0 ? 0 : -1} onKeyDown={(event) => { if (!audioRef.current || !duration) return; const next = Math.max(0, Math.min(duration, currentTime + (event.key === "ArrowLeft" ? -5 : event.key === "ArrowRight" ? 5 : 0))); audioRef.current.currentTime = next; setCurrentTime(next); }} onPointerDown={(event) => { if (!audioRef.current || !duration) return; event.currentTarget.setPointerCapture(event.pointerId); const bounds = event.currentTarget.getBoundingClientRect(); const next = musicSeekTimeAtPointer(event.clientX, bounds.left, bounds.width, duration); audioRef.current.currentTime = next; setCurrentTime(next); }} onPointerMove={(event) => { if (event.buttons === 1 && audioRef.current && duration) { const bounds = event.currentTarget.getBoundingClientRect(); const next = musicSeekTimeAtPointer(event.clientX, bounds.left, bounds.width, duration); audioRef.current.currentTime = next; setCurrentTime(next); } }} className="flex h-10 cursor-pointer items-center gap-[2px] touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300">
                 {waveform.length ? waveform.map((peak, i) => { const progress = (i + .5) / waveform.length <= (duration ? currentTime / duration : 0); return <span key={i} className={`flex-1 rounded-full transition-colors duration-150 ${progress ? "bg-cyan-100 shadow-[0_0_9px_rgba(165,243,252,.55)]" : "bg-white/40"}`} style={{ height: `${Math.max(3, peak * 100)}%`, transform: `scaleY(${1 + audioFrame.bass * .08})` }} />; }) : <span className="h-px w-full bg-white/35"><span className="block h-px bg-cyan-100" style={{ width: `${duration ? currentTime/duration*100 : 0}%` }} /></span>}
@@ -755,8 +796,8 @@ export default function MusicPage() {
         <button aria-label="Fechar conversa com Euterpe" onClick={() => setChatOpen(false)} className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[2px] lg:bg-transparent lg:backdrop-blur-none" />
         <section role="dialog" aria-modal="true" aria-label="Conversa com Euterpe" className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88svh] flex-col overflow-hidden rounded-t-3xl border border-violet-300/20 bg-[#0c0c15]/95 shadow-[0_-25px_100px_rgba(0,0,0,.65)] backdrop-blur-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[430px] lg:max-h-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l">
         <div className="flex min-h-[92px] items-center justify-between border-b border-white/[0.07] px-5 py-2"><div className="flex min-w-0 items-center gap-3"><EuterpeCharacterArtwork variant="chibi" state={euterpeState} width={48} label="Euterpe" /><div className="min-w-0"><h3 className="font-semibold text-white">Euterpe</h3><p className="mt-1 text-xs text-slate-400">Uma presença musical própria · ligada à Athena</p></div></div><div className="flex items-center gap-2"><button type="button" disabled={!euterpeVoiceProvider.available} title={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "STT/TTS ainda não configurados"} aria-label={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "Conversa por voz indisponível"} className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-500 disabled:cursor-not-allowed"><Mic2 size={16} /></button><button type="button" onClick={() => setChatOpen(false)} aria-label="Fechar conversa" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-300"><X size={17} /></button></div></div>
-        <div className="max-h-[32rem] space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">{chatMessages.map((chat) => <div key={chat.id}><div className={`flex ${chat.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 ${chat.sender === "user" ? "bg-violet-500/20 text-violet-50" : "border border-white/[0.07] bg-white/[0.03] text-slate-200"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{chat.sender === "user" ? "Você" : `Euterpe${chat.consultedAthena ? " · consultou Athena" : ""}`}</p><p className="whitespace-pre-wrap text-sm leading-6">{chat.text}</p>{chat.proposal && <button onClick={() => void applyProposal(chat.proposal!)} className="mt-3 rounded-lg border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100">Revisar e aplicar proposta</button>}</div></div>{chat.athenaPlanId && <div className="mt-3"><p className="mb-2 text-xs text-amber-200">Athena preparou um plano para revisão. Aprove, confirme ou execute pelos controles abaixo conforme as permissões.</p><AthenaCapabilityPlanPanel store={store} planId={chat.athenaPlanId} /></div>}</div>)}{chatBusy && <p className="text-xs text-violet-300" role="status">{chatStatus}</p>}<div ref={chatEndRef} /></div>
-        <form onSubmit={(event) => void sendToCurator(event)} className="flex gap-2 border-t border-white/[0.07] p-3"><input aria-label="Mensagem para Euterpe" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Converse com Euterpe…" disabled={chatBusy} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-600" /><button type="submit" aria-label="Enviar para Euterpe" disabled={chatBusy || !chatInput.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:opacity-40"><Send size={17} /></button></form>
+        <div className="max-h-[32rem] space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">{!chatReady && <p className="text-xs text-slate-400" role="status">Preparando uma conversa privada…</p>}{chatMessages.map((chat) => <div key={chat.id}><div className={`flex ${chat.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 ${chat.sender === "user" ? "bg-violet-500/20 text-violet-50" : "border border-white/[0.07] bg-white/[0.03] text-slate-200"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{chat.sender === "user" ? "Você" : `Euterpe${chat.consultedAthena ? " · consultou Athena" : ""}`}</p><p className="whitespace-pre-wrap text-sm leading-6">{chat.text}</p>{chat.proposal && <button onClick={() => void applyProposal(chat.proposal!)} className="mt-3 rounded-lg border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100">Revisar e aplicar proposta</button>}</div></div>{chat.athenaPlanId && <div className="mt-3"><p className="mb-2 text-xs text-amber-200">Athena preparou um plano para revisão. Aprove, confirme ou execute pelos controles abaixo conforme as permissões.</p><AthenaCapabilityPlanPanel store={store} planId={chat.athenaPlanId} /></div>}</div>)}{chatBusy && <p className="text-xs text-violet-300" role="status">{chatStatus}</p>}{chatReady && chatStatus && !chatBusy && <p className="text-xs text-amber-200" role="status">{chatStatus}</p>}<div ref={chatEndRef} /></div>
+        <form onSubmit={(event) => void sendToCurator(event)} className="flex gap-2 border-t border-white/[0.07] p-3"><input aria-label="Mensagem para Euterpe" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Converse com Euterpe…" disabled={chatBusy || !chatReady} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-600" /><button type="submit" aria-label="Enviar para Euterpe" disabled={chatBusy || !chatReady || !chatInput.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:opacity-40"><Send size={17} /></button></form>
         <p className="px-4 pb-3 text-[10px] text-slate-600">Você conversa com Euterpe; quando o pedido exige recursos gerais, ela consulta Athena e traz a resposta. Histórico e memória ficam neste navegador.</p>
         </section>
       </>}
@@ -779,7 +820,24 @@ export default function MusicPage() {
       <div hidden={activeView !== "library"} className="grid gap-5 lg:grid-cols-2">
         <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><div className="flex items-center justify-between"><h3 className="font-semibold text-white">Music DNA · v2</h3><button onClick={() => void saveDNA()} disabled={!selectedTrack} className="rounded-lg bg-violet-500/20 px-3 py-1.5 text-xs text-violet-200 disabled:opacity-40">Atualizar análise</button></div><p className="text-xs text-slate-500">Amostras locais acumulam durante a reprodução e salvam gradualmente. {dna ? `Estado: ${dna.status.toLowerCase()}.` : "Estado: aguardando reprodução."}</p>{dna ? <div className="grid grid-cols-3 gap-2 text-xs text-slate-300">{[["Energia", dna.meanLoudness], ["Graves", dna.bass], ["Médios", dna.mids], ["Agudos", dna.treble], ["Centro espectral", dna.spectralCentroid], ["Calma estimada", dna.calmness]].map(([label, value]) => <div key={String(label)} className="rounded-lg bg-white/[0.04] p-2">{label}<strong className="mt-1 block">{Number(value).toFixed(2)}</strong></div>)}</div> : <p className="text-sm text-slate-500">{selectedTrack ? musicSpecialist.memory(selectedTrack) : "Selecione uma faixa."}</p>}{sections.length > 0 && <p className="text-xs text-slate-400">Seções estimadas (confiança baixa a moderada): {sections.map((s) => `${s.label} ${formatMusicTime(s.timeSeconds * 1000)} (${Math.round(s.confidence * 100)}%)`).join(" · ")}</p>}<p className="text-xs text-slate-500">{selectedTrack ? musicSpecialist.suggest(selectedTrack, dna) : "Euterpe responde dentro do Music e consulta Athena para capacidades gerais da plataforma."}</p></section>
         <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Playlists locais</h3><div className="flex gap-2"><input aria-label="Nome da playlist" value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Nome da playlist" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void createPlaylist()} className="rounded-lg bg-violet-500 px-3 text-sm text-white">Criar</button></div>{playlists.map((p) => <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-sm text-slate-300"><button onClick={() => setActivePlaylist(p.id)} className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${playlistDot[p.color] ?? playlistDot.violet}`} />{p.name} · {p.trackIds.length} faixas</button><span className="flex gap-3"><button onClick={() => void renamePlaylist(p)} className="text-xs text-slate-400">Renomear</button><button onClick={() => void addToPlaylist(p)} disabled={!selectedId || p.trackIds.includes(selectedId)} className="text-xs text-violet-300 disabled:text-slate-600">Adicionar</button><button onClick={() => void removeFromPlaylist(p)} disabled={!selectedId || !p.trackIds.includes(selectedId)} className="text-xs text-rose-300 disabled:text-slate-600">Remover faixa</button></span></div>)}</section>
-        <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Personalizar visual da faixa</h3><p className="text-xs text-slate-500">A identidade fica salva por faixa. Envie GIF ou WebP animado, crie uma composição local ou peça à Athena imagens originais para a capa e o fundo.</p><label className="flex items-center gap-2 text-xs text-slate-400">Aplicar imagem em<select value={visualAssetScope} onChange={(event) => setVisualAssetScope(event.target.value as VisualAssetScope)} className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-slate-200"><option value="TRACK">Somente esta faixa</option><option value="SELECTED">Faixas específicas</option><option value="LIBRARY">Todas as faixas da biblioteca</option></select></label>{visualAssetScope === "SELECTED" && <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2 text-xs text-slate-300">{tracks.map((track) => <label key={track.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-white/5"><input type="checkbox" checked={track.id === selectedTrack?.id || visualTargetIds.includes(track.id)} disabled={track.id === selectedTrack?.id} onChange={() => setVisualTargetIds((ids) => ids.includes(track.id) ? ids.filter((id) => id !== track.id) : [...ids, track.id])} />{track.name}</label>)}</div>}<div className="flex flex-wrap gap-2"><label className="cursor-pointer rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200">Escolher capa ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" onChange={(e) => void uploadVisualAsset(e, "cover")} /></label><label className="cursor-pointer rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200">Escolher fundo ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" onChange={(e) => void uploadVisualAsset(e, "background")} /></label><button onClick={() => void generateVisualPrompt()} disabled={visualBusy} className="rounded-lg border border-violet-300/20 px-3 py-2 text-xs text-violet-200">{visualBusy ? "Criando…" : "Criar visual local"}</button><button type="button" data-testid="create-athena-music-artwork" onClick={() => void generateImagesWithAthena()} disabled={visualBusy || !selectedTrack} className="rounded-lg bg-violet-500 px-3 py-2 text-xs text-white disabled:opacity-50">{visualBusy ? "Athena criando…" : "Criar capa e fundo com Athena"}</button><button type="button" onClick={() => void clearVisualAsset("cover")} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Remover capa</button><button type="button" onClick={() => void clearVisualAsset("background")} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Remover fundo</button></div><MusicVisualProviderSettings /><VisualEffectControls profile={visualProfile ?? createVisualProfile(selectedTrack?.id ?? "empty", dna)} onMotionChange={(mode) => void setVisualMotion(mode)} onEffectChange={(effect) => void setVisualEffect(effect)} /><div className="flex gap-2"><input aria-label="Prompt visual" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Intenção visual para Euterpe" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void generateVisualPrompt()} disabled={visualBusy} className="rounded-lg bg-violet-500 px-3 text-sm text-white disabled:opacity-50">{visualBusy ? "Criando…" : "Criar briefing"}</button></div>{(visualConcept || visualActionStatus || message) && <div aria-live="polite" className="space-y-1 text-sm text-slate-300">{visualConcept && <p role="status">{visualConcept}</p>}{visualActionStatus && <p role="status" data-testid="music-visual-status">{visualActionStatus}</p>}{message && message !== visualActionStatus && <p role="status">{message}</p>}</div>}</section>
+        <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5">
+          <h3 className="font-semibold text-white">Personalizar visual da faixa</h3>
+          <p className="text-xs text-slate-500">A identidade fica salva por faixa. Envie GIF ou WebP animado, crie uma composição local ou peça à Athena imagens originais para a capa e o fundo.</p>
+          <label className="flex items-center gap-2 text-xs text-slate-400">Aplicar imagem em<select value={visualAssetScope} onChange={(event) => setVisualAssetScope(event.target.value as VisualAssetScope)} className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-slate-200"><option value="TRACK">Somente esta faixa</option><option value="SELECTED">Faixas específicas</option><option value="LIBRARY">Todas as faixas da biblioteca</option></select></label>
+          {visualAssetScope === "SELECTED" && <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2 text-xs text-slate-300">{tracks.map((track) => <label key={track.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-white/5"><input type="checkbox" checked={track.id === selectedTrack?.id || visualTargetIds.includes(track.id)} disabled={track.id === selectedTrack?.id} onChange={() => setVisualTargetIds((ids) => ids.includes(track.id) ? ids.filter((id) => id !== track.id) : [...ids, track.id])} />{track.name}</label>)}</div>}
+          <div className="flex flex-wrap gap-2">
+            <label aria-disabled={!visualProfileReady || !selectedTrack} className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 ${visualProfileReady && selectedTrack ? "cursor-pointer" : "cursor-wait opacity-50"}`}>Escolher capa ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" disabled={!visualProfileReady || !selectedTrack || visualBusy} onChange={(e) => void uploadVisualAsset(e, "cover")} /></label>
+            <label aria-disabled={!visualProfileReady || !selectedTrack} className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 ${visualProfileReady && selectedTrack ? "cursor-pointer" : "cursor-wait opacity-50"}`}>Escolher fundo ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" disabled={!visualProfileReady || !selectedTrack || visualBusy} onChange={(e) => void uploadVisualAsset(e, "background")} /></label>
+            <button onClick={() => void generateVisualPrompt()} disabled={visualBusy || !selectedTrack || !visualProfileReady} className="rounded-lg border border-violet-300/20 px-3 py-2 text-xs text-violet-200 disabled:cursor-wait disabled:opacity-50">{visualBusy ? "Criando…" : "Criar visual local"}</button>
+            <button type="button" data-testid="create-athena-music-artwork" onClick={() => void generateImagesWithAthena()} disabled={visualBusy || !selectedTrack || !visualProfileReady} className="rounded-lg bg-violet-500 px-3 py-2 text-xs text-white disabled:cursor-wait disabled:opacity-50">{visualBusy ? "Athena criando…" : "Criar capa e fundo com Athena"}</button>
+            <button type="button" onClick={() => void clearVisualAsset("cover")} disabled={!selectedTrack || !visualProfileReady || visualBusy} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 disabled:cursor-wait disabled:opacity-50">Remover capa</button>
+            <button type="button" onClick={() => void clearVisualAsset("background")} disabled={!selectedTrack || !visualProfileReady || visualBusy} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 disabled:cursor-wait disabled:opacity-50">Remover fundo</button>
+          </div>
+          <MusicVisualProviderSettings />
+          <VisualEffectControls ready={visualProfileReady && Boolean(selectedTrack)} profile={selectedVisualProfile ?? createVisualProfile(selectedTrack?.id ?? "empty", dna)} onMotionChange={(mode) => void setVisualMotion(mode)} onEffectChange={(effect) => void setVisualEffect(effect)} />
+          <div className="flex gap-2"><input aria-label="Prompt visual" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Intenção visual para Euterpe" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void generateVisualPrompt()} disabled={visualBusy || !selectedTrack || !visualProfileReady} className="rounded-lg bg-violet-500 px-3 text-sm text-white disabled:opacity-50">{visualBusy ? "Criando…" : "Criar briefing"}</button></div>
+          {(visualConcept || visualActionStatus || message) && <div aria-live="polite" className="space-y-1 text-sm text-slate-300">{visualConcept && <p role="status">{visualConcept}</p>}{visualActionStatus && <p role="status" data-testid="music-visual-status">{visualActionStatus}</p>}{message && message !== visualActionStatus && <p role="status">{message}</p>}</div>}
+        </section>
         <section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h3 className="font-semibold text-white">Feedback revisável · {feedbackCount}</h3><p className="text-xs text-slate-500">Dados locais, sem retreino ou ajuste automático.</p><div className="flex gap-3"><select aria-label="Nota da faixa" value={feedbackRating} onChange={(e) => setFeedbackRating(Number(e.target.value))} className="rounded-lg bg-slate-900 p-2 text-sm text-white">{[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}</select><input aria-label="Observação da avaliação" value={feedbackNote} onChange={(e) => setFeedbackNote(e.target.value)} placeholder="Observação opcional" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white" /></div><div className="flex gap-2"><button onClick={() => void recordFeedback()} disabled={!selectedTrack} className="rounded-lg bg-violet-500/20 px-3 py-2 text-xs text-violet-200">Registrar avaliação</button><button onClick={() => void exportFeedback()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Exportar JSON para revisão</button></div><div className="max-h-24 space-y-1 overflow-y-auto text-xs text-slate-500">{feedbackRows.slice(0, 6).map((row) => <p key={row.id}>{tracks.find((track) => track.id === row.trackId)?.name ?? row.trackId} · {row.rating}/5{row.note ? ` · ${row.note}` : ""}</p>)}</div></section>
       </div>
       <section hidden={activeView !== "playlists"} className="grid gap-5 lg:grid-cols-2"><div className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h2 className="font-semibold text-white">Suas playlists</h2><div className="flex gap-2"><input aria-label="Nome da playlist" value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Nome da playlist" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" /><button onClick={() => void createPlaylist()} className="rounded-lg bg-violet-500 px-3 text-sm text-white">Criar</button></div>{playlists.length ? playlists.map((p) => <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-sm text-slate-300"><button onClick={() => { setActivePlaylist(p.id); setActiveView("library"); }} className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${playlistDot[p.color] ?? playlistDot.violet}`} />{p.name} · {p.trackIds.length} faixas</button><span className="flex gap-3"><button onClick={() => void renamePlaylist(p)} className="text-xs text-slate-400">Renomear</button><button onClick={() => void addToPlaylist(p)} disabled={!selectedId || p.trackIds.includes(selectedId)} className="text-xs text-violet-300 disabled:text-slate-600">Adicionar faixa atual</button><button onClick={() => void removeFromPlaylist(p)} disabled={!selectedId || !p.trackIds.includes(selectedId)} className="text-xs text-rose-300 disabled:text-slate-600">Remover faixa atual</button></span></div>) : <p className="text-sm text-slate-500">Crie uma playlist para organizar suas faixas.</p>}</div><section className="space-y-3 rounded-2xl border border-white/[0.08] bg-[#101018] p-5"><h2 className="font-semibold text-white">Feedback revisável · {feedbackCount}</h2><p className="text-xs text-slate-500">Dados locais, sem retreino ou ajuste automático.</p><div className="flex gap-3"><select aria-label="Nota da faixa" value={feedbackRating} onChange={(e) => setFeedbackRating(Number(e.target.value))} className="rounded-lg bg-slate-900 p-2 text-sm text-white">{[1, 2, 3, 4, 5].map((n) => <option key={n}>{n}</option>)}</select><input aria-label="Observação da avaliação" value={feedbackNote} onChange={(e) => setFeedbackNote(e.target.value)} placeholder="Observação opcional" className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white" /></div><div className="flex gap-2"><button onClick={() => void recordFeedback()} disabled={!selectedTrack} className="rounded-lg bg-violet-500/20 px-3 py-2 text-xs text-violet-200">Registrar avaliação da faixa atual</button><button onClick={() => void exportFeedback()} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">Exportar JSON</button></div>{feedbackRows.slice(0, 6).map((row) => <p key={row.id} className="text-xs text-slate-500">{tracks.find((track) => track.id === row.trackId)?.name ?? row.trackId} · {row.rating}/5{row.note ? ` · ${row.note}` : ""}</p>)}</section></section>

@@ -39,7 +39,7 @@
     "test:music:import": "npx tsx src/lib/music/music-import.test.ts && npx tsx src/lib/music/music-metadata.test.ts",
     "test:music:cloud": "npx tsx src/lib/auth/music-blob-callback.test.ts && npx tsx src/lib/music/music-cloud-contracts.test.ts",
     "test:music:studio": "npx tsx src/lib/music/music-studio.test.ts",
-    "test:music:chat": "npx tsx src/lib/music/music-agent-bridge.test.ts",
+    "test:music:chat": "npx tsx src/lib/music/music-agent-bridge.test.ts && npx tsx src/lib/music/music-chat-storage.test.ts",
     "test:music:athena": "npx tsx src/lib/athena/agents/council/music-curator.test.ts",
     "test:music:ai": "npx tsx src/lib/music/music-visual-ai-core.test.ts",
     "test:music:advanced": "npx tsx src/lib/music/visual-profile.test.ts && npx tsx src/lib/music/visual-artwork-persistence.test.ts && npx tsx src/lib/music/visual-identity.test.ts && npx tsx src/lib/music/audio-source-resolver.test.ts && npx tsx src/lib/music/euterpe.test.ts && npx tsx src/lib/music/euterpe-character.test.ts && npx tsx src/lib/music/euterpe-avatar.test.ts && npx tsx src/lib/music/euterpe-agent.test.ts && npx tsx src/lib/music/euterpe-living.test.ts && npx tsx src/lib/music/music-engine.test.ts && npx tsx src/lib/music/euterpe-voice.test.ts && npx tsx src/lib/music/music-playback.test.ts",

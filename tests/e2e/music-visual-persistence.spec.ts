@@ -31,6 +31,7 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await expect(page.getByRole("button", { name: /persistent-cover/i }).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: /second-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
   const mediaTitle = await page.evaluate(() => navigator.mediaSession?.metadata?.title ?? null);
   expect(mediaTitle).toContain("persistent-cover");
   const coverInput = page.locator('input[type="file"][accept*="image/gif"]').first();
@@ -55,7 +56,9 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await expect(page.locator('img[src^="data:image/gif"], img[src*="/artwork?kind="]').first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-visual-scene="true"] img[src^="data:image/gif"], [data-visual-scene="true"] img[src*="/artwork?kind="]').first()).toBeVisible();
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Animado" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
+  await expect(page.locator("[data-motion-mode]")).toHaveAttribute("data-motion-mode", "ANIMATED", { timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Animado" })).toHaveAttribute("aria-pressed", "true", { timeout: 20_000 });
   await expect(page.getByLabel("Efeito do ambiente musical")).toHaveValue("rain");
   await page.getByRole("button", { name: "Animado", exact: true }).click();
   await expect(page.getByRole("button", { name: "Animado", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -90,6 +93,7 @@ test("creates and persists an animated local cover and background with visible c
   });
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await expect(page.getByRole("button", { name: /generated-animated-visual/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
   await page.getByRole("button", { name: "Criar visual local", exact: true }).click();
 
   await expect(page.getByTestId("music-visual-status")).toContainText(/Capa e fundo animados criados localmente e aplicados à faixa/i, { timeout: 20_000 });
@@ -175,6 +179,7 @@ test("connects a private image provider then asks Athena for separate saved Musi
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await page.locator('input[type="file"][accept*="audio"]').setInputFiles({ name: "athena-artwork-track.wav", mimeType: "audio/wav", buffer: shortWav() });
   await expect(page.getByRole("button", { name: /athena-artwork-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
 
   await page.getByText("Conectar geração de imagens à Athena").click();
   await page.getByLabel("Chave de API de imagens").fill(secret);
@@ -204,6 +209,7 @@ test("shows an actionable error when Athena has no image provider configured", a
   await page.locator('input[type="file"][accept*="audio"]').setInputFiles({ name: "missing-provider-track.wav", mimeType: "audio/wav", buffer: shortWav() });
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await expect(page.getByRole("button", { name: /missing-provider-track/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
   await page.getByTestId("create-athena-music-artwork").click();
   await expect(page.getByTestId("music-visual-status")).toContainText(/Conecte uma chave de API de imagens/);
   await expect(page.getByTestId("create-athena-music-artwork")).toBeEnabled();
@@ -221,6 +227,7 @@ test("keeps covers attached to their own tracks when the selection changes", asy
   const secondTrack = page.getByRole("button", { name: /cover-track-two/i }).first();
   await expect(firstTrack).toBeVisible({ timeout: 60_000 });
   await expect(secondTrack).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
   await firstTrack.click();
   await page.getByRole("button", { name: "Tocando agora" }).click();
   await expect(page.getByRole("heading", { name: "cover-track-one" })).toBeVisible();
@@ -367,6 +374,7 @@ test("restores a track's saved motion and environment effect on another signed-i
     await expect(page.getByRole("button", { name: /account-track/i }).first()).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => artworkRequests.length).toBeGreaterThan(0);
     await expect.poll(() => artworkSettingsReads.length).toBeGreaterThan(0);
+    await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
     await expect(page.getByRole("button", { name: expectedMode, exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel("Efeito do ambiente musical")).toHaveValue(expectedEffect);
     return { context, page };
@@ -500,4 +508,43 @@ test("keeps an explicitly removed account cover cleared when another device has 
   expect(localProfile.coverDataUrl).toBeUndefined();
   expect(localProfile.backgroundDataUrl).toBe(`/mock-music-art/${trackId}-background.gif`);
   await second.context.close();
+});
+
+test("keeps Euterpe conversations and Athena sessions separate when the signed-in account changes", async ({ page }) => {
+  test.setTimeout(60_000);
+  let currentUserId = "music-owner-a";
+  await page.route("**/api/auth/session", async (route) => route.fulfill({ json: { user: { id: currentUserId } } }));
+  await page.route("**/api/music/library", async (route) => route.fulfill({ json: { uploadPrefix: `music/${currentUserId}/tracks`, storageMode: "account", tracks: [] } }));
+  await page.goto("/modules/music");
+  const ownerA = await page.evaluate(() => ({
+    chat: "varynth_music_curator_chat_v1:account:music-owner-a",
+    session: "varynth_music_curator_athena_session_v1:account:music-owner-a",
+  }));
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.session)).toBeTruthy();
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.chat)).toContain("Euterpe online");
+  await page.evaluate(({ chat, session }) => {
+    localStorage.setItem(chat, JSON.stringify([{ id: "private-a", sender: "user", text: "conversa privada da conta A", createdAt: new Date().toISOString() }]));
+    localStorage.setItem(session, "athena-session-account-a");
+    localStorage.setItem("varynth_music_curator_chat_v1", JSON.stringify([{ id: "legacy-private", sender: "user", text: "histórico antigo sem identidade" }]));
+    localStorage.setItem("varynth_music_curator_athena_session_v1", "legacy-athena-session");
+  }, ownerA);
+
+  currentUserId = "music-owner-b";
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("varynth_music_curator_chat_v1:account:music-owner-b"))).toContain("Euterpe online");
+  const ownerB = await page.evaluate(() => ({
+    chat: localStorage.getItem("varynth_music_curator_chat_v1:account:music-owner-b"),
+    session: localStorage.getItem("varynth_music_curator_athena_session_v1:account:music-owner-b"),
+    ownerAChat: localStorage.getItem("varynth_music_curator_chat_v1:account:music-owner-a"),
+    ownerASession: localStorage.getItem("varynth_music_curator_athena_session_v1:account:music-owner-a"),
+    legacyChat: localStorage.getItem("varynth_music_curator_chat_v1"),
+    legacySession: localStorage.getItem("varynth_music_curator_athena_session_v1"),
+  }));
+  expect(ownerB.chat).not.toContain("conversa privada da conta A");
+  expect(ownerB.session).toBeTruthy();
+  expect(ownerB.session).not.toBe("athena-session-account-a");
+  expect(ownerB.ownerAChat).toContain("conversa privada da conta A");
+  expect(ownerB.ownerASession).toBe("athena-session-account-a");
+  expect(ownerB.legacyChat).toContain("histórico antigo sem identidade");
+  expect(ownerB.legacySession).toBe("legacy-athena-session");
 });
