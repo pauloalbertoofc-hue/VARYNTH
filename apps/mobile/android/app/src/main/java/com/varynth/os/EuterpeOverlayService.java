@@ -43,6 +43,7 @@ public class EuterpeOverlayService extends Service {
     static final String ACTION_MEDIA_PAUSE = "com.varynth.os.EUTERPE_MEDIA_PAUSE";
     static final String ACTION_MEDIA_PREVIOUS = "com.varynth.os.EUTERPE_MEDIA_PREVIOUS";
     static final String ACTION_MEDIA_NEXT = "com.varynth.os.EUTERPE_MEDIA_NEXT";
+    static final String ACTION_MEDIA_OPEN = "com.varynth.os.EUTERPE_MEDIA_OPEN";
     static final String ACTION_MEDIA_CONTROL = "com.varynth.os.EUTERPE_MEDIA_CONTROL";
     static final String EXTRA_STATE = "euterpeState";
     static final String EXTRA_TITLE = "trackTitle";
@@ -97,6 +98,7 @@ public class EuterpeOverlayService extends Service {
         if (ACTION_MEDIA_PAUSE.equals(action)) { dispatchMediaAction("pause"); return START_STICKY; }
         if (ACTION_MEDIA_PREVIOUS.equals(action)) { dispatchMediaAction("previous"); return START_STICKY; }
         if (ACTION_MEDIA_NEXT.equals(action)) { dispatchMediaAction("next"); return START_STICKY; }
+        if (ACTION_MEDIA_OPEN.equals(action)) { openMusic(); return START_STICKY; }
         currentState = intent == null ? currentState : intent.getStringExtra(EXTRA_STATE);
         if (currentState == null) currentState = "IDLE";
         if (intent != null) {
@@ -138,8 +140,7 @@ public class EuterpeOverlayService extends Service {
     }
 
     private void startOverlayForeground() {
-        Intent openApp = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent content = PendingIntent.getActivity(this, 0, openApp, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent content = mediaActionIntent(ACTION_MEDIA_OPEN, 0);
         Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? new Builder(this, CHANNEL_ID) : new Builder(this);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) builder.setSubText("VARYNTH MUSIC · EUTERPE PRESENTE");
         Notification notification = builder
@@ -273,6 +274,7 @@ public class EuterpeOverlayService extends Service {
     }
 
     private void openMusic() {
+        dispatchMediaAction("open");
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (open != null) { open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP); startActivity(open); }
     }

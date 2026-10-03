@@ -41,7 +41,7 @@ type EuterpeOverlayBridge = {
   requestNotificationPermission(): Promise<{ granted: boolean }>;
   show(options: EuterpeNativePlayerState): Promise<{ enabled: boolean; permissionRequired: boolean }>;
   update(options: EuterpeNativePlayerState): Promise<void>;
-  addListener(eventName: "mediaAction", listener: (event: { action?: "play" | "pause" | "previous" | "next" }) => void): Promise<{ remove(): Promise<void> }>;
+  addListener(eventName: "mediaAction", listener: (event: { action?: "open" | "play" | "pause" | "previous" | "next" }) => void): Promise<{ remove(): Promise<void> }>;
   hide(): Promise<void>;
 };
 type EuterpeNativePlayerState = { state: EuterpeVisualState; title: string; artist: string; playing: boolean; coverDataUrl?: string };
@@ -444,7 +444,8 @@ export default function MusicPage() {
     let listener: { remove(): Promise<void> } | undefined;
     void bridge.addListener("mediaAction", ({ action }) => {
       if (!active) return;
-      if (action === "play" && !playing) void togglePlayback();
+      if (action === "open") setActiveView("now-playing");
+      else if (action === "play" && !playing) void togglePlayback();
       else if (action === "pause" && playing) void togglePlayback();
       else if (action === "previous") { stepTrack(-1); setActiveView("now-playing"); }
       else if (action === "next") { stepTrack(1); setActiveView("now-playing"); }
