@@ -11,6 +11,7 @@ import { logosAgent } from "./council/logos";
 import { justitiaAgent } from "./council/justitia";
 import { curadorPesquisaAgent } from "./council/curador-pesquisa";
 import { mnemosyneAgent } from "./council/mnemosyne";
+import { bibliotecarioAgent } from "./council/bibliotecario";
 
 const pref = (key: string, value: string, overrides: Partial<Preference> = {}): Preference => ({
   id: `${key}-${value}`, ownerId: "guidance-owner", subject: "guidance-owner", domain: "communication", key, value,
@@ -94,6 +95,9 @@ async function main() {
   const guidedMemory = await mnemosyneAgent.execute(task("Que aprendizado ficou registrado?"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "memory", scope: "AGENT", scopeId: "mnemosyne", action: "separar lembrança registrada de interpretação inferida" }] } });
   assert.match(guidedMemory.content, /separar lembrança registrada de interpretação inferida/);
   assert.equal(guidedMemory.metadata?.queriedGraph, false);
+  const guidedLibrary = await bibliotecarioAgent.execute(task("Encontre uma obra sobre rios"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "knowledge-management", scope: "AGENT", scopeId: "bibliotecario", action: "comparar excertos e capítulo antes de sintetizar" }] } });
+  assert.match(guidedLibrary.content, /comparar excertos e capítulo antes de sintetizar/);
+  assert.equal(guidedLibrary.metadata?.externalSearchPerformed, false);
   console.log("Athena specialist Experience guidance tests passed");
 }
 
