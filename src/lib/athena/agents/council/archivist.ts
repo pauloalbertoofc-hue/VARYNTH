@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { documentationGuardian } from "../../guardian/documentation-guardian";
 import { renderAgentPersona } from "../base-agent";
+import { confirmedCommunicationGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class ArchivistAgent implements AthenaAgent {
   get personalityPrompt(): string { return renderAgentPersona(this.manifest); }
@@ -35,7 +36,9 @@ export class ArchivistAgent implements AthenaAgent {
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const health = documentationGuardian.assessHealth();
-    const content = `🏛️ **Síntese Técnica da Arquitetura (Archivist & Documentation Guardian):**\n\n• **Saúde documental:** ${health.score}% (${health.status}), conforme avaliação local atual do Documentation Guardian.\n• **Inventário observado:** ${health.runtimeAudits.totalRoutes} rotas, ${health.runtimeAudits.totalTools} ferramentas registradas, ${health.runtimeAudits.totalAgents} agentes, ${health.runtimeAudits.totalModules} módulos, ${health.runtimeAudits.totalADRs} ADRs e ${health.runtimeAudits.totalRegressionTests} casos de regressão.\n• **Limite desta resposta:** a avaliação verifica consistência do catálogo registrado; não prova, por si só, que cada documento foi sincronizado externamente ou que cada funcionalidade está operacional.`;
+    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
+    const communicationGuidance = confirmedCommunicationGuidance(context, this.manifest.id, task.rawPrompt);
+    const content = `${communicationGuidance.length ? `${communicationGuidance.join(" ")}\n\n` : ""}🏛️ **Síntese Técnica da Arquitetura (Archivist & Documentation Guardian):**\n\n• **Saúde documental:** ${health.score}% (${health.status}), conforme avaliação local atual do Documentation Guardian.\n• **Inventário observado:** ${health.runtimeAudits.totalRoutes} rotas, ${health.runtimeAudits.totalTools} ferramentas registradas, ${health.runtimeAudits.totalAgents} agentes, ${health.runtimeAudits.totalModules} módulos, ${health.runtimeAudits.totalADRs} ADRs e ${health.runtimeAudits.totalRegressionTests} casos de regressão.\n• **Limite desta resposta:** a avaliação verifica consistência do catálogo registrado; não prova, por si só, que cada documento foi sincronizado externamente ou que cada funcionalidade está operacional.${formatExperienceMethodHints(priorOutcomes)}`;
 
     return {
       agentId: this.manifest.id,
@@ -45,7 +48,7 @@ export class ArchivistAgent implements AthenaAgent {
       content,
       confidence: 0.95,
       sources: ["Documentation Guardian: avaliação local do catálogo e inventário"],
-      metadata: { guardianScore: health.score, guardianStatus: health.status, auditScope: "registered-catalog-only" },
+      metadata: { guardianScore: health.score, guardianStatus: health.status, auditScope: "registered-catalog-only", priorOutcomeHints: priorOutcomes.length },
       recommendations: ["Abrir o Technical Archive para consultar os documentos registrados", "Inspecionar as ADRs listadas no catálogo atual"],
     };
   }

@@ -12,6 +12,8 @@ import { justitiaAgent } from "./council/justitia";
 import { curadorPesquisaAgent } from "./council/curador-pesquisa";
 import { mnemosyneAgent } from "./council/mnemosyne";
 import { bibliotecarioAgent } from "./council/bibliotecario";
+import { agentRegistry } from "./registry";
+const archivistAgent = agentRegistry.getAgent("archivist")!;
 
 const pref = (key: string, value: string, overrides: Partial<Preference> = {}): Preference => ({
   id: `${key}-${value}`, ownerId: "guidance-owner", subject: "guidance-owner", domain: "communication", key, value,
@@ -98,6 +100,9 @@ async function main() {
   const guidedLibrary = await bibliotecarioAgent.execute(task("Encontre uma obra sobre rios"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "knowledge-management", scope: "AGENT", scopeId: "bibliotecario", action: "comparar excertos e capítulo antes de sintetizar" }] } });
   assert.match(guidedLibrary.content, /comparar excertos e capítulo antes de sintetizar/);
   assert.equal(guidedLibrary.metadata?.externalSearchPerformed, false);
+  const guidedArchive = await archivistAgent.execute(task("Explique a saúde documental"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "documentation", scope: "AGENT", scopeId: "archivist", action: "separar saúde do catálogo de implantação em produção" }] } });
+  assert.match(guidedArchive.content, /separar saúde do catálogo de implantação em produção/);
+  assert.equal(guidedArchive.metadata?.auditScope, "registered-catalog-only");
   console.log("Athena specialist Experience guidance tests passed");
 }
 

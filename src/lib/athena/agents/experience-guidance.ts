@@ -1,3 +1,4 @@
+import type { ExperienceContext } from "@/lib/experience/context-builder";
 import type { AthenaContext } from "../domain/context";
 import type { Preference } from "@/lib/experience/contracts";
 
@@ -35,8 +36,10 @@ function isEligible(preference: Preference, agentId: string, key: AgentGuidanceK
   return preference.domain === agentId || preference.domain === `agent.${agentId}`;
 }
 
+type ExperienceAwareContext = Pick<AthenaContext, "experienceContext" | "activeProject">;
+
 export function confirmedAgentGuidance<K extends AgentGuidanceKey>(
-  context: AthenaContext,
+  context: ExperienceAwareContext,
   agentId: string,
   key: K,
   prompt: string,
@@ -50,7 +53,7 @@ export function confirmedAgentGuidance<K extends AgentGuidanceKey>(
   return undefined;
 }
 
-export function agentGuidanceInstruction(context: AthenaContext, agentId: string, prompt: string): string[] {
+export function agentGuidanceInstruction(context: ExperienceAwareContext, agentId: string, prompt: string): string[] {
   const guidance: string[] = [];
   const verbosity = confirmedAgentGuidance(context, agentId, "verbosity", prompt);
   const formality = confirmedAgentGuidance(context, agentId, "formality", prompt);
@@ -63,7 +66,7 @@ export function agentGuidanceInstruction(context: AthenaContext, agentId: string
  * Convert only positively useful, properly scoped past outcomes into a bounded
  * method hint. Experience is precedent, not evidence about the current task.
  */
-export function relevantExperienceGuidance(context: AthenaContext, agentId: string): string[] {
+export function relevantExperienceGuidance(context: ExperienceAwareContext, agentId: string): string[] {
   const records = (context.experienceContext?.experiences ?? []).filter((record) => {
     if (!record.outcome.trim() || !record.action.trim() || (record.usefulness ?? 0) <= 0) return false;
     if (record.scope === "GLOBAL") return true;
@@ -81,6 +84,28 @@ export function relevantExperienceGuidance(context: AthenaContext, agentId: stri
   return records.map((record) =>
     `Em experiências anteriores, mostrou-se útil: ${record.action.slice(0, 120)}. Isto não é fato sobre este caso; considere apenas como hipótese metodológica, valide-a no contexto atual e descarte-a se conflitar com seu pedido.`
   );
+}
+
+/** Read only explicit confirmed communication preferences for this agent. */
+export function confirmedCommunicationGuidance(context: ExperienceAwareContext, agentId: string, prompt: string): string[] {
+  const guidance: string[] = [];
+  const explicitFormality = /\b(formal|informal|descontra[ií]d[oa]|casual)\b/i.test(prompt);
+  const explicitVerbosity = /\b(curto|breve|concis[oa]|resumid[oa]|detalhad[oa]|detalhes|passo a passo)\b/i.test(prompt);
+  for (const preference of [...(context.experienceContext?.preferences ?? [])].reverse()) {
+    if (preference.status !== "CONFIRMED" || preference.source !== "MANUAL") continue;
+    const applies = preference.scope === "AGENT" && preference.scopeId === agentId
+      || preference.scope === "GLOBAL" && (preference.domain === "communication" || preference.domain === "communication-style");
+    if (!applies) continue;
+    const key = preference.key.toLowerCase();
+    const value = typeof preference.value === "string" ? preference.value.trim().toLowerCase() : "";
+    if (key === "formality" && !explicitFormality && ["formal", "informal"].includes(value)) {
+      guidance.push(value === "formal" ? "Use registro formal, mantendo clareza e naturalidade." : "Use registro informal respeitoso, sem perder precisão.");
+    }
+    if (key === "verbosity" && !explicitVerbosity && ["concise", "detailed"].includes(value)) {
+      guidance.push(value === "concise" ? "Prefira uma resposta concisa, sem omitir ressalvas essenciais." : "Desenvolva a resposta com explicação suficiente, sem repetir ideias.");
+    }
+  }
+  return [...new Set(guidance)];
 }
 
 export function formatExperienceMethodHints(hints: string[]): string {

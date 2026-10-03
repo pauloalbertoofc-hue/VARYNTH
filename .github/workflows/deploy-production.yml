@@ -23,6 +23,13 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run test:game-rules
       - run: npm run test:game-studio
+      - name: Verify Athena conversation and specialist quality
+        run: |
+          npm run test:athena-system
+          npm run test:athena-response-quality
+          npm run test:athena-intelligence
+          npm run test:athena-communication
+          npx tsx src/lib/athena/agents/experience-guidance.test.ts
       - run: npm run build
       - name: Deploy verified commit to Vercel production
         run: npx vercel deploy --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
