@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildMusicArtworkAssociationCommand, isMusicVisualSettings, MUSIC_ARTWORK_MAX_TRACKS, normalizeMusicArtworkTrackIds, validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
+import { buildMusicArtworkAssociationCommand, isMusicArtworkUploadPayload, isMusicVisualSettings, MUSIC_ARTWORK_MAX_TRACKS, normalizeMusicArtworkTrackIds, validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
 
 const ownerA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ownerB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -22,6 +22,11 @@ assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 0.4,
 const manyTrackIds = Array.from({ length: 250 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`);
 assert.equal(normalizeMusicArtworkTrackIds([...manyTrackIds, manyTrackIds[0]]).length, 250, "bulk artwork targets deduplicate while exceeding the former 100-track ceiling");
 assert.equal(MUSIC_ARTWORK_MAX_TRACKS, 5_000);
+const uploadPayload = { assetId: id, kind: "cover" as const, trackIds: manyTrackIds, mimeType: "image/gif", sizeBytes: 1024 };
+assert.equal(isMusicArtworkUploadPayload(uploadPayload), true, "signed upload validation accepts a large account selection");
+assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, trackIds: [...manyTrackIds, manyTrackIds[0]] }), false, "signed upload rejects duplicate targets");
+assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, trackIds: Array.from({ length: 5_001 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`) }), false, "signed upload rejects selections above the declared ceiling");
+assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, mimeType: "image/svg+xml", sizeBytes: 20 * 1024 * 1024 + 1 }), false, "signed upload enforces image size limits");
 const association = buildMusicArtworkAssociationCommand(ownerA, "cover", manyTrackIds, id);
 assert.equal(association[0], "HSET");
 assert.equal(association[1], `varynth:music:artwork:v1:${ownerA}`);

@@ -4,7 +4,7 @@ import { associateMusicArtworkTracks } from "./music-artwork-association";
 async function main() {
   const namespace = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   const libraryKey = `varynth:music:library:v1:${namespace}`;
-  const trackIds = Array.from({ length: 250 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`);
+  const trackIds = Array.from({ length: 5_000 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`);
   const assetId = "c3d33f84-c9cf-4c62-90ad-a5acfeb0a65f";
   const commands: string[][] = [];
   const redis = async (command: string[]): Promise<unknown> => {
@@ -20,10 +20,12 @@ async function main() {
   };
 
   const associated = await associateMusicArtworkTracks(redis, { namespace, libraryKey, kind: "cover", trackIds, assetId });
-  assert.equal(associated.length, 250);
+  assert.equal(associated.length, 5_000);
   assert.deepEqual(commands.map((command) => command[0]), ["HMGET", "HGET", "HSET"]);
   assert.equal(commands[0].length, 2 + trackIds.length, "ownership of every track is checked in one lookup");
   assert.equal(commands[2].length, 2 + trackIds.length * 2, "every artwork reference is written atomically in one command");
+  assert.equal(commands[0].length, 5_002, "the maximum supported library selection is validated in one Redis call");
+  assert.equal(commands[2].length, 10_002, "all 5,000 artwork references fit in the same atomic Redis write");
 
   let wroteAfterMissingTrack = false;
   await assert.rejects(() => associateMusicArtworkTracks(async (command) => {
@@ -33,7 +35,7 @@ async function main() {
   }, { namespace, libraryKey, kind: "background", trackIds: trackIds.slice(0, 2), assetId }), /não pertence à sua biblioteca/);
   assert.equal(wroteAfterMissingTrack, false, "an invalid selection never receives a partial asset association");
 
-  console.log("Music artwork associations validate and update 250 account tracks atomically.");
+  console.log("Music artwork associations validate and update 5,000 account tracks atomically.");
 }
 
 void main().catch((error: unknown) => {

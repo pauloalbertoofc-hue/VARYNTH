@@ -8,6 +8,27 @@ export type MusicVisualSettings = {
 export const MUSIC_ARTWORK_MAX_TRACKS = 5_000;
 const musicTrackIdPattern = /^[a-f0-9-]{36}$/i;
 
+export type MusicArtworkUploadPayload = {
+  assetId: string;
+  kind: "cover" | "background";
+  trackIds: string[];
+  mimeType: string;
+  sizeBytes: number;
+};
+
+export function isMusicArtworkUploadPayload(value: unknown): value is MusicArtworkUploadPayload {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<MusicArtworkUploadPayload>;
+  const mimeTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "image/svg+xml"];
+  return typeof item.assetId === "string" && musicTrackIdPattern.test(item.assetId)
+    && (item.kind === "cover" || item.kind === "background")
+    && Array.isArray(item.trackIds) && item.trackIds.length > 0 && item.trackIds.length <= MUSIC_ARTWORK_MAX_TRACKS
+    && item.trackIds.every((id) => typeof id === "string" && musicTrackIdPattern.test(id))
+    && new Set(item.trackIds).size === item.trackIds.length
+    && typeof item.mimeType === "string" && mimeTypes.includes(item.mimeType)
+    && Number.isSafeInteger(item.sizeBytes) && Number(item.sizeBytes) > 0 && Number(item.sizeBytes) <= 20 * 1024 * 1024;
+}
+
 export function normalizeMusicArtworkTrackIds(trackIds: readonly string[]): string[] {
   const uniqueTrackIds = Array.from(new Set(trackIds));
   if (!uniqueTrackIds.length || uniqueTrackIds.length > MUSIC_ARTWORK_MAX_TRACKS || !uniqueTrackIds.every((id) => musicTrackIdPattern.test(id))) {
