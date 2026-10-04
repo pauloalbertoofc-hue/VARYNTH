@@ -347,7 +347,7 @@ test("applies an animated cover to selected tracks and preserves the exact selec
   await page.getByLabel("Aplicar imagem em").selectOption("SELECTED");
   await page.getByRole("checkbox", { name: "batch-cover-two" }).check();
   const selected = await page.locator('input[type="checkbox"]:checked').count();
-  expect(selected).toBe(2, "the current track plus only the explicitly checked target are selected");
+  expect(selected).toBe(2);
 
   await page.locator('input[type="file"][accept*="image/gif"]').first().setInputFiles({
     name: "shared-animated-cover.gif",
