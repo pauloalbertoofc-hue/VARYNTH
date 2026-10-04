@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { isMusicVisualSettings, validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
+import { buildMusicArtworkAssociationCommand, isMusicVisualSettings, MUSIC_ARTWORK_MAX_TRACKS, normalizeMusicArtworkTrackIds, validMusicArtworkBlobPath, validMusicBlobPath } from "./music-cloud-contracts";
 
 const ownerA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const ownerB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -19,4 +19,15 @@ assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 0.4,
 assert.equal(isMusicVisualSettings({ particleType: "explosion", particleDensity: 0.4, motionSpeed: 0.16, reducedMotion: false }), false);
 assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 1.1, motionSpeed: 0.16, reducedMotion: false }), false);
 assert.equal(isMusicVisualSettings({ particleType: "rain", particleDensity: 0.4, motionSpeed: 1, reducedMotion: false }), false);
+const manyTrackIds = Array.from({ length: 250 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`);
+assert.equal(normalizeMusicArtworkTrackIds([...manyTrackIds, manyTrackIds[0]]).length, 250, "bulk artwork targets deduplicate while exceeding the former 100-track ceiling");
+assert.equal(MUSIC_ARTWORK_MAX_TRACKS, 5_000);
+const association = buildMusicArtworkAssociationCommand(ownerA, "cover", manyTrackIds, id);
+assert.equal(association[0], "HSET");
+assert.equal(association[1], `varynth:music:artwork:v1:${ownerA}`);
+assert.equal(association.length, 2 + manyTrackIds.length * 2, "all links are written with one atomic Redis command");
+const clearAssociation = buildMusicArtworkAssociationCommand(ownerA, "cover", manyTrackIds, null);
+assert.equal(clearAssociation.length, association.length);
+assert.equal(clearAssociation[3], "CLEARED", "bulk cover clearing is also a single atomic write");
+assert.throws(() => normalizeMusicArtworkTrackIds(Array.from({ length: MUSIC_ARTWORK_MAX_TRACKS + 1 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`)), /5\.000/);
 console.log("Music account-storage namespace isolation passed.");

@@ -133,6 +133,7 @@ export class ExecutiveController {
 
     // 5. Memory & Context: build surgical workspace context
     const context = athenaContextBuilder.buildContext(task, scope, storeCtx, resolvedProjectId);
+    context.conversationSessionId = sessionId;
     context.recentConversation = prepareAgentConversationHistory(
       athenaConversationManager.getRecentTurns(sessionId, 7), rawPrompt,
     );

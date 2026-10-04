@@ -11,7 +11,8 @@ import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { adjacentTrackIndex, createMusicTrack, formatMusicTime, isSupportedMusicFile, musicLibrary } from "@/lib/music/music-library";
 import { resolveAccountArtwork } from "@/lib/music/visual-artwork-persistence";
 import { analyzeSections, LocalVisualGenerationProvider, makeMusicDNA, MUSIC_ANALYSIS_LIMITS, musicSpecialist, musicStudio, RemoteVisualGenerationProvider, spectralFeatures, type MusicDNA, type MusicFeedback, type MusicPlaylist, type VisualQuality } from "@/lib/music/music-studio";
-import { musicAgentShouldConsultAthena, runMusicAgentTurn } from "@/lib/music/music-agent-bridge";
+import { musicAgentShouldConsultAthena, resolveEuterpeCorrectionRequest, runMusicAgentTurn } from "@/lib/music/music-agent-bridge";
+import { athenaConversationFeedback } from "@/lib/athena/conversation/quality-feedback";
 import { readMusicMetadata } from "@/lib/music/music-metadata";
 import { importMusicBatch } from "@/lib/music/music-import";
 import { MusicTrack } from "@/lib/music/types";
@@ -685,15 +686,22 @@ export default function MusicPage() {
     const userMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "user", text: messageText, createdAt: new Date().toISOString() };
     setChatMessages((current) => [...current, userMessage]); setChatInput(""); setChatBusy(true);
     const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text, consultedAthena: turn.sender === "curator" && turn.consultedAthena === true }));
+    const feedbackResolution = resolveEuterpeCorrectionRequest(messageText, athenaConversationFeedback.latest(athenaSessionIdRef.current || "music-curator-session", "euterpe"));
+    if (feedbackResolution.kind === "clarify") {
+      setChatMessages((current) => [...current, { id: crypto.randomUUID(), sender: "curator", text: feedbackResolution.response, createdAt: new Date().toISOString() }]);
+      setChatBusy(false);
+      return;
+    }
+    const effectiveMessage = feedbackResolution.prompt;
     let resultOutcome: "response" | "proposal" | "error" = "response";
-    const delegatesToAthena = musicAgentShouldConsultAthena(messageText, recentConversation);
+    const delegatesToAthena = musicAgentShouldConsultAthena(effectiveMessage, recentConversation);
     setChatStatus(delegatesToAthena ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
     varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: delegatesToAthena ? "athena" : undefined });
     try {
       const scopeId = musicLibrary.getIdentityNamespace();
       const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
       const turn = await runMusicAgentTurn({
-        message: messageText,
+        message: effectiveMessage,
         track: selectedTrack,
         dna,
         preferences,

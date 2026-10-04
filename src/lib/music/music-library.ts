@@ -3,7 +3,7 @@ import { upload } from "@vercel/blob/client";
 import { repairSwappedUtf16Text, type MusicMetadataSuggestion } from "./music-metadata";
 import { idbRequest, MUSIC_STORES, openMusicDatabase } from "./music-db";
 import { createMusicAudioAdapters, resolveMusicAudio } from "./audio-source-resolver";
-import type { MusicVisualSettings } from "./music-cloud-contracts";
+import { normalizeMusicArtworkTrackIds, type MusicVisualSettings } from "./music-cloud-contracts";
 
 const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|webm)$/i;
 let accountUploadPrefix = "";
@@ -76,17 +76,20 @@ export const musicLibrary = {
     const mimeTypes: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif", "image/svg+xml": "svg" };
     const extension = mimeTypes[file.type];
     if (!extension) throw new Error("Formato de imagem não suportado. Use PNG, JPEG, WebP, GIF, AVIF ou SVG.");
-    if (!trackIds.length || trackIds.length > 100) throw new Error("Escolha entre 1 e 100 faixas para aplicar a imagem.");
+    const targets = normalizeMusicArtworkTrackIds(trackIds);
     const assetId = crypto.randomUUID();
     const pathname = `${accountUploadPrefix.replace(/\/tracks$/, "")}/artwork/${assetId}.${extension}`;
-    const payload = { assetId, kind, trackIds: [...new Set(trackIds)], mimeType: file.type, sizeBytes: file.size };
+    // The signed Blob callback only needs one account-owned track as an upload anchor.
+    // The complete selection is associated afterward in one validated, atomic Redis write.
+    const payload = { assetId, kind, trackIds: [targets[0]], mimeType: file.type, sizeBytes: file.size };
     await upload(pathname, file, { access: "private", handleUploadUrl: "/api/music/artwork/upload", clientPayload: JSON.stringify(payload), contentType: file.type });
-    const response = await fetch("/api/music/artwork", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, trackIds: payload.trackIds, assetId }) });
+    const response = await fetch("/api/music/artwork", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, trackIds: targets, assetId }) });
     if (!response.ok) { const error = await response.json().catch(() => null) as { error?: string } | null; throw new Error(error?.error || "A imagem foi enviada, mas não foi associada às faixas escolhidas."); }
   },
   async clearArtwork(kind: "cover" | "background", trackIds: string[]): Promise<void> {
     if (!accountStorageAvailable) return;
-    const response = await fetch("/api/music/artwork", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, trackIds }) });
+    const targets = normalizeMusicArtworkTrackIds(trackIds);
+    const response = await fetch("/api/music/artwork", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, trackIds: targets }) });
     if (!response.ok) { const error = await response.json().catch(() => null) as { error?: string } | null; throw new Error(error?.error || "Não foi possível remover a imagem da sua conta."); }
   },
   async list(): Promise<MusicTrack[]> {

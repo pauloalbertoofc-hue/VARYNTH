@@ -2,7 +2,7 @@ import { AgentKnowledgeConsultation, AthenaAgent, AgentManifest } from "../base-
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
+import { renderAgentPersona, resolveAgentFollowUp, converseAsSpecialist } from "../base-agent";
 import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class JustitiaAgent implements AthenaAgent {
@@ -35,6 +35,8 @@ export class JustitiaAgent implements AthenaAgent {
       p.includes("constitucional")
     );
   }
+
+  async converseWithFeedback(task: AthenaTask, context: AthenaContext): Promise<AgentResult> { return converseAsSpecialist(this, task, context); }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);

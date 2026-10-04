@@ -64,7 +64,11 @@ export const athenaConversationFeedback = {
   list(): AthenaConversationFeedback[] {
     return readStored();
   },
-  latest(sessionId: string): AthenaConversationFeedback | undefined {
-    return readStored().find(record => record.sessionId === sessionId && record.category !== "HELPFUL");
+  latest(sessionId: string, agentId = "athena"): AthenaConversationFeedback | undefined {
+    return readStored().find(record =>
+      record.sessionId === sessionId &&
+      (record.agentId || "athena") === agentId &&
+      record.category !== "HELPFUL"
+    );
   },
 };

@@ -9,7 +9,6 @@ export const dynamic = "force-dynamic";
 const idPattern = /^[a-f0-9-]{36}$/i;
 const kinds = new Set(["cover", "background"]);
 const assetsKey = (namespace: string) => `varynth:music:artwork-assets:v1:${namespace}`;
-const profilesKey = (namespace: string) => `varynth:music:artwork:v1:${namespace}`;
 
 type Payload = { assetId: string; kind: "cover" | "background"; trackIds: string[]; mimeType: string; sizeBytes: number };
 function validPayload(value: unknown): value is Payload {
@@ -60,7 +59,6 @@ export async function POST(request: Request) {
         if (stored.size !== payload.sizeBytes || stored.contentType !== payload.mimeType) throw new Error("A arte armazenada diverge dos metadados validados.");
         const asset = { pathname: blob.pathname, mimeType: stored.contentType, sizeBytes: stored.size, assetId: payload.assetId };
         await musicRedis(["HSET", assetsKey(claims.namespace), payload.assetId, JSON.stringify(asset)]);
-        for (const trackId of payload.trackIds) await musicRedis(["HSET", profilesKey(claims.namespace), `${trackId}:${payload.kind}`, payload.assetId]);
       },
     });
     return Response.json(result, { headers: { "cache-control": "private, no-store" } });

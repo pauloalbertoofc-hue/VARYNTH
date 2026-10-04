@@ -16,6 +16,8 @@ export interface AthenaContext {
   relevantOpportunities: Opportunity[];
   /** Bounded turns from the active session, supplied only for conversational reference resolution. */
   recentConversation?: Array<{ role: "user" | "athena"; text: string }>;
+  /** Stable owner/session key used only to resolve this specialist's explicit feedback. */
+  conversationSessionId?: string;
   /** Account-owned, bounded learning context; independently resolved per agent. */
   experienceContext?: ExperienceContext;
   systemTime: string;

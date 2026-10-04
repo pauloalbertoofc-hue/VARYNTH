@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
-import { musicAgentShouldConsultAthena, runMusicAgentTurn } from "./music-agent-bridge";
+import { musicAgentShouldConsultAthena, resolveEuterpeCorrectionRequest, runMusicAgentTurn } from "./music-agent-bridge";
+
+assert.deepEqual(resolveEuterpeCorrectionRequest("Faça uma playlist"), { kind: "continue", prompt: "Faça uma playlist" });
+assert.equal(resolveEuterpeCorrectionRequest("corrija a resposta").kind, "clarify", "A retry without Euterpe-scoped feedback must not invent the previous correction");
+assert.deepEqual(resolveEuterpeCorrectionRequest("não foi isso", { category: "GENERIC_RESPONSE", correction: "Explique com exemplos para iniciantes" }), { kind: "continue", prompt: "Explique com exemplos para iniciantes" });
+const wrongActionRetry = resolveEuterpeCorrectionRequest("tente novamente", { category: "WRONG_ACTION" });
+assert.equal(wrongActionRetry.kind, "clarify");
+if (wrongActionRetry.kind === "clarify") assert.match(wrongActionRetry.response, /não vou repeti-la automaticamente/);
+const contextRetry = resolveEuterpeCorrectionRequest("corrija", { category: "LOST_CONTEXT" });
+assert.equal(contextRetry.kind, "clarify");
+if (contextRetry.kind === "clarify") assert.match(contextRetry.response, /Qual faixa/);
 
 assert.equal(musicAgentShouldConsultAthena("Oi!"), false);
 assert.equal(musicAgentShouldConsultAthena("O que é Music DNA?"), false);

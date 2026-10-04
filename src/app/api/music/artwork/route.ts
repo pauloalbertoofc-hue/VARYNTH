@@ -1,10 +1,9 @@
-import { requireMusicAccount, musicRedis, validMusicArtworkBlobPath, validMusicBlobPath } from "@/lib/music/music-cloud";
-import { isMusicVisualSettings } from "@/lib/music/music-cloud-contracts";
+import { requireMusicAccount, musicRedis, validMusicBlobPath } from "@/lib/music/music-cloud";
+import { isMusicVisualSettings, MUSIC_ARTWORK_MAX_TRACKS } from "@/lib/music/music-cloud-contracts";
+import { associateMusicArtworkTracks, MusicArtworkAssociationError } from "@/lib/music/music-artwork-association";
 
 export const dynamic = "force-dynamic";
 const idPattern = /^[a-f0-9-]{36}$/i;
-const clearedArtworkMarker = "CLEARED";
-const key = (namespace: string) => `varynth:music:artwork:v1:${namespace}`;
 const settingsKey = (namespace: string) => `varynth:music:visual-settings:v1:${namespace}`;
 
 export async function POST(request: Request) {
@@ -24,26 +23,28 @@ export async function POST(request: Request) {
       await musicRedis(["HSET", settingsKey(account.namespace), body.trackId, JSON.stringify(body.visualSettings)]);
       return Response.json({ ok: true }, { headers: { "cache-control": "private, no-store" } });
     }
-    if (!Array.isArray(body.trackIds) || body.trackIds.length < 1 || body.trackIds.length > 100 || !body.trackIds.every((id) => typeof id === "string" && idPattern.test(id))
+    if (!Array.isArray(body.trackIds) || body.trackIds.length < 1 || body.trackIds.length > MUSIC_ARTWORK_MAX_TRACKS || !body.trackIds.every((id) => typeof id === "string" && idPattern.test(id))
       || !["cover", "background"].includes(String(body.kind))) return Response.json({ error: "Faixas ou tipo de imagem inválidos." }, { status: 400 });
-    for (const trackId of body.trackIds as string[]) {
-      const raw = await musicRedis(["HGET", account.redisKey, trackId]);
+    const trackIds = Array.from(new Set(body.trackIds as string[]));
+    if (trackIds.length > MUSIC_ARTWORK_MAX_TRACKS) return Response.json({ error: `A seleção pode conter até ${MUSIC_ARTWORK_MAX_TRACKS.toLocaleString("pt-BR")} faixas.` }, { status: 400 });
+    const storedTracks = await musicRedis(["HMGET", account.redisKey, ...trackIds]);
+    if (!Array.isArray(storedTracks) || storedTracks.length !== trackIds.length) return Response.json({ error: "Não foi possível validar as faixas selecionadas." }, { status: 503 });
+    for (const raw of storedTracks) {
       if (typeof raw !== "string") return Response.json({ error: "Uma das faixas não pertence à sua biblioteca." }, { status: 404 });
       const track = JSON.parse(raw) as { blobPathname?: string };
       if (!track.blobPathname || !validMusicBlobPath(track.blobPathname, account.namespace)) return Response.json({ error: "Faixa inválida." }, { status: 404 });
     }
-    if (body.assetId !== undefined) {
-      if (typeof body.assetId !== "string" || !idPattern.test(body.assetId)) return Response.json({ error: "Imagem inválida." }, { status: 400 });
-      const rawAsset = await musicRedis(["HGET", `varynth:music:artwork-assets:v1:${account.namespace}`, body.assetId]);
-      if (typeof rawAsset !== "string") return Response.json({ error: "Imagem não encontrada nesta conta." }, { status: 404 });
-      const asset = JSON.parse(rawAsset) as { pathname?: string };
-      if (!asset.pathname || !validMusicArtworkBlobPath(asset.pathname, account.namespace)) return Response.json({ error: "Imagem não encontrada nesta conta." }, { status: 404 });
-      for (const trackId of body.trackIds as string[]) await musicRedis(["HSET", key(account.namespace), `${trackId}:${body.kind}`, body.assetId]);
-    } else {
-      for (const trackId of body.trackIds as string[]) await musicRedis(["HSET", key(account.namespace), `${trackId}:${body.kind}`, clearedArtworkMarker]);
-    }
+    if (body.assetId !== undefined && typeof body.assetId !== "string") return Response.json({ error: "Imagem inválida." }, { status: 400 });
+    await associateMusicArtworkTracks(musicRedis, {
+      namespace: account.namespace,
+      libraryKey: account.redisKey,
+      kind: body.kind as "cover" | "background",
+      trackIds,
+      assetId: typeof body.assetId === "string" ? body.assetId : null,
+    });
     return Response.json({ ok: true }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
+    if (error instanceof MusicArtworkAssociationError) return Response.json({ error: error.message }, { status: error.status });
     return Response.json({ error: error instanceof Error ? error.message : "Não foi possível remover a imagem." }, { status: 503 });
   }
 }

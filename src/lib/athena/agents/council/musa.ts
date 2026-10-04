@@ -2,7 +2,7 @@ import { AthenaAgent, AgentManifest, resolveAgentFollowUp } from "../base-agent"
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, converseAsSpecialist } from "../base-agent";
 import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class MusaAgent implements AthenaAgent {
@@ -31,6 +31,8 @@ export class MusaAgent implements AthenaAgent {
       p.includes("perspectiva")
     );
   }
+
+  async converseWithFeedback(task: AthenaTask, context: AthenaContext): Promise<AgentResult> { return converseAsSpecialist(this, task, context); }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
