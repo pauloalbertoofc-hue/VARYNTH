@@ -2,6 +2,7 @@ import { head } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { requireMusicAccount, musicRedis, validMusicArtworkBlobPath, validMusicBlobPath } from "@/lib/music/music-cloud";
 import { musicRedisConfigured } from "@/lib/music/music-cloud";
+import { isMusicArtworkUploadPayload } from "@/lib/music/music-cloud-contracts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,17 +11,7 @@ const idPattern = /^[a-f0-9-]{36}$/i;
 const kinds = new Set(["cover", "background"]);
 const assetsKey = (namespace: string) => `varynth:music:artwork-assets:v1:${namespace}`;
 
-type Payload = { assetId: string; kind: "cover" | "background"; trackIds: string[]; mimeType: string; sizeBytes: number };
-function validPayload(value: unknown): value is Payload {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Partial<Payload>;
-  return typeof item.assetId === "string" && idPattern.test(item.assetId)
-    && kinds.has(String(item.kind)) && Array.isArray(item.trackIds) && item.trackIds.length > 0 && item.trackIds.length <= 100
-    && item.trackIds.every((id) => typeof id === "string" && idPattern.test(id))
-    && new Set(item.trackIds).size === item.trackIds.length
-    && typeof item.mimeType === "string" && ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "image/svg+xml"].includes(item.mimeType)
-    && Number.isSafeInteger(item.sizeBytes) && Number(item.sizeBytes) > 0 && Number(item.sizeBytes) <= 20 * 1024 * 1024;
-}
+type Payload = import("@/lib/music/music-cloud-contracts").MusicArtworkUploadPayload;
 
 export async function POST(request: Request) {
   try {
@@ -36,12 +27,13 @@ export async function POST(request: Request) {
         if (!account) throw new Error("Autenticação necessária.");
         let payload: unknown;
         try { payload = clientPayload ? JSON.parse(clientPayload) : null; } catch { payload = null; }
-        if (!validPayload(payload) || !validMusicArtworkBlobPath(pathname, account.namespace)
+        if (!isMusicArtworkUploadPayload(payload) || !validMusicArtworkBlobPath(pathname, account.namespace)
           || pathname !== `music/${account.namespace}/artwork/${payload.assetId}.${payload.mimeType === "image/jpeg" ? "jpg" : payload.mimeType.split("/")[1].replace("svg+xml", "svg")}`) {
           throw new Error("Os dados da arte não correspondem ao arquivo enviado.");
         }
-        for (const trackId of payload.trackIds) {
-          const raw = await musicRedis(["HGET", account.redisKey, trackId]);
+        const selectedTracks = await musicRedis(["HMGET", account.redisKey, ...payload.trackIds]);
+        if (!Array.isArray(selectedTracks) || selectedTracks.length !== payload.trackIds.length) throw new Error("Não foi possível validar as faixas selecionadas.");
+        for (const raw of selectedTracks) {
           if (typeof raw !== "string") throw new Error("Uma das faixas selecionadas não pertence à sua biblioteca.");
           const track = JSON.parse(raw) as { blobPathname?: string };
           if (!track.blobPathname || !validMusicBlobPath(track.blobPathname, account.namespace)) throw new Error("Uma das faixas selecionadas não pertence à sua biblioteca.");
@@ -53,7 +45,7 @@ export async function POST(request: Request) {
         if (!tokenPayload) throw new Error("Metadados de propriedade ausentes.");
         const claims = JSON.parse(tokenPayload) as { namespace?: string; redisKey?: string; payload?: unknown; pathname?: string };
         if (!claims.namespace || !/^[a-f0-9]{32}$/i.test(claims.namespace) || claims.redisKey !== `varynth:music:library:v1:${claims.namespace}`
-          || !validPayload(claims.payload) || claims.pathname !== blob.pathname || !validMusicArtworkBlobPath(blob.pathname, claims.namespace)) throw new Error("Não foi possível validar a propriedade da arte.");
+          || !isMusicArtworkUploadPayload(claims.payload) || claims.pathname !== blob.pathname || !validMusicArtworkBlobPath(blob.pathname, claims.namespace)) throw new Error("Não foi possível validar a propriedade da arte.");
         const payload = claims.payload;
         const stored = await head(blob.pathname);
         if (stored.size !== payload.sizeBytes || stored.contentType !== payload.mimeType) throw new Error("A arte armazenada diverge dos metadados validados.");
