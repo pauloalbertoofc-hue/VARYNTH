@@ -13,7 +13,7 @@ import { DomainRegistry } from "./domain-registry";
     const options = { mode: "LOCAL_FILE" as const };
     assert.equal(await readPersistedDomainRegistry(options), null);
     const registry = new DomainRegistry(false);
-    registry.register({ id: "science", label: "Science", primaryOwner: "newton", coOwners: ["curie"], routingTerms: ["research integrity"], routingPriority: 25, specialists: [], capabilities: ["science.explain"], relatedDomains: [], enabled: true });
+    registry.register({ id: "science", label: "Science", primaryOwner: "newton", coOwners: ["curie"], routingTerms: ["research integrity"], routingPriority: 25, specialists: [], capabilities: ["science.explain"], knowledgePolicy: { publicKnowledge: true, allowedVisibility: ["DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY", allowedConsumers: ["curie"] }, relatedDomains: [], enabled: true });
     const domains = registry.listAllDomains();
     assert.equal(await savePersistedDomainRegistry(domains, 0, options), 1);
     const restored = await readPersistedDomainRegistry(options);
@@ -22,6 +22,7 @@ import { DomainRegistry } from "./domain-registry";
     assert.deepEqual(restored?.domains[0].coOwners, ["curie"]);
     assert.deepEqual(restored?.domains[0].routingTerms, ["research integrity"]);
     assert.equal(restored?.domains[0].routingPriority, 25);
+    assert.deepEqual(restored?.domains[0].knowledgePolicy, { publicKnowledge: true, allowedVisibility: ["DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY", allowedConsumers: ["curie"] });
     await assert.rejects(savePersistedDomainRegistry(domains, 0, options), /DOMAIN_REGISTRY_REVISION_CONFLICT/);
   } finally {
     process.chdir(originalDirectory);

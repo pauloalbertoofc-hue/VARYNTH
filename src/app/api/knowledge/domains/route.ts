@@ -1,6 +1,6 @@
 import { requireOwner, requireSession } from "@/lib/auth/require-session";
 import { domainRegistry, DomainRegistry } from "@/lib/knowledge";
-import { DEFAULT_DOMAIN_DEFINITIONS, mergeDomainDefinitions, type DomainDefinition } from "@/lib/knowledge/domain-registry";
+import { DEFAULT_DOMAIN_DEFINITIONS, mergeDomainDefinitions, type DomainDefinition, type DomainKnowledgePolicyConfig } from "@/lib/knowledge/domain-registry";
 import { domainRegistryPersistenceMode, readPersistedDomainRegistry, savePersistedDomainRegistry } from "@/lib/knowledge/domain-registry-store";
 
 export const runtime = "nodejs";
@@ -23,7 +23,11 @@ export async function GET() {
     const state = await loadRegistry();
     const role = (session.user as typeof session.user & { role?: string }).role;
     const persistenceMode = domainRegistryPersistenceMode();
-    return Response.json({ domains: domainRegistry.listAllDomains(), awarenessIndex: domainRegistry.getAwarenessIndex(), ...state, persistenceMode, ownerControlsAvailable: role === "owner" && persistenceMode !== "UNAVAILABLE", generatedAt: new Date().toISOString(), accessModel: "awareness_without_unrestricted_content" });
+    const domains = domainRegistry.listAllDomains().map((domain) => role === "owner" ? domain : {
+      ...domain,
+      publicCapabilities: domainRegistry.resolvePublicCapabilities(domain.id).filter((capability) => capability.domain === domain.id).map(({ id, description, input, output, allowedConsumers }) => ({ id, description, input, output, allowedConsumers })),
+    });
+    return Response.json({ domains, awarenessIndex: domainRegistry.getAwarenessIndex(), ...state, persistenceMode, ownerControlsAvailable: role === "owner" && persistenceMode !== "UNAVAILABLE", generatedAt: new Date().toISOString(), accessModel: "awareness_without_unrestricted_content" });
   } catch {
     return Response.json({ error: "Domain Registry persistente indisponível." }, { status: 503 });
   }
@@ -32,8 +36,8 @@ export async function GET() {
 export async function POST(request: Request) {
   if (!await requireOwner()) return Response.json({ error: "Acesso de proprietário necessário." }, { status: 403 });
   if (!sameOrigin(request)) return Response.json({ error: "Origem inválida." }, { status: 403 });
-  const body = await request.json().catch(() => ({})) as { operation?: unknown; domainId?: unknown; agentId?: unknown; expectedRevision?: unknown; domain?: unknown; routingTerms?: unknown; routingPriority?: unknown; bridge?: unknown; bridgeId?: unknown };
-  if (typeof body.operation !== "string" || !["TRANSFER_OWNER", "REGISTER_CO_OWNER", "REMOVE_CO_OWNER", "UPDATE_ROUTING", "REGISTER_SPECIALIST", "REGISTER_CAPABILITY", "REGISTER_DOMAIN", "REGISTER_DOMAIN_BRIDGE", "REMOVE_DOMAIN_BRIDGE"].includes(body.operation)) return Response.json({ error: "Operação inválida." }, { status: 400 });
+  const body = await request.json().catch(() => ({})) as { operation?: unknown; domainId?: unknown; agentId?: unknown; expectedRevision?: unknown; domain?: unknown; routingTerms?: unknown; routingPriority?: unknown; bridge?: unknown; bridgeId?: unknown; policy?: unknown };
+  if (typeof body.operation !== "string" || !["TRANSFER_OWNER", "REGISTER_CO_OWNER", "REMOVE_CO_OWNER", "UPDATE_ROUTING", "REGISTER_SPECIALIST", "REGISTER_CAPABILITY", "REGISTER_DOMAIN", "REGISTER_DOMAIN_BRIDGE", "REMOVE_DOMAIN_BRIDGE", "UPDATE_KNOWLEDGE_POLICY"].includes(body.operation)) return Response.json({ error: "Operação inválida." }, { status: 400 });
   try {
     const stored = await readPersistedDomainRegistry();
     const expectedRevision = typeof body.expectedRevision === "number" ? body.expectedRevision : -1;
@@ -56,6 +60,7 @@ export async function POST(request: Request) {
       else if (body.operation === "REGISTER_CAPABILITY" && typeof body.agentId === "string") candidate.registerCapability(body.domainId, body.agentId);
       else if (body.operation === "REGISTER_DOMAIN_BRIDGE" && body.bridge && typeof body.bridge === "object") candidate.registerDomainBridge(body.domainId, body.bridge as import("@/lib/knowledge/domain-registry").DomainBridge);
       else if (body.operation === "REMOVE_DOMAIN_BRIDGE" && typeof body.bridgeId === "string") candidate.removeDomainBridge(body.domainId, body.bridgeId);
+      else if (body.operation === "UPDATE_KNOWLEDGE_POLICY" && body.policy && typeof body.policy === "object") candidate.setKnowledgePolicy(body.domainId, body.policy as DomainKnowledgePolicyConfig);
       else return Response.json({ error: "Agente ou capability inválidos." }, { status: 400 });
     }
 
