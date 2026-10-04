@@ -15,6 +15,13 @@ assert.equal(musicAgentShouldConsultAthena("Por quê?"), false, "A short context
 assert.equal(musicAgentShouldConsultAthena("Não consulte a Athena; só me explica as tags do Music DNA"), false, "A direct refusal to delegate must be respected");
 assert.equal(musicAgentShouldConsultAthena("oi, tudo bem?"), false);
 assert.equal(musicAgentShouldConsultAthena("Pergunte à Athena sobre meu projeto"), true);
+const delegatedConversation = [
+  { sender: "user" as const, text: "Crie uma tarefa para divulgar o álbum" },
+  { sender: "curator" as const, text: "Consultei Athena: a proposta foi revisar o plano.", consultedAthena: true },
+  { sender: "user" as const, text: "Por quê?" },
+];
+assert.equal(musicAgentShouldConsultAthena("Por quê?", delegatedConversation), true, "A follow-up to Athena's answer should return to Athena");
+assert.equal(musicAgentShouldConsultAthena("Por quê?", [{ sender: "curator", text: "A tag escura veio do Music DNA." }]), false, "A follow-up to Euterpe's own answer stays with Euterpe");
 
 void (async () => {
   let consultCount = 0;
@@ -51,5 +58,17 @@ void (async () => {
   assert.match(delegated.text, /Consultei Athena/);
   assert.match(delegated.text, /plano está pronto/);
   assert.equal(consultCount, 1);
+
+  let delegatedContext: Array<{ sender: "user" | "curator"; text: string; consultedAthena?: boolean }> | undefined;
+  const followedUp = await runMusicAgentTurn({
+    message: "Por quê?",
+    conversation: delegatedConversation,
+    consultAthena: async (_request, conversation) => {
+      delegatedContext = conversation;
+      return { text: "Porque essa foi a prioridade indicada no plano." };
+    },
+  });
+  assert.equal(followedUp.consultedAthena, true);
+  assert.deepEqual(delegatedContext, delegatedConversation.slice(0, -1), "Athena receives only the preceding bounded turns; the current prompt is separate");
   console.log("Music agent chat identity and Athena delegation regression passed.");
 })();

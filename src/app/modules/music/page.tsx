@@ -694,13 +694,14 @@ export default function MusicPage() {
     event.preventDefault(); const messageText = chatInput.trim(); if (!messageText || chatBusy || !chatReady) return;
     const userMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "user", text: messageText, createdAt: new Date().toISOString() };
     setChatMessages((current) => [...current, userMessage]); setChatInput(""); setChatBusy(true);
+    const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text, consultedAthena: turn.sender === "curator" && turn.consultedAthena === true }));
     let resultOutcome: "response" | "proposal" | "error" = "response";
-    setChatStatus(musicAgentShouldConsultAthena(messageText) ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
-    varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: musicAgentShouldConsultAthena(messageText) ? "athena" : undefined });
+    const delegatesToAthena = musicAgentShouldConsultAthena(messageText, recentConversation);
+    setChatStatus(delegatesToAthena ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
+    varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: delegatesToAthena ? "athena" : undefined });
     try {
       const scopeId = musicLibrary.getIdentityNamespace();
       const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
-      const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text }));
       const turn = await runMusicAgentTurn({
         message: messageText,
         track: selectedTrack,
@@ -708,11 +709,11 @@ export default function MusicPage() {
         preferences,
         memories,
         conversation: recentConversation,
-        consultAthena: async (userRequest) => {
+        consultAthena: async (userRequest, conversationContext) => {
           varynthEventBus.emit("ATHENA.ENTERED_CONTEXT", { sessionId: athenaSessionIdRef.current });
           varynthEventBus.emit("ATHENA.REQUEST", { sessionId: athenaSessionIdRef.current });
           athenaEventBus.emit("MUSIC_AGENT_ATHENA_DELEGATED", { agentId: "euterpe", sessionId: athenaSessionIdRef.current });
-          const answer = await processAthenaQueryAsync(userRequest, "geral", store, undefined, athenaSessionIdRef.current || "music-curator-session");
+          const answer = await processAthenaQueryAsync(userRequest, "geral", store, undefined, athenaSessionIdRef.current || "music-curator-session", conversationContext?.map((turn) => ({ role: turn.sender === "user" ? "user" as const : "athena" as const, text: turn.text })));
           varynthEventBus.emit("ATHENA.RESPONSE", { sessionId: athenaSessionIdRef.current });
           return { text: answer.text, metadata: answer.metadata };
         },

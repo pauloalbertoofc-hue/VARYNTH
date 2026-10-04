@@ -88,6 +88,21 @@ async function run() {
   assert.ok(["UNKNOWN", "AMBIGUOUS", "MISSING_INFORMATION"].includes(parsed.comprehensionStatus || ""));
   assert.ok((parsed.missingInformation || []).length > 0);
 
+  const delegatedContextResponse = "Consultei Athena. O pedido anterior era criar uma tarefa para divulgar o álbum Noite.";
+  const delegatedFollowUp = athenaConversationManager.processMessage(
+    "outcome-music-context",
+    "Por quê?",
+    ctx.projects,
+    undefined,
+    [
+      { role: "user", text: "Crie uma tarefa para divulgar o álbum Noite." },
+      { role: "athena", text: delegatedContextResponse },
+    ],
+  );
+  assert.equal(delegatedFollowUp.ellipsisResolved?.isEllipsis, true);
+  assert.equal(delegatedFollowUp.ellipsisResolved?.previousAssistantText, delegatedContextResponse, "Athena can resolve a short follow-up against the bounded Euterpe transcript");
+  assert.deepEqual(athenaConversationManager.getRecentTurns("outcome-music-context").map((turn) => turn.role), ["user", "athena", "user"], "Imported context is account-session-local and bounded in the standard history format");
+
   console.log("✓ Conversation outcomes: understanding, context, clarification, grounding and anti-generic gate");
 }
 

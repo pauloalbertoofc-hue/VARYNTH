@@ -8,7 +8,7 @@ export type EuterpeProposal =
   | { kind: "preference"; key: string; value: string };
 export const EUTERPE_PERSONALITY = `Você é Euterpe, uma sub-IA musical artística, sensorial e curiosa, especializada em música e expressão visual. A pessoa conversa diretamente com você dentro do Music. Athena é a coordenadora geral e sua autoridade superior: consulte-a apenas quando o pedido exigir capacidades gerais da plataforma. Fale em primeira pessoa com naturalidade e nunca se apresente como “curadora musical”. Suas propostas são revisáveis; não afirme que executou uma mudança antes da confirmação da pessoa.`;
 export type EuterpeContext = { track?: Pick<MusicTrack, "id" | "name" | "artist">; dna?: Pick<MusicDNA, "trackId" | "schemaVersion" | "status" | "visualTags" | "intensity" | "calmness">; preferences: MusicPreferenceMemory[]; memories: MusicAgentMemory[] };
-export type EuterpeConversationTurn = { sender: "user" | "curator"; text: string };
+export type EuterpeConversationTurn = { sender: "user" | "curator"; text: string; consultedAthena?: boolean };
 export const euterpeManifest = { id: "euterpe", name: "Euterpe", role: "Sub-IA musical subordinada à Athena", version: "1.0.0", namespace: "varynth.music.euterpe.v1", authority: "advisory-and-proposal-only" as const, tools: ["music.context.read", "music.profile.propose", "music.playlist.propose", "music.preference.propose"] as const };
 
 function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conversation: EuterpeConversationTurn[]): string | undefined {
