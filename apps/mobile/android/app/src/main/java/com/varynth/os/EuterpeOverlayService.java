@@ -274,6 +274,7 @@ public class EuterpeOverlayService extends Service {
     }
 
     private void openMusic() {
+        getSharedPreferences("euterpe-overlay", MODE_PRIVATE).edit().putBoolean("pendingMusicOpen", true).apply();
         dispatchMediaAction("open");
         Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (open != null) { open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP); startActivity(open); }

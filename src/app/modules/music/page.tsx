@@ -1,7 +1,6 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Disc3, ListMusic, Music2, Pause, Play, Send, SkipBack, SkipForward, Volume2, X, Mic2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { athenaEventBus } from "@/lib/athena/events/event-bus";
@@ -21,6 +20,7 @@ import { PermissionPolicyEngine } from "@/lib/permissions/permission-policy";
 import { EuterpePresence } from "@/components/music/EuterpePresence";
 import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
 import type { EuterpeVisualState } from "@/lib/music/euterpe-character";
+import { getEuterpeOverlayBridge, type EuterpeNativePlayerState } from "@/lib/music/euterpe-native-bridge";
 import { euterpeVoiceProvider } from "@/lib/music/euterpe-voice";
 import { VisualScene } from "@/components/music/VisualScene";
 import { musicSeekTimeAtPointer } from "@/lib/music/music-playback";
@@ -36,20 +36,6 @@ import { LEGACY_ATHENA_SESSION_STORAGE_KEY, LEGACY_MUSIC_CHAT_STORAGE_KEY, music
 
 const visualProvider = new LocalVisualGenerationProvider();
 const athenaVisualProvider = new RemoteVisualGenerationProvider();
-type EuterpeOverlayBridge = {
-  checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean; enabled: boolean }>;
-  requestNotificationPermission(): Promise<{ granted: boolean }>;
-  show(options: EuterpeNativePlayerState): Promise<{ enabled: boolean; permissionRequired: boolean }>;
-  update(options: EuterpeNativePlayerState): Promise<void>;
-  addListener(eventName: "mediaAction", listener: (event: { action?: "open" | "play" | "pause" | "previous" | "next" }) => void): Promise<{ remove(): Promise<void> }>;
-  hide(): Promise<void>;
-};
-type EuterpeNativePlayerState = { state: EuterpeVisualState; title: string; artist: string; playing: boolean; coverDataUrl?: string };
-const euterpeOverlayPlugin = registerPlugin<EuterpeOverlayBridge>("EuterpeOverlay");
-function getEuterpeOverlayBridge(): EuterpeOverlayBridge | undefined {
-  if (typeof window === "undefined" || Capacitor.getPlatform() !== "android") return undefined;
-  return euterpeOverlayPlugin;
-}
 async function toNativeArtworkDataUrl(source: string | undefined): Promise<string | undefined> {
   if (!source || typeof createImageBitmap === "undefined") return undefined;
   try {
