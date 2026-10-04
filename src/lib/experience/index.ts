@@ -1,4 +1,5 @@
 export * from "./contracts";
+export * from "./agent-catalog";
 export * from "./experience-service";
 export * from "./signals";
 export * from "./preference-service";

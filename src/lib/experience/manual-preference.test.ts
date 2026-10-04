@@ -16,6 +16,14 @@ async function main() {
   assert.equal(source?.actionType, "PREFERENCE_CONFIRMED");
   assert.equal(source?.learningEligible, false);
 
+  const agentPreference = await service.declare({ domain: "creativity", key: "ideationMode", value: "practical", scope: "AGENT", scopeId: "musa" }, "account-a");
+  assert.equal(agentPreference.scope, "AGENT");
+  assert.equal(agentPreference.scopeId, "musa");
+  assert.deepEqual((await service.resolve({ ownerId: "account-a", domain: "creativity", agentId: "musa" })).map((item) => item.value), ["practical"]);
+  assert.deepEqual(await service.resolve({ ownerId: "account-a", domain: "creativity", agentId: "logos" }), [], "Agent-private manual preferences never leak to another specialist");
+  await assert.rejects(() => service.declare({ domain: "creativity", key: "ideationMode", value: "practical", scope: "AGENT" }, "account-a"), /PREFERENCE_INVALID/);
+  await assert.rejects(() => service.declare({ domain: "creativity", key: "ideationMode", value: "practical", scope: "AGENT", scopeId: "imaginary-agent" }, "account-a"), /PREFERENCE_INVALID/);
+
   const corrected = await service.declare({ domain: "audio", key: "mixDensity", value: "balanced", scope: "DOMAIN" }, "account-a");
   assert.equal(corrected.id, first.id);
   assert.equal(corrected.value, "balanced");

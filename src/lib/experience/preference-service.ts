@@ -4,6 +4,7 @@ import { confidenceFromEvidence } from "./signals";
 import { getExperienceOwnerId } from "./identity";
 import { experienceService } from "./experience-service";
 import { domainRegistry } from "@/lib/knowledge/domain-registry";
+import { EXPERIENCE_AGENT_CATALOG } from "./agent-catalog";
 
 const scopeRank: Record<PreferenceScope, number> = { GLOBAL: 1, DOMAIN: 2, AGENT: 3, MODULE: 3, PROJECT: 4, ARTIFACT: 5, SESSION: 6 };
 
@@ -12,12 +13,13 @@ function idFor(candidate: PreferenceCandidate, ownerId: string): string {
 }
 
 export class PreferenceService {
-  async declare(input: { domain: string; key: string; value: unknown; scope: Extract<PreferenceScope, "GLOBAL" | "DOMAIN">; scopeId?: string }, requestedOwnerId?: string): Promise<Preference> {
+  async declare(input: { domain: string; key: string; value: unknown; scope: Extract<PreferenceScope, "GLOBAL" | "DOMAIN" | "AGENT">; scopeId?: string }, requestedOwnerId?: string): Promise<Preference> {
     const ownerId = await getExperienceOwnerId(requestedOwnerId);
     const domain = input.domain.trim().toLowerCase();
     const key = input.key.trim();
-    const scopeId = input.scope === "DOMAIN" ? (input.scopeId?.trim() || domain) : undefined;
-    if (!/^[a-z][a-z0-9_.-]{1,63}$/.test(domain) || !/^[a-z][a-zA-Z0-9_.-]{1,63}$/.test(key) || input.value === undefined || (input.scope === "DOMAIN" && !scopeId)) {
+    const scopeId = input.scope === "DOMAIN" ? (input.scopeId?.trim() || domain) : input.scope === "AGENT" ? input.scopeId?.trim() : undefined;
+    const knownAgent = input.scope !== "AGENT" || EXPERIENCE_AGENT_CATALOG.some((agent) => agent.id === scopeId);
+    if (!/^[a-z][a-z0-9_.-]{1,63}$/.test(domain) || !/^[a-z][a-zA-Z0-9_.-]{1,63}$/.test(key) || input.value === undefined || (input.scope !== "GLOBAL" && !scopeId) || !knownAgent) {
       throw new Error("[PREFERENCE_INVALID] Domínio, chave, valor ou escopo inválido.");
     }
     const candidate: PreferenceCandidate = { subject: ownerId, domain, key, value: input.value, scope: input.scope, scopeId, evidence: [], proposedAt: new Date().toISOString() };
