@@ -140,7 +140,7 @@ public class EuterpeOverlayService extends Service {
     }
 
     private void startOverlayForeground() {
-        PendingIntent content = mediaActionIntent(ACTION_MEDIA_OPEN, 0);
+        PendingIntent content = musicOpenIntent();
         Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? new Builder(this, CHANNEL_ID) : new Builder(this);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) builder.setSubText("VARYNTH MUSIC · EUTERPE PRESENTE");
         Notification notification = builder
@@ -172,6 +172,13 @@ public class EuterpeOverlayService extends Service {
     private PendingIntent mediaActionIntent(String action, int requestCode) {
         Intent intent = new Intent(this, EuterpeOverlayService.class).setAction(action);
         return PendingIntent.getService(this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private PendingIntent musicOpenIntent() {
+        Intent intent = new Intent(this, MainActivity.class)
+            .setAction(ACTION_MEDIA_OPEN)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void updateMediaSession() {

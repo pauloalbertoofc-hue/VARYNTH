@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "latestVersion": "1.2.2",
-  "publishedAt": "2026-10-04T01:21:16Z",
+  "latestVersion": "1.2.3",
+  "publishedAt": "2026-10-04T02:19:01Z",
   "channels": {
     "android": {
-      "version": "1.2.2",
+      "version": "1.2.3",
       "channel": "test",
-      "url": "/downloads/varynth-android-1.2.2-debug.apk",
-      "sizeBytes": 4190357,
-      "sha256": "523B6DEAA35C8CECBF1F44D808D060F32B0EC97A1EC876FCB37384962BB8B8E8",
+      "url": "/downloads/varynth-android-1.2.3-debug.apk",
+      "sizeBytes": 4190597,
+      "sha256": "21E2790D8763EC0CE10F8E8FF1C174664AA36F29E643E45FC5FD26AFF75416C3",
       "requiresManualInstall": true
     },
     "windows": {

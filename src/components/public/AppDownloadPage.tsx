@@ -75,12 +75,12 @@ export function AppDownloadPage() {
         <section id="baixar" className="scroll-mt-8">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">Acesso e instalação</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">Escolha seu dispositivo</h2></div><p className="text-sm text-slate-500">A mesma conta e experiência em todos eles.</p></div>
           <div className="grid gap-4 md:grid-cols-3">
-            <DeviceCard icon={<Smartphone size={20} />} title="Celular Android" badge="APK 1.2.2 · teste" description="Use o player musical com capa e controles na notificação; toque na notificação ou na Euterpe flutuante para abrir a tela Tocando agora." />
+            <DeviceCard icon={<Smartphone size={20} />} title="Celular Android" badge="APK 1.2.3 · teste" description="Use o player musical com capa e controles na notificação; toque na notificação ou na Euterpe flutuante para abrir a tela Tocando agora." />
             <DeviceCard icon={<Smartphone size={20} />} title="iPhone e iPad" badge="Tela inicial" description="Abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”. O VARYNTH abre em uma janela própria." />
             <DeviceCard icon={<Laptop2 size={20} />} title="Computador Windows" badge="Windows 0.2.0 · teste" description="Instale a versão Windows de teste ou use o Web App pelo Chrome e Edge." />
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <a href="/downloads/varynth-android-1.2.2-debug.apk" download className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold transition hover:bg-violet-500"><ArrowDownToLine size={17} /> Baixar APK Android 1.2.2 (teste)</a>
+            <a href="/downloads/varynth-android-1.2.3-debug.apk" download className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold transition hover:bg-violet-500"><ArrowDownToLine size={17} /> Baixar APK Android 1.2.3 (teste)</a>
             <a href="/downloads/varynth-desktop-0.2.0-x64-setup.exe" download className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-300/30 bg-violet-300/10 px-5 py-3 text-sm font-bold text-violet-100 transition hover:bg-violet-300/15"><ArrowDownToLine size={17} /> Baixar Windows 0.2.0 (teste)</a>
           </div>
         </section>
