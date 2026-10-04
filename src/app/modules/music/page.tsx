@@ -16,7 +16,7 @@ import { readMusicMetadata } from "@/lib/music/music-metadata";
 import { importMusicBatch } from "@/lib/music/music-import";
 import { MusicTrack } from "@/lib/music/types";
 import { applyVisualDirective, applyVisualMotionPreset, createVisualProfile, visualFrameStyle, type ParticleType, type VisualMotionMode, type VisualProfile } from "@/lib/music/visual-profile";
-import { authorizeEuterpeProposal, interpretEuterpeRequest, type EuterpeConversationTurn, type EuterpeProposal } from "@/lib/music/euterpe";
+import { authorizeEuterpeProposal, type EuterpeConversationTurn, type EuterpeProposal } from "@/lib/music/euterpe";
 import { PermissionPolicyEngine } from "@/lib/permissions/permission-policy";
 import { EuterpePresence } from "@/components/music/EuterpePresence";
 import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
@@ -698,22 +698,16 @@ export default function MusicPage() {
     setChatStatus(musicAgentShouldConsultAthena(messageText) ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
     varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: musicAgentShouldConsultAthena(messageText) ? "athena" : undefined });
     try {
-      if (!musicAgentShouldConsultAthena(messageText)) {
-        const scopeId = musicLibrary.getIdentityNamespace();
-        const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
-        const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text }));
-        const result = interpretEuterpeRequest(messageText, { track: selectedTrack ?? undefined, dna, preferences, memories }, recentConversation);
-        resultOutcome = result.proposal ? "proposal" : "response";
-        setEuterpeExpression(result.proposal ? "CURIOUS" : "SPEAKING");
-        if (!result.proposal) window.setTimeout(() => setEuterpeExpression("HAPPY"), 800);
-        setChatMessages((current) => [...current, { id: crypto.randomUUID(), sender: "curator", text: result.response, createdAt: new Date().toISOString(), proposal: result.proposal }]);
-        athenaEventBus.emit("MUSIC_AGENT_REPLIED", { agentId: "euterpe", delegated: false });
-        return;
-      }
+      const scopeId = musicLibrary.getIdentityNamespace();
+      const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
+      const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text }));
       const turn = await runMusicAgentTurn({
         message: messageText,
         track: selectedTrack,
         dna,
+        preferences,
+        memories,
+        conversation: recentConversation,
         consultAthena: async (userRequest) => {
           varynthEventBus.emit("ATHENA.ENTERED_CONTEXT", { sessionId: athenaSessionIdRef.current });
           varynthEventBus.emit("ATHENA.REQUEST", { sessionId: athenaSessionIdRef.current });
@@ -723,9 +717,11 @@ export default function MusicPage() {
           return { text: answer.text, metadata: answer.metadata };
         },
       });
-      setEuterpeExpression("SPEAKING"); window.setTimeout(() => setEuterpeExpression("HAPPY"), 800);
+      resultOutcome = turn.proposal ? "proposal" : "response";
+      setEuterpeExpression(turn.proposal ? "CURIOUS" : "SPEAKING");
+      if (!turn.proposal) window.setTimeout(() => setEuterpeExpression("HAPPY"), 800);
       const planId = turn.athenaMetadata?.capabilityPlanId;
-      const curatorMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "curator", text: turn.text, createdAt: new Date().toISOString(), consultedAthena: turn.consultedAthena, athenaPlanId: typeof planId === "string" ? planId : undefined };
+      const curatorMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "curator", text: turn.text, createdAt: new Date().toISOString(), consultedAthena: turn.consultedAthena, athenaPlanId: typeof planId === "string" ? planId : undefined, proposal: turn.proposal };
       setChatMessages((current) => [...current, curatorMessage]);
       athenaEventBus.emit("MUSIC_AGENT_REPLIED", { agentId: turn.agent, delegated: turn.consultedAthena });
     } catch (error) {

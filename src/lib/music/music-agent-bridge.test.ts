@@ -16,6 +16,27 @@ void (async () => {
   assert.match(direct.text, /Euterpe/);
   assert.equal(consultCount, 0);
 
+  const visualProposal = await runMusicAgentTurn({
+    message: "Faça uma capa escura",
+    track: { id: "track-1", name: "Noite", artist: "Demo", durationMs: 0, mimeType: "audio/mpeg", sizeBytes: 0, addedAt: "now" },
+    conversation: [{ sender: "user", text: "Faça uma capa escura" }],
+    consultAthena: async () => { throw new Error("A solicitação musical não deve ser delegada"); },
+  });
+  assert.deepEqual(visualProposal.proposal, { kind: "visual-profile", trackId: "track-1", instruction: "capa escura" });
+
+  const contextualFollowUp = await runMusicAgentTurn({
+    message: "Por quê?",
+    track: { id: "track-1", name: "Noite", artist: "Demo", durationMs: 0, mimeType: "audio/mpeg", sizeBytes: 0, addedAt: "now" },
+    conversation: [
+      { sender: "user", text: "Faça uma capa escura" },
+      { sender: "curator", text: "Posso preparar um perfil visual capa escura para Noite." },
+      { sender: "user", text: "Por quê?" },
+    ],
+    consultAthena: async () => { throw new Error("O follow-up musical não deve ser delegado"); },
+  });
+  assert.match(contextualFollowUp.text, /Faça uma capa escura/);
+  assert.doesNotMatch(contextualFollowUp.text, /Por quê\?/i);
+
   const delegated = await runMusicAgentTurn({ message: "Crie um projeto para divulgar o álbum", consultAthena: async (request) => { consultCount++; assert.equal(request, "Crie um projeto para divulgar o álbum"); return { text: "O plano está pronto para revisão." }; } });
   assert.equal(delegated.agent, "euterpe");
   assert.equal(delegated.consultedAthena, true);
