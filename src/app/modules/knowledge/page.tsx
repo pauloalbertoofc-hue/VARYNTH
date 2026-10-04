@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { applyKnowledgeClassification, domainRegistry, findKnowledgeConflicts, listKnowledgeAccessLogs, listKnowledgeRelationships, publishKnowledge, queryKnowledge, revokeKnowledge, updateKnowledge } from "@/lib/knowledge";
 import type { KnowledgeItem } from "@/lib/knowledge";
 import type { KnowledgeRelationship } from "@/lib/knowledge";
 import type { DomainDefinition } from "@/lib/knowledge/domain-registry";
+import { buildKnowledgeTaxonomy } from "@/lib/knowledge/taxonomy";
+import { KnowledgeTaxonomyTree } from "./KnowledgeTaxonomyTree";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 
 export default function KnowledgePage() {
@@ -189,11 +191,13 @@ export default function KnowledgePage() {
     finally { setBusyDomain(null); }
   }
   const publicCount = items.filter((item) => item.visibility === "PUBLIC_TO_AGENTS").length;
+  const taxonomy = useMemo(() => buildKnowledgeTaxonomy(domains, items), [domains, items]);
   return <PageLayout title="Knowledge" subtitle="Mapa de domínios, autoridade e conhecimento compartilhável">
     <main className="p-6 space-y-6 animate-fade-in">
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[['Domínios', domains.length], ['Itens locais', items.length], ['Públicos entre agentes', publicCount], ['Consultas auditadas', accessCount]].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-white">{value}</p></div>)}
       </section>
+      <KnowledgeTaxonomyTree roots={taxonomy.roots} unmappedItemCount={taxonomy.unmappedItemCount} selectedDomain={domain} onSelect={setDomain} />
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Domain Registry</h2><p className="mt-1 text-xs text-slate-500">Athena conhece o mapa; o conteúdo continua protegido por policy.</p></div><span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">Registry: {domainPersistence} · Knowledge: {knowledgePersistence}</span></div>
         {domainMessage && <p role="status" className="mt-3 text-xs text-violet-200">{domainMessage}</p>}

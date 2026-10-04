@@ -20,6 +20,12 @@ Conteúdo textual longo é dividido em chunks estáveis, limitados em code point
 
 ## Limites atuais e evolução
 
+## Navegação hierárquica no Knowledge Center
+
+O Knowledge Center apresenta os domínios registrados como uma árvore derivada de `parentId`. Ela é uma visão de navegação, não uma segunda fonte de verdade: labels, IDs e relações hierárquicas vêm do Domain Registry. Os números exibidos contam somente os itens da consulta atual, já filtrada por policy e escopo de acesso, usando o domínio primário canônico; contagens de subárvore somam os nós descendentes. Portanto, pesquisa e domínio selecionado também limitam os números, e eles não representam inventário global.
+
+Itens autorizados cujo `primaryDomain` não exista no Registry são contabilizados separadamente como não mapeados, sem criar domínio ou alterar sua classificação. Ciclos e referências parentais ausentes no Registry não devem quebrar a renderização: nós afetados são apresentados como raízes para manter a navegação finita. A interface permite filtrar por nó, mas não move arquivos, não classifica itens e não amplia permissões.
+
 - `category` permanece uma string legada; os campos de obra/formato/assunto são taxonomia editorial, não substituem os domínios de conhecimento.
 - IDs semânticos corrigidos são persistidos no item; o Vault não cria automaticamente novos nós no `DomainRegistry`, portanto a interface de correção oferece os domínios registrados.
 - A classificação sugerida usa regras estruturadas locais, não embeddings; casos ambíguos precisam permanecer não classificados ou ser corrigidos pelo usuário.
