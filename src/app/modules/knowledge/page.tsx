@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { applyKnowledgeClassification, domainRegistry, findKnowledgeConflicts, listKnowledgeAccessLogs, listKnowledgeRelationships, publishKnowledge, queryKnowledge, revokeKnowledge, updateKnowledge } from "@/lib/knowledge";
-import type { KnowledgeItem } from "@/lib/knowledge";
+import { applyKnowledgeClassification, domainRegistry, findKnowledgeConflicts, listKnowledgeAccessLogs, listKnowledgeRelationships, publishKnowledge, queryKnowledge, revokeKnowledge, storeKnowledge, updateKnowledge } from "@/lib/knowledge";
+import type { KnowledgeItem, KnowledgeLifecycleState } from "@/lib/knowledge";
+import { availableKnowledgeLifecycleTransitions } from "@/lib/knowledge/lifecycle";
 import type { KnowledgeRelationship } from "@/lib/knowledge";
 import type { DomainDefinition } from "@/lib/knowledge/domain-registry";
 import { buildKnowledgeTaxonomy } from "@/lib/knowledge/taxonomy";
 import { KnowledgeTaxonomyTree } from "./KnowledgeTaxonomyTree";
+import { KnowledgeLifecycleControl } from "./KnowledgeLifecycleControl";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 
 export default function KnowledgePage() {
   const { isLoaded: vaultLoaded, vaultItems, updateVaultItem } = useVarynthStore();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
+  const [lifecycleItems, setLifecycleItems] = useState<KnowledgeItem[]>([]);
   const [domains, setDomains] = useState<DomainDefinition[]>(() => domainRegistry.listAllDomains());
   const [domainRevision, setDomainRevision] = useState(0);
   const [domainPersistence, setDomainPersistence] = useState("LOADING");
@@ -48,6 +51,15 @@ export default function KnowledgePage() {
     return () => { active = false; };
   }, []);
   useEffect(() => {
+    if (!canManageDomains) return;
+    let active = true;
+    void fetch("/api/knowledge/items?view=lifecycle", { cache: "no-store" }).then(async (response) => {
+      const result = await response.json().catch(() => ({})) as { items?: KnowledgeItem[] };
+      if (response.ok && Array.isArray(result.items) && active) setLifecycleItems(result.items);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [canManageDomains]);
+  useEffect(() => {
     let active = true;
     void fetch("/api/knowledge/items", { cache: "no-store" }).then(async (response) => {
       const result = await response.json().catch(() => ({})) as { persistenceMode?: string; error?: string };
@@ -57,7 +69,7 @@ export default function KnowledgePage() {
     return () => { active = false; };
   }, []);
   useEffect(() => { void Promise.all([queryKnowledge({ requester: "athena", query, domain: domain || undefined, purpose: "knowledge center retrieval", scope: "ALL" }), findKnowledgeConflicts(), listKnowledgeAccessLogs(), listKnowledgeRelationships()]).then(([nextItems, nextConflicts, logs, nextRelationships]) => { setItems(nextItems); setConflicts(nextConflicts); setAccessCount(logs.length); setRelationships(nextRelationships); }); }, [query, domain]);
-  async function authorize(operation: "CLASSIFY" | "PUBLISH" | "REVOKE", itemId: string) {
+  async function authorize(operation: "CLASSIFY" | "PUBLISH" | "REVOKE" | "LIFECYCLE", itemId: string) {
     const response = await fetch("/api/knowledge/authorize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation, itemId }) });
     const result = await response.json().catch(() => ({})) as { authorized?: boolean; error?: string };
     if (!response.ok || !result.authorized) throw new Error(result.error || "Ação não autorizada.");
@@ -116,6 +128,29 @@ export default function KnowledgePage() {
       setItems((current) => current.filter((candidate) => candidate.id !== item.id));
       setActionMessage("Conhecimento revogado do retrieval.");
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao revogar."); }
+    finally { setBusyItem(null); }
+  }
+  async function setItemLifecycle(item: KnowledgeItem, nextState: KnowledgeLifecycleState) {
+    if (!canManageDomains || nextState === (item.lifecycleState || "ACTIVE")) return;
+    setBusyItem(item.id); setActionMessage("");
+    try {
+      await authorize("LIFECYCLE", item.id);
+      const response = await fetch("/api/knowledge/update", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id, patch: { lifecycleState: nextState } }) });
+      const result = await response.json().catch(() => ({})) as { error?: string; item?: KnowledgeItem };
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar o lifecycle do conhecimento.");
+      let updated = result.item || { ...item, lifecycleState: nextState };
+      try { updated = await updateKnowledge(item.id, "system", { lifecycleState: nextState }); }
+      catch (error) {
+        if (!(error instanceof Error) || !error.message.includes("KNOWLEDGE_NOT_FOUND")) throw error;
+        updated = await storeKnowledge(updated);
+      }
+      const refreshedItems = await queryKnowledge({ requester: "athena", query, domain: domain || undefined, purpose: "knowledge center lifecycle refresh", scope: "ALL" });
+      setItems(refreshedItems);
+      const inventoryResponse = await fetch("/api/knowledge/items?view=lifecycle", { cache: "no-store" });
+      const inventory = await inventoryResponse.json().catch(() => ({})) as { items?: KnowledgeItem[] };
+      if (inventoryResponse.ok && Array.isArray(inventory.items)) setLifecycleItems(inventory.items);
+      setActionMessage(`Estado de ${item.title} atualizado para ${nextState}.`);
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao atualizar lifecycle."); }
     finally { setBusyItem(null); }
   }
   async function transferDomainOwner(entry: DomainDefinition) {
@@ -198,6 +233,7 @@ export default function KnowledgePage() {
         {[['Domínios', domains.length], ['Itens locais', items.length], ['Públicos entre agentes', publicCount], ['Consultas auditadas', accessCount]].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-white">{value}</p></div>)}
       </section>
       <KnowledgeTaxonomyTree roots={taxonomy.roots} unmappedItemCount={taxonomy.unmappedItemCount} selectedDomain={domain} onSelect={setDomain} />
+      <KnowledgeLifecycleControl items={lifecycleItems} canManage={canManageDomains} busyItem={busyItem} onChange={(item, state) => void setItemLifecycle(item, state)} />
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Domain Registry</h2><p className="mt-1 text-xs text-slate-500">Athena conhece o mapa; o conteúdo continua protegido por policy.</p></div><span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">Registry: {domainPersistence} · Knowledge: {knowledgePersistence}</span></div>
         {domainMessage && <p role="status" className="mt-3 text-xs text-violet-200">{domainMessage}</p>}

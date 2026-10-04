@@ -13,3 +13,5 @@ Resultados possíveis:
 - `REQUIRE_DELEGATION`.
 
 O enforcement fica no serviço, não na UI. Awareness global não equivale a acesso irrestrito.
+
+Lifecycle também participa da decisão no serviço: `DRAFT`/`REVIEW` só aparecem para o owner; `ARCHIVED`/`DEPRECATED` não entram em retrieval nem discovery; `STALE` permanece acessível, mas perde prioridade frente a conteúdo atual. Só `ACTIVE` pode ser publicado entre agentes. A interface administrativa não substitui essas regras.

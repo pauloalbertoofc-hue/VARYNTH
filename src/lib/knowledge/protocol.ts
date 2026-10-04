@@ -6,7 +6,7 @@ import { decideKnowledgeAccess } from "./policy";
 export interface PublicKnowledgeCapability { id: string; agentId: string; domain: string; description: string; input: string[]; output: string[]; allowedConsumers: string[]; public: true; }
 export interface KnowledgeContract { domain: string; providerAgent: string; visibility: "PUBLIC_TO_AGENTS"; allowedConsumers: string[]; categories: string[]; capabilities: string[]; sensitivityPolicy: "PUBLIC_ONLY"; }
 export interface PublicKnowledgeProfile { domain: string; ownerAgent?: string; specialists: string[]; capabilities: PublicKnowledgeCapability[]; contracts: KnowledgeContract[]; }
-export interface KnowledgePacketFact { knowledgeId: string; title: string; content: string; domain: string; assertion: string; authority: string; freshness: string; version: number; sourceReference?: string; sourceSpan?: KnowledgeItem["provenance"]["span"]; derivedFromIds: string[]; truncated: boolean; }
+export interface KnowledgePacketFact { knowledgeId: string; title: string; content: string; domain: string; assertion: string; authority: string; freshness: string; lifecycleState: NonNullable<KnowledgeItem["lifecycleState"]>; version: number; sourceReference?: string; sourceSpan?: KnowledgeItem["provenance"]["span"]; derivedFromIds: string[]; truncated: boolean; }
 export interface KnowledgePacket { id: string; requester: string; provider: string; domain: string; purpose: string; facts: KnowledgePacketFact[]; constraints: string[]; provenanceIds: string[]; truncated: boolean; createdAt: string; }
 export interface DomainResponse { domain: string; specialistAgent: string; answer: string; evidence: string[]; sources: string[]; confidence: number; assumptions: string[]; limitations: string[]; packet: KnowledgePacket; consultation?: { status: "RETRIEVAL_ONLY" | "SPECIALIST_INVOKED" | "NO_AUTHORIZED_KNOWLEDGE" | "SPECIALIST_UNAVAILABLE" | "SPECIALIST_FAILED"; provider: string; executionMode?: "REGISTERED_AGENT_KNOWLEDGE_METHOD"; }; }
 
@@ -58,6 +58,7 @@ export async function requestKnowledgePacket(request: KnowledgeQuery & { provide
       assertion: item.assertion,
       authority: item.provenance.authority,
       freshness: item.freshness,
+      lifecycleState: item.lifecycleState || "ACTIVE",
       version: item.version,
       sourceReference: item.provenance.sourceReference,
       sourceSpan,

@@ -1,4 +1,5 @@
 import type { KnowledgeItem, KnowledgeQuery } from "./contracts";
+import { lifecycleAllowsRetrieval } from "./lifecycle";
 
 export interface KnowledgeRetrievalIndex {
   revision: number;
@@ -35,7 +36,7 @@ function trigrams(value: string): Set<string> {
 /** Rebuildable lexical and structured candidate index; KnowledgeItems remain canonical in storage. */
 export function buildKnowledgeRetrievalIndex(items: KnowledgeItem[], revision: number): KnowledgeRetrievalIndex {
   const supersededIds = new Set(items.flatMap((item) => item.supersedesId && item.supersedesId !== item.id ? [item.supersedesId] : []));
-  const activeItems = items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id));
+  const activeItems = items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id) && lifecycleAllowsRetrieval(item));
   const index: KnowledgeRetrievalIndex = {
     revision,
     items: activeItems,

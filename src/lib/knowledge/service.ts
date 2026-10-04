@@ -1,6 +1,7 @@
-import { knowledgeAccessLogRepository, knowledgeRepository } from "../persistence/repositories";
+import { knowledgeAccessLogRepository, knowledgeRelationshipRepository, knowledgeRepository } from "../persistence/repositories";
 import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationship } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
+import { assertKnowledgeLifecycleTransition, getKnowledgeLifecycleState, isKnowledgeLifecycleState, lifecycleAllowsRequester } from "./lifecycle";
 import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, scoreKnowledgeRelevance, selectKnowledgeCandidates, type KnowledgeRetrievalIndex } from "./retrieval-index";
 
 const queryCache = new Map<string, { revision: number; expiresAt: number; items: KnowledgeItem[] }>();
@@ -9,6 +10,39 @@ let revision = 0;
 let retrievalIndex: KnowledgeRetrievalIndex | undefined;
 let retrievalIndexBuild: Promise<KnowledgeRetrievalIndex | null> | undefined;
 let retrievalIndexBuildRevision = -1;
+
+async function collectDependentIds(sourceId: string, relationTypes: ReadonlySet<KnowledgeRelationship["type"]>): Promise<Set<string>> {
+  const relations = await knowledgeRelationshipRepository.getAll((relation) => relationTypes.has(relation.type));
+  const dependentsBySource = new Map<string, string[]>();
+  for (const relation of relations) dependentsBySource.set(relation.toId, [...(dependentsBySource.get(relation.toId) || []), relation.fromId]);
+  const visited = new Set<string>([sourceId]);
+  const pending = [sourceId];
+  while (pending.length) {
+    const current = pending.pop()!;
+    for (const dependentId of dependentsBySource.get(current) || []) {
+      if (visited.has(dependentId)) continue;
+      visited.add(dependentId);
+      pending.push(dependentId);
+    }
+  }
+  visited.delete(sourceId);
+  return visited;
+}
+
+async function markDependentsForReview(sourceId: string): Promise<void> {
+  const dependentIds = await collectDependentIds(sourceId, new Set(["DERIVED_FROM", "DEPENDS_ON"]));
+  if (!dependentIds.size) return;
+  const affected = await knowledgeRepository.getAll((item) => dependentIds.has(item.id) && !item.invalidatedAt);
+  const now = new Date().toISOString();
+  const changed = affected.filter((item) => !["ARCHIVED", "DEPRECATED"].includes(getKnowledgeLifecycleState(item)) && (getKnowledgeLifecycleState(item) !== "REVIEW" || item.freshness === "CURRENT"));
+  if (!changed.length) return;
+  await knowledgeRepository.saveBatch(changed.map((item) => ({
+    ...item,
+    lifecycleState: "REVIEW" as const,
+    freshness: item.freshness === "CURRENT" ? "POSSIBLY_STALE" as const : item.freshness,
+    updatedAt: now,
+  })));
+}
 
 export function invalidateKnowledgeQueryCache(): void {
   revision += 1;
@@ -46,12 +80,16 @@ async function getKnowledgeRetrievalIndex(): Promise<KnowledgeRetrievalIndex> {
 
 function currentKnowledge(items: KnowledgeItem[]): KnowledgeItem[] {
   const supersededIds = new Set(items.flatMap((item) => item.supersedesId ? [item.supersedesId] : []));
-  return items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id));
+  return items.filter((item) => !item.invalidatedAt && !supersededIds.has(item.id) && !["ARCHIVED", "DEPRECATED"].includes(getKnowledgeLifecycleState(item)));
 }
 
 async function persistKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
   const write = async () => {
     const existing = await knowledgeRepository.getById(item.id);
+    if (item.lifecycleState !== undefined) {
+      if (!isKnowledgeLifecycleState(item.lifecycleState)) throw new Error("[KNOWLEDGE_LIFECYCLE_STATE_INVALID] Estado lifecycle inválido.");
+      if (existing) assertKnowledgeLifecycleTransition(existing.lifecycleState, item.lifecycleState);
+    }
     const allKnowledge = await knowledgeRepository.getAll();
     const activeIds = new Set(currentKnowledge(allKnowledge).map((candidate) => candidate.id));
     const siblings = allKnowledge.filter((candidate) => activeIds.has(candidate.id) && candidate.id !== item.id && candidate.primaryDomain === item.primaryDomain && candidate.title.toLocaleLowerCase() === item.title.toLocaleLowerCase() && candidate.content !== item.content);
@@ -68,6 +106,7 @@ async function persistKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
     }
     const stored = existing ? {
       ...item,
+      lifecycleState: item.lifecycleState || existing.lifecycleState || "ACTIVE",
       createdAt: existing.createdAt,
       version: existing.version + 1,
       supersedesId: snapshotId,
@@ -84,6 +123,8 @@ async function persistKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
       stored,
     ];
     await knowledgeRepository.saveBatch(writes);
+    invalidateKnowledgeQueryCache();
+    if (existing) await markDependentsForReview(item.id);
     invalidateKnowledgeQueryCache();
     return stored;
   };
@@ -105,13 +146,18 @@ export function storeKnowledge(item: KnowledgeItem): Promise<KnowledgeItem> {
 }
 
 /** Persist an authoritative projection update without creating a content-history snapshot. */
-export function storeKnowledgeProjection(item: KnowledgeItem): Promise<KnowledgeItem> {
+export function storeKnowledgeProjection(item: KnowledgeItem, options: { cascadeReview?: boolean; resetLifecycleOnContentChange?: boolean } = {}): Promise<KnowledgeItem> {
   const previous = knowledgeWriteQueues.get(item.id) || Promise.resolve();
   const current = previous.catch(() => undefined).then(async () => {
     const existing = await knowledgeRepository.getById(item.id);
-    if (!existing || existing.invalidatedAt || existing.content !== item.content) return persistKnowledge(item);
+    if (!existing || existing.invalidatedAt || existing.content !== item.content) {
+      const refreshed = options.resetLifecycleOnContentChange ? { ...item, lifecycleState: "ACTIVE" as const } : item;
+      return persistKnowledge(refreshed);
+    }
+    if (item.lifecycleState !== undefined) assertKnowledgeLifecycleTransition(existing.lifecycleState, item.lifecycleState);
     const projected: KnowledgeItem = {
       ...item,
+      lifecycleState: item.lifecycleState || existing.lifecycleState || "ACTIVE",
       createdAt: existing.createdAt,
       version: existing.version,
       supersedesId: existing.supersedesId,
@@ -124,6 +170,8 @@ export function storeKnowledgeProjection(item: KnowledgeItem): Promise<Knowledge
     };
     if (JSON.stringify(projected) === JSON.stringify(existing)) return existing;
     const stored = await knowledgeRepository.save(projected);
+    invalidateKnowledgeQueryCache();
+    if (options.cascadeReview !== false) await markDependentsForReview(item.id);
     invalidateKnowledgeQueryCache();
     return stored;
   });
@@ -138,6 +186,7 @@ export async function updateKnowledge(id: string, requester: string, patch: Part
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_UPDATE_DENIED] Somente o owner ou sistema pode atualizar conhecimento.");
+  if (patch.lifecycleState !== undefined) assertKnowledgeLifecycleTransition(current.lifecycleState, patch.lifecycleState);
   const next = { ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: new Date().toISOString() };
   return storeKnowledge(next);
 }
@@ -149,31 +198,41 @@ export async function findKnowledgeConflicts(domain?: string): Promise<Array<{ g
   return [...groups.entries()].map(([groupId, grouped]) => ({ groupId, items: grouped }));
 }
 
+/** Owner-facing lifecycle inventory; visibility is enforced by the authenticated route. */
+export async function listKnowledgeLifecycleItems(): Promise<KnowledgeItem[]> {
+  const items = await knowledgeRepository.getAll((item) => !item.invalidatedAt);
+  const supersededIds = new Set(items.flatMap((item) => item.supersedesId ? [item.supersedesId] : []));
+  return items.filter((item) => !supersededIds.has(item.id)).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
 export async function revokeKnowledge(id: string): Promise<KnowledgeItem> {
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   const revoked = { ...current, invalidatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   invalidateKnowledgeQueryCache();
   const stored = await knowledgeRepository.save(revoked);
-  const { knowledgeRelationshipRepository } = await import("../persistence/repositories");
-  const derivationGraph = await knowledgeRelationshipRepository.getAll((relation) => relation.type === "DERIVED_FROM");
-  const invalidatedIds = new Set([id]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const relation of derivationGraph) {
-      if (invalidatedIds.has(relation.toId) && !invalidatedIds.has(relation.fromId)) {
-        invalidatedIds.add(relation.fromId);
-        changed = true;
-      }
-    }
-  }
-  invalidatedIds.delete(id);
+  const invalidatedIds = await collectDependentIds(id, new Set(["DERIVED_FROM"]));
+  const allDependentIds = await collectDependentIds(id, new Set(["DERIVED_FROM", "DEPENDS_ON"]));
   if (invalidatedIds.size) {
     const derivedItems = await knowledgeRepository.getAll((item) => invalidatedIds.has(item.id) && !item.invalidatedAt);
     const invalidatedAt = new Date().toISOString();
     await knowledgeRepository.saveBatch(derivedItems.map((item) => ({ ...item, freshness: "UNKNOWN" as const, invalidatedAt, updatedAt: invalidatedAt })));
     invalidateKnowledgeQueryCache();
+  }
+  const reviewIds = [...allDependentIds].filter((dependentId) => !invalidatedIds.has(dependentId));
+  if (reviewIds.length) {
+    const dependentItems = await knowledgeRepository.getAll((item) => reviewIds.includes(item.id) && !item.invalidatedAt);
+    const reviewedAt = new Date().toISOString();
+    const reviewable = dependentItems.filter((item) => !["ARCHIVED", "DEPRECATED"].includes(getKnowledgeLifecycleState(item)));
+    if (reviewable.length) {
+      await knowledgeRepository.saveBatch(reviewable.map((item) => ({
+        ...item,
+        lifecycleState: "REVIEW" as const,
+        freshness: item.freshness === "CURRENT" ? "POSSIBLY_STALE" as const : item.freshness,
+        updatedAt: reviewedAt,
+      })));
+      invalidateKnowledgeQueryCache();
+    }
   }
   return stored;
 }
@@ -182,6 +241,7 @@ export async function publishKnowledge(id: string, requester: string, visibility
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_PUBLISH_DENIED] Somente o owner ou sistema pode publicar conhecimento.");
+  if (getKnowledgeLifecycleState(current) !== "ACTIVE") throw new Error("[KNOWLEDGE_PUBLISH_LIFECYCLE] Somente conhecimento ACTIVE pode ser publicado.");
   if (!["PUBLIC_TO_AGENTS", "DOMAIN", "CROSS_DOMAIN"].includes(visibility)) throw new Error("[KNOWLEDGE_PUBLISH_VISIBILITY_INVALID] Visibilidade de publicação inválida.");
   if (current.sensitivity === "PRIVATE") throw new Error("[KNOWLEDGE_PUBLISH_PRIVATE] Conhecimento PRIVATE não pode ser publicado entre agentes.");
   if (current.sensitivity === "SENSITIVE" && visibility !== "DOMAIN") throw new Error("[KNOWLEDGE_PUBLISH_SENSITIVE] Conhecimento SENSITIVE só pode ser compartilhado dentro do domínio.");
@@ -203,6 +263,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
   if (cached?.revision === revision && cached.expiresAt > Date.now()) return cached.items.map((item) => ({ ...item }));
   const index = await getKnowledgeRetrievalIndex();
   const candidates = selectKnowledgeCandidates(index, request).filter((item) => {
+    if (!lifecycleAllowsRequester(item, request.requester)) return false;
     const now = Date.now();
     if (item.validFrom && new Date(item.validFrom).getTime() > now) return false;
     if (item.validUntil && new Date(item.validUntil).getTime() < now) return false;
@@ -213,10 +274,11 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
     if (decision.decision === "DENY") return null;
     const authorityScore = { PRIMARY_SOURCE: 5, OFFICIAL_REFERENCE: 4, INTERNAL_DOCUMENT: 3, USER_PROVIDED: 2, AGENT_GENERATED: 2, EXPERIENCE_DERIVED: 1, UNKNOWN: 0 }[item.provenance.authority];
     const freshnessScore = { CURRENT: 3, POSSIBLY_STALE: 1, HISTORICAL: 0, UNKNOWN: 0 }[item.freshness];
+    const lifecycleScore = getKnowledgeLifecycleState(item) === "STALE" ? -2 : getKnowledgeLifecycleState(item) === "REVIEW" ? -1 : 0;
     const recencyScore = Math.max(0, 2 - Math.floor((Date.now() - new Date(item.updatedAt).getTime()) / 31536000000));
     const domainScore = request.domain && item.primaryDomain === request.domain ? 3 : 0;
     const relevanceScore = scoreKnowledgeRelevance(index, item.id, request.query);
-    return { item, decision, score: authorityScore + freshnessScore + recencyScore + domainScore + relevanceScore };
+    return { item, decision, score: authorityScore + freshnessScore + lifecycleScore + recencyScore + domainScore + relevanceScore };
   }).filter((entry): entry is { item: KnowledgeItem; decision: ReturnType<typeof decideKnowledgeAccess>; score: number } => Boolean(entry));
   scored.sort((left, right) => right.score - left.score || left.item.title.localeCompare(right.item.title));
   const result = scored.slice(0, request.limit && request.limit > 0 ? request.limit : 50).map((entry) => entry.decision.decision === "ALLOW_SUMMARY" ? { ...entry.item, content: `${entry.item.content.slice(0, 280)}${entry.item.content.length > 280 ? "…" : ""}` } : entry.item);
@@ -229,7 +291,7 @@ export async function queryKnowledge(request: KnowledgeQuery): Promise<Knowledge
 }
 
 export async function discoverKnowledge(request: KnowledgeQuery): Promise<KnowledgeDiscovery[]> {
-  const items = currentKnowledge(await knowledgeRepository.getAll()).filter((item) => !request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain));
+  const items = currentKnowledge(await knowledgeRepository.getAll()).filter((item) => lifecycleAllowsRequester(item, request.requester) && !["ARCHIVED", "DEPRECATED"].includes(getKnowledgeLifecycleState(item)) && (!request.domain || item.primaryDomain === request.domain || item.relatedDomains.includes(request.domain)));
   const result = items.map((item) => {
     const decision = decideKnowledgeAccess(item, request);
     const contentDecision = decideKnowledgeAccess(item, { ...request, operation: undefined });

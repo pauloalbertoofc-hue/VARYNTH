@@ -2,6 +2,7 @@ export type KnowledgeVisibility = "PRIVATE" | "AGENT_PRIVATE" | "PROJECT" | "DOM
 export type KnowledgeKind = "REFERENCE" | "DOCUMENT" | "MANUAL" | "DOCTRINE" | "SPECIFICATION" | "PROJECT" | "AGENT_GENERATED" | "USER_PROVIDED" | "SYSTEM" | "PUBLIC_DOMAIN" | "EXPERIENCE_DERIVED";
 export type KnowledgeAssertion = "FACT" | "INTERPRETATION" | "OPINION" | "HYPOTHESIS" | "PROCEDURE" | "REFERENCE";
 export type SourceAuthority = "PRIMARY_SOURCE" | "OFFICIAL_REFERENCE" | "USER_PROVIDED" | "INTERNAL_DOCUMENT" | "AGENT_GENERATED" | "EXPERIENCE_DERIVED" | "UNKNOWN";
+export type KnowledgeLifecycleState = "ACTIVE" | "DRAFT" | "REVIEW" | "STALE" | "ARCHIVED" | "DEPRECATED";
 
 export interface KnowledgeProvenance {
   sourceType: string;
@@ -45,6 +46,8 @@ export interface KnowledgeItem {
   provenance: KnowledgeProvenance;
   version: number;
   freshness: "CURRENT" | "POSSIBLY_STALE" | "HISTORICAL" | "UNKNOWN";
+  /** Additive lifecycle metadata; absent legacy values are interpreted as ACTIVE. */
+  lifecycleState?: KnowledgeLifecycleState;
   validFrom?: string;
   validUntil?: string;
   relatedProjectIds: string[];

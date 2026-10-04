@@ -9,3 +9,4 @@ export * from "./context-assembler";
 export * from "./protocol";
 export * from "./classification";
 export * from "./taxonomy";
+export * from "./lifecycle";

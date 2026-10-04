@@ -10,7 +10,10 @@ export async function PATCH(request: Request) {
   try {
     const item = await withKnowledgeAccount(knowledgeAccountId(session.user as typeof session.user & { id?: string }), () => updateKnowledge(body.id!, "system", body.patch!));
     return Response.json({ item, updatedAt: new Date().toISOString() });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("[KNOWLEDGE_LIFECYCLE_")) {
+      return Response.json({ error: error.message.replace(/^\[[^\]]+\]\s*/u, "") }, { status: 409 });
+    }
     return Response.json({ error: "Knowledge persistente indisponível." }, { status: 503 });
   }
 }

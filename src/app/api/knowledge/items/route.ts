@@ -1,7 +1,7 @@
-import { requireSession } from "@/lib/auth/require-session";
+import { requireOwner, requireSession } from "@/lib/auth/require-session";
 import { knowledgeAccountId, knowledgeAccountPersistenceMode, withKnowledgeAccount } from "@/lib/knowledge/knowledge-account-store";
 import { knowledgeRepository } from "@/lib/persistence/repositories";
-import { revokeKnowledge } from "@/lib/knowledge/service";
+import { listKnowledgeLifecycleItems, revokeKnowledge } from "@/lib/knowledge/service";
 import { canonicalVaultProjection } from "@/lib/knowledge/vault-sync";
 import { persistVaultKnowledgeProjection } from "@/lib/knowledge/vault-persistence.server";
 
@@ -12,9 +12,19 @@ function sameOrigin(request: Request) {
   return Boolean(origin && origin === new URL(request.url).origin);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await requireSession();
   if (!session) return Response.json({ error: "Autenticação necessária." }, { status: 401 });
+  if (new URL(request.url).searchParams.get("view") === "lifecycle") {
+    if (!await requireOwner()) return Response.json({ error: "Apenas o owner pode consultar o inventário de lifecycle." }, { status: 403 });
+    try {
+      const user = session.user as typeof session.user & { id?: string };
+      const items = await withKnowledgeAccount(knowledgeAccountId(user), listKnowledgeLifecycleItems);
+      return Response.json({ items, persistenceMode: knowledgeAccountPersistenceMode() });
+    } catch {
+      return Response.json({ error: "Knowledge persistente indisponível." }, { status: 503 });
+    }
+  }
   try {
     const user = session.user as typeof session.user & { id?: string };
     const itemCount = await withKnowledgeAccount(knowledgeAccountId(user), async () => (await knowledgeRepository.getAll()).filter((item) => !item.invalidatedAt).length);

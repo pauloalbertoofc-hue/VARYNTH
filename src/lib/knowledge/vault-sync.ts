@@ -1,7 +1,7 @@
 import type { VaultItem, VaultItemType, ReadingStatus } from "../types/vault";
 import { knowledgeRepository } from "../persistence/repositories";
 import { knowledgeChunksFromVaultItem, knowledgeFromVaultItem, knowledgeProjectionMatches } from "./vault-adapter";
-import { linkKnowledge, revokeKnowledge, storeKnowledge, storeKnowledgeProjection } from "./service";
+import { linkKnowledge, revokeKnowledge, storeKnowledgeProjection } from "./service";
 import type { KnowledgeItem } from "./contracts";
 
 const VAULT_TYPES: VaultItemType[] = ["artigo", "livro", "jurisprudencia", "lei", "pdf", "link", "video", "citacao", "codigo", "ideia"];
@@ -69,13 +69,13 @@ export function syncVaultKnowledgeItem(item: VaultItem) {
     const projected = knowledgeFromVaultItem(item);
     const chunks = await knowledgeChunksFromVaultItem(item);
     const existing = await knowledgeRepository.getById(projected.id);
-    const stored = projectionMatches(existing, projected) ? existing! : await storeKnowledge(projected);
+    const stored = projectionMatches(existing, projected) ? existing! : await storeKnowledgeProjection(projected, { cascadeReview: false });
     const desiredIds = new Set(chunks.map((chunk) => chunk.id));
     const oldChunks = await knowledgeRepository.getAll((candidate) => candidate.provenance.derivedFromIds?.includes(projected.id) === true);
     for (const stale of oldChunks.filter((chunk) => !desiredIds.has(chunk.id) && !chunk.invalidatedAt)) await revokeKnowledge(stale.id);
     for (const chunk of chunks) {
       const existingChunk = await knowledgeRepository.getById(chunk.id);
-      if (!knowledgeProjectionMatches(existingChunk, chunk)) await storeKnowledgeProjection(chunk);
+      if (!knowledgeProjectionMatches(existingChunk, chunk)) await storeKnowledgeProjection(chunk, { resetLifecycleOnContentChange: true });
       await linkKnowledge({ id: `derived:${chunk.id}`, fromId: chunk.id, toId: projected.id, type: "DERIVED_FROM" });
     }
     await syncServer("UPSERT_VAULT", { item });

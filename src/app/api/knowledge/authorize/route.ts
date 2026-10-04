@@ -1,6 +1,6 @@
 import { requireOwner } from "@/lib/auth/require-session";
 
-const operations = new Set(["CLASSIFY", "PUBLISH", "REVOKE"]);
+const operations = new Set(["CLASSIFY", "PUBLISH", "REVOKE", "LIFECYCLE"]);
 
 export async function POST(request: Request) {
   if (!await requireOwner()) return Response.json({ error: "Apenas o owner pode alterar Knowledge Items." }, { status: 403 });

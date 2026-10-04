@@ -1,7 +1,7 @@
 import type { VaultItem } from "../types/vault";
 import { knowledgeRepository } from "../persistence/repositories";
 import { knowledgeFromVaultItem } from "./vault-adapter";
-import { revokeKnowledge, storeKnowledge } from "./service";
+import { revokeKnowledge, storeKnowledgeProjection } from "./service";
 
 const operations = new Map<string, Promise<unknown>>();
 
@@ -51,7 +51,7 @@ export function syncVaultKnowledgeItem(item: VaultItem) {
   return serializeByVaultId(item.id, async () => {
     const projected = knowledgeFromVaultItem(item);
     const existing = await knowledgeRepository.getById(projected.id);
-    const stored = projectionMatches(existing, projected) ? existing! : await storeKnowledge(projected);
+    const stored = projectionMatches(existing, projected) ? existing! : await storeKnowledgeProjection(projected, { cascadeReview: false });
     await syncServer("UPSERT_VAULT", { item });
     return stored;
   });
