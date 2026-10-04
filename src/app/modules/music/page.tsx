@@ -1,7 +1,6 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Disc3, ListMusic, Music2, Pause, Play, Send, SkipBack, SkipForward, Volume2, X, Mic2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { athenaEventBus } from "@/lib/athena/events/event-bus";
@@ -21,6 +20,7 @@ import { PermissionPolicyEngine } from "@/lib/permissions/permission-policy";
 import { EuterpePresence } from "@/components/music/EuterpePresence";
 import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
 import type { EuterpeVisualState } from "@/lib/music/euterpe-character";
+import { getEuterpeOverlayBridge, type EuterpeNativePlayerState } from "@/lib/music/euterpe-native-bridge";
 import { euterpeVoiceProvider } from "@/lib/music/euterpe-voice";
 import { VisualScene } from "@/components/music/VisualScene";
 import { musicSeekTimeAtPointer } from "@/lib/music/music-playback";
@@ -36,20 +36,6 @@ import { LEGACY_ATHENA_SESSION_STORAGE_KEY, LEGACY_MUSIC_CHAT_STORAGE_KEY, music
 
 const visualProvider = new LocalVisualGenerationProvider();
 const athenaVisualProvider = new RemoteVisualGenerationProvider();
-type EuterpeOverlayBridge = {
-  checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean; enabled: boolean }>;
-  requestNotificationPermission(): Promise<{ granted: boolean }>;
-  show(options: EuterpeNativePlayerState): Promise<{ enabled: boolean; permissionRequired: boolean }>;
-  update(options: EuterpeNativePlayerState): Promise<void>;
-  addListener(eventName: "mediaAction", listener: (event: { action?: "open" | "play" | "pause" | "previous" | "next" }) => void): Promise<{ remove(): Promise<void> }>;
-  hide(): Promise<void>;
-};
-type EuterpeNativePlayerState = { state: EuterpeVisualState; title: string; artist: string; playing: boolean; coverDataUrl?: string };
-const euterpeOverlayPlugin = registerPlugin<EuterpeOverlayBridge>("EuterpeOverlay");
-function getEuterpeOverlayBridge(): EuterpeOverlayBridge | undefined {
-  if (typeof window === "undefined" || Capacitor.getPlatform() !== "android") return undefined;
-  return euterpeOverlayPlugin;
-}
 async function toNativeArtworkDataUrl(source: string | undefined): Promise<string | undefined> {
   if (!source || typeof createImageBitmap === "undefined") return undefined;
   try {
@@ -694,13 +680,14 @@ export default function MusicPage() {
     event.preventDefault(); const messageText = chatInput.trim(); if (!messageText || chatBusy || !chatReady) return;
     const userMessage: CuratorMessage = { id: crypto.randomUUID(), sender: "user", text: messageText, createdAt: new Date().toISOString() };
     setChatMessages((current) => [...current, userMessage]); setChatInput(""); setChatBusy(true);
+    const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text, consultedAthena: turn.sender === "curator" && turn.consultedAthena === true }));
     let resultOutcome: "response" | "proposal" | "error" = "response";
-    setChatStatus(musicAgentShouldConsultAthena(messageText) ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
-    varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: musicAgentShouldConsultAthena(messageText) ? "athena" : undefined });
+    const delegatesToAthena = musicAgentShouldConsultAthena(messageText, recentConversation);
+    setChatStatus(delegatesToAthena ? "Euterpe está consultando Athena…" : "Euterpe está pensando…");
+    varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: delegatesToAthena ? "athena" : undefined });
     try {
       const scopeId = musicLibrary.getIdentityNamespace();
       const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
-      const recentConversation: EuterpeConversationTurn[] = [...chatMessages, userMessage].slice(-12).map((turn) => ({ sender: turn.sender, text: turn.text }));
       const turn = await runMusicAgentTurn({
         message: messageText,
         track: selectedTrack,
@@ -708,11 +695,11 @@ export default function MusicPage() {
         preferences,
         memories,
         conversation: recentConversation,
-        consultAthena: async (userRequest) => {
+        consultAthena: async (userRequest, conversationContext) => {
           varynthEventBus.emit("ATHENA.ENTERED_CONTEXT", { sessionId: athenaSessionIdRef.current });
           varynthEventBus.emit("ATHENA.REQUEST", { sessionId: athenaSessionIdRef.current });
           athenaEventBus.emit("MUSIC_AGENT_ATHENA_DELEGATED", { agentId: "euterpe", sessionId: athenaSessionIdRef.current });
-          const answer = await processAthenaQueryAsync(userRequest, "geral", store, undefined, athenaSessionIdRef.current || "music-curator-session");
+          const answer = await processAthenaQueryAsync(userRequest, "geral", store, undefined, athenaSessionIdRef.current || "music-curator-session", conversationContext?.map((turn) => ({ role: turn.sender === "user" ? "user" as const : "athena" as const, text: turn.text })));
           varynthEventBus.emit("ATHENA.RESPONSE", { sessionId: athenaSessionIdRef.current });
           return { text: answer.text, metadata: answer.metadata };
         },

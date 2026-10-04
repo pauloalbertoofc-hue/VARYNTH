@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { VARYNTH_PUBLIC_ORIGIN, VARYNTH_PUBLIC_URL } from "@/lib/config/platform";
+import { EuterpeNativeOpenHandler } from "@/components/music/EuterpeNativeOpenHandler";
 
 export const metadata: Metadata = {
   metadataBase: new URL(VARYNTH_PUBLIC_ORIGIN),
@@ -33,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark">
       <body className="antialiased safe-top safe-bottom safe-left safe-right">
+        <EuterpeNativeOpenHandler />
         {children}
       </body>
     </html>

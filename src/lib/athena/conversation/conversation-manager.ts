@@ -61,10 +61,16 @@ export class ConversationManager {
     sessionId: string,
     rawPrompt: string,
     allProjects: Project[] = [],
-    activeProjectId?: string
+    activeProjectId?: string,
+    externalConversationContext?: readonly { role: "user" | "athena"; text: string }[]
   ): ParsedCognitiveContext {
     const state = this.getOrCreateSession(sessionId, activeProjectId);
-    const history = this.sessionHistories.get(sessionId) || [];
+    const history = externalConversationContext
+      ? externalConversationContext.slice(-12).flatMap((turn): ConversationTurn[] =>
+        turn && (turn.role === "user" || turn.role === "athena") && typeof turn.text === "string" && turn.text.trim()
+          ? [{ role: turn.role, text: turn.text.trim().slice(0, 2000), timestamp: new Date().toISOString() }]
+          : [])
+      : this.sessionHistories.get(sessionId) || [];
     const prompt = rawPrompt.trim();
     const clean = normalizeText(prompt);
 

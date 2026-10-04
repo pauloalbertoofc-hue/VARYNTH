@@ -29,13 +29,28 @@ public class EuterpeOverlayPlugin extends Plugin {
     public void load() {
         mediaActionReceiver = new BroadcastReceiver() {
             @Override public void onReceive(Context context, Intent intent) {
+                String action = intent.getStringExtra(EuterpeOverlayService.EXTRA_MEDIA_ACTION);
+                if ("open".equals(action)) {
+                    getContext().getSharedPreferences("euterpe-overlay", Context.MODE_PRIVATE)
+                        .edit().remove("pendingMusicOpen").apply();
+                }
                 JSObject data = new JSObject();
-                data.put("action", intent.getStringExtra(EuterpeOverlayService.EXTRA_MEDIA_ACTION));
+                data.put("action", action);
                 notifyListeners("mediaAction", data, true);
             }
         };
         ContextCompat.registerReceiver(getContext(), mediaActionReceiver,
             new IntentFilter(EuterpeOverlayService.ACTION_MEDIA_CONTROL), ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    @PluginMethod
+    public void consumePendingMusicOpen(PluginCall call) {
+        android.content.SharedPreferences preferences = getContext().getSharedPreferences("euterpe-overlay", Context.MODE_PRIVATE);
+        boolean pending = preferences.getBoolean("pendingMusicOpen", false);
+        if (pending) preferences.edit().remove("pendingMusicOpen").commit();
+        JSObject result = new JSObject();
+        result.put("pending", pending);
+        call.resolve(result);
     }
 
     @PluginMethod

@@ -9,15 +9,21 @@ import { renderAgentPersona } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
 import { relevantExperienceGuidance } from "../experience-guidance";
 
-export type MusicAthenaConsult = (userRequest: string) => Promise<{ text: string; metadata?: Record<string, unknown> }>;
+export type MusicAthenaConsult = (userRequest: string, recentConversation?: EuterpeConversationTurn[]) => Promise<{ text: string; metadata?: Record<string, unknown> }>;
 
-export function musicAgentShouldConsultAthena(message: string): boolean {
+export function musicAgentShouldConsultAthena(message: string, conversation: EuterpeConversationTurn[] = []): boolean {
   const text = message.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   if (!text) return false;
   const explicitlyDeclinesAthena = /\b(?:nao|sem)\s+(?:consulte|chame|pergunte|fale com|envolva)\s+(?:a\s+)?athena\b/.test(text);
   if (explicitlyDeclinesAthena) return false;
   if (/\b(?:athena|athenas|inteligencia principal)\b/.test(text)) return true;
   if (/^(oi|ola|bom dia|boa tarde|boa noite|tudo bem|quem e voce|o que voce faz)[!.?\s]*$/.test(text)) return false;
+
+  const contextualFollowUp = /^(?:e\s+)?(?:por que|porque|como assim|explica(?: melhor)?|me explica|fala mais|me conta mais|continua|continue|pode desenvolver|e depois|faz isso|faca isso|pode fazer isso)[!.?\s]*$/.test(text);
+  if (contextualFollowUp) {
+    const previousCuratorTurn = [...conversation].reverse().find((turn) => turn.sender === "curator");
+    if (previousCuratorTurn?.consultedAthena) return true;
+  }
 
   const musicTerms = /\b(music|musica|musical|faixa|cancao|playlist|music dna|onda sonora|visualizador|capa|fundo|euterpe|album|artista|genero|instrumento|letra|audio|som)\b/;
   const musicOnlyRequest = /\b(capa|fundo|perfil visual|visualizador|playlist|music dna|faixa|musica|cancao|album|artista|genero|instrumento|letra|audio)\b/;
@@ -129,8 +135,24 @@ export class EuterpeAgent implements AthenaAgent {
 
   /** Only outbound capability: request cognition from Athena and relay it in the Curator's conversation. */
   async converse(task: AthenaTask, context: AthenaContext, consultAthena: MusicAthenaConsult): Promise<AgentResult> {
-    if (!musicAgentShouldConsultAthena(task.rawPrompt)) return this.execute(task, context);
-    const response = await consultAthena(task.rawPrompt);
+    const candidateConversation = task.metadata?.musicConversation;
+    const conversation: EuterpeConversationTurn[] = Array.isArray(candidateConversation)
+      ? candidateConversation.slice(-12).flatMap((turn): EuterpeConversationTurn[] =>
+        turn && typeof turn === "object"
+          && ((turn as { sender?: unknown }).sender === "user" || (turn as { sender?: unknown }).sender === "curator")
+          && typeof (turn as { text?: unknown }).text === "string"
+          ? [{
+            sender: (turn as { sender: "user" | "curator" }).sender,
+            text: (turn as { text: string }).text.slice(0, 2000),
+            ...((turn as { consultedAthena?: unknown }).consultedAthena === true ? { consultedAthena: true } : {}),
+          }]
+          : [])
+      : [];
+    if (!musicAgentShouldConsultAthena(task.rawPrompt, conversation)) return this.execute(task, context);
+    const precedingTurns = conversation.at(-1)?.sender === "user" && conversation.at(-1)?.text.trim() === task.rawPrompt.trim()
+      ? conversation.slice(0, -1)
+      : conversation;
+    const response = await consultAthena(task.rawPrompt, precedingTurns.slice(-8));
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,

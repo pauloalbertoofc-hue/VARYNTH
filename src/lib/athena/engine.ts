@@ -259,7 +259,8 @@ export async function processAthenaQueryAsync(
   scope: AthenaScope,
   ctx: AthenaEngineContext,
   targetProjectId?: string,
-  sessionId = "default-session"
+  sessionId = "default-session",
+  externalConversationContext?: readonly { role: "user" | "athena"; text: string }[]
 ): Promise<AthenaMessage> {
   let prompt = rawPrompt.trim();
   if (/^(corrija a resposta|corrija|tente novamente|nao foi isso)[.!?]*$/i.test(prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
@@ -279,7 +280,8 @@ export async function processAthenaQueryAsync(
     sessionId,
     prompt,
     ctx.projects,
-    targetProjectId
+    targetProjectId,
+    externalConversationContext
   );
   const contractDecision = athenaInteractionContractRouter.route(parsed);
 
