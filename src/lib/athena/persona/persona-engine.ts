@@ -217,7 +217,7 @@ export class AthenaPersonaEngine {
     }
 
     const p1 = "Observatório de Regulação de IA & Responsabilidade Civil (Direito & Inovação)";
-    const p2 = "Framework de Pesquisa Empírica & Síntese Bibliográfica (Pesquisa & Ciência)";
+    const p2 = "Pesquisa Empírica & Síntese Bibliográfica (Pesquisa & Ciência)";
     const p3 = "Laboratório de Automação & Ferramentas Cognitivas (Labs & Forge)";
 
     const text =
@@ -225,11 +225,11 @@ export class AthenaPersonaEngine {
       `🚀 **1. ${p1}**\n` +
       `> Estruturar teses na **Argument Arena (Codex)** mapeando correntes jurisprudenciais sobre decisões autônomas e responsabilidade de modelos de IA no Brasil.\n\n` +
       `🔬 **2. ${p2}**\n` +
-      `> Catalogar no **Evidence Board** fichamentos densos do Vault, triangulando dados primários e identificando lacunas metodológicas em publicações acadêmicas.\n\n` +
+      `> Delimitar uma pergunta e critérios de busca; se já houver fontes pertinentes no Vault, compará-las. Caso contrário, começar registrando o que ainda precisa ser pesquisado.\n\n` +
       `⚡ **3. ${p3}**\n` +
       `> Rascunhar no **Labs** uma ferramenta ou workflow automatizado para acelerar a organização de conhecimento e execução de tarefas intelectuais.\n\n` +
-      `💡 **Minha recomendação para hoje:** Eu começaria pelo **${p1}**, pois ele conecta diretamente com o seu acervo do Vault e cria autoridade imediata no Codex.\n\n` +
-      `Qual dessas frentes você prefere que a gente rascunhe o primeiro esboço no Labs?`;
+      `💡 **Possível ponto de partida:** ${p1}. Eu o destaquei apenas como exemplo, pois combina direito e inovação em um tema delimitável; não verifiquei seu acervo, agenda ou prioridades, então ainda não é uma recomendação personalizada.\n\n` +
+      `Se quiser, comparo as três ideias por interesse, esforço ou fontes disponíveis. Qual critério pesa mais para você?`;
 
     return {
       text,
@@ -252,13 +252,27 @@ export class AthenaPersonaEngine {
       return "Minha resposta anterior não continha uma recomendação identificável. Posso explicar um trecho específico dela, mas não vou atribuir uma escolha ou justificativa que não apareceu na conversa.";
     }
     const target = referent;
-    return (
-      `Eu recomendei **"${target}"** por três razões estratégicas fundamentais:\n\n` +
-      `1. **Densidade & Autoridade:** Essa frente aproveita diretamente os fichamentos e referências que você já possui no Vault, gerando impacto intelectual rápido.\n` +
-      `2. **Viabilidade no Cronograma:** É um projeto de escopo bem delimitado, permitindo entregar um marco concreto no Chronos sem sobrecarregar suas outras demandas.\n` +
-      `3. **Desdobramento Prático:** Serve de base para alimentar a Argument Arena e gerar artigos ou teses de alto rigor.\n\n` +
-      `Quer que a gente monte o checklist inicial dessa iniciativa?`
-    );
+    const previous = previousAssistantText || "";
+    const normalizedPrevious = normalizeText(previous);
+    const normalizedTarget = normalizeText(target);
+    if (!previous || !normalizedPrevious.includes(normalizedTarget)) {
+      return "Não encontrei essa recomendação na resposta imediatamente anterior. Pode indicar qual opção você quer que eu explique?";
+    }
+
+    const rationale = previous
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*(?:[-•>*]|\d+[.)])\s*/, "").replace(/\*\*/g, "").trim())
+      .find((line) => normalizeText(line).includes(normalizedTarget) && /\b(?:porque|pois|ja que|uma vez que)\b/i.test(normalizeText(line)));
+    const causalPhrase = rationale?.match(/\b(?:porque|pois|j[aá]\s+que|uma\s+vez\s+que)\b/i);
+    const statedBasis = rationale && causalPhrase?.index !== undefined
+      ? rationale.slice(causalPhrase.index).replace(/[.!?\s]+$/, "")
+      : undefined;
+
+    if (!statedBasis) {
+      return `Eu mencionei **${target}** como uma possibilidade, mas não registrei um critério que explique por que ela seria melhor para você. Não vou inventar uma justificativa sobre seu acervo, agenda ou prioridades. Posso comparar as opções por interesse, esforço ou fontes disponíveis — qual critério importa mais?`;
+    }
+
+    return `Eu recomendei **${target}** como possibilidade. Na resposta anterior, o motivo que registrei foi: “${statedBasis}”. Esse é um critério geral da ideia, não uma verificação de que ela combina com seu acervo, agenda ou prioridades. Quer que eu compare as opções por interesse, esforço ou fontes disponíveis?`;
   }
 
   /**

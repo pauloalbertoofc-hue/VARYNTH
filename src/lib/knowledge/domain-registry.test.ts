@@ -30,6 +30,7 @@ assert.throws(() => registry.register({ id: "music.game-audio", label: "Cycle", 
 const restored = new DomainRegistry(false);
 restored.replaceDomains(registry.listAllDomains());
 assert.deepEqual(restored.listAllDomains(), registry.listAllDomains());
+assert.deepEqual(restored.getDomain("music")?.knowledgePolicy, registry.getDomain("music")?.knowledgePolicy, "domain policy must persist in registry snapshots");
 restored.removeCoOwner("music", "music-coordinator");
 assert.equal(restored.resolveCoOwners("music").includes("music-coordinator"), false);
 assert.equal(restored.resolveSpecialists("music.game-audio").includes("music-coordinator"), false);
@@ -50,6 +51,20 @@ assert.equal(merged.isWithinDomain("legal", "legal.intellectual-property"), fals
 assert.equal(merged.isWithinDomain("music.theory.harmony", "legal"), false);
 assert.ok(merged.resolvePublicCapabilities("music").some((capability) => capability.id === "music.explainHarmony"));
 assert.ok(!merged.resolvePublicCapabilities("system.orchestration").length);
+const policyRegistry = new DomainRegistry(false);
+policyRegistry.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, []));
+policyRegistry.setKnowledgePolicy("music", { publicKnowledge: true, allowedVisibility: ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY", allowedConsumers: ["athena"] });
+assert.ok(policyRegistry.resolvePublicCapabilities("music").filter((capability) => capability.domain === "music").every((capability) => capability.allowedConsumers.length === 1 && capability.allowedConsumers[0] === "athena"), "domain consumer policy must narrow capability-level wildcard contracts");
+policyRegistry.setKnowledgePolicy("music", { publicKnowledge: true, allowedVisibility: ["DOMAIN"], sensitivity: "INTERNAL", allowedConsumers: ["euterpe"] });
+assert.deepEqual(policyRegistry.resolveKnowledgePolicy("music.theory.harmony")?.allowedVisibility, ["DOMAIN"], "child visibility must be intersected with parent restrictions");
+assert.equal(policyRegistry.resolveKnowledgePolicy("music.theory.harmony")?.sensitivity, "INTERNAL", "child cannot lower inherited parent sensitivity");
+assert.deepEqual(policyRegistry.resolveKnowledgePolicy("music.theory.harmony")?.allowedConsumers, ["euterpe"], "wildcard child consumers inherit a restrictive parent allowlist");
+assert.equal(policyRegistry.resolvePublicCapabilities("music").some((capability) => capability.id === "music.explainHarmony"), false, "an internal parent hides public child capabilities");
+policyRegistry.setKnowledgePolicy("music", { publicKnowledge: false, allowedVisibility: ["DOMAIN"], sensitivity: "INTERNAL", allowedConsumers: ["euterpe"] });
+assert.equal(policyRegistry.resolvePublicCapabilities("music").length, 0, "owner can restrict a domain without deleting its capability contract declarations");
+policyRegistry.setKnowledgePolicy("music.theory.harmony", { publicKnowledge: true, allowedVisibility: ["DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY", allowedConsumers: ["athena"] });
+assert.deepEqual(policyRegistry.resolveKnowledgePolicy("music.theory.harmony")?.allowedVisibility, ["DOMAIN"], "a child cannot broaden inherited visibility");
+assert.throws(() => policyRegistry.setKnowledgePolicy("music", { publicKnowledge: true, allowedVisibility: ["DOMAIN"], sensitivity: "PUBLIC_ONLY", allowedConsumers: [] }), /DOMAIN_KNOWLEDGE_POLICY_INVALID/);
 const migrated = new DomainRegistry(false);
 migrated.replaceDomains(mergeDomainDefinitions(DEFAULT_DOMAIN_DEFINITIONS, [{ id: "music", label: "Music (stored)", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.inspectMetadata"], relatedDomains: [], enabled: true }]));
 assert.ok(migrated.resolvePublicCapabilities("music").some((capability) => capability.id === "music.inspectMetadata"));

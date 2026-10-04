@@ -15,6 +15,14 @@ assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity:
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity: "PRIVATE" }, { requester: "athena", purpose: "private system item" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity: "INTERNAL" }, { requester: "athena", purpose: "system knowledge" }).decision, "ALLOW");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "PUBLIC_TO_AGENTS", sensitivity: "SENSITIVE" }, { requester: "euterpe", purpose: "sensitive public knowledge" }).decision, "DENY");
+const previousLegalPolicy = domainRegistry.getDomain("legal")?.knowledgePolicy;
+domainRegistry.setKnowledgePolicy("legal", { publicKnowledge: true, allowedVisibility: ["DOMAIN"], sensitivity: "INTERNAL", allowedConsumers: ["justitia"] });
+assert.equal(decideKnowledgeAccess(base, { requester: "euterpe", purpose: "domain policy denies public sharing", scope: "PUBLIC" }).decision, "DENY");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "euterpe", purpose: "domain consumer allowlist" }).decision, "DENY");
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "justitia", purpose: "owner remains authorized" }).decision, "ALLOW");
+domainRegistry.setKnowledgePolicy("legal", { publicKnowledge: true, allowedVisibility: ["DOMAIN"], sensitivity: "INTERNAL", allowedConsumers: ["justitia", "euterpe"] });
+assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "INTERNAL" }, { requester: "euterpe", purpose: "explicitly authorized domain consumer" }).decision, "ALLOW");
+domainRegistry.setKnowledgePolicy("legal", previousLegalPolicy || { publicKnowledge: true, allowedVisibility: ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY", allowedConsumers: ["*"] });
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "SYSTEM", sensitivity: "SENSITIVE" }, { requester: "athena", purpose: "sensitive system knowledge" }).decision, "DENY");
 assert.equal(decideKnowledgeAccess({ ...base, visibility: "DOMAIN", sensitivity: "SENSITIVE" }, { requester: "justitia", purpose: "sensitive owner domain" }).decision, "ALLOW");
 domainRegistry.registerCoOwner("legal", "legal-co-owner-test");

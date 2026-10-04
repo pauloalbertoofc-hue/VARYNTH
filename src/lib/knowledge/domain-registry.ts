@@ -1,3 +1,12 @@
+export type DomainKnowledgeVisibility = "DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS";
+export type DomainKnowledgeSensitivity = "PUBLIC_ONLY" | "INTERNAL" | "SENSITIVE";
+export interface DomainKnowledgePolicyConfig {
+  publicKnowledge: boolean;
+  allowedVisibility: DomainKnowledgeVisibility[];
+  sensitivity: DomainKnowledgeSensitivity;
+  allowedConsumers: string[];
+}
+export interface DomainKnowledgePolicy extends DomainKnowledgePolicyConfig { domain: string; ownerAgent?: string; }
 export interface DomainDefinition {
   id: string;
   label: string;
@@ -10,12 +19,12 @@ export interface DomainDefinition {
   specialists: string[];
   capabilities: string[];
   publicCapabilities?: Array<{ id: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }>;
+  knowledgePolicy?: DomainKnowledgePolicyConfig;
   relatedDomains: string[];
   enabled: boolean;
   ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
 }
 export interface DomainBridge { id: string; domains: [string, string]; concepts: string[]; description: string; enabled: boolean; }
-export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
 export interface KnowledgeAwarenessIndex {
   domains: Array<{
     id: string;
@@ -70,6 +79,24 @@ export class DomainRegistry {
     const specialists = normalizeStrings(domain.specialists);
     if (primaryOwner && !specialists.includes(primaryOwner)) specialists.unshift(primaryOwner);
     const capabilities = normalizeStrings(domain.capabilities);
+    if (domain.knowledgePolicy && (!Array.isArray(domain.knowledgePolicy.allowedVisibility) || !Array.isArray(domain.knowledgePolicy.allowedConsumers))) throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Visibility e consumidores devem ser listas.");
+    const allowedVisibility = Array.isArray(domain.knowledgePolicy?.allowedVisibility)
+      ? [...new Set(domain.knowledgePolicy.allowedVisibility.filter((value): value is DomainKnowledgeVisibility => value === "DOMAIN" || value === "CROSS_DOMAIN" || value === "PUBLIC_TO_AGENTS"))]
+      : ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"] as DomainKnowledgeVisibility[];
+    if (domain.knowledgePolicy?.allowedVisibility && allowedVisibility.length !== domain.knowledgePolicy.allowedVisibility.length) throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Visibility contém valores desconhecidos.");
+    if (domain.knowledgePolicy?.publicKnowledge === true && !allowedVisibility.length) throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Policy pública exige ao menos uma visibility permitida.");
+    const sensitivity = domain.knowledgePolicy?.sensitivity === "INTERNAL" || domain.knowledgePolicy?.sensitivity === "SENSITIVE"
+      ? domain.knowledgePolicy.sensitivity
+      : "PUBLIC_ONLY";
+    if (domain.knowledgePolicy && (typeof domain.knowledgePolicy.publicKnowledge !== "boolean" || !["PUBLIC_ONLY", "INTERNAL", "SENSITIVE"].includes(domain.knowledgePolicy.sensitivity))) throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Elegibilidade e sensibilidade são obrigatórias e devem ser válidas.");
+    const allowedConsumers = normalizeStrings(Array.isArray(domain.knowledgePolicy?.allowedConsumers) ? domain.knowledgePolicy.allowedConsumers : ["*"]);
+    if (domain.knowledgePolicy?.publicKnowledge && !allowedConsumers.length) throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Policy pública exige consumidores explícitos ou '*'.");
+    const knowledgePolicy: DomainKnowledgePolicyConfig = {
+      publicKnowledge: domain.knowledgePolicy?.publicKnowledge !== false,
+      allowedVisibility,
+      sensitivity,
+      allowedConsumers,
+    };
     const publicCapabilities = (Array.isArray(domain.publicCapabilities) ? domain.publicCapabilities : []).map((capability) => {
       const capabilityId = typeof capability?.id === "string" ? capability.id.trim() : "";
       const description = typeof capability?.description === "string" ? capability.description.trim() : "";
@@ -89,7 +116,7 @@ export class DomainRegistry {
       if (!bridgeId || !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(bridgeId) || endpoints.length !== 2 || endpoints.some((endpoint) => !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(endpoint)) || !concepts.length || concepts.some((concept) => concept.length > 120) || !description || !endpoints.includes(id)) throw new Error("[DOMAIN_BRIDGE_INVALID] Bridge precisa de id, dois domínios canônicos, conceitos e descrição, e deve pertencer a um dos domínios.");
       return { id: bridgeId, domains: endpoints as [string, string], concepts, description, enabled: bridge.enabled !== false };
     });
-    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, bridges, specialists, capabilities, publicCapabilities, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, bridges, specialists, capabilities, publicCapabilities, knowledgePolicy, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
     this.persistBrowserSnapshot();
   }
 
@@ -159,6 +186,19 @@ export class DomainRegistry {
     this.persistBrowserSnapshot();
   }
 
+  setKnowledgePolicy(domainId: string, policy: DomainKnowledgePolicyConfig): void {
+    const domain = this.requireDomain(domainId);
+    const visibility = Array.isArray(policy?.allowedVisibility) ? [...new Set(policy.allowedVisibility)] : [];
+    const sensitivity = policy?.sensitivity;
+    if (typeof policy?.publicKnowledge !== "boolean" || visibility.some((value) => !["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"].includes(value)) || (policy.publicKnowledge && !visibility.length) || !["PUBLIC_ONLY", "INTERNAL", "SENSITIVE"].includes(sensitivity)) {
+      throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Policy de conhecimento inválida.");
+    }
+    const allowedConsumers = Array.isArray(policy.allowedConsumers) ? [...new Set(policy.allowedConsumers.filter((value) => typeof value === "string").map((value) => value.trim()).filter(Boolean))] : [];
+    if (policy.publicKnowledge && !allowedConsumers.length) throw new Error("[DOMAIN_KNOWLEDGE_POLICY_INVALID] Policy pública exige consumidores explícitos ou '*'.");
+    domain.knowledgePolicy = { publicKnowledge: policy.publicKnowledge, allowedVisibility: visibility, sensitivity, allowedConsumers };
+    this.persistBrowserSnapshot();
+  }
+
   listDomainBridges(): DomainBridge[] {
     return this.listDomains().flatMap((domain) => (domain.bridges || []).filter((bridge) => bridge.enabled).map((bridge) => ({ ...bridge, domains: [...bridge.domains] as [string, string], concepts: [...bridge.concepts] })));
   }
@@ -221,7 +261,23 @@ export class DomainRegistry {
   resolveKnowledgePolicy(id: string): DomainKnowledgePolicy | undefined {
     const domain = this.resolveDomain(id);
     if (!domain) return undefined;
-    return { domain: domain.id, ownerAgent: this.resolveOwner(domain.id), publicKnowledge: true, allowedVisibility: ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"], sensitivity: "PUBLIC_ONLY" };
+    const policy = domain.knowledgePolicy || { publicKnowledge: true, allowedVisibility: ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"] as DomainKnowledgeVisibility[], sensitivity: "PUBLIC_ONLY" as const, allowedConsumers: ["*"] };
+    const parentPolicy = domain.parentId ? this.resolveKnowledgePolicy(domain.parentId) : undefined;
+    const sensitivityRank: Record<DomainKnowledgeSensitivity, number> = { PUBLIC_ONLY: 0, INTERNAL: 1, SENSITIVE: 2 };
+    const allowedConsumers = !parentPolicy || parentPolicy.allowedConsumers.includes("*")
+      ? [...policy.allowedConsumers]
+      : policy.allowedConsumers.includes("*")
+        ? [...parentPolicy.allowedConsumers]
+        : policy.allowedConsumers.filter((consumer) => parentPolicy.allowedConsumers.includes(consumer));
+    return {
+      ...policy,
+      domain: domain.id,
+      ownerAgent: this.resolveOwner(domain.id),
+      allowedVisibility: policy.allowedVisibility.filter((visibility) => !parentPolicy || parentPolicy.allowedVisibility.includes(visibility)),
+      sensitivity: parentPolicy && sensitivityRank[parentPolicy.sensitivity] > sensitivityRank[policy.sensitivity] ? parentPolicy.sensitivity : policy.sensitivity,
+      publicKnowledge: policy.publicKnowledge && (!parentPolicy || parentPolicy.publicKnowledge),
+      allowedConsumers,
+    };
   }
   resolveRelatedDomains(id: string): string[] {
     const domain = this.resolveDomain(id);
@@ -243,7 +299,16 @@ export class DomainRegistry {
     return this.listDomains().filter((candidate) => this.isWithinDomain(candidate.id, domain.id)).flatMap((candidate) => {
       const providerAgent = this.resolveOwner(candidate.id);
       if (!providerAgent) return [];
-      return (candidate.publicCapabilities || []).map((capability) => ({ ...capability, domain: candidate.id, providerAgent, input: [...capability.input], output: [...capability.output], allowedConsumers: [...capability.allowedConsumers] }));
+      const policy = this.resolveKnowledgePolicy(candidate.id);
+      if (!policy?.publicKnowledge || !policy.allowedVisibility.includes("PUBLIC_TO_AGENTS") || policy.sensitivity !== "PUBLIC_ONLY") return [];
+      return (candidate.publicCapabilities || []).flatMap((capability) => {
+        const allowedConsumers = policy.allowedConsumers.includes("*")
+          ? [...capability.allowedConsumers]
+          : capability.allowedConsumers.includes("*")
+            ? [...policy.allowedConsumers]
+            : capability.allowedConsumers.filter((consumer) => policy.allowedConsumers.includes(consumer));
+        return allowedConsumers.length ? [{ ...capability, domain: candidate.id, providerAgent, input: [...capability.input], output: [...capability.output], allowedConsumers }] : [];
+      });
     });
   }
 
@@ -316,7 +381,7 @@ export class DomainRegistry {
 }
 
 export const DEFAULT_DOMAIN_DEFINITIONS: DomainDefinition[] = [
-  { id: "system.orchestration", label: "System Orchestration", primaryOwner: "athena", specialists: ["athena"], capabilities: ["discoverDomain", "delegateTask"], relatedDomains: [], enabled: true },
+  { id: "system.orchestration", label: "System Orchestration", primaryOwner: "athena", specialists: ["athena"], capabilities: ["discoverDomain", "delegateTask"], knowledgePolicy: { publicKnowledge: false, allowedVisibility: ["DOMAIN"], sensitivity: "INTERNAL", allowedConsumers: ["athena"] }, relatedDomains: [], enabled: true },
   { id: "music", label: "Music & Audio", primaryOwner: "euterpe", specialists: ["euterpe"], capabilities: ["music.explainTheory", "music.inspectMetadata", "music.analyzeStructure"], publicCapabilities: [
     { id: "music.inspectMetadata", description: "Interpreta metadados musicais e técnicos fornecidos explicitamente na consulta.", input: ["query", "provided_metadata"], output: ["structured_context", "provenance"], allowedConsumers: ["*"] },
     { id: "music.analyzeStructure", description: "Explica aspectos estruturais de uma composição com base no contexto fornecido.", input: ["query", "provided_context"], output: ["structured_context", "limitations"], allowedConsumers: ["*"] },
@@ -376,6 +441,7 @@ export function mergeDomainDefinitions(defaults: DomainDefinition[], persisted: 
       routingTerms: Object.prototype.hasOwnProperty.call(domain, "routingTerms") ? domain.routingTerms : baseline?.routingTerms,
       routingPriority: Object.prototype.hasOwnProperty.call(domain, "routingPriority") ? domain.routingPriority : baseline?.routingPriority,
       bridges: Object.prototype.hasOwnProperty.call(domain, "bridges") ? domain.bridges : baseline?.bridges,
+      knowledgePolicy: Object.prototype.hasOwnProperty.call(domain, "knowledgePolicy") ? domain.knowledgePolicy : baseline?.knowledgePolicy,
       // Older snapshots predate explicit publication contracts. Preserve the
       // reviewed defaults only when the field is absent; an explicit [] remains
       // a deliberate revocation of all public capability exposure.
