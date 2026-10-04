@@ -37,7 +37,7 @@
     "test:audio-interoperability": "npx tsx src/lib/studio/audio/musicxml-export.test.ts && npx tsx src/lib/studio/audio/score-pdf-export.test.ts",
     "test:music": "npx tsx src/lib/music/music-library.test.ts",
     "test:music:import": "npx tsx src/lib/music/music-import.test.ts && npx tsx src/lib/music/music-metadata.test.ts",
-    "test:music:cloud": "npx tsx src/lib/auth/music-blob-callback.test.ts && npx tsx src/lib/music/music-cloud-contracts.test.ts",
+    "test:music:cloud": "npx tsx src/lib/auth/music-blob-callback.test.ts && npx tsx src/lib/music/music-cloud-contracts.test.ts && npx tsx src/lib/music/music-artwork-association.test.ts",
     "test:music:studio": "npx tsx src/lib/music/music-studio.test.ts",
     "test:music:chat": "npx tsx src/lib/music/music-agent-bridge.test.ts && npx tsx src/lib/music/music-chat-storage.test.ts",
     "test:music:athena": "npx tsx src/lib/athena/agents/council/music-curator.test.ts",
