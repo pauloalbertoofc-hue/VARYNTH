@@ -4,7 +4,7 @@ import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
 import type { MusicAgentMemory, MusicDNA, MusicPreferenceMemory } from "@/lib/music/music-studio";
 import { EUTERPE_PERSONALITY } from "@/lib/music/euterpe";
-import { interpretEuterpeRequest, type EuterpeContext } from "@/lib/music/euterpe";
+import { interpretEuterpeRequest, type EuterpeContext, type EuterpeConversationTurn } from "@/lib/music/euterpe";
 import { renderAgentPersona } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
 import { relevantExperienceGuidance } from "../experience-guidance";
@@ -55,13 +55,22 @@ export class EuterpeAgent implements AthenaAgent {
       : undefined;
     const candidatePreferences = task.metadata?.musicPreferences;
     const candidateMemories = task.metadata?.musicMemories;
+    const candidateConversation = task.metadata?.musicConversation;
+    const conversation: EuterpeConversationTurn[] = Array.isArray(candidateConversation)
+      ? candidateConversation.slice(-12).flatMap((turn): EuterpeConversationTurn[] =>
+        turn && typeof turn === "object"
+          && ((turn as { sender?: unknown }).sender === "user" || (turn as { sender?: unknown }).sender === "curator")
+          && typeof (turn as { text?: unknown }).text === "string"
+          ? [{ sender: (turn as { sender: "user" | "curator" }).sender, text: (turn as { text: string }).text.slice(0, 2000) }]
+          : [])
+      : [];
     const musicContext: EuterpeContext = {
       track,
       dna: dna ? { trackId: dna.trackId, schemaVersion: dna.schemaVersion, status: dna.status, visualTags: dna.visualTags, intensity: dna.intensity, calmness: dna.calmness } : undefined,
       preferences: Array.isArray(candidatePreferences) ? candidatePreferences as MusicPreferenceMemory[] : [],
       memories: Array.isArray(candidateMemories) ? candidateMemories as MusicAgentMemory[] : [],
     };
-    const interpretation = interpretEuterpeRequest(task.rawPrompt, musicContext);
+    const interpretation = interpretEuterpeRequest(task.rawPrompt, musicContext, conversation);
     const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const userDeclinedPreferenceRetention = /não vou propor guardar|não vou propor salvar/i.test(interpretation.response);
     const content = !interpretation.proposal && !userDeclinedPreferenceRetention && priorOutcomes.length
@@ -76,7 +85,7 @@ export class EuterpeAgent implements AthenaAgent {
       confidence: interpretation.proposal ? 0.55 : dna ? 0.65 : track ? 0.5 : 0.35,
       sources: [...(track ? [`Faixa selecionada fornecida na tarefa: ${track.name} — ${track.artist}`] : []), ...(dna ? ["Music DNA fornecido na tarefa; estimativas derivadas de amostras de reprodução"] : []), ...(musicContext.preferences.length || musicContext.memories.length ? ["Preferências e memórias musicais fornecidas na tarefa"] : [])],
       recommendations: interpretation.proposal ? ["Revise a proposta e confirme antes de aplicar qualquer alteração."] : ["A decisão final e qualquer ação sobre a biblioteca pertencem à pessoa usuária."],
-      metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", "READ_PROVIDED_METADATA"], toolAccess: false, localFileAccess: false, ...(interpretation.proposal ? { proposal: interpretation.proposal } : {}), musicDNAUsed: Boolean(dna), proposalOnly: true, priorOutcomeHints: priorOutcomes.length },
+      metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA", "READ_PROVIDED_METADATA"], toolAccess: false, localFileAccess: false, ...(interpretation.proposal ? { proposal: interpretation.proposal } : {}), musicDNAUsed: Boolean(dna), proposalOnly: true, priorOutcomeHints: priorOutcomes.length, conversationTurnsUsed: conversation.length },
     };
   }
 
