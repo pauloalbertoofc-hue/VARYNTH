@@ -3,7 +3,7 @@ import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 import { documentationGuardian } from "../../guardian/documentation-guardian";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, converseAsSpecialist } from "../base-agent";
 import { confirmedCommunicationGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class ArchivistAgent implements AthenaAgent {
@@ -33,6 +33,8 @@ export class ArchivistAgent implements AthenaAgent {
       p.includes("handbook")
     );
   }
+
+  async converseWithFeedback(task: AthenaTask, context: AthenaContext): Promise<AgentResult> { return converseAsSpecialist(this, task, context); }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const health = documentationGuardian.assessHealth();

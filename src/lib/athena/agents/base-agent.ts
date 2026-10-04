@@ -1,6 +1,8 @@
 import { AthenaTask } from "../domain/task";
 import { AthenaContext } from "../domain/context";
 import { AgentResult } from "../domain/result";
+import { resolveSpecialistCorrection } from "../conversation/specialist-correction";
+import { athenaConversationFeedback } from "../conversation/quality-feedback";
 
 export interface AgentManifest {
   id: string;
@@ -86,8 +88,44 @@ export interface AthenaAgent {
   manifest: AgentManifest;
   canHandle(task: AthenaTask, context: AthenaContext): boolean;
   execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult>;
+  /** Standard conversational entrypoint; keeps each specialist's own execution and voice. */
+  converseWithFeedback?(task: AthenaTask, context: AthenaContext): Promise<AgentResult>;
   /** Receives only policy-filtered knowledge facts, never ambient Vault or account context. */
   consultKnowledge?(request: AgentKnowledgeConsultation): Promise<AgentResult>;
   review?(result: AgentResult, context: AthenaContext): Promise<AgentResult>;
+}
+
+/** Adds consistent explicit-feedback handling without changing a specialist's domain executor. */
+export async function converseAsSpecialist(
+  agent: Pick<AthenaAgent, "manifest" | "execute">,
+  task: AthenaTask,
+  context: AthenaContext,
+): Promise<AgentResult> {
+  const latestFeedback = context.conversationSessionId
+    ? athenaConversationFeedback.latest(context.conversationSessionId, agent.manifest.id)
+    : undefined;
+  const correction = resolveSpecialistCorrection(task.rawPrompt, context.recentConversation ?? [], agent.manifest.id, latestFeedback);
+  if (correction.kind === "clarify") {
+    return {
+      agentId: agent.manifest.id,
+      agentName: agent.manifest.name,
+      role: agent.manifest.role,
+      success: true,
+      content: correction.response,
+      confidence: 0.35,
+      sources: [],
+      recommendations: ["Esclarecer o ajuste desejado antes de gerar uma nova análise ou proposta"],
+      metadata: { conversationRepair: true, executedDomainWork: false, authority: agent.manifest.persona.authorityBoundary },
+    };
+  }
+  const resolvedTask = correction.prompt === task.rawPrompt ? task : { ...task, rawPrompt: correction.prompt };
+  const result = await agent.execute(resolvedTask, context);
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      ...(correction.repaired ? { conversationRepair: true, repairedFromExplicitFeedback: true } : {}),
+    },
+  };
 }
 

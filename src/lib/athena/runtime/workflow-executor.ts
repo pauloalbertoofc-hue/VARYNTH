@@ -96,7 +96,9 @@ export class WorkflowExecutor {
               ...context,
               experienceContext: await prepareAgentExperienceContext(agent.manifest.id, task, context, storeCtx.experienceOwnerId),
             };
-            const agentRes = await agent.execute(task, agentContext);
+            const agentRes = agent.converseWithFeedback
+              ? await agent.converseWithFeedback(task, agentContext)
+              : await agent.execute(task, agentContext);
             agentResults.push(agentRes);
             step.result = agentRes;
             athenaEventBus.emit("AGENT_CONTRIBUTION", { agentId: agent.manifest.id, result: agentRes }, task.id);
