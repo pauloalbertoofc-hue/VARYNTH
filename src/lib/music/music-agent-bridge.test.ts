@@ -6,6 +6,14 @@ assert.equal(musicAgentShouldConsultAthena("O que é Music DNA?"), false);
 assert.equal(musicAgentShouldConsultAthena("Crie uma playlist calma"), false);
 assert.equal(musicAgentShouldConsultAthena("Faça um tema visual escuro"), false);
 assert.equal(musicAgentShouldConsultAthena("Crie um projeto para divulgar o álbum"), true);
+assert.equal(musicAgentShouldConsultAthena("Dá pra montar um projeto pra divulgar essa playlist?"), true, "An explicitly requested platform project must be delegated even when it mentions music");
+assert.equal(musicAgentShouldConsultAthena("O que significa gravidade?"), true, "Colloquial epistemic questions outside music belong to Athena");
+assert.equal(musicAgentShouldConsultAthena("Como está o clima hoje?"), true);
+assert.equal(musicAgentShouldConsultAthena("Quero um visualizador mais calmo para essa faixa"), false, "Music-domain visual requests stay with Euterpe");
+assert.equal(musicAgentShouldConsultAthena("O que você acha?"), false, "A conversational question in Euterpe's music space stays with her");
+assert.equal(musicAgentShouldConsultAthena("Por quê?"), false, "A short contextual follow-up remains with Euterpe");
+assert.equal(musicAgentShouldConsultAthena("Não consulte a Athena; só me explica as tags do Music DNA"), false, "A direct refusal to delegate must be respected");
+assert.equal(musicAgentShouldConsultAthena("oi, tudo bem?"), false);
 assert.equal(musicAgentShouldConsultAthena("Pergunte à Athena sobre meu projeto"), true);
 
 void (async () => {

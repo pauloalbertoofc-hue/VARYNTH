@@ -12,12 +12,32 @@ import { relevantExperienceGuidance } from "../experience-guidance";
 export type MusicAthenaConsult = (userRequest: string) => Promise<{ text: string; metadata?: Record<string, unknown> }>;
 
 export function musicAgentShouldConsultAthena(message: string): boolean {
-  const text = message.trim().toLocaleLowerCase("pt-BR");
-  if (/\b(athena|athenas|inteligência principal|inteligencia principal)\b/.test(text)) return true;
-  if (/^(oi|olá|ola|bom dia|boa tarde|boa noite|tudo bem|quem é você|quem e voce|o que você faz|o que voce faz)[!.?\s]*$/i.test(text)) return false;
-  const musicDomain = /\b(music|música|musica|musical|faixa|canção|cancao|playlist|music dna|onda sonora|visualizador|capa|fundo|euterpe|álbum|album|artista|gênero|genero)\b/.test(text);
-  if (musicDomain) return false;
-  return /\b(crie|criar|execute|executar|publique|publicar|abra|abrir|pesquise|pesquisar|organize|organizar|altere|alterar|apague|apagar|integre|integrar|planeje|planejar|consulte|pergunte)\b/.test(text);
+  const text = message.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (!text) return false;
+  const explicitlyDeclinesAthena = /\b(?:nao|sem)\s+(?:consulte|chame|pergunte|fale com|envolva)\s+(?:a\s+)?athena\b/.test(text);
+  if (explicitlyDeclinesAthena) return false;
+  if (/\b(?:athena|athenas|inteligencia principal)\b/.test(text)) return true;
+  if (/^(oi|ola|bom dia|boa tarde|boa noite|tudo bem|quem e voce|o que voce faz)[!.?\s]*$/.test(text)) return false;
+
+  const musicTerms = /\b(music|musica|musical|faixa|cancao|playlist|music dna|onda sonora|visualizador|capa|fundo|euterpe|album|artista|genero|instrumento|letra|audio|som)\b/;
+  const musicOnlyRequest = /\b(capa|fundo|perfil visual|visualizador|playlist|music dna|faixa|musica|cancao|album|artista|genero|instrumento|letra|audio)\b/;
+  const platformTargets = /\b(projeto|tarefa|arquivo|documento|agenda|email|e-mail|reuniao|compromisso|conta|modulo|aplicativo|site|codigo|codigo-fonte|pesquisa juridica|processo|prazo)\b/;
+  const requestLead = /\b(quero|preciso|pode|poderia|da pra|me ajuda|me ajude|ajudar|gostaria|faz|faca|cria|crie|monta|monte|montar|prepare|organiza|organize|altera|altere|apaga|apague|pesquisa|pesquise|planeja|planeje|publica|publique|execute|executa|abra|abre|salva|salve)\b/;
+  const requestsPlatformWork = requestLead.test(text) && platformTargets.test(text);
+  if (requestsPlatformWork) return true;
+
+  // A clearly non-music question belongs to Athena even when it contains no
+  // operational verb (e.g. "o que significa ...?"). Music vocabulary alone
+  // does not override a separately requested platform action above.
+  const asksGeneralQuestion = /\b(o que|quem|quando|onde|como|por que|porque|qual|quais|quanto|quantos|explique|defina|significa|me conta)\b/.test(text);
+  const clearlyNonMusicTopic = /\b(clima|tempo|gravidade|contrato|lei|legislacao|justica|tarefa|projeto|arquivo|documento|agenda|reuniao|prazo|codigo|programacao|conta|athena)\b/.test(text);
+  if (asksGeneralQuestion && clearlyNonMusicTopic) return true;
+  const conversationalMusicFollowUp = /\b(o que voce acha|o que achou|e essa|e esse|e ela|e ele|por que|porque|como assim|me conta mais|fala mais|continua|continue|qual a vibe|que sensacao|o que percebeu|tudo bem|como voce esta)\b/.test(text);
+  if (asksGeneralQuestion && !musicTerms.test(text) && !conversationalMusicFollowUp) return true;
+
+  if (musicOnlyRequest.test(text)) return false;
+  if (musicTerms.test(text)) return false;
+  return clearlyNonMusicTopic;
 }
 
 function providedTrack(task: AthenaTask): MusicTrack | undefined {
