@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { processAthenaQueryAsync } from "../engine";
+import { processAthenaQuery, processAthenaQueryAsync } from "../engine";
 import { athenaConversationManager } from "../conversation/conversation-manager";
 import { athenaCapabilitySelector } from "../kernel/capability-selector";
 import { athenaPerceptionEngine } from "../kernel/perception";
@@ -7,6 +7,7 @@ import { athenaContextBuilder } from "../memory/context-builder";
 import { agentRegistry } from "../agents/registry";
 import { athenaGeneralistAgent } from "../agents/council/athena-generalist";
 import { archivistAgent } from "../agents/council/archivist";
+import { athenaPersonaEngine } from "../persona/persona-engine";
 
 const ctx: any = {
   projects: [
@@ -59,6 +60,18 @@ async function run() {
 
   const status = await ask("quantas tarefas pendentes eu tenho?", "outcome-facts");
   assert.match(status, /1 tarefa|1 tarefas/i);
+
+  const recommendationSession = `outcome-grounded-recommendation-${Date.now()}`;
+  const recommendation = processAthenaQuery("Me dê ideias de projeto para começar hoje", "geral", ctx, undefined, recommendationSession);
+  assert.doesNotMatch(recommendation.text, /seus fichamentos|seu acervo do Vault|sem sobrecarregar suas outras demandas/i, "General brainstorming must not claim account-specific context that was not supplied");
+  const recommendationWhy = processAthenaQuery("Por quê?", "geral", ctx, undefined, recommendationSession);
+  assert.doesNotMatch(recommendationWhy.text, /aproveita diretamente os fichamentos|viabilidade no cronograma|sem sobrecarregar suas outras demandas/i, "A follow-up must not invent evidence or schedule rationale absent from the previous response and live context");
+  assert.match(recommendationWhy.text, /combina direito e inovação/i, "A follow-up may restate the general criterion actually recorded in the preceding response");
+  assert.match(recommendationWhy.text, /não apresentei|não registrei|critério/i, "When the earlier suggestion contains no grounded rationale, Athena should say so and ask for a decision criterion");
+  const unsupportedWhy = athenaPersonaEngine.generateFollowUpExplanation("Projeto Sensor Cívico", "A resposta anterior não continha esse nome nem um critério de escolha.");
+  assert.match(unsupportedWhy, /não encontrei essa recomendação/i, "Stale recommendation state must not override the immediately preceding answer");
+  const noRationaleWhy = athenaPersonaEngine.generateFollowUpExplanation("Projeto Sensor Cívico", "Mencionei Projeto Sensor Cívico como uma possibilidade.");
+  assert.match(noRationaleWhy, /não registrei um critério/i, "Athena must ask for criteria instead of inventing reasons when a recommendation had no stated basis");
 
   const greeting = await ask("oi Athena, tudo bem?", "outcome-social", true);
   assert.match(greeting, /olá|oi|ótimo|bem/i);
