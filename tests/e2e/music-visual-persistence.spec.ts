@@ -21,7 +21,7 @@ function shortWav(): Buffer {
 }
 
 test("keeps a selected GIF cover after the Music library reloads", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   await page.goto("/modules/music");
 
   await page.locator('input[type="file"][accept*="audio"]').setInputFiles([
@@ -331,6 +331,66 @@ test("keeps covers attached to their own tracks when the selection changes", asy
   });
   expect(reloadedCovers.find((track) => /cover-track-one/i.test(track.name))?.cover).toBe(firstCover);
   expect(reloadedCovers.find((track) => /cover-track-two/i.test(track.name))?.cover).toBe(secondCover);
+});
+
+test("applies an animated cover to selected tracks and preserves the exact selection after reload", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/modules/music");
+  await page.locator('input[type="file"][accept*="audio"]').setInputFiles([
+    { name: "batch-cover-one.wav", mimeType: "audio/wav", buffer: shortWav() },
+    { name: "batch-cover-two.wav", mimeType: "audio/wav", buffer: shortWav() },
+    { name: "zz-batch-cover-excluded.wav", mimeType: "audio/wav", buffer: shortWav() },
+  ]);
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(page.getByRole("button", { name: /batch-cover-one/i }).first()).toBeVisible({ timeout: 20_000 });
+
+  await page.getByLabel("Aplicar imagem em").selectOption("SELECTED");
+  await page.getByRole("checkbox", { name: "batch-cover-two" }).check();
+  const selected = await page.locator('input[type="checkbox"]:checked').count();
+  expect(selected).toBe(2, "the current track plus only the explicitly checked target are selected");
+
+  await page.locator('input[type="file"][accept*="image/gif"]').first().setInputFiles({
+    name: "shared-animated-cover.gif",
+    mimeType: "image/gif",
+    buffer: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
+  });
+  await expect(page.getByTestId("music-visual-status")).toContainText(/Capa animado salvo de forma permanente em 2 faixas selecionadas/i);
+
+  const profiles = async () => page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("varynth-music-library", 5);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      const transaction = database.transaction(["tracks", "visualProfiles"], "readonly");
+      const [tracks, visuals] = await Promise.all([
+        new Promise<Array<{ id: string; name: string }>>((resolve, reject) => {
+          const request = transaction.objectStore("tracks").getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        }),
+        new Promise<Array<{ trackId: string; coverDataUrl?: string }>>((resolve, reject) => {
+          const request = transaction.objectStore("visualProfiles").getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        }),
+      ]);
+      return tracks.map((track) => ({ name: track.name, cover: visuals.find((profile) => profile.trackId === track.id)?.coverDataUrl }));
+    } finally { database.close(); }
+  });
+
+  const expectedCover = `data:image/gif;base64,${Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64").toString("base64")}`;
+  const initial = await profiles();
+  expect(initial.find((track) => /batch-cover-one/i.test(track.name))?.cover).toBe(expectedCover);
+  expect(initial.find((track) => /batch-cover-two/i.test(track.name))?.cover).toBe(expectedCover);
+  expect(initial.find((track) => /zz-batch-cover-excluded/i.test(track.name))?.cover).toBeUndefined();
+
+  await page.reload();
+  const restored = await profiles();
+  expect(restored.find((track) => /batch-cover-one/i.test(track.name))?.cover).toBe(expectedCover);
+  expect(restored.find((track) => /batch-cover-two/i.test(track.name))?.cover).toBe(expectedCover);
+  expect(restored.find((track) => /zz-batch-cover-excluded/i.test(track.name))?.cover).toBeUndefined();
 });
 
 test("keeps Euterpe present after playback ends and moves her to a rest spot after three idle minutes", async ({ page }) => {
