@@ -16,7 +16,21 @@ export interface DomainDefinition {
 }
 export interface DomainBridge { id: string; domains: [string, string]; concepts: string[]; description: string; enabled: boolean; }
 export interface DomainKnowledgePolicy { domain: string; ownerAgent?: string; publicKnowledge: boolean; allowedVisibility: Array<"DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS">; sensitivity: "PUBLIC_ONLY"; }
-export interface KnowledgeAwarenessIndex { domains: Array<{ id: string; ownerAgent?: string; coOwners: string[]; specialists: string[]; capabilities: string[]; routingTerms: string[]; relatedDomains: string[] }>; generatedAt: string; contentLoaded: false; }
+export interface KnowledgeAwarenessIndex {
+  domains: Array<{
+    id: string;
+    ownerAgent?: string;
+    coOwners: string[];
+    specialists: string[];
+    capabilities: string[];
+    publicCapabilities: Array<{ id: string; providerAgent: string; description: string; input: string[]; output: string[]; allowedConsumers: string[] }>;
+    routingTerms: string[];
+    relatedDomains: string[];
+  }>;
+  bridges: DomainBridge[];
+  generatedAt: string;
+  contentLoaded: false;
+}
 
 const DOMAIN_REGISTRY_LOCAL_KEY = "varynth:knowledge:domains:v1";
 
@@ -250,7 +264,28 @@ export class DomainRegistry {
     return this.listDomains().filter((domain) => !rootId || domain.id === rootId || this.isDescendantOf(domain, rootId));
   }
   getAwarenessIndex(): KnowledgeAwarenessIndex {
-    return { domains: this.listDomains().map((domain) => ({ id: domain.id, ownerAgent: this.resolveOwner(domain.id), coOwners: this.resolveCoOwners(domain.id), specialists: this.resolveSpecialists(domain.id), capabilities: [...domain.capabilities], routingTerms: [...(domain.routingTerms || [])], relatedDomains: this.resolveRelatedDomains(domain.id) })), generatedAt: new Date().toISOString(), contentLoaded: false };
+    return {
+      domains: this.listDomains().map((domain) => ({
+        id: domain.id,
+        ownerAgent: this.resolveOwner(domain.id),
+        coOwners: this.resolveCoOwners(domain.id),
+        specialists: this.resolveSpecialists(domain.id),
+        capabilities: [...domain.capabilities],
+        publicCapabilities: this.resolvePublicCapabilities(domain.id).map((capability) => ({
+          id: capability.id,
+          providerAgent: capability.providerAgent,
+          description: capability.description,
+          input: [...capability.input],
+          output: [...capability.output],
+          allowedConsumers: [...capability.allowedConsumers],
+        })),
+        routingTerms: [...(domain.routingTerms || [])],
+        relatedDomains: this.resolveRelatedDomains(domain.id),
+      })),
+      bridges: this.listDomainBridges(),
+      generatedAt: new Date().toISOString(),
+      contentLoaded: false,
+    };
   }
 
   private requireDomain(id: string): DomainDefinition {

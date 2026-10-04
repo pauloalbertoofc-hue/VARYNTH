@@ -18,6 +18,9 @@ exposedDomain.specialists.push("unauthorized-agent");
 assert.deepEqual(registry.resolveSpecialists("music"), ["future-euterpe", "music-coordinator"]);
 assert.deepEqual(registry.resolveKnowledgePolicy("music")?.allowedVisibility, ["DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"]);
 assert.equal(registry.getAwarenessIndex().contentLoaded, false);
+assert.ok(Array.isArray(registry.getAwarenessIndex().bridges));
+assert.ok(registry.getAwarenessIndex().domains.find((domain) => domain.id === "music")?.publicCapabilities.every((capability) => capability.providerAgent.length > 0 && capability.allowedConsumers.length > 0));
+assert.equal(registry.getAwarenessIndex().domains.find((domain) => domain.id === "music")?.publicCapabilities.some((capability) => capability.id === "delegateTask"), false, "internal capabilities must not appear in the published capability catalog");
 assert.deepEqual(registry.resolveSpecialists("music.game-audio"), ["game-agent", "future-euterpe", "music-coordinator"]);
 assert.ok(registry.getAwarenessIndex().domains.find((domain) => domain.id === "music")?.coOwners.includes("music-coordinator"));
 assert.ok(registry.resolveRelatedDomains("music").includes("music.game-audio"));
@@ -79,6 +82,7 @@ assert.throws(() => bridgeRegistry.registerDomainBridge("law", { id: "law-music-
 const bridgeSnapshot = new DomainRegistry(false);
 bridgeSnapshot.replaceDomains(bridgeRegistry.listAllDomains());
 assert.deepEqual(bridgeSnapshot.listDomainBridges(), bridgeRegistry.listDomainBridges(), "bridges persist through registry snapshots");
+assert.equal(bridgeSnapshot.getAwarenessIndex().bridges[0]?.id, "law-music", "global awareness exposes the semantic bridge without loading knowledge content");
 bridgeSnapshot.removeDomainBridge("law", "law-music");
 assert.equal(bridgeSnapshot.resolveDomainBridges("music").length, 0);
 const explicitBridgeRevocation = mergeDomainDefinitions([{ id: "r", label: "R", bridges: [{ id: "r-s", domains: ["r", "s"], concepts: ["term"], description: "desc", enabled: true }], specialists: [], capabilities: [], relatedDomains: [], enabled: true }], [{ id: "r", label: "R", bridges: [], specialists: [], capabilities: [], relatedDomains: [], enabled: true }]);
