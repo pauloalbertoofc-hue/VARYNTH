@@ -11,6 +11,8 @@ export interface AthenaConversationFeedback {
   sessionId: string;
   messageId: string;
   category: AthenaFeedbackCategory;
+  agentId?: string;
+  moduleId?: string;
   /** Accepted for compatibility but intentionally not persisted. */
   prompt?: string;
   /** Accepted for compatibility but intentionally not persisted. */

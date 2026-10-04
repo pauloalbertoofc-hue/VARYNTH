@@ -3,13 +3,16 @@
 import { useState } from "react";
 import type { AthenaFeedbackCategory } from "@/lib/athena/conversation/quality-feedback";
 import { athenaConversationFeedback } from "@/lib/athena/conversation/quality-feedback";
-import { recordAthenaFeedbackInExperience } from "@/lib/athena/conversation/experience-feedback-bridge";
+import { recordAgentFeedbackInExperience } from "@/lib/athena/conversation/experience-feedback-bridge";
 
 interface AthenaFeedbackControlsProps {
   messageId: string;
   response: string;
   sessionId: string;
   prompt?: string;
+  agentId?: string;
+  moduleId?: string;
+  agentName?: string;
 }
 
 const choices: { category: AthenaFeedbackCategory; label: string }[] = [
@@ -32,7 +35,7 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
     setSelected(category);
     setExperienceStatus("saving");
     try {
-      await recordAthenaFeedbackInExperience(feedback);
+      await recordAgentFeedbackInExperience(feedback);
       setExperienceStatus("saved");
     } catch {
       setExperienceStatus("local-only");
@@ -40,7 +43,7 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
   };
 
   return (
-    <div className="mt-2 flex flex-wrap gap-1" aria-label="Avaliar resposta da Athena">
+    <div className="mt-2 flex flex-wrap gap-1" aria-label={`Avaliar resposta de ${props.agentName || "Athena"}`}>
       {choices.map((choice) => (
         <button
           key={choice.category}
@@ -59,13 +62,13 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
       ))}
       {selected && selected !== "HELPFUL" && (
         <div className="basis-full space-y-1 pt-1">
-          <input aria-label="Como a Athena deveria responder" value={correction} onChange={event => { setCorrection(event.target.value); setSaved(false); }} placeholder="O que deveria acontecer? (opcional)" className="w-full rounded border border-white/15 bg-black/20 p-2 text-xs text-slate-200" />
+          <input aria-label={`Como ${props.agentName || "Athena"} deveria responder`} value={correction} onChange={event => { setCorrection(event.target.value); setSaved(false); }} placeholder="O que deveria acontecer? (opcional)" className="w-full rounded border border-white/15 bg-black/20 p-2 text-xs text-slate-200" />
           <button type="button" onClick={() => { athenaConversationFeedback.record({ ...props, category: selected, correction: correction.trim() }); setSaved(true); }} className="text-xs text-violet-300">Salvar correção</button>
           <p role="status" className="text-[10px] text-slate-400">{saved ? "Correção salva. Diga “corrija a resposta” para retomar este pedido." : "Feedback registrado. Você pode explicar o ajuste e pedir “corrija a resposta”."}</p>
         </div>
       )}
       {selected && <p role="status" className="basis-full text-[10px] text-slate-400">
-        {experienceStatus === "saving" ? "Associando sua avaliação à Experience…" : experienceStatus === "saved" ? "Avaliação explícita registrada na Experience desta conta. O texto da conversa não foi copiado." : experienceStatus === "local-only" ? "Avaliação mantida localmente; não foi associada à Experience. Verifique se você está conectado." : ""}
+        {experienceStatus === "saving" ? `Associando sua avaliação de ${props.agentName || "Athena"} à Experience…` : experienceStatus === "saved" ? "Avaliação explícita registrada na Experience desta conta. O texto da conversa não foi copiado." : experienceStatus === "local-only" ? "Avaliação mantida localmente; não foi associada à Experience. Verifique se você está conectado." : ""}
       </p>}
     </div>
   );
