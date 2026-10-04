@@ -146,6 +146,8 @@ export default function MusicPage() {
   const sectionSamplesRef = useRef<number[]>([]);
   const visualProfileRef = useRef<VisualProfile | undefined>(undefined);
   const selectedTrack = useMemo(() => tracks.find((track) => track.id === selectedId) ?? null, [tracks, selectedId]);
+  const selectedTrackRef = useRef(selectedTrack);
+  selectedTrackRef.current = selectedTrack;
   const visualProfileReady = !selectedTrack || visualProfileReadyTrackId === selectedTrack.id;
   const selectedVisualProfile = visualProfile?.trackId === selectedTrack?.id ? visualProfile : undefined;
   const selectedVisualProfileRef = visualProfileRef.current?.trackId === selectedTrack?.id ? visualProfileRef.current : undefined;
@@ -228,7 +230,8 @@ export default function MusicPage() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, chatBusy]);
 
   useEffect(() => {
-    musicEngineRef.current!.loadTrack(selectedTrack ? { id: selectedTrack.id, name: selectedTrack.name } : undefined);
+    const track = selectedTrackRef.current;
+    musicEngineRef.current!.loadTrack(track ? { id: track.id, name: track.name } : undefined);
     let cancelled = false; let nextUrl: string | null = null; let temporaryUrl = false;
     const previousBackground = visualProfileRef.current?.backgroundDataUrl;
     if (previousBackground) {
@@ -236,17 +239,17 @@ export default function MusicPage() {
       if (previousSceneTimerRef.current !== null) window.clearTimeout(previousSceneTimerRef.current);
       previousSceneTimerRef.current = window.setTimeout(() => setPreviousSceneBackground(undefined), 1900);
     }
-    setPlaying(false); setCurrentTime(0); setDuration((selectedTrack?.durationMs ?? 0) / 1000); setAudioUrl(null); setDna(undefined); setSections([]); setVisualProfile(undefined); setVisualProfileReadyTrackId(null);
+    setPlaying(false); setCurrentTime(0); setDuration((track?.durationMs ?? 0) / 1000); setAudioUrl(null); setDna(undefined); setSections([]); setVisualProfile(undefined); setVisualProfileReadyTrackId(null);
     dnaAccumRef.current = { count: 0, loudness: 0, centroid: 0, bass: 0, mids: 0, treble: 0 }; sectionSamplesRef.current = [];
-    if (!selectedTrack) { setVisualActionStatus(""); return; }
+    if (!track) { setVisualActionStatus(""); return; }
     setVisualActionStatus("Carregando o perfil visual desta faixa…");
     setWaveform([]);
-    void Promise.all([musicStudio.getDNA(selectedTrack.id), musicStudio.getWaveform(selectedTrack.id)]).then(async ([savedDNA, storedWaveform]) => {
-      const streamingUrl = musicLibrary.streamingUrl(selectedTrack);
+    void Promise.all([musicStudio.getDNA(track.id), musicStudio.getWaveform(track.id)]).then(async ([savedDNA, storedWaveform]) => {
+      const streamingUrl = musicLibrary.streamingUrl(track);
       let audioBlob: Blob | undefined;
       if (streamingUrl) nextUrl = streamingUrl;
       else {
-        audioBlob = await musicLibrary.getAudio(selectedTrack.id, selectedTrack);
+        audioBlob = await musicLibrary.getAudio(track.id, track);
         if (!audioBlob) throw new Error("O arquivo desta faixa não foi encontrado no armazenamento local.");
         nextUrl = URL.createObjectURL(audioBlob); temporaryUrl = true;
       }
@@ -257,22 +260,22 @@ export default function MusicPage() {
           try {
             audioBlob ??= streamingUrl ? await fetch(streamingUrl, { credentials: "include" }).then((response) => response.ok ? response.blob() : undefined) : undefined;
             if (audioBlob) {
-              const decoded = await decodeWaveform(audioBlob, selectedTrack.id, 128, selectedTrack.durationMs / 1000);
+              const decoded = await decodeWaveform(audioBlob, track.id, 128, track.durationMs / 1000);
               if (decoded && !cancelled) { setWaveform(decoded.peaks); await musicStudio.saveWaveform(decoded); }
             }
           } catch { /* Unsupported or large tracks keep seek controls without inventing a waveform. */ }
         }
-        const stored = await musicStudio.getVisualProfile(selectedTrack.id) as VisualProfile | undefined;
+        const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined;
         if (cancelled) return;
         if (stored?.schemaVersion === 1) {
-          const art = ((!stored.coverDataUrl && !stored.coverCleared) || (!stored.backgroundDataUrl && !stored.backgroundCleared)) ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() }) : undefined;
+          const art = ((!stored.coverDataUrl && !stored.coverCleared) || (!stored.backgroundDataUrl && !stored.backgroundCleared)) ? await visualProvider.generate({ prompt: track.name, title: track.name, artist: track.artist, style: stored.mood, palette: stored.palette, createdAt: new Date().toISOString() }) : undefined;
           let refreshed: VisualProfile = {
             ...stored,
             coverDataUrl: stored.coverCleared ? undefined : stored.coverDataUrl ?? art?.coverDataUrl,
             backgroundDataUrl: stored.backgroundCleared ? undefined : stored.backgroundDataUrl ?? art?.backgroundDataUrl,
           };
           if (musicLibrary.isAccountStorageAvailable()) {
-            const cloud = await musicLibrary.getArtworkUrls(selectedTrack.id);
+            const cloud = await musicLibrary.getArtworkUrls(track.id);
             const persisted = resolveAccountArtwork(
               { cover: cloud.coverUrl, background: cloud.backgroundUrl, coverCleared: cloud.coverCleared, backgroundCleared: cloud.backgroundCleared },
               { cover: stored.coverDataUrl, background: stored.backgroundDataUrl, coverCleared: stored.coverCleared, backgroundCleared: stored.backgroundCleared },
@@ -288,30 +291,30 @@ export default function MusicPage() {
             };
             refreshed = await persistAccountVisualProfile(refreshed);
           }
-          await musicStudio.saveVisualProfile({ ...refreshed }); if (!cancelled) { setVisualProfile(refreshed); setVisualProfileReadyTrackId(selectedTrack.id); setVisualActionStatus(""); }
+          await musicStudio.saveVisualProfile({ ...refreshed }); if (!cancelled) { setVisualProfile(refreshed); setVisualProfileReadyTrackId(track.id); setVisualActionStatus(""); }
         }
         else {
-          const cloud = musicLibrary.isAccountStorageAvailable() ? await musicLibrary.getArtworkUrls(selectedTrack.id) : {};
+          const cloud = musicLibrary.isAccountStorageAvailable() ? await musicLibrary.getArtworkUrls(track.id) : {};
           const generateCover = !cloud.coverUrl && !cloud.coverCleared;
           const generateBackground = !cloud.backgroundUrl && !cloud.backgroundCleared;
-          const generated = generateCover || generateBackground ? await visualProvider.generate({ prompt: selectedTrack.name, title: selectedTrack.name, artist: selectedTrack.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() }) : undefined;
+          const generated = generateCover || generateBackground ? await visualProvider.generate({ prompt: track.name, title: track.name, artist: track.artist, style: "capa abstrata responsiva", createdAt: new Date().toISOString() }) : undefined;
           const persisted = resolveAccountArtwork({ cover: cloud.coverUrl, background: cloud.backgroundUrl, coverCleared: cloud.coverCleared, backgroundCleared: cloud.backgroundCleared }, {}, { cover: generated?.coverDataUrl, background: generated?.backgroundDataUrl });
-          let profile: VisualProfile = { ...createVisualProfile(selectedTrack.id, savedDNA), coverDataUrl: persisted.cover, backgroundDataUrl: persisted.background, coverCleared: persisted.coverCleared, backgroundCleared: persisted.backgroundCleared, ...(generated ? { palette: generated.palette, accentColor: generated.palette[0] } : {}), ...(cloud.visualSettings ?? {}) };
+          let profile: VisualProfile = { ...createVisualProfile(track.id, savedDNA), coverDataUrl: persisted.cover, backgroundDataUrl: persisted.background, coverCleared: persisted.coverCleared, backgroundCleared: persisted.backgroundCleared, ...(generated ? { palette: generated.palette, accentColor: generated.palette[0] } : {}), ...(cloud.visualSettings ?? {}) };
           if (musicLibrary.isAccountStorageAvailable()) profile = await persistAccountVisualProfile(profile);
-          await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) { setVisualProfile(profile); setVisualProfileReadyTrackId(selectedTrack.id); setVisualActionStatus(""); }
+          await musicStudio.saveVisualProfile({ ...profile }); if (!cancelled) { setVisualProfile(profile); setVisualProfileReadyTrackId(track.id); setVisualActionStatus(""); }
         }
       }
     }).catch(async (error: unknown) => {
       if (cancelled) return;
       setMessage(error instanceof Error ? error.message : "Não foi possível abrir esta faixa.");
       try {
-        const stored = await musicStudio.getVisualProfile(selectedTrack.id) as VisualProfile | undefined;
-        if (!cancelled) setVisualProfile(stored?.schemaVersion === 1 ? stored : createVisualProfile(selectedTrack.id));
-      } catch { if (!cancelled) setVisualProfile(createVisualProfile(selectedTrack.id)); }
-      if (!cancelled) setVisualProfileReadyTrackId(selectedTrack.id);
+        const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined;
+        if (!cancelled) setVisualProfile(stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id));
+      } catch { if (!cancelled) setVisualProfile(createVisualProfile(track.id)); }
+      if (!cancelled) setVisualProfileReadyTrackId(track.id);
     });
     return () => { cancelled = true; if (temporaryUrl && nextUrl) URL.revokeObjectURL(nextUrl); };
-  }, [selectedTrack]);
+  }, [selectedId]);
 
   useEffect(() => { if (audioRef.current) audioRef.current.volume = volume; }, [volume, audioUrl]);
   useEffect(() => {

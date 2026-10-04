@@ -41,6 +41,7 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
     buffer: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
   });
   await expect(page.getByTestId("music-visual-status")).toContainText(/Capa animado salvo de forma permanente nesta faixa/i);
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
   await page.getByRole("button", { name: "Animado" }).click();
   await expect(page.getByTestId("music-visual-status")).toContainText(/Movimento animado aplicado e salvo/i);
   await page.getByLabel("Efeito do ambiente musical").selectOption("rain");
@@ -53,8 +54,7 @@ test("keeps a selected GIF cover after the Music library reloads", async ({ page
   await expect(page.getByTestId("music-visual-status")).toContainText(/Fundo animado salvo de forma permanente nesta faixa/i);
 
   await page.reload();
-  await expect(page.locator('img[src^="data:image/gif"], img[src*="/artwork?kind="]').first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('[data-visual-scene="true"] img[src^="data:image/gif"], [data-visual-scene="true"] img[src*="/artwork?kind="]').first()).toBeVisible();
+  await expect(page.getByRole("img", { name: "Artwork de persistent-cover" }).first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
   await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
   await expect(page.locator("[data-motion-mode]")).toHaveAttribute("data-motion-mode", "ANIMATED", { timeout: 20_000 });
