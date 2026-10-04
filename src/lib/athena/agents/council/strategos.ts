@@ -2,7 +2,7 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class StrategosAgent implements AthenaAgent {
@@ -35,10 +35,11 @@ export class StrategosAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
     const openTasks = context.relevantTasks.filter((task) => task.status !== "concluida");
     const urgentTasks = openTasks.filter((t) => t.priority === "urgente" || t.priority === "alta");
     const upcomingEvents = context.relevantChronosEvents.filter((event) => !event.completed && event.date >= context.systemTime.slice(0, 10)).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
-    const planningDetail = confirmedAgentGuidance(context, this.manifest.id, "planningDetail", task.rawPrompt);
+    const planningDetail = confirmedAgentGuidance(context, this.manifest.id, "planningDetail", resolved.prompt);
     const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
 
     let content = `⚡ **Diretriz Estratégica & Otimização (Strategos):**\n\n`;
@@ -66,7 +67,7 @@ export class StrategosAgent implements AthenaAgent {
       success: true,
       content,
       confidence: context.relevantTasks.length || upcomingEvents.length ? 0.68 : 0.3,
-      metadata: { receivedTaskCount: context.relevantTasks.length, openTaskCount: openTasks.length, upcomingEventCount: upcomingEvents.length, scheduleMutated: false, appliedExperienceGuidance: { confirmedPreferences: agentGuidanceInstruction(context, this.manifest.id, task.rawPrompt), priorOutcomes }, planningDetail },
+      metadata: { receivedTaskCount: context.relevantTasks.length, openTaskCount: openTasks.length, upcomingEventCount: upcomingEvents.length, scheduleMutated: false, conversationReferenceResolved: resolved.usedHistory, appliedExperienceGuidance: { confirmedPreferences: agentGuidanceInstruction(context, this.manifest.id, resolved.prompt), priorOutcomes }, planningDetail },
       recommendations: ["Priorizar tarefas urgentes primeiro", "Sincronizar prazos no Chronos"],
     };
   }

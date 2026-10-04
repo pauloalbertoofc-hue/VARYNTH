@@ -38,6 +38,9 @@ assert.equal(resolvedFollowUp.usedHistory, true);
 assert.match(resolvedFollowUp.prompt, /preservação de rios/i);
 assert.equal(resolveAgentFollowUp("Explique preservação de rios", followUpContext).usedHistory, false, "Explicit current topics must not be overwritten by history");
 assert.equal(resolveAgentFollowUp("E literatura brasileira?", followUpContext).usedHistory, false, "A new explicit topic joined by 'e' must not inherit the previous subject");
+assert.equal(resolveAgentFollowUp("E os riscos?", followUpContext).usedHistory, true, "Short risk follow-ups should inherit the prior user subject");
+assert.equal(resolveAgentFollowUp("Por quê?", followUpContext).usedHistory, true, "Short why follow-ups should inherit the prior user subject");
+assert.equal(resolveAgentFollowUp("E literatura brasileira?", { recentConversation: [...(followUpContext.recentConversation ?? []), { role: "user", text: "E literatura brasileira?" }] } as unknown as AthenaContext).usedHistory, false, "The current message must not become its own historical referent");
 const suppliedHistory = prepareAgentConversationHistory([
   { role: "user", text: "Quero um texto sobre preservação de rios." },
   { role: "athena", text: "Posso ajudar com um rascunho." },
@@ -78,6 +81,9 @@ void (async () => {
   const ideas = await musaAgent.execute(task("Me dê ideias para um novo produto"), ctx);
   assert.match(ideas.content, /provocações criativas, não fatos/i);
   assert.equal(ideas.metadata?.persistedToLabs, false);
+  const contextualIdeas = await musaAgent.execute(task("Desenvolva isso"), { ...ctx, ...followUpContext });
+  assert.match(contextualIdeas.content, /preservação de rios/i);
+  assert.equal(contextualIdeas.metadata?.conversationReferenceResolved, true);
   const strategy = await strategosAgent.execute(task("Como está minha produtividade?"), ctx);
   assert.match(strategy.content, /não recebi tarefas/i);
   const critique = await critiasAgent.execute(task("Critique minha ideia"), ctx);
@@ -90,8 +96,32 @@ void (async () => {
   assert.match(contextualCritique.content, /Criar um canal público de denúncias/i);
   assert.equal(contextualCritique.metadata?.conversationReferenceResolved, true);
   assert.equal(contextualCritique.metadata?.verifiedDefect, false, "Grounding the object must not turn an unverified concern into a proven defect");
+  const contextualLegal = await justitiaAgent.execute(task("Quais os riscos?"), { ...ctx, ...followUpContext });
+  assert.equal(contextualLegal.metadata?.conversationReferenceResolved, true);
+  const contextualResearch = await logosAgent.execute(task("Explique isso melhor"), { ...ctx, ...followUpContext });
+  assert.match(contextualResearch.content, /preservação de rios/i);
+  assert.equal(contextualResearch.metadata?.conversationReferenceResolved, true);
+  const contextualCurator = await curadorPesquisaAgent.execute(task("E as fontes?"), { ...ctx, ...followUpContext });
+  assert.match(contextualCurator.content, /preservação de rios/i);
+  assert.equal(contextualCurator.metadata?.conversationReferenceResolved, true);
+  const contextualStrategy = await strategosAgent.execute(task("Continue"), { ...ctx, ...followUpContext });
+  assert.equal(contextualStrategy.metadata?.conversationReferenceResolved, true);
   const memory = await mnemosyneAgent.execute(task("O que você lembra sobre um projeto ausente?"), ctx);
   assert.equal(memory.metadata?.queriedGraph, false);
   assert.match(memory.content, /não consultei o Graph/i);
+  const contextualMemory = await mnemosyneAgent.execute(task("O que mais?"), {
+    ...ctx,
+    recentConversation: [{ role: "user", text: "Lembre o projeto Sensor Cívico" }],
+    relevantProjects: [{ title: "Sensor Cívico", description: "Preservação de rios", tags: ["rios"], status: "ativo" }],
+  } as unknown as AthenaContext);
+  assert.match(contextualMemory.content, /Sensor Cívico/i);
+  assert.equal(contextualMemory.metadata?.conversationReferenceResolved, true);
+  const contextualLibrary = await bibliotecarioAgent.execute(task("E essa obra?"), {
+    ...ctx,
+    recentConversation: [{ role: "user", text: "Encontre uma obra sobre preservação de rios" }],
+    relevantVaultItems: [{ title: "Rios Vivos", author: "A. Silva", tags: ["rios"], content: "A preservação de rios depende de políticas públicas", chapters: ["Capítulo 2"], type: "book" }],
+  } as unknown as AthenaContext);
+  assert.match(contextualLibrary.content, /Rios Vivos/i);
+  assert.equal(contextualLibrary.metadata?.conversationReferenceResolved, true);
   console.log("Agent personas and evidence/authority grounding passed across all registered specialists.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

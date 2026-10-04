@@ -2,7 +2,7 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 const tokens = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 3);
@@ -26,17 +26,18 @@ export class BibliotecarioAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
     const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     if (typeof window !== "undefined") {
       try {
-        const response = await fetch("/api/vault/library/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: task.rawPrompt }) });
+        const response = await fetch("/api/vault/library/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: resolved.prompt }) });
         if (response.ok) {
           const { results } = await response.json() as { results: Array<{ name: string; excerpt: string; chapters: string[]; wordCount: number; page?: number }> };
           if (results.length) return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: 0.9, content: `📚 **Consulta à Biblioteca Viva**\n\n${results.map((result) => `**${result.name}**${result.page ? ` · p. ${result.page}` : ""} · ${result.wordCount.toLocaleString("pt-BR")} palavras\n${result.excerpt}${result.chapters.length ? `\nCapítulos: ${result.chapters.join(", ")}` : ""}`).join("\n\n")}${formatExperienceMethodHints(priorOutcomes)}`, sources: results.map((result) => result.name), metadata: { matchedVaultItems: results.length, externalSearchPerformed: false, priorOutcomeHints: priorOutcomes.length }, recommendations: ["Peça uma síntese, comparação ou fichamento usando as obras encontradas."] };
         }
       } catch { /* Usa o contexto local como contingência. */ }
     }
-    const query = tokens(task.rawPrompt);
+    const query = tokens(resolved.prompt);
     const matches = context.relevantVaultItems
       .map((item) => {
         const corpus = `${item.title} ${item.author || ""} ${item.literaryCategory || ""} ${item.workType || ""} ${item.format || ""} ${item.primarySubject || ""} ${item.tags.join(" ")} ${item.summary || ""} ${item.content || ""}`.toLowerCase();
@@ -49,9 +50,9 @@ export class BibliotecarioAgent implements AthenaAgent {
       .filter((match) => match.score > 0 || query.length === 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-    if (matches.length === 0) return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: 0.25, sources: [], metadata: { matchedVaultItems: 0, externalSearchPerformed: false, priorOutcomeHints: priorOutcomes.length }, content: "Não encontrei correspondência nos itens do Vault que recebi nesta chamada. Isso não confirma que a obra esteja ausente da biblioteca completa; informe título/autor ou confirme que o conteúdo foi indexado para busca." + formatExperienceMethodHints(priorOutcomes) };
+    if (matches.length === 0) return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: 0.25, sources: [], metadata: { matchedVaultItems: 0, externalSearchPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length }, content: "Não encontrei correspondência nos itens do Vault que recebi nesta chamada. Isso não confirma que a obra esteja ausente da biblioteca completa; informe título/autor ou confirme que o conteúdo foi indexado para busca." + formatExperienceMethodHints(priorOutcomes) };
     const content = matches.map(({ item, excerpt }) => `**${item.title}**${item.author ? ` — ${item.author}` : ""}\n${excerpt}${item.chapters?.length ? `\nCapítulos identificados: ${item.chapters.slice(0, 4).join(", ")}` : ""}`).join("\n\n");
-    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: 0.72, content: `📚 **Trechos correspondentes no contexto local do Vault**\n\n${content}\n\nOs trechos acima são excertos do conteúdo recebido; ainda não fiz uma síntese interpretativa da obra inteira.${formatExperienceMethodHints(priorOutcomes)}`, sources: matches.map(({ item }) => item.title), metadata: { matchedVaultItems: matches.length, externalSearchPerformed: false, priorOutcomeHints: priorOutcomes.length }, recommendations: ["Peça uma síntese desses trechos, uma comparação entre obras ou forneça um capítulo específico."] };
+    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: 0.72, content: `📚 **Trechos correspondentes no contexto local do Vault**\n\n${content}\n\nOs trechos acima são excertos do conteúdo recebido; ainda não fiz uma síntese interpretativa da obra inteira.${formatExperienceMethodHints(priorOutcomes)}`, sources: matches.map(({ item }) => item.title), metadata: { matchedVaultItems: matches.length, externalSearchPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length }, recommendations: ["Peça uma síntese desses trechos, uma comparação entre obras ou forneça um capítulo específico."] };
   }
 }
 

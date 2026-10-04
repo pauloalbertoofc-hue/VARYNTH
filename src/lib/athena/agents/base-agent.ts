@@ -39,7 +39,7 @@ export function renderAgentPersona(manifest: AgentManifest): string {
 /** Resolves only clear follow-up references from the active session's user turns.
  * Assistant turns are intentionally excluded: they are not independent evidence. */
 export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { prompt: string; usedHistory: boolean } {
-  const followUp = /^(?:(?:e|mas\s+e)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|quanto\s+a\s+isso)\b[^.!?]{0,70}|(?:continue|desenvolva|explique\s+melhor|fale\s+mais|escreva\s+mais|redija\s+mais|e\s+agora)\b[^.!?]{0,70}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,70})[.!?]?$/i.test(prompt.trim());
+  const followUp = /^(?:(?:e|mas\s+e)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|quanto\s+a\s+isso|as\s+fontes|essa\s+obra|no\s+cap[ií]tulo)\b[^.!?]{0,70}|(?:continue|desenvolva|explique\s+melhor|fale\s+mais|escreva\s+mais|redija\s+mais|e\s+agora|o\s+que\s+mais|explique\s+isso\s+melhor)\b[^.!?]{0,70}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,70}|(?:por\s+que|quais\s+(?:são\s+)?(?:os\s+)?riscos|quais\s+as\s+consequências))\s*[.!?]?$/i.test(prompt.trim()) || /^por\s+quê\s*[.!?]?$/i.test(prompt.trim());
   if (!followUp) return { prompt, usedHistory: false };
   const previousUserTurn = [...(context.recentConversation ?? [])].reverse().find((turn) => turn.role === "user" && turn.text.trim());
   if (!previousUserTurn) return { prompt, usedHistory: false };

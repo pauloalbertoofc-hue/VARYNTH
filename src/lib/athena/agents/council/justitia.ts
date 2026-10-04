@@ -2,7 +2,7 @@ import { AgentKnowledgeConsultation, AthenaAgent, AgentManifest } from "../base-
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class JustitiaAgent implements AthenaAgent {
@@ -37,6 +37,7 @@ export class JustitiaAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
     const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const thesis = context.relevantTheses[0];
     const vaultLegal = context.relevantVaultItems.filter((v) => v.type === "jurisprudencia" || v.type === "lei");
@@ -75,7 +76,7 @@ export class JustitiaAgent implements AthenaAgent {
       content,
       confidence: thesis ? 0.82 : vaultLegal.length ? 0.48 : 0.2,
       sources: [...(thesis?.precedents || []), ...vaultLegal.map((item) => item.title)],
-      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false, priorOutcomeHints: priorOutcomes.length },
+      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
       recommendations: [
         "Verificar conformidade com súmulas vinculantes",
         "Confrontar argumentos contrários no Codex",

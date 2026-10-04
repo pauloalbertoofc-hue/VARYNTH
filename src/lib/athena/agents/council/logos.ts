@@ -2,7 +2,7 @@ import { AthenaAgent, AgentManifest } from "../base-agent";
 import { AthenaTask } from "../../domain/task";
 import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
-import { renderAgentPersona } from "../base-agent";
+import { renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import { formatExperienceMethodHints, relevantExperienceGuidance } from "../experience-guidance";
 
 export class LogosAgent implements AthenaAgent {
@@ -35,6 +35,7 @@ export class LogosAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
     const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
     const evidences = context.relevantEvidences;
     const strongEvs = evidences.filter((e) => e.strength === "forte");
@@ -45,14 +46,14 @@ export class LogosAgent implements AthenaAgent {
     let content = `🔬 **Análise Metodológica & Científica (Logos):**\n\n`;
 
     if (evidences.length > 0) {
-      content += `Para “${task.title}”, o contexto contém **${evidences.length} registros**: ${strongEvs.length} fortes, ${moderateEvs.length} moderados, ${preliminaryEvs.length} preliminares e ${refutedEvs.length} refutados. A classificação é a registrada no Evidence Board, não uma replicação independente.\n\n`;
+      content += `Para “${resolved.prompt}”, o contexto contém **${evidences.length} registros**: ${strongEvs.length} fortes, ${moderateEvs.length} moderados, ${preliminaryEvs.length} preliminares e ${refutedEvs.length} refutados. A classificação é a registrada no Evidence Board, não uma replicação independente.\n\n`;
       if (strongEvs.length > 0) {
         content += `📌 **Evidência Central em Destaque:**\n> *"${strongEvs[0].claim}"*\n> *(Fonte: ${strongEvs[0].source})*\n\n`;
       }
       if (refutedEvs.length) content += `⚠️ **Contraponto registrado:** ${refutedEvs.slice(0, 2).map((item) => `“${item.claim}” (${item.source})`).join("; ")}\n\n`;
       content += `• **Leitura:** a força registrada indica o suporte atribuído, mas não resolve validade, viés, desenho ou replicabilidade. Para uma conclusão causal, faltam desenho e método de análise explícitos.`;
     } else {
-      content += `Ainda não recebi evidências catalogadas para este pedido; isso não demonstra que não existam estudos. Posso ajudar a formular a pergunta e o protocolo de busca, mas não alegar achados sem fontes.`;
+      content += `Ainda não recebi evidências catalogadas para “${resolved.prompt}”; isso não demonstra que não existam estudos. Posso ajudar a formular a pergunta e o protocolo de busca, mas não alegar achados sem fontes.`;
     }
     content += formatExperienceMethodHints(priorOutcomes);
 
@@ -63,7 +64,7 @@ export class LogosAgent implements AthenaAgent {
       success: true,
       content,
       confidence: evidences.length ? 0.68 : 0.25,
-      metadata: { evidenceCount: evidences.length, strengthCounts: { strong: strongEvs.length, moderate: moderateEvs.length, preliminary: preliminaryEvs.length, refuted: refutedEvs.length }, externalSearchPerformed: false, priorOutcomeHints: priorOutcomes.length },
+      metadata: { evidenceCount: evidences.length, strengthCounts: { strong: strongEvs.length, moderate: moderateEvs.length, preliminary: preliminaryEvs.length, refuted: refutedEvs.length }, externalSearchPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
       sources: evidences.map((e) => e.source),
       recommendations: [
         "Indexar novas referências no Vault",
