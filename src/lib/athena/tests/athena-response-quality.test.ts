@@ -117,7 +117,7 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
   record(
     "RESP-REG-007",
     "User correction produces concise repair response",
-    r7.text.includes("recalibrar") || r7.text.includes("Entendido"),
+    /ainda não acertei|não acertei o que você queria|o que deveria ficar diferente/i.test(r7.text),
     r7.text.slice(0, 80)
   );
 
@@ -127,7 +127,7 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
   record(
     "RESP-REG-008",
     "User frustration does not trigger oversized technical dump",
-    r8.text.length < 200 && (r8.text.includes("recalibrar") || r8.text.includes("Entendido")),
+    r8.text.length < 200 && /ainda não acertei|o que deveria ficar diferente/i.test(r8.text),
     `Length: ${r8.text.length} chars: "${r8.text}"`
   );
 

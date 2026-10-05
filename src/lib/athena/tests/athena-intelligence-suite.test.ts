@@ -524,9 +524,14 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
     p18,
     "CONVERSATION",
     c18.interactionType,
-    c18.interactionType === "CONVERSATION" && r18.text.includes("energia") ? "PASS" : "FAIL",
+    c18.interactionType === "CONVERSATION" && /pesando|difícil/i.test(r18.text) && !/entendo perfeitamente|energia/i.test(r18.text) ? "PASS" : "FAIL",
     r18.text.slice(0, 80)
   );
+
+  const positiveSlang = await processAthenaQueryAsync("Essa ideia ficou foda!", "geral", ctx, undefined, "s-positive-slang");
+  record("ATHINT-018B", "PRAGMATICS", "Positive slang is not misread as distress", "Essa ideia ficou foda!", "CONVERSATION", "SOCIAL_CONVERSATION", /Que bom que você gostou/i.test(positiveSlang.text) && !/pesando|difícil/i.test(positiveSlang.text) ? "PASS" : "FAIL", positiveSlang.text.slice(0, 80));
+  const ambiguousSlang = await processAthenaQueryAsync("Isso é foda.", "geral", ctx, undefined, "s-ambiguous-slang");
+  record("ATHINT-018C", "PRAGMATICS", "Ambiguous slang asks a targeted meaning question", "Isso é foda.", "CONVERSATION", "SOCIAL_CONVERSATION", /quer dizer que ficou muito bom ou que está difícil/i.test(ambiguousSlang.text) ? "PASS" : "FAIL", ambiguousSlang.text.slice(0, 80));
 
   // ATHINT-019: User frustration ("Não é isso, Athena!")
   const p19 = "Não é isso, Athena!";

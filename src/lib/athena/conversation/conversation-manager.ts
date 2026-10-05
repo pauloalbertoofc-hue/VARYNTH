@@ -292,12 +292,16 @@ export class ConversationManager {
     const isComparisonRequest =
       clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
       clean.includes("vale mais a pena") || clean.includes("versus");
+    const isPositiveSlangFeedback = /\b(?:ideia|resultado|trabalho|projeto)\b.{0,12}\bficou\b.{0,8}\b(?:foda|demais|louco|maluco)\b/.test(clean)
+      || /\b(?:ideia|resultado|trabalho|projeto)\s+e\s+foda\b/.test(clean)
+      || /\bficou\s+foda\b/.test(clean);
+    const isAmbiguousSlangFeedback = /\b(?:isso|isto)\s+(?:e|foi)\s+foda\b/.test(clean);
     const isBrainstormRequest =
-      clean.includes("ideia") || clean.includes("ideias") || clean.includes("inventar") ||
+      (!isPositiveSlangFeedback && !isAmbiguousSlangFeedback) && (clean.includes("ideia") || clean.includes("ideias") || clean.includes("inventar") ||
       clean.includes("brainstorm") || clean.includes("projeto novo") || clean.includes("novo projeto") ||
       clean.includes("que projeto") || clean.includes("qual projeto") ||
       clean.includes("sugira") || clean.includes("sugestao") || clean.includes("recomende") ||
-      clean.includes("alguma coisa legal pra comecar") || clean.includes("pensar em");
+      clean.includes("alguma coisa legal pra comecar") || clean.includes("pensar em"));
     const isPlanningRequest =
       clean.includes("o que voce faria") || clean.includes("proximo passo") ||
       clean.includes("destravar") || clean.includes("como resolver") ||
@@ -321,6 +325,8 @@ export class ConversationManager {
       !isExplicitMutation &&
       !semantic.isNoise &&
       !semantic.trace.pragmaticFlags.includes("EMOTIONAL_VENTING") &&
+      !isPositiveSlangFeedback &&
+      !isAmbiguousSlangFeedback &&
       !/\b(projeto|maluco|cansado|dificil)\b/.test(clean) &&
       /\b(esse|essa|isso|aquele|aquela|negocio la|coisa la)\b/.test(clean);
     const hasSupportedConversationSignal =
@@ -336,6 +342,8 @@ export class ConversationManager {
       isProjectReadinessQuery ||
       isPendingTargetSelection ||
       isSelectedRecommendation ||
+      isPositiveSlangFeedback ||
+      isAmbiguousSlangFeedback ||
       isEllipsis;
 
     if (hasSupportedConversationSignal && !semantic.isNoise) {
@@ -401,6 +409,12 @@ export class ConversationManager {
       requiresAction = true;
       requiresContext = true;
       subject = "DATABASE_MUTATION";
+    }
+    else if (isPositiveSlangFeedback || isAmbiguousSlangFeedback) {
+      interactionType = "CONVERSATION";
+      intents.push("SOCIAL_CONVERSATION");
+      confidence = "HIGH";
+      subject = isPositiveSlangFeedback ? "POSITIVE_FEEDBACK" : "AMBIGUOUS_SLANG_FEEDBACK";
     }
     else if (isConditionalFallback) {
       interactionType = "COGNITIVE_REQUEST";

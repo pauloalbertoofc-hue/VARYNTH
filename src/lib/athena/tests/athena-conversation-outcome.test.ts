@@ -75,6 +75,30 @@ async function run() {
 
   const greeting = await ask("oi Athena, tudo bem?", "outcome-social", true);
   assert.match(greeting, /olá|oi|ótimo|bem/i);
+  assert.doesNotMatch(greeting, /conectada ao seu ecossistema|acompanhando a evolução|tudo rodando|conectada ao sistema/i, "A social greeting must not imply background monitoring or unverified system health");
+  const checkIn = await ask("Como você está?", "outcome-check-in", true);
+  assert.match(checkIn, /pronta para conversar/i);
+  assert.doesNotMatch(checkIn, /estava aqui acompanhando|tudo rodando estável|conectada ao sistema/i, "A check-in must not claim Athena monitored a project or verified runtime health");
+
+  const personaInput = {
+    interactionType: "COGNITIVE_REQUEST",
+    intents: ["EXPLAIN"],
+    confidence: "HIGH",
+    requiresContext: false,
+    requiresAction: false,
+    resolvedEntities: {},
+    isAmbiguous: false,
+  } as any;
+  const unknownConcept = athenaPersonaEngine.generateDialogueResponse("O que é um zintrônio?", personaInput).text;
+  assert.match(unknownConcept, /não encontrei.*base conceitual local/i);
+  assert.doesNotMatch(unknownConcept, /conceito fundamental|conectamos com teses no Codex|fontes no Vault/i, "An unknown concept must not receive a fabricated generic definition or imply indexed sources");
+
+  const genericQuestion = athenaPersonaEngine.generateDialogueResponse("A ideia de zintrônio pode mudar a educação?", { ...personaInput, intents: ["REFLECT"] }).text;
+  assert.match(genericQuestion, /explicação, uma comparação, uma revisão crítica ou um plano/i);
+  assert.doesNotMatch(genericQuestion, /acervo do Vault|hipótese no Labs|fichamentos existentes/i, "A generic fallback must not invent available resources or promise integrations");
+  const projectQuestion = athenaPersonaEngine.generateDialogueResponse("A ideia de zintrônio", { ...personaInput, intents: ["REFLECT"] }, "Projeto Aurora", ctx).text;
+  assert.match(projectQuestion, /não traz elementos para afirmar como se conectam/i);
+  assert.doesNotMatch(projectQuestion, /fichamentos existentes no Vault|Chronos/i, "An active project title alone does not prove Vault content or schedule relevance");
 
   const boundedTurns = athenaConversationManager.getRecentTurns(compareSession, 2);
   assert.equal(boundedTurns.length, 2, "Recent-turn access must be bounded and return a copy");

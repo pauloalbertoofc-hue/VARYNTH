@@ -41,9 +41,9 @@ export class AthenaPersonaEngine {
   private selectOpening(sessionId = "default", style: "warm" | "concise" | "neutral"): string {
     const recent = this.ephemeralOpenings.get(sessionId) || [];
     const warmOpenings = [
-      "Olá! Tudo excelente por aqui! 😊",
-      "Por aqui tudo em ordem e conectado! 😊",
-      "Pronta por aqui para acompanhar suas ideias e pesquisas! 😊",
+      "Oi! Que bom falar com você.",
+      "Olá! Estou aqui para ajudar.",
+      "Oi! Pronta para conversar.",
     ];
     const conciseOpenings = [
       "Entendido.",
@@ -338,11 +338,11 @@ export class AthenaPersonaEngine {
     ) {
       if (clean.includes("de novo nao")) {
         return {
-          text: `Entendido perfeitamente. Vamos recalibrar a abordagem imediatamente sem rodeios. Em qual ponto exato deseja focar agora?`,
+          text: `Desculpe, ainda não acertei. O que deveria ficar diferente? Vou corrigir sem repetir a mesma abordagem.`,
         };
       }
       return {
-        text: `Entendido! Vamos recalibrar a abordagem. Me diga: qual é o objetivo exato em que você gostaria de focar agora?`,
+        text: `Não acertei o que você queria. Qual resultado esperava, ou que parte devo mudar?`,
       };
     }
 
@@ -448,7 +448,7 @@ export class AthenaPersonaEngine {
       // Negative Sarcasm & Ironic Feedback
       if (clean.includes("nao queria") || clean.includes("apagou o errado") || clean.includes("nota do")) {
         return {
-          text: `Entendi perfeitamente a sua observação. Vamos recalibrar a abordagem imediatamente e ajustar o resultado para ficar exatamente como você precisa.`,
+          text: `Vejo que algo não saiu como você queria, mas não vou presumir qual foi o problema. O que devo ajustar?`,
         };
       }
 
@@ -459,12 +459,24 @@ export class AthenaPersonaEngine {
         };
       }
 
-      // Venting / Desabafo
-      if (clean.includes("foda") || clean.includes("dificil") || clean.includes("cansado") || clean.includes("maluco") || clean.includes("louco")) {
+      // Positive slang and explicit distress are distinct; don't read praise as frustration.
+      const positiveSlang = /\b(?:ideia|resultado|trabalho|projeto)\b.{0,12}\bficou\b.{0,8}\b(?:foda|demais|louco|maluco)\b/.test(clean)
+        || /\b(?:ideia|resultado|trabalho|projeto)\s+e\s+foda\b/.test(clean)
+        || /\bficou\s+foda\b/.test(clean);
+      if (positiveSlang) {
         return {
-          text: `Te entendo perfeitamente. Orquestrar um ecossistema denso exige muita energia mesmo. Mas estamos avançando e refinando cada detalhe. Me diz: qual ponto específico você quer destravar agora?`,
+          text: `Que bom que você gostou. Quer manter essa direção ou experimentar uma variação?`,
         };
       }
+
+      const expressesDistress = /\b(?:me deixando|me deixa|me deixou|estou|to|ta|esta|nao aguento)\b[\s\S]{0,24}\b(?:foda|dificil|cansad\w*|maluco|louco)\b/.test(clean)
+        || /\b(?:ta|esta|foi) dificil\b/.test(clean);
+      if (expressesDistress) {
+        return {
+          text: `Parece que isso está pesando. Qual parte está mais difícil? Posso ajudar a dividi-la em passos.`,
+        };
+      }
+      if (clean.includes("foda")) return { text: `Quando você diz “foda”, quer dizer que ficou muito bom ou que está difícil?` };
 
       // Requests for news must be answered honestly instead of replaying a greeting.
       if (clean.includes("novidade") || clean.includes("o que me conta")) {
@@ -480,20 +492,15 @@ export class AthenaPersonaEngine {
         clean.includes("como anda voce") ||
         clean.includes("sentiu minha falta") || clean.includes("o que me diz")
       ) {
-        if (activeProjectTitle) {
-          return {
-            text: `Por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui acompanhando a evolução do projeto **"${activeProjectTitle}"** e pronta para a gente continuar refinando as ideias. Tudo rodando estável e no controle!\n\nE com você, como foi o seu dia? O que temos na pauta hoje?`,
-          };
-        }
         return {
-          text: `Por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Tudo rodando redondo e estável!\n\nE com você, como foi o seu dia? Alguma ideia nova na mente ou quer trocar uma ideia leve?`,
+          text: `Por aqui, pronta para conversar e ajudar quando você quiser. E com você, como está?`,
         };
       }
 
       // Greetings with dynamic anti-repetition selection
       const opening = this.selectOpening(sessionId, "warm");
       return {
-        text: `${opening} Conectada ao seu ecossistema e pronta para acompanhar suas ideias e pesquisas. O que temos na pauta hoje?`,
+        text: `${opening} Como posso ajudar?`,
       };
     }
 
@@ -561,24 +568,19 @@ export class AthenaPersonaEngine {
       if (!subject) subject = prompt;
 
       return {
-        text:
-          `Sobre **"${subject}"**, analisando sob uma ótica ampla e estruturada:\n\n` +
-          `1. **Definição & Fundamentos:** Trata-se de um conceito fundamental que conecta teoria e prática metodológica.\n` +
-          `2. **Conexão com o Ecossistema:** Podemos cruzar essa reflexão com teses no Codex ou fontes no Vault para enriquecer seu acervo.\n` +
-          `3. **Diretriz Prática:** Recomendo delimitar as premissas essenciais para transformar esse conceito em uma entrega tangível.\n\n` +
-          `Em qual vertente de **${subject}** você gostaria de aprofundar nossa conversa?`,
+        text: `Não encontrei “${subject}” na minha base conceitual local, então não quero inventar uma definição. Onde você encontrou esse termo ou em que contexto ele aparece?`,
       };
     }
 
     // H. Direct Intellectual Dialogue
     if (activeProjectTitle) {
       return {
-        text: `Sobre **"${prompt}"** no projeto **"${activeProjectTitle}"**: podemos conectar com os fichamentos existentes no Vault e estruturar os próximos passos no Chronos. Qual ponto específico você quer detalhar agora?`,
+        text: `Posso relacionar “${prompt}” ao projeto **“${activeProjectTitle}”**, mas este pedido ainda não traz elementos para afirmar como se conectam. Você quer avaliar impacto, próximos passos ou outro aspecto?`,
       };
     }
 
     return {
-      text: `Analisando **"${prompt}"**: essa reflexão abre caminhos interessantes para conectarmos com o acervo do Vault ou formularmos uma hipótese no Labs. Por onde você prefere começar a desenvolver esse ponto?`,
+      text: `Posso ajudar a analisar “${prompt}”. Você quer uma explicação, uma comparação, uma revisão crítica ou um plano?`,
     };
   }
 
