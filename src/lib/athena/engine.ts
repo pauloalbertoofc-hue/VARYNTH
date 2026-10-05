@@ -291,7 +291,7 @@ export async function processAthenaQueryAsync(
     targetProjectId
   );
   athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence, comprehensionStatus: parsed.comprehensionStatus, missingInformation: parsed.missingInformation, intents: parsed.intents, subject: parsed.subject, candidates: parsed.semanticInterpretation?.candidateScores.slice(0, 3) } });
-  const capabilitySelection = contractDecision.contract === "USE_AGENT"
+  const capabilitySelection = contractDecision.contract === "USE_AGENT" && !parsed.intents.includes("CLARIFICATION_RESPONSE")
     ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
     : undefined;
   if (capabilitySelection && capabilitySelection.status !== "SELECTED") {
@@ -368,6 +368,7 @@ export async function processAthenaQueryAsync(
       responseIntent,
       sessionId
     );
+    athenaConversationManager.recordAssistantResponse(sessionId, clarResult.text);
     return {
       id: "ath-" + Date.now(),
       sender: "athena",
@@ -550,7 +551,7 @@ export function processAthenaQuery(
     targetProjectId
   );
   athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence, comprehensionStatus: parsed.comprehensionStatus, missingInformation: parsed.missingInformation, intents: parsed.intents, subject: parsed.subject, candidates: parsed.semanticInterpretation?.candidateScores.slice(0, 3) } });
-  const capabilitySelection = contractDecision.contract === "USE_AGENT"
+  const capabilitySelection = contractDecision.contract === "USE_AGENT" && !parsed.intents.includes("CLARIFICATION_RESPONSE")
     ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
     : undefined;
   if (capabilitySelection && capabilitySelection.status !== "SELECTED") {
@@ -606,6 +607,7 @@ export function processAthenaQuery(
       responseIntent,
       sessionId
     );
+    athenaConversationManager.recordAssistantResponse(sessionId, clarResult.text);
     return {
       id: "ath-" + Date.now(),
       sender: "athena",

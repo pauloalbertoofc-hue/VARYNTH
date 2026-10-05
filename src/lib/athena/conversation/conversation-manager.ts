@@ -22,6 +22,15 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
+function candidateClarificationSubject(question: string | undefined): string {
+  const normalized = normalizeText(question || "");
+  if (/projeto/.test(normalized)) return "PROJECT";
+  if (/tarefa/.test(normalized)) return "TASK";
+  if (/livro|arquivo|documento|vault/.test(normalized)) return "VAULT_ITEM";
+  if (/resultado|esperava|quis dizer|significa/.test(normalized)) return "CLARIFICATION";
+  return "GENERAL_TOPIC";
+}
+
 export class ConversationManager {
   private sessions: Map<string, ConversationState> = new Map();
   private sessionHistories: Map<string, ConversationTurn[]> = new Map();
@@ -247,7 +256,41 @@ export class ConversationManager {
       currentProjectId: targetProjectId,
       currentTopic: state.currentTopic,
       recentEntities: state.recentEntities,
+      hasPendingSlot: Boolean(state.pendingQuestion),
     });
+
+    const isAnswerToPendingClarification = Boolean(state.pendingQuestion)
+      && clean.split(" ").length <= 8
+      && !/^(nao|mas|corrigindo|na verdade|quis dizer|eu quis dizer|nao era|nao,)/.test(clean)
+      && !/\b(compare|comparar|critique|analise|analisar|explique|explica|resuma|sintetize|recomende|sugira|planeje|crie|criar|quero|preciso|pode|poderia)\b/.test(clean)
+      && !/\b(por que|porque|explique|desenvolva|continue|prossiga)\b/.test(clean);
+    const candidateProject = isAnswerToPendingClarification
+      ? allProjects.find((project) => normalizeText(project.title) === clean)
+      : undefined;
+    if (isAnswerToPendingClarification) {
+      semantic.intent = "CLARIFICATION_RESPONSE";
+      semantic.confidence = candidateProject ? 0.95 : 0.8;
+      semantic.confidenceLevel = "HIGH";
+      semantic.ambiguity = "NONE";
+      semantic.requiresClarification = false;
+      semantic.clarificationPrompt = undefined;
+      semantic.isNoise = false;
+      semantic.comprehensionStatus = "UNDERSTOOD";
+      semantic.missingInformation = [];
+      semantic.trace.selectedIntent = "CLARIFICATION_RESPONSE";
+      semantic.trace.confidenceScore = semantic.confidence;
+      semantic.trace.confidenceBucket = "HIGH";
+      semantic.trace.deterministicSignals.push("PENDING_CLARIFICATION_ANSWER");
+      if (candidateProject) {
+        targetProjectId = candidateProject.id;
+        targetProjectTitle = candidateProject.title;
+        referencedEntityName = candidateProject.title;
+        state.currentProjectId = candidateProject.id;
+        state.currentTopic = candidateProject.title;
+      }
+      state.pendingQuestion = undefined;
+      if (state.clarificationContext) state.clarificationContext.status = "RESOLVED";
+    }
 
     let interactionType: InteractionType = "CONVERSATION";
     const intents: CognitiveIntent[] = [];
@@ -352,7 +395,19 @@ export class ConversationManager {
     }
 
     // A. Noise & Uncertainty
-    if (isUnresolvedDeictic) {
+    if (isAnswerToPendingClarification) {
+      interactionType = "CONVERSATION";
+      intents.push("CLARIFICATION_RESPONSE");
+      confidence = "HIGH";
+      requiresContext = false;
+      subject = candidateClarificationSubject(state.pendingQuestion);
+      if (candidateProject) {
+        targetProjectId = candidateProject.id;
+        targetProjectTitle = candidateProject.title;
+        referencedEntityName = candidateProject.title;
+      }
+    }
+    else if (isUnresolvedDeictic) {
       interactionType = "CONVERSATION";
       intents.push("CLARIFICATION_REQUIRED");
       confidence = "LOW";

@@ -328,6 +328,14 @@ export class AthenaPersonaEngine {
       .replace(/\bathenas\b/g, "")
       .trim();
 
+    if (parsed.intents.includes("CLARIFICATION_RESPONSE")) {
+      return {
+        text: activeProjectTitle
+          ? `Entendi: você está falando de **${activeProjectTitle}**. Vou usar esse projeto como contexto daqui em diante. O que você gostaria de saber ou fazer em relação a ele?`
+          : `Entendi: “${prompt.trim()}”. Obrigada por esclarecer. Qual é o próximo ponto que você quer tratar?`,
+      };
+    }
+
     // 0. Misunderstanding Repair / User Frustration (Concise & Non-Defensive)
     if (
       intent?.isMisunderstandingRepair ||

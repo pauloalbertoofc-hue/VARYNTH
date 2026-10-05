@@ -12,6 +12,7 @@ import { confidenceFromEvidence } from "@/lib/experience/signals";
 import { getExperienceOwnerId } from "@/lib/experience/identity";
 import { legacyExperienceMigrationService } from "@/lib/experience/legacy-migration-service";
 import { EXPERIENCE_AGENT_CATALOG } from "@/lib/experience/agent-catalog";
+import { buildProjectRetrospective, type ProjectRetrospective } from "@/lib/experience/retrospective-service";
 
 export default function ExperiencePage() {
   const [events, setEvents] = useState<ExperienceEvent[]>([]);
@@ -30,6 +31,9 @@ export default function ExperiencePage() {
   const [manualValue, setManualValue] = useState("");
   const [manualScope, setManualScope] = useState<"GLOBAL" | "DOMAIN" | "AGENT">("DOMAIN");
   const [manualAgentId, setManualAgentId] = useState<string>(EXPERIENCE_AGENT_CATALOG[0].id);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [retrospective, setRetrospective] = useState<ProjectRetrospective | null>(null);
+  const [retrospectiveError, setRetrospectiveError] = useState("");
   async function refresh() {
     const currentOwnerId = await getExperienceOwnerId();
     const [nextEvents, allPreferences, nextExclusions] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), learningExclusionService.list(currentOwnerId)]);
@@ -67,6 +71,20 @@ export default function ExperiencePage() {
     await refresh();
     window.alert(`Recuperação concluída para esta conta: ${counts.events} eventos, ${counts.preferences} preferências e ${counts.experiences} experiências. Exclusões antigas continuam bloqueadas e sem dono.`);
   }
+  async function loadRetrospective() {
+    if (!selectedProjectId) return;
+    setBusy(true); setRetrospectiveError("");
+    try { setRetrospective(await buildProjectRetrospective(selectedProjectId, ownerId)); }
+    catch (error) { setRetrospective(null); setRetrospectiveError(error instanceof Error ? error.message : "Não foi possível montar a retrospectiva."); }
+    finally { setBusy(false); }
+  }
+  const observedProjectIds = [...new Set(events.map((event) => event.projectId).filter((id): id is string => Boolean(id?.trim())))].sort((a, b) => a.localeCompare(b));
+  const retrospectiveGroups = retrospective ? [
+    { label: "Abordagem inicial", ids: events.filter((event) => event.projectId === retrospective.projectId && event.actionType === "PROJECT_CREATED").map((event) => event.id) },
+    { label: "Decisões registradas", ids: retrospective.importantDecisions },
+    { label: "Abordagens rejeitadas", ids: retrospective.rejectedApproaches },
+    { label: "Alterações relevantes", ids: retrospective.majorChanges },
+  ] : [];
   return <PageLayout title="Experience Layer" subtitle="Evidência, preferências e adaptação controlável">
     <main className="p-6 space-y-6 animate-fade-in">
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -90,6 +108,34 @@ export default function ExperiencePage() {
       </section>
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5"><h2 className="text-sm font-semibold text-white">Preferências com proveniência</h2><p className="mt-1 text-xs text-slate-500">Inferência não é fato. Declare uma preferência diretamente ou revise hipóteses inferidas; tudo permanece corrigível e reversível.</p><div className="mt-4 rounded-lg border border-emerald-400/15 bg-emerald-500/[0.03] p-3"><p className="text-xs font-medium text-emerald-100">Adicionar preferência declarada</p><p className="mt-1 text-[10px] text-slate-400">A declaração explícita prevalece sobre inferências anteriores do mesmo escopo e recebe um evento verificável de proveniência.</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><input aria-label="Domínio da preferência" value={manualDomain} onChange={(event) => setManualDomain(event.target.value)} placeholder="Domínio (ex.: music)" className="min-h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white" /><input aria-label="Chave da preferência" value={manualKey} onChange={(event) => setManualKey(event.target.value)} placeholder="Chave (ex.: mixDensity)" className="min-h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white" /><input aria-label="Valor da preferência" value={manualValue} onChange={(event) => setManualValue(event.target.value)} placeholder="Valor desejado" className="min-h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white" /><select aria-label="Escopo da preferência" value={manualScope} onChange={(event) => setManualScope(event.target.value as "GLOBAL" | "DOMAIN" | "AGENT")} className="min-h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white"><option value="DOMAIN">Somente este domínio</option><option value="AGENT">Somente um agente</option><option value="GLOBAL">Global</option></select>{manualScope === "AGENT" && <select aria-label="Agente da preferência" value={manualAgentId} onChange={(event) => setManualAgentId(event.target.value)} className="min-h-10 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white">{EXPERIENCE_AGENT_CATALOG.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select>}</div><button type="button" disabled={busy || !ownerId || !manualDomain.trim() || !manualKey.trim() || !manualValue.trim()} onClick={() => void saveManualPreference()} className="mt-3 rounded-lg border border-emerald-300/30 px-3 py-2 text-xs font-semibold text-emerald-100 disabled:opacity-40">Salvar preferência confirmada</button></div><div className="mt-4 space-y-2">{preferences.length === 0 ? <p className="text-xs text-slate-500">Nenhuma preferência recuperável ainda.</p> : preferences.map((preference) => <article key={preference.id} className="rounded-lg border border-white/10 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm text-slate-100">{preference.key}: {String(preference.value)}</p><p className="mt-1 text-[10px] text-slate-500">{preference.domain} · {preference.scope}{preference.scopeId ? `:${preference.scopeId}` : ""} · confiança {Math.round(preference.confidence * 100)}% · {preference.source === "MANUAL" ? "declarada" : "inferida"}</p></div><div className="flex gap-2">{preference.status === "INFERRED" && <button disabled={busy || !ownerId} onClick={() => void confirm(preference.id)} className="rounded border border-emerald-500/30 px-2 py-1 text-[10px] text-emerald-300">Confirmar</button>}<button disabled={busy || !ownerId} onClick={() => void preferenceService.setStatus(preference.id, "REJECTED", undefined, ownerId).then(refresh)} className="rounded border border-rose-500/30 px-2 py-1 text-[10px] text-rose-300">Rejeitar</button></div></div><p className="mt-2 text-[10px] text-slate-500">Evidências: {preference.evidence.map((e) => e.eventId).join(", ") || "nenhuma"}</p></article>)}</div></section>
       <section className="rounded-xl border border-cyan-400/20 bg-cyan-500/[0.03] p-5"><h2 className="text-sm font-semibold text-white">Hipóteses aguardando revisão</h2><p className="mt-1 text-xs text-slate-400">Só aparecem após três sinais independentes em pelo menos dois artefatos. Nenhuma hipótese é aplicada automaticamente. A análise considera somente registros associados à conta atual.</p><div className="mt-4 space-y-2">{candidates.length === 0 ? <p className="text-xs text-slate-500">Ainda não há evidência repetida suficiente para sugerir uma preferência.</p> : candidates.map((candidate) => <article key={`${candidate.domain}:${candidate.key}:${JSON.stringify(candidate.value)}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-cyan-300/10 p-3"><div><p className="text-sm text-slate-100">{candidate.key}: {String(candidate.value)}</p><p className="mt-1 text-[10px] text-slate-500">{candidate.domain} · {candidate.evidence.length} sinais · confiança calculada {Math.round(confidenceFromEvidence(candidate.evidence) * 100)}%</p><p className="mt-1 text-[10px] text-slate-500">Proveniência: {candidate.evidence.map((item) => item.eventId).join(", ")}</p></div><button disabled={busy || !ownerId} onClick={() => void saveCandidate(candidate)} className="rounded border border-cyan-300/30 px-3 py-2 text-[10px] font-semibold text-cyan-200 disabled:opacity-50">Salvar hipótese para revisão</button></article>)}</div></section>
+      <section className="rounded-xl border border-violet-400/20 bg-violet-500/[0.03] p-5">
+        <h2 className="text-sm font-semibold text-white">Retrospectiva de projeto</h2>
+        <p className="mt-1 text-xs text-slate-400">Reconstruída apenas com eventos e experiências da sua conta ligados ao projeto. Cada item aponta para registros reais; isso não é uma avaliação automática de sucesso.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <select aria-label="Projeto para retrospectiva" value={selectedProjectId} onChange={(event) => { setSelectedProjectId(event.target.value); setRetrospective(null); setRetrospectiveError(""); }} className="min-h-10 min-w-64 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white">
+            <option value="">Selecione um projeto observado</option>
+            {observedProjectIds.map((id) => <option key={id} value={id}>{id}</option>)}
+          </select>
+          <button type="button" disabled={busy || !selectedProjectId || !ownerId} onClick={() => void loadRetrospective()} className="min-h-10 rounded-lg border border-violet-300/30 px-3 text-xs font-semibold text-violet-100 disabled:opacity-40">Montar retrospectiva</button>
+        </div>
+        {retrospectiveError && <p role="alert" className="mt-3 text-xs text-rose-300">{retrospectiveError}</p>}
+        {retrospective && <div className="mt-4 space-y-4" aria-live="polite">
+          <p className="text-[10px] text-slate-500">Projeto {retrospective.projectId} · {retrospective.evidence.length} eventos verificáveis · gerada em {new Date(retrospective.generatedAt).toLocaleString("pt-BR")}</p>
+          {retrospective.initialApproach.length > 0 && <p className="rounded-lg border border-white/10 p-3 text-xs text-slate-200"><span className="font-medium">Abordagem inicial registrada:</span> {retrospective.initialApproach.join(" · ")}</p>}
+          {retrospectiveGroups.map((group) => <div key={group.label}>
+            <h3 className="text-xs font-medium text-slate-200">{group.label}</h3>
+            {group.ids.length === 0 ? <p className="mt-1 text-[10px] text-slate-500">Nenhum registro encontrado.</p> : <ul className="mt-2 space-y-1">{group.ids.map((id) => {
+              const event = events.find((item) => item.id === id);
+              return <li key={`${group.label}:${id}`} className="rounded border border-white/5 px-3 py-2 text-[10px] text-slate-300"><span className="font-medium">{event?.actionType || "Evento"}</span> · {event?.source || "origem não informada"} · {event ? new Date(event.timestamp).toLocaleString("pt-BR") : "evento vinculado"}<span className="ml-2 break-all font-mono text-slate-500">{id}</span></li>;
+            })}</ul>}
+          </div>)}
+          <div>
+            <h3 className="text-xs font-medium text-slate-200">Experiências úteis com evidência neste projeto</h3>
+            {retrospective.successfulExperiences.length === 0 ? <p className="mt-1 text-[10px] text-slate-500">Nenhuma experiência útil vinculada a evidências deste projeto.</p> : <ul className="mt-2 space-y-2">{retrospective.successfulExperiences.map((experience) => <li key={experience.id} className="rounded-lg border border-white/10 p-3"><p className="text-xs text-slate-100">{experience.situation} → {experience.action} → {experience.outcome}</p><p className="mt-1 break-all text-[10px] text-slate-500">Evidências: {experience.evidence.map((item) => item.eventId).join(", ") || "escopo explicitamente associado ao projeto"}</p></li>)}</ul>}
+          </div>
+        </div>}
+        {observedProjectIds.length === 0 && <p className="mt-3 text-xs text-slate-500">Ainda não há eventos de Experience associados a projetos para revisar.</p>}
+      </section>
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5"><div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold text-white">Eventos observados</h2><p className="mt-1 text-xs text-slate-500">Registro local, escopado e reversível.</p></div><button disabled={busy} onClick={() => events[0] && void forget(events[0].id)} className="rounded border border-white/10 px-2 py-1 text-[10px] text-slate-400">Esquecer último</button></div><div className="mt-4 space-y-2">{events.slice(0, 20).map((event) => <div key={event.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2"><span className="text-xs text-slate-200">{event.actionType} · {event.source} · {event.learningEligible ? "elegível" : "não aprendível"}</span><span className="flex items-center gap-3 text-[10px] text-slate-500">{event.privacyScope} · {new Date(event.timestamp).toLocaleString("pt-BR")}<button disabled={busy} onClick={() => void forget(event.id)} className="text-rose-300 underline">Esquecer</button></span></div>)}</div></section>
     </main>
   </PageLayout>;

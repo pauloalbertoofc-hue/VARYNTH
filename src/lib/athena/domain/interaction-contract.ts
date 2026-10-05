@@ -88,6 +88,9 @@ export function decisionForContract(
 export function resolveInteractionContract(
   parsed: Pick<ParsedCognitiveContext, "interactionType" | "intents" | "confidence" | "requiresAction">
 ): InteractionContractDecision {
+  if (parsed.intents.includes("CLARIFICATION_RESPONSE") && !parsed.requiresAction) {
+    return decisionForContract("ANSWER_SELF", "CLARIFICATION_RESPONSE: resume the pending conversational slot", parsed.confidence);
+  }
   const contract = interactionContractFor(parsed.interactionType);
   const expectedAction = contract === "USE_TOOL";
 
