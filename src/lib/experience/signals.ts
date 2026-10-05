@@ -11,7 +11,7 @@ export interface ExperienceSignal {
 
 const signalMap: Partial<Record<ExperienceEvent["actionType"], ExperienceSignal["kind"]>> = {
   FEEDBACK_SUBMITTED: "EXPLICIT_FEEDBACK", IMMEDIATE_UNDO: "IMMEDIATE_UNDO", DELAYED_UNDO: "DELAYED_UNDO", REDO: "REDO", PROPOSAL_ACCEPTED: "PROPOSAL_ACCEPTED",
-  USER_ACTION: "DIRECT_EDIT", PROPOSAL_MODIFIED: "PROPOSAL_MODIFIED", OUTCOME_RECORDED: "OUTCOME",
+  USER_ACTION: "DIRECT_EDIT", MANUAL_EDIT: "DIRECT_EDIT", PROPOSAL_MODIFIED: "PROPOSAL_MODIFIED", OUTCOME_RECORDED: "OUTCOME",
 };
 
 export function extractSignal(event: ExperienceEvent): ExperienceSignal | null {

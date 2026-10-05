@@ -104,6 +104,7 @@ import { gameService } from "@/lib/studio/game/game-service";
 import { collectGameLearningObservation, gameLearningAdapter } from "@/lib/experience/game-learning-adapter";
 import { documentLearningAdapter } from "@/lib/experience/document-learning-adapter";
 import { markEditorEditSaved, recordEditorHistoryAction } from "@/lib/experience/editor-history-adapter";
+import { collectImageStructureMetrics, collectVideoStructureMetrics, collectWebStructureMetrics, recordStudioStructureEdit } from "@/lib/experience/studio-structure-adapter";
 import { athenaGameActions } from "@/lib/studio/game/athena-game-actions";
 import { GameItem, GameDocumentState, GameEntity, GameComponent, GameScene, GameRule, GameVariable, ComponentType } from "@/lib/studio/game/types";
 import { StudioAssetPanel } from "@/components/studio/common/StudioAssetPanel";
@@ -569,6 +570,14 @@ export default function StudioPage() {
     autosaveTimerRef.current = setTimeout(async () => {
       const res = await webService.saveFiles(activeWebsite.artifact.id, updatedFiles, "USER");
       if (res.success) {
+        void recordStudioStructureEdit({
+          moduleId: "web",
+          projectId: activeWebsite.artifact.projectId,
+          artifactId: activeWebsite.artifact.id,
+          before: collectWebStructureMetrics(activeWebsite.files),
+          after: collectWebStructureMetrics(updatedFiles),
+          userInitiated: true,
+        }).catch(() => undefined);
         setWebSaveState("SAVED");
         loadData();
       } else {
@@ -634,6 +643,14 @@ export default function StudioPage() {
       const res = await imageService.saveDocumentState(activeImage.artifact.id, updated, "USER");
       if (res.success) {
         markEditorEditSaved({ moduleId: "image", projectId: activeImage.artifact.projectId, artifactId: activeImage.artifact.id });
+        void recordStudioStructureEdit({
+          moduleId: "image",
+          projectId: activeImage.artifact.projectId,
+          artifactId: activeImage.artifact.id,
+          before: collectImageStructureMetrics(activeImage.documentState),
+          after: collectImageStructureMetrics(updated),
+          userInitiated: true,
+        }).catch(() => undefined);
         setImageSaveState("SAVED");
         loadData();
       } else {
@@ -991,6 +1008,14 @@ export default function StudioPage() {
         const res = await videoService.saveDocumentState(activeVideo.artifact.id, newState, "USER");
         if (res.success) {
           markEditorEditSaved({ moduleId: "video", projectId: activeVideo.artifact.projectId, artifactId: activeVideo.artifact.id });
+          void recordStudioStructureEdit({
+            moduleId: "video",
+            projectId: activeVideo.artifact.projectId,
+            artifactId: activeVideo.artifact.id,
+            before: collectVideoStructureMetrics(activeVideo.documentState),
+            after: collectVideoStructureMetrics(newState),
+            userInitiated: true,
+          }).catch(() => undefined);
           setVideoSaveState("SAVED");
           loadData();
         } else {
