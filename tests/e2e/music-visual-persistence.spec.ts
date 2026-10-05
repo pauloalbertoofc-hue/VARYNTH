@@ -471,6 +471,26 @@ test("uploads a private account cover once and atomically targets all selected a
 test("keeps Euterpe present after playback ends and moves her to a rest spot after three idle minutes", async ({ page }) => {
   test.setTimeout(60_000);
   await page.clock.install({ time: new Date() });
+  await page.addInitScript(() => {
+    class FakeSpeechRecognition {
+      lang = ""; continuous = false; interimResults = false;
+      onstart: null | (() => void) = null;
+      onresult: null | ((event: { resultIndex: number; results: ArrayLike<{ 0?: { transcript?: string } }> }) => void) = null;
+      onerror: null | ((event: { error?: string }) => void) = null;
+      onend: null | (() => void) = null;
+      start() {
+        this.onstart?.();
+        window.setTimeout(() => {
+          const results = [{ 0: { transcript: "Quero ouvir música calma" } }];
+          this.onresult?.({ resultIndex: 0, results });
+          this.onend?.();
+        }, 20);
+      }
+      stop() { this.onend?.(); }
+      abort() { this.onend?.(); }
+    }
+    Object.defineProperty(window, "SpeechRecognition", { configurable: true, value: FakeSpeechRecognition });
+  });
   await page.goto("/modules/music");
   await page.locator('input[type="file"][accept*="audio"]').setInputFiles({
     name: "euterpe-idle-presence.wav",
@@ -497,6 +517,10 @@ test("keeps Euterpe present after playback ends and moves her to a rest spot aft
   await expect(voiceAction).toBeEnabled();
   await voiceAction.click();
   await expect(page.getByRole("dialog", { name: "Conversa com Euterpe" })).toBeVisible();
+  await page.getByRole("button", { name: "Ditado por voz para Euterpe" }).click();
+  await expect(page.getByLabel("Mensagem para Euterpe")).toHaveValue("Quero ouvir música calma");
+  await expect(page.getByText("Quero ouvir música calma", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: "Revise a mensagem" })).toBeVisible();
 });
 
 test("restores a track's saved motion and environment effect on another signed-in device", async ({ browser }) => {
