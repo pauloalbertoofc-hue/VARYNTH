@@ -19,13 +19,23 @@ export interface DocumentLearningInput {
 
 export class DocumentLearningAdapter {
   async record(input: DocumentLearningInput): Promise<ExperienceEvent> {
+    const before = safeCharacterCount(input.before);
+    const after = safeCharacterCount(input.after);
     return experienceService.record({
       actor: input.userInitiated === true ? "USER" : "SYSTEM", actionType: input.action === "DRAFT_ACCEPTED" ? "PROPOSAL_ACCEPTED" : input.action === "DRAFT_REJECTED" ? "PROPOSAL_REJECTED" : "MANUAL_EDIT", domain: input.domain || "writing",
       moduleId: "document", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
-      before: input.before, after: input.after, correlationId: input.correlationId, metadata: { documentAction: input.action, domain: input.domain || "writing", generatedAutomatically: input.userInitiated !== true },
+      before, after, correlationId: input.correlationId, metadata: { documentAction: input.action, domain: input.domain || "writing", generatedAutomatically: input.userInitiated !== true },
       source: "document-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: input.userInitiated === true,
     });
   }
+}
+
+function safeCharacterCount(value: unknown): { characters: number } | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const characters = (value as Record<string, unknown>).characters;
+  return typeof characters === "number" && Number.isInteger(characters) && characters >= 0
+    ? { characters }
+    : undefined;
 }
 
 export const documentLearningAdapter = new DocumentLearningAdapter();

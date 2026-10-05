@@ -41,12 +41,25 @@ export function collectGameLearningObservation(previous: GameDocumentState, next
 
 export class GameLearningAdapter {
   async record(input: GameLearningInput): Promise<ExperienceEvent> {
+    const before = safeStructureCounts(input.before);
+    const after = safeStructureCounts(input.after);
     return experienceService.record({
       actor: input.userInitiated === true ? "USER" : "SYSTEM", actionType: "MANUAL_EDIT", domain: "game", moduleId: "game", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
-      before: input.before, after: input.after, correlationId: input.correlationId, metadata: { gameAction: input.action, generatedAutomatically: input.userInitiated !== true }, source: "game-learning-adapter",
+      before, after, correlationId: input.correlationId, metadata: { gameAction: input.action, generatedAutomatically: input.userInitiated !== true }, source: "game-learning-adapter",
       privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: input.userInitiated === true,
     });
   }
+}
+
+const STRUCTURE_COUNT_KEYS = ["scenes", "entities", "rules", "variables"] as const;
+
+function safeStructureCounts(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const entries = STRUCTURE_COUNT_KEYS.flatMap((key) => typeof source[key] === "number" && Number.isInteger(source[key]) && source[key] >= 0
+    ? [[key, source[key] as number] as const]
+    : []);
+  return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
 export const gameLearningAdapter = new GameLearningAdapter();
