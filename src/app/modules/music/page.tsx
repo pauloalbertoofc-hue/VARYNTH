@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Disc3, ListMusic, Music2, Pause, Play, Send, SkipBack, SkipForward, Volume2, X, Mic2 } from "lucide-react";
+import { Disc3, ListMusic, Music2, Pause, Play, Send, SkipBack, SkipForward, Volume2, X, Volume1 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { athenaEventBus } from "@/lib/athena/events/event-bus";
 import { processAthenaQueryAsync } from "@/lib/athena/engine";
@@ -23,7 +23,6 @@ import { EuterpePresence } from "@/components/music/EuterpePresence";
 import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
 import type { EuterpeVisualState } from "@/lib/music/euterpe-character";
 import { getEuterpeOverlayBridge, type EuterpeNativePlayerState } from "@/lib/music/euterpe-native-bridge";
-import { euterpeVoiceProvider } from "@/lib/music/euterpe-voice";
 import { VisualScene } from "@/components/music/VisualScene";
 import { musicSeekTimeAtPointer } from "@/lib/music/music-playback";
 import { decodeWaveform, MusicEngine } from "@/lib/music/music-engine";
@@ -35,6 +34,7 @@ import { VisualEffectControls } from "@/components/music/VisualEffectControls";
 import { musicLearningAdapter } from "@/lib/experience/music-learning-adapter";
 import { MusicVisualProviderSettings } from "@/components/music/MusicVisualProviderSettings";
 import { LEGACY_ATHENA_SESSION_STORAGE_KEY, LEGACY_MUSIC_CHAT_STORAGE_KEY, musicChatScopeFromSession, musicChatStorageKeys } from "@/lib/music/music-chat-storage";
+import { speakEuterpeText } from "@/lib/music/euterpe-browser-speech";
 
 const visualProvider = new LocalVisualGenerationProvider();
 const athenaVisualProvider = new RemoteVisualGenerationProvider();
@@ -120,6 +120,7 @@ export default function MusicPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const [chatStatus, setChatStatus] = useState("");
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [chatReady, setChatReady] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [euterpeExpression, setEuterpeExpression] = useState<EuterpeVisualState | null>(null);
@@ -229,6 +230,7 @@ export default function MusicPage() {
   }, []);
   useEffect(() => { if (chatReady && chatStorageKey) { try { localStorage.setItem(chatStorageKey, JSON.stringify(chatMessages)); } catch { /* Keep the current conversation in memory. */ } } }, [chatMessages, chatReady, chatStorageKey]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, chatBusy]);
+  useEffect(() => () => { if (typeof window !== "undefined") window.speechSynthesis?.cancel(); }, []);
 
   useEffect(() => {
     const track = selectedTrackRef.current;
@@ -729,6 +731,17 @@ export default function MusicPage() {
       setChatMessages((current) => [...current, { id: crypto.randomUUID(), sender: "curator", text: `Não consegui concluir este turno${error instanceof Error ? `: ${error.message}` : ". Vou continuar disponível para tentar novamente."}`, createdAt: new Date().toISOString() }]);
     } finally { varynthEventBus.emit("AGENT.RESULT", { agentId: "euterpe", outcome: resultOutcome }); setChatBusy(false); setChatStatus(""); }
   };
+  const speakEuterpeReply = (messageId: string, text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+      setChatStatus("A voz da Euterpe não está disponível neste navegador ou dispositivo.");
+      return;
+    }
+    const utterance = speakEuterpeText(text, window.speechSynthesis, (value) => new SpeechSynthesisUtterance(value));
+    utterance.onstart = () => setSpeakingMessageId(messageId);
+    utterance.onend = () => setSpeakingMessageId(null);
+    utterance.onerror = () => { setSpeakingMessageId(null); setChatStatus("Não foi possível reproduzir a voz da Euterpe neste dispositivo."); };
+    setChatStatus("Euterpe está preparando a resposta em voz…");
+  };
   const applyProposal = async (proposal: EuterpeProposal) => {
     const decision = authorizeEuterpeProposal(permissionEngine, proposal);
     if (!decision.allowed && decision.policy !== "CONFIRM") { setMessage(decision.reason); return; }
@@ -791,8 +804,8 @@ export default function MusicPage() {
       {chatOpen && <>
         <button aria-label="Fechar conversa com Euterpe" onClick={() => setChatOpen(false)} className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[2px] lg:bg-transparent lg:backdrop-blur-none" />
         <section role="dialog" aria-modal="true" aria-label="Conversa com Euterpe" className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88svh] flex-col overflow-hidden rounded-t-3xl border border-violet-300/20 bg-[#0c0c15]/95 shadow-[0_-25px_100px_rgba(0,0,0,.65)] backdrop-blur-2xl lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[430px] lg:max-h-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l">
-        <div className="flex min-h-[92px] items-center justify-between border-b border-white/[0.07] px-5 py-2"><div className="flex min-w-0 items-center gap-3"><EuterpeCharacterArtwork variant="chibi" state={euterpeState} width={48} label="Euterpe" /><div className="min-w-0"><h3 className="font-semibold text-white">Euterpe</h3><p className="mt-1 text-xs text-slate-400">Uma presença musical própria · ligada à Athena</p></div></div><div className="flex items-center gap-2"><button type="button" disabled={!euterpeVoiceProvider.available} title={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "STT/TTS ainda não configurados"} aria-label={euterpeVoiceProvider.available ? "Iniciar conversa por voz" : "Conversa por voz indisponível"} className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-500 disabled:cursor-not-allowed"><Mic2 size={16} /></button><button type="button" onClick={() => setChatOpen(false)} aria-label="Fechar conversa" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-300"><X size={17} /></button></div></div>
-        <div className="max-h-[32rem] space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">{!chatReady && <p className="text-xs text-slate-400" role="status">Preparando uma conversa privada…</p>}{chatMessages.map((chat, index) => <div key={chat.id}><div className={`flex ${chat.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 ${chat.sender === "user" ? "bg-violet-500/20 text-violet-50" : "border border-white/[0.07] bg-white/[0.03] text-slate-200"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{chat.sender === "user" ? "Você" : `Euterpe${chat.consultedAthena ? " · consultou Athena" : ""}`}</p><p className="whitespace-pre-wrap text-sm leading-6">{chat.text}</p>{chat.sender === "curator" && chat.id !== WELCOME.id && <AthenaFeedbackControls messageId={chat.id} response={chat.text} sessionId={athenaSessionIdRef.current || "music-curator-session"} prompt={chatMessages[index - 1]?.sender === "user" ? chatMessages[index - 1].text : undefined} agentId="euterpe" moduleId="music" agentName="Euterpe" />}{chat.proposal && <button onClick={() => void applyProposal(chat.proposal!)} className="mt-3 rounded-lg border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100">Revisar e aplicar proposta</button>}</div></div>{chat.athenaPlanId && <div className="mt-3"><p className="mb-2 text-xs text-amber-200">Athena preparou um plano para revisão. Aprove, confirme ou execute pelos controles abaixo conforme as permissões.</p><AthenaCapabilityPlanPanel store={store} planId={chat.athenaPlanId} /></div>}</div>)}{chatBusy && <p className="text-xs text-violet-300" role="status">{chatStatus}</p>}{chatReady && chatStatus && !chatBusy && <p className="text-xs text-amber-200" role="status">{chatStatus}</p>}<div ref={chatEndRef} /></div>
+        <div className="flex min-h-[92px] items-center justify-between border-b border-white/[0.07] px-5 py-2"><div className="flex min-w-0 items-center gap-3"><EuterpeCharacterArtwork variant="chibi" state={euterpeState} width={48} label="Euterpe" /><div className="min-w-0"><h3 className="font-semibold text-white">Euterpe</h3><p className="mt-1 text-xs text-slate-400">Uma presença musical própria · ligada à Athena · voz em português</p></div></div><button type="button" onClick={() => { if (speakingMessageId) { window.speechSynthesis?.cancel(); setSpeakingMessageId(null); setChatStatus("Voz interrompida."); } else { const latest = [...chatMessages].reverse().find((item) => item.sender === "curator" && item.id !== WELCOME.id); if (latest) speakEuterpeReply(latest.id, latest.text); } }} aria-label={speakingMessageId ? "Parar voz da Euterpe" : "Ouvir última resposta da Euterpe"} title={speakingMessageId ? "Parar voz" : "Ouvir última resposta"} className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-violet-200"><Volume1 size={16} /></button><button type="button" onClick={() => setChatOpen(false)} aria-label="Fechar conversa" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-300"><X size={17} /></button></div>
+        <div className="max-h-[32rem] space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">{!chatReady && <p className="text-xs text-slate-400" role="status">Preparando uma conversa privada…</p>}{chatMessages.map((chat, index) => <div key={chat.id}><div className={`flex ${chat.sender === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 ${chat.sender === "user" ? "bg-violet-500/20 text-violet-50" : "border border-white/[0.07] bg-white/[0.03] text-slate-200"}`}><p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{chat.sender === "user" ? "Você" : `Euterpe${chat.consultedAthena ? " · consultou Athena" : ""}`}</p><p className="whitespace-pre-wrap text-sm leading-6">{chat.text}</p>{chat.sender === "curator" && chat.id !== WELCOME.id && <><button type="button" aria-label={speakingMessageId === chat.id ? "Parar voz" : `Ouvir resposta de Euterpe: ${chat.text.slice(0, 64)}`} onClick={() => speakingMessageId === chat.id ? (window.speechSynthesis?.cancel(), setSpeakingMessageId(null)) : speakEuterpeReply(chat.id, chat.text)} className="mt-2 inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs text-violet-200"><Volume1 size={14} />{speakingMessageId === chat.id ? "Parar" : "Ouvir"}</button><AthenaFeedbackControls messageId={chat.id} response={chat.text} sessionId={athenaSessionIdRef.current || "music-curator-session"} prompt={chatMessages[index - 1]?.sender === "user" ? chatMessages[index - 1].text : undefined} agentId="euterpe" moduleId="music" agentName="Euterpe" /></>}{chat.proposal && <button onClick={() => void applyProposal(chat.proposal!)} className="mt-3 rounded-lg border border-violet-300/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-100">Revisar e aplicar proposta</button>}</div></div>{chat.athenaPlanId && <div className="mt-3"><p className="mb-2 text-xs text-amber-200">Athena preparou um plano para revisão. Aprove, confirme ou execute pelos controles abaixo conforme as permissões.</p><AthenaCapabilityPlanPanel store={store} planId={chat.athenaPlanId} /></div>}</div>)}{chatBusy && <p className="text-xs text-violet-300" role="status">{chatStatus}</p>}{chatReady && chatStatus && !chatBusy && <p className="text-xs text-amber-200" role="status">{chatStatus}</p>}<div ref={chatEndRef} /></div>
         <form onSubmit={(event) => void sendToCurator(event)} className="flex gap-2 border-t border-white/[0.07] p-3"><input aria-label="Mensagem para Euterpe" value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Converse com Euterpe…" disabled={chatBusy || !chatReady} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-600" /><button type="submit" aria-label="Enviar para Euterpe" disabled={chatBusy || !chatReady || !chatInput.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500 text-white disabled:opacity-40"><Send size={17} /></button></form>
         <p className="px-4 pb-3 text-[10px] text-slate-600">Você conversa com Euterpe; quando o pedido exige recursos gerais, ela consulta Athena e traz a resposta. Histórico e memória ficam neste navegador.</p>
         </section>

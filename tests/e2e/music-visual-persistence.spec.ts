@@ -393,6 +393,81 @@ test("applies an animated cover to selected tracks and preserves the exact selec
   expect(restored.find((track) => /zz-batch-cover-excluded/i.test(track.name))?.cover).toBeUndefined();
 });
 
+test("uploads a private account cover once and atomically targets all selected account tracks", async ({ page }) => {
+  test.setTimeout(60_000);
+  const trackOne = "c3d33f84-c9cf-4c62-90ad-a5acfeb0a65f";
+  const trackTwo = "9f71c3be-48c4-4f40-a9a7-1590754935b7";
+  const excludedTrack = "77aa3385-bb01-4da3-8ee0-a77a6b81c9cb";
+  const tracks = [
+    { id: trackOne, name: "account-batch-one", artist: "VARYNTH", durationMs: 30_000, mimeType: "audio/mpeg", sizeBytes: 128, addedAt: "2026-10-04T00:00:00.000Z", storageMode: "account" },
+    { id: trackTwo, name: "account-batch-two", artist: "VARYNTH", durationMs: 30_000, mimeType: "audio/mpeg", sizeBytes: 128, addedAt: "2026-10-04T00:00:00.000Z", storageMode: "account" },
+    { id: excludedTrack, name: "zz-account-batch-excluded", artist: "VARYNTH", durationMs: 30_000, mimeType: "audio/mpeg", sizeBytes: 128, addedAt: "2026-10-04T00:00:00.000Z", storageMode: "account" },
+  ];
+  let signedUploadPayload: { assetId: string; kind: string; trackIds: string[]; mimeType: string; sizeBytes: number } | undefined;
+  let uploadedPathname = "";
+  let associated: { kind?: string; trackIds?: string[]; assetId?: string } | undefined;
+
+  await page.route("**/api/music/library", async (route) => {
+    if (route.request().method() !== "GET") return route.fulfill({ status: 405 });
+    return route.fulfill({ json: { uploadPrefix: "music/test-owner/tracks", storageMode: "account", tracks } });
+  });
+  await page.route("**/api/music/tracks/*/artwork", async (route) => {
+    const trackId = new URL(route.request().url()).pathname.split("/").at(-2);
+    const hasCover = Boolean(associated?.trackIds?.includes(trackId ?? ""));
+    return route.fulfill({ json: { coverUrl: hasCover ? `/mock-account-art/${trackId}.gif` : undefined } });
+  });
+  await page.route("**/api/music/tracks/*/audio", async (route) => route.fulfill({ status: 404 }));
+  await page.route("**/api/music/artwork/upload", async (route) => {
+    if (route.request().method() !== "POST") return route.fulfill({ status: 405 });
+    const event = route.request().postDataJSON() as { type?: string; payload?: { pathname?: string; clientPayload?: string } };
+    expect(event.type).toBe("blob.generate-client-token");
+    uploadedPathname = event.payload?.pathname ?? "";
+    signedUploadPayload = JSON.parse(event.payload?.clientPayload ?? "null");
+    const signedClaims = { pathname: uploadedPathname, allowedContentTypes: ["image/gif"], maximumSizeInBytes: 20 * 1024 * 1024, validUntil: Date.now() + 60_000 };
+    const encodedClaims = Buffer.from(JSON.stringify(signedClaims)).toString("base64");
+    const clientToken = `vercel_blob_client_test-store_${Buffer.from(`signature.${encodedClaims}`).toString("base64")}`;
+    return route.fulfill({ json: { type: event.type, clientToken } });
+  });
+  await page.route("https://vercel.com/api/blob/**", async (route) => {
+    expect(route.request().method()).toBe("PUT");
+    expect(route.request().headers().authorization).toMatch(/^Bearer vercel_blob_client_test-store_/);
+    const pathname = new URL(route.request().url()).searchParams.get("pathname") ?? "";
+    expect(pathname).toBe(uploadedPathname);
+    return route.fulfill({ json: {
+      url: `https://test-store.private.blob.vercel-storage.com/${pathname}`,
+      downloadUrl: `https://test-store.private.blob.vercel-storage.com/${pathname}`,
+      pathname,
+      contentType: "image/gif",
+      contentDisposition: "inline",
+      etag: "test-etag",
+    } });
+  });
+  await page.route("**/api/music/artwork", async (route) => {
+    if (route.request().method() !== "POST") return route.fulfill({ status: 405 });
+    associated = route.request().postDataJSON() as typeof associated;
+    return route.fulfill({ json: { ok: true } });
+  });
+
+  await page.goto("/modules/music");
+  await page.getByRole("button", { name: "Biblioteca", exact: true }).click();
+  await expect(page.getByRole("button", { name: /account-batch-one/i }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-visual-profile-ready]")).toHaveAttribute("data-visual-profile-ready", "true", { timeout: 20_000 });
+  await page.getByLabel("Aplicar imagem em").selectOption("SELECTED");
+  await page.getByRole("checkbox", { name: "account-batch-two" }).check();
+  await page.locator('input[type="file"][accept*="image/gif"]').first().setInputFiles({
+    name: "account-shared.gif",
+    mimeType: "image/gif",
+    buffer: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
+  });
+
+  await expect(page.getByTestId("music-visual-status")).toContainText(/Capa animado salvo de forma permanente em 2 faixas selecionadas/i);
+  expect(uploadedPathname).toMatch(/^music\/test-owner\/artwork\/[a-f0-9-]{36}\.gif$/i);
+  expect(signedUploadPayload).toMatchObject({ kind: "cover", trackIds: [trackOne], mimeType: "image/gif" });
+  expect(associated).toMatchObject({ kind: "cover", trackIds: [trackOne, trackTwo] });
+  expect(associated?.assetId).toBe(signedUploadPayload?.assetId);
+  expect(associated?.trackIds).not.toContain(excludedTrack);
+});
+
 test("keeps Euterpe present after playback ends and moves her to a rest spot after three idle minutes", async ({ page }) => {
   test.setTimeout(60_000);
   await page.clock.install({ time: new Date() });
