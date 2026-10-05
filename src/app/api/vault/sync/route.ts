@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/auth/require-session";
 import type { VaultItem } from "@/lib/types";
 import { migrateVaultItem } from "@/lib/vault/taxonomy";
+import { reconcileVaultOwnerHistory } from "@/lib/knowledge/ownership-history";
 
 export const runtime = "nodejs";
 
@@ -68,13 +69,24 @@ export async function POST(request: Request) {
   const session = await requireSession(); if (!session) return Response.json({ error: "Autenticação necessária." }, { status: 401 });
   try {
     const incoming = ((await request.json() as { items?: VaultItem[] }).items || []).map(migrateVaultItem);
+    const scope = accountScope(session);
     const { items: stored, tombstones, keys: accountKeys } = await library(session);
     const merged = new Map(stored.map((item) => [item.id, item]));
     for (const item of incoming) {
       const deletedAt = tombstones[item.id];
       if (deletedAt && deletedAt >= item.updatedAt) continue;
       const current = merged.get(item.id);
-      if (!current || item.updatedAt > current.updatedAt) merged.set(item.id, item);
+      if (current && item.updatedAt > current.updatedAt) {
+        const governanceChanged = (current.knowledgeOwnerAgent || "") !== (item.knowledgeOwnerAgent || "")
+          || current.knowledgeVisibility !== item.knowledgeVisibility
+          || current.knowledgeSensitivity !== item.knowledgeSensitivity;
+        if (governanceChanged && !scope.isOwner) return Response.json({ error: "Apenas o owner pode reatribuir a governança do Knowledge." }, { status: 403 });
+        merged.set(item.id, reconcileVaultOwnerHistory(current, item, scope.isOwner ? "owner" : "user", item.updatedAt));
+      } else if (!current) {
+        const hasGovernance = Boolean(item.knowledgeOwnerAgent || item.knowledgeVisibility || item.knowledgeSensitivity);
+        if (hasGovernance && !scope.isOwner) return Response.json({ error: "Apenas o owner pode definir a governança do Knowledge." }, { status: 403 });
+        merged.set(item.id, reconcileVaultOwnerHistory(undefined, item, scope.isOwner ? "owner" : "user", item.updatedAt));
+      }
     }
     const items = [...merged.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     await redis(["SET", accountKeys.items, JSON.stringify(items)]);

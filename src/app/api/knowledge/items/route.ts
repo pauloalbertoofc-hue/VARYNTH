@@ -44,6 +44,10 @@ export async function POST(request: Request) {
     if (body.operation === "UPSERT_VAULT") {
       const projection = canonicalVaultProjection(body.item);
       if (!projection) return Response.json({ error: "Item do Vault inválido." }, { status: 400 });
+      const existing = await withKnowledgeAccount(knowledgeAccountId(user), () => knowledgeRepository.getById(projection.id));
+      const governanceChanged = existing && (existing.ownerAgent !== projection.ownerAgent || existing.visibility !== projection.visibility || existing.sensitivity !== projection.sensitivity || JSON.stringify(existing.ownershipHistory || []) !== JSON.stringify(projection.ownershipHistory || []));
+      const hasInitialGovernance = !existing && (Boolean(projection.ownerAgent) || Boolean(projection.ownershipHistory?.length) || projection.sensitivity !== "INTERNAL" || projection.visibility !== (projection.relatedProjectIds.length ? "PROJECT" : "DOMAIN"));
+      if ((governanceChanged || hasInitialGovernance) && (user as typeof user & { role?: string }).role !== "owner") return Response.json({ error: "Apenas o owner pode alterar a governança do Knowledge." }, { status: 403 });
       const item = await withKnowledgeAccount(knowledgeAccountId(user), () => persistVaultKnowledgeProjection(body.item as import("@/lib/types/vault").VaultItem));
       return Response.json({ item, persistenceMode: knowledgeAccountPersistenceMode(), persisted: true });
     }

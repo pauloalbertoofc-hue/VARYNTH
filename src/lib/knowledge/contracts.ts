@@ -3,6 +3,13 @@ export type KnowledgeKind = "REFERENCE" | "DOCUMENT" | "MANUAL" | "DOCTRINE" | "
 export type KnowledgeAssertion = "FACT" | "INTERPRETATION" | "OPINION" | "HYPOTHESIS" | "PROCEDURE" | "REFERENCE";
 export type SourceAuthority = "PRIMARY_SOURCE" | "OFFICIAL_REFERENCE" | "USER_PROVIDED" | "INTERNAL_DOCUMENT" | "AGENT_GENERATED" | "EXPERIENCE_DERIVED" | "UNKNOWN";
 export type KnowledgeLifecycleState = "ACTIVE" | "DRAFT" | "REVIEW" | "STALE" | "ARCHIVED" | "DEPRECATED";
+export interface KnowledgeOwnershipHistoryEntry {
+  fromAgent?: string;
+  toAgent?: string;
+  changedAt: string;
+  changedBy: "USER" | "AGENT" | "SYSTEM";
+  actorId?: string;
+}
 
 export interface KnowledgeProvenance {
   sourceType: string;
@@ -38,6 +45,7 @@ export interface KnowledgeItem {
   categories: string[];
   tags: string[];
   ownerAgent?: string;
+  ownershipHistory?: KnowledgeOwnershipHistoryEntry[];
   contributingAgents: string[];
   visibility: KnowledgeVisibility;
   sensitivity: "PUBLIC" | "INTERNAL" | "SENSITIVE" | "PRIVATE";
