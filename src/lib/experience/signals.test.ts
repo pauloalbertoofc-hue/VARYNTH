@@ -1,6 +1,8 @@
 import { extractSignal, confidenceFromEvidence } from "./signals";
 const event = { id: "e", ownerId: "local-owner", timestamp: new Date().toISOString(), actor: "USER", actionType: "IMMEDIATE_UNDO", metadata: {}, source: "test", privacyScope: "PROJECT_SHARED", learningEligible: true, schemaVersion: 1 } as const;
 if (extractSignal(event)?.strength !== "HIGH") throw new Error("undo strength failed");
+if (extractSignal({ ...event, actionType: "DELAYED_UNDO" })?.strength !== "LOW") throw new Error("delayed undo must remain weak evidence");
+if (extractSignal({ ...event, actionType: "REDO" })?.kind !== "REDO") throw new Error("redo must be represented as its own signal");
 if (extractSignal({ ...event, actor: "AGENT", learningEligible: false })?.eligible !== false) throw new Error("agent signal leaked");
 if (extractSignal({ ...event, metadata: { generatedAutomatically: true } })?.eligible !== false) throw new Error("automated loop signal leaked");
 if (extractSignal({ ...event, ownerId: undefined })?.eligible !== false) throw new Error("unassigned legacy event was eligible");

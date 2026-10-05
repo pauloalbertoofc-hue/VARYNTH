@@ -2,7 +2,7 @@ import { ExperienceEvent, EvidenceRef } from "./contracts";
 import { evaluateLearningEligibility } from "./learning-policy";
 
 export interface ExperienceSignal {
-  kind: "EXPLICIT_FEEDBACK" | "DIRECT_EDIT" | "IMMEDIATE_UNDO" | "PROPOSAL_ACCEPTED" | "PROPOSAL_MODIFIED" | "OUTCOME";
+  kind: "EXPLICIT_FEEDBACK" | "DIRECT_EDIT" | "IMMEDIATE_UNDO" | "DELAYED_UNDO" | "REDO" | "PROPOSAL_ACCEPTED" | "PROPOSAL_MODIFIED" | "OUTCOME";
   strength: EvidenceRef["weight"];
   eventId: string;
   context: { projectId?: string; moduleId?: string; agentId?: string; correlationId?: string };
@@ -10,7 +10,7 @@ export interface ExperienceSignal {
 }
 
 const signalMap: Partial<Record<ExperienceEvent["actionType"], ExperienceSignal["kind"]>> = {
-  FEEDBACK_SUBMITTED: "EXPLICIT_FEEDBACK", IMMEDIATE_UNDO: "IMMEDIATE_UNDO", PROPOSAL_ACCEPTED: "PROPOSAL_ACCEPTED",
+  FEEDBACK_SUBMITTED: "EXPLICIT_FEEDBACK", IMMEDIATE_UNDO: "IMMEDIATE_UNDO", DELAYED_UNDO: "DELAYED_UNDO", REDO: "REDO", PROPOSAL_ACCEPTED: "PROPOSAL_ACCEPTED",
   USER_ACTION: "DIRECT_EDIT", PROPOSAL_MODIFIED: "PROPOSAL_MODIFIED", OUTCOME_RECORDED: "OUTCOME",
 };
 

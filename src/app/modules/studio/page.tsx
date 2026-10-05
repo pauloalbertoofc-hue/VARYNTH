@@ -103,6 +103,7 @@ import { GameChangeSetModal } from "@/components/studio/game/GameChangeSetModal"
 import { gameService } from "@/lib/studio/game/game-service";
 import { collectGameLearningObservation, gameLearningAdapter } from "@/lib/experience/game-learning-adapter";
 import { documentLearningAdapter } from "@/lib/experience/document-learning-adapter";
+import { markEditorEditSaved, recordEditorHistoryAction } from "@/lib/experience/editor-history-adapter";
 import { athenaGameActions } from "@/lib/studio/game/athena-game-actions";
 import { GameItem, GameDocumentState, GameEntity, GameComponent, GameScene, GameRule, GameVariable, ComponentType } from "@/lib/studio/game/types";
 import { StudioAssetPanel } from "@/components/studio/common/StudioAssetPanel";
@@ -632,6 +633,7 @@ export default function StudioPage() {
     autosaveTimerRef.current = setTimeout(async () => {
       const res = await imageService.saveDocumentState(activeImage.artifact.id, updated, "USER");
       if (res.success) {
+        markEditorEditSaved({ moduleId: "image", projectId: activeImage.artifact.projectId, artifactId: activeImage.artifact.id });
         setImageSaveState("SAVED");
         loadData();
       } else {
@@ -694,6 +696,7 @@ export default function StudioPage() {
         if (pendingAudioSaveRef.current !== pendingSave) return;
         if (res.success) {
           pendingAudioSaveRef.current = null;
+          markEditorEditSaved({ moduleId: "audio", projectId: activeAudio.artifact.projectId, artifactId: activeAudio.artifact.id });
           setAudioSaveState("SAVED");
           loadData();
         } else {
@@ -987,6 +990,7 @@ export default function StudioPage() {
       try {
         const res = await videoService.saveDocumentState(activeVideo.artifact.id, newState, "USER");
         if (res.success) {
+          markEditorEditSaved({ moduleId: "video", projectId: activeVideo.artifact.projectId, artifactId: activeVideo.artifact.id });
           setVideoSaveState("SAVED");
           loadData();
         } else {
@@ -1086,6 +1090,7 @@ export default function StudioPage() {
       try {
         const res = await gameService.saveDocumentState(activeGame.artifact.id, newState, "USER");
         if (res.success) {
+          markEditorEditSaved({ moduleId: "game", projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id });
           const observation = collectGameLearningObservation(activeGame.documentState, newState);
           if (observation) {
             void gameLearningAdapter.record({ action: observation.action, projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id, targetId: activeGame.artifact.id, before: observation.before, after: observation.after, userInitiated: true }).catch(() => undefined);
@@ -2094,6 +2099,7 @@ export default function StudioPage() {
                   onUndo={() => {
                     const prev = gameService.undo(activeGame.artifact.id);
                     if (prev) {
+                      void recordEditorHistoryAction({ moduleId: "game", projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id }, "UNDO").catch(() => undefined);
                       setActiveGame({ ...activeGame, documentState: prev });
                       loadData();
                     }
@@ -2101,6 +2107,7 @@ export default function StudioPage() {
                   onRedo={() => {
                     const next = gameService.redo(activeGame.artifact.id);
                     if (next) {
+                      void recordEditorHistoryAction({ moduleId: "game", projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id }, "REDO").catch(() => undefined);
                       setActiveGame({ ...activeGame, documentState: next });
                       loadData();
                     }
@@ -2340,6 +2347,7 @@ export default function StudioPage() {
                 onUndo={() => {
                   const prev = videoService.undo(activeVideo.artifact.id);
                   if (prev) {
+                    void recordEditorHistoryAction({ moduleId: "video", projectId: activeVideo.artifact.projectId, artifactId: activeVideo.artifact.id }, "UNDO").catch(() => undefined);
                     setActiveVideo({ ...activeVideo, documentState: prev });
                     loadData();
                   }
@@ -2347,6 +2355,7 @@ export default function StudioPage() {
                 onRedo={() => {
                   const next = videoService.redo(activeVideo.artifact.id);
                   if (next) {
+                    void recordEditorHistoryAction({ moduleId: "video", projectId: activeVideo.artifact.projectId, artifactId: activeVideo.artifact.id }, "REDO").catch(() => undefined);
                     setActiveVideo({ ...activeVideo, documentState: next });
                     loadData();
                   }
@@ -2748,6 +2757,7 @@ export default function StudioPage() {
                 onUndo={() => {
                   const prev = audioService.undo(activeAudio.artifact.id);
                   if (prev) {
+                    void recordEditorHistoryAction({ moduleId: "audio", projectId: activeAudio.artifact.projectId, artifactId: activeAudio.artifact.id }, "UNDO").catch(() => undefined);
                     setActiveAudio({ ...activeAudio, documentState: prev });
                     loadData();
                   }
@@ -2755,6 +2765,7 @@ export default function StudioPage() {
                 onRedo={() => {
                   const next = audioService.redo(activeAudio.artifact.id);
                   if (next) {
+                    void recordEditorHistoryAction({ moduleId: "audio", projectId: activeAudio.artifact.projectId, artifactId: activeAudio.artifact.id }, "REDO").catch(() => undefined);
                     setActiveAudio({ ...activeAudio, documentState: next });
                     loadData();
                   }
@@ -3457,6 +3468,7 @@ export default function StudioPage() {
               onUndo={() => {
                 const prev = imageService.undo(activeImage!.artifact.id);
                 if (prev) {
+                  void recordEditorHistoryAction({ moduleId: "image", projectId: activeImage!.artifact.projectId, artifactId: activeImage!.artifact.id }, "UNDO").catch(() => undefined);
                   setActiveImage({ ...activeImage!, documentState: prev });
                   loadData();
                 }
@@ -3464,6 +3476,7 @@ export default function StudioPage() {
               onRedo={() => {
                 const next = imageService.redo(activeImage!.artifact.id);
                 if (next) {
+                  void recordEditorHistoryAction({ moduleId: "image", projectId: activeImage!.artifact.projectId, artifactId: activeImage!.artifact.id }, "REDO").catch(() => undefined);
                   setActiveImage({ ...activeImage!, documentState: next });
                   loadData();
                 }
