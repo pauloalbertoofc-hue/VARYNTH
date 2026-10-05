@@ -5,7 +5,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { experienceService } from "@/lib/experience/experience-service";
 import { preferenceService } from "@/lib/experience/preference-service";
 import { learningExclusionService } from "@/lib/experience/learning-exclusion-service";
-import { derivePreferenceCandidates } from "@/lib/experience/preference-candidate-service";
+import { derivePreferenceCandidatesWithPolicy } from "@/lib/experience/preference-candidate-service";
 import type { ExperienceEvent, LearningExclusion, LearningExclusionScope, Preference, PreferenceCandidate } from "@/lib/experience";
 import { experienceRepository } from "@/lib/persistence/repositories";
 import { confidenceFromEvidence } from "@/lib/experience/signals";
@@ -44,7 +44,8 @@ export default function ExperiencePage() {
     setExclusions(nextExclusions);
     setLegacyInventory(legacy);
     setOwnerId(currentOwnerId);
-    setCandidates(derivePreferenceCandidates(nextEvents, currentOwnerId).filter((candidate) => !allPreferences.some((preference) => preference.subject === candidate.subject && preference.domain === candidate.domain && preference.key === candidate.key && JSON.stringify(preference.value) === JSON.stringify(candidate.value))));
+    const nextCandidates = await derivePreferenceCandidatesWithPolicy(nextEvents, currentOwnerId);
+    setCandidates(nextCandidates.filter((candidate) => !allPreferences.some((preference) => preference.subject === candidate.subject && preference.domain === candidate.domain && preference.key === candidate.key && JSON.stringify(preference.value) === JSON.stringify(candidate.value))));
   }
   useEffect(() => { void refresh(); }, []);
   async function confirm(id: string) { setBusy(true); try { await preferenceService.setStatus(id, "CONFIRMED", undefined, ownerId); await refresh(); } finally { setBusy(false); } }
