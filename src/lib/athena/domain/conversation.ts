@@ -25,6 +25,7 @@ export type CognitiveIntent =
   | "QUESTION"            // Perguntas gerais ou de esclarecimento
   | "SOCIAL_CONVERSATION" // "Como você está?", "Tudo bem?", "Sentiu minha falta?"
   | "ATHENA_SELF_STATUS"  // "Seu Kernel está operacional?", "Como está seu sistema?"
+  | "CLARIFICATION_RESPONSE" // Resposta curta a uma pergunta de esclarecimento pendente
   | "ECOSYSTEM_STATUS"    // "Como estão minhas tarefas?", "Como está minha situação no sistema?"
   | "ECOSYSTEM_BRIEFING"  // "Me dê um briefing", "O que mudou no VARYNTH?"
   | "EXECUTION_REQUEST"   // "Crie uma tarefa", "Mova para a lixeira", "Crie uma nota"

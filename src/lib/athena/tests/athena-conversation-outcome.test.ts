@@ -42,6 +42,16 @@ async function run() {
   const unknown = await ask("quero aquele negócio lá", "outcome-unknown");
   assert.match(unknown, /não consegui|qual resultado|pista|referindo|qual é o nome|referência/i);
 
+  const repairSession = `outcome-clarification-repair-${Date.now()}`;
+  const firstClarification = await processAthenaQueryAsync("quero aquele negócio lá", "geral", ctx, undefined, repairSession);
+  assert.match(firstClarification.text, /nome do item ou projeto/i);
+  assert.deepEqual(athenaConversationManager.getRecentTurns(repairSession, 2).map((turn) => turn.role), ["user", "athena"], "the clarification question must be saved in the same conversation session");
+  const clarificationReply = await processAthenaQueryAsync("VARYNTH OS", "geral", ctx, undefined, repairSession);
+  assert.doesNotMatch(clarificationReply.text, /não tenho um item anterior confiável/i, "the explicit answer to the clarification must resolve the dangling reference");
+  assert.match(clarificationReply.text, /Entendi: você está falando de \*\*VARYNTH OS\*\*/i);
+  assert.match(clarificationReply.text, /o que você gostaria de saber ou fazer/i);
+  assert.deepEqual(athenaConversationManager.getRecentTurns(repairSession, 4).map((turn) => turn.role), ["user", "athena", "user", "athena"]);
+
   const incomplete = await ask("isso dá ruim em", "outcome-incomplete");
   assert.match(incomplete, /incompleta|terminar a frase/i);
 
@@ -49,6 +59,7 @@ async function run() {
   assert.match(save, /envie|selecione|qual.*livro|arquivo/i);
 
   const compareSession = "outcome-context";
+  athenaConversationManager.clearSession(compareSession);
   await ask("Estou comparando VARYNTH OS e Pesquisa CNJ", compareSession);
   const comparison = await ask("compare os dois", compareSession);
   assert.match(comparison, /comparando|versus|por outro lado|enquanto/i);
