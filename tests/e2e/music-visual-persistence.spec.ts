@@ -492,6 +492,11 @@ test("keeps Euterpe present after playback ends and moves her to a rest spot aft
   await expect(presence).toHaveAttribute("data-idle-phase", "REST_ELIGIBLE");
   await expect(presence.getByRole("button")).toHaveAttribute("aria-label", /Euterpe, descansando/i);
   await expect(presence).toBeVisible();
+  await presence.getByRole("button", { name: /Euterpe,/ }).click();
+  const voiceAction = page.getByRole("button", { name: "Ouvir Euterpe · voz" });
+  await expect(voiceAction).toBeEnabled();
+  await voiceAction.click();
+  await expect(page.getByRole("dialog", { name: "Conversa com Euterpe" })).toBeVisible();
 });
 
 test("restores a track's saved motion and environment effect on another signed-in device", async ({ browser }) => {
