@@ -509,7 +509,7 @@ export default function StudioPage() {
         const res = await documentService.saveDocumentContent(activeDoc.artifact.id, newContent, {}, "USER");
         if (res.success) {
           if (newContent !== activeDoc.content) {
-            void documentLearningAdapter.record({ action: "CONTENT_EDITED", projectId: activeDoc.artifact.projectId, artifactId: activeDoc.artifact.id, before: { characters: activeDoc.content.length }, after: { characters: newContent.length }, domain: "writing" }).catch(() => undefined);
+            void documentLearningAdapter.record({ action: "CONTENT_EDITED", projectId: activeDoc.artifact.projectId, artifactId: activeDoc.artifact.id, before: { characters: activeDoc.content.length }, after: { characters: newContent.length }, domain: "writing", userInitiated: true }).catch(() => undefined);
           }
           setDocSaveState("SAVED");
           loadData();
@@ -677,7 +677,7 @@ export default function StudioPage() {
   const handleUpdateAudioDocumentState = useCallback((updated: AudioItem["documentState"]) => {
     if (!activeAudio) return;
     for (const observation of collectAudioLearningObservations(activeAudio.documentState, updated)) {
-      void audioLearningAdapter.record({ ...observation, artifactId: activeAudio.artifact.id, source: "audio-studio" })
+      void audioLearningAdapter.record({ ...observation, artifactId: activeAudio.artifact.id, source: "audio-studio", userInitiated: true })
         .catch((error: unknown) => console.warn("[AudioStudio] Experience observation could not be saved", error));
     }
     audioService.pushUndoState(activeAudio.documentState);
@@ -1088,7 +1088,7 @@ export default function StudioPage() {
         if (res.success) {
           const observation = collectGameLearningObservation(activeGame.documentState, newState);
           if (observation) {
-            void gameLearningAdapter.record({ action: observation.action, projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id, targetId: activeGame.artifact.id, before: observation.before, after: observation.after }).catch(() => undefined);
+            void gameLearningAdapter.record({ action: observation.action, projectId: activeGame.artifact.projectId, artifactId: activeGame.artifact.id, targetId: activeGame.artifact.id, before: observation.before, after: observation.after, userInitiated: true }).catch(() => undefined);
           }
           setGameSaveState("SAVED");
           loadData();

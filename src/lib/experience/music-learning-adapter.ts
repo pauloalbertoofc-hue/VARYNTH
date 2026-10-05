@@ -12,6 +12,7 @@ export interface MusicLearningInput {
   after?: unknown;
   note?: string;
   correlationId?: string;
+  userInitiated?: boolean;
 }
 
 /** Records explicit Music choices as account-owned, scoped evidence; never stores media bytes. */
@@ -19,7 +20,7 @@ export class MusicLearningAdapter {
   async record(input: MusicLearningInput): Promise<ExperienceEvent> {
     const outcome = input.action === "TRACK_RATED";
     return experienceService.record({
-      actor: "USER",
+      actor: input.userInitiated === true ? "USER" : "SYSTEM",
       actionType: outcome ? "FEEDBACK_SUBMITTED" : input.action === "PLAYLIST_CREATED" ? "PROJECT_CREATED" : "MANUAL_EDIT",
       moduleId: "music",
       domain: "music",
@@ -27,19 +28,26 @@ export class MusicLearningAdapter {
       sessionId: input.sessionId,
       artifactId: input.trackId,
       targetId: input.trackId,
-      before: input.before,
-      after: input.after,
+      before: input.action === "TRACK_RATED" ? undefined : safeChoice(input.before),
+      after: input.action === "TRACK_RATED" ? undefined : safeChoice(input.after),
       correlationId: input.correlationId,
       metadata: {
         musicAction: input.action,
-        ...(input.note ? { note: input.note.slice(0, 500) } : {}),
-        ...(outcome && typeof input.after === "number" ? { explicitRating: Math.max(1, Math.min(5, input.after)) } : {}),
+        ...(outcome && typeof input.after === "number" ? { explicitRating: Math.max(1, Math.min(5, Math.round(input.after))) } : {}),
+        generatedAutomatically: input.userInitiated !== true,
       },
       source: "music-learning-adapter",
       privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED",
-      learningEligible: true,
+      learningEligible: input.userInitiated === true,
     });
   }
+}
+
+function safeChoice(value: unknown): unknown {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string" && value.length <= 80 && /^[\p{L}\p{N}_ -]+$/u.test(value)) return value;
+  return undefined;
 }
 
 export const musicLearningAdapter = new MusicLearningAdapter();

@@ -13,6 +13,8 @@ export interface GameLearningInput {
   before?: unknown;
   after?: unknown;
   correlationId?: string;
+  /** True only when this edit is directly attributed to an explicit user action. */
+  userInitiated?: boolean;
 }
 
 export interface GameLearningObservation {
@@ -40,9 +42,9 @@ export function collectGameLearningObservation(previous: GameDocumentState, next
 export class GameLearningAdapter {
   async record(input: GameLearningInput): Promise<ExperienceEvent> {
     return experienceService.record({
-      actor: "USER", actionType: "MANUAL_EDIT", domain: "game", moduleId: "game", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
-      before: input.before, after: input.after, correlationId: input.correlationId, metadata: { gameAction: input.action }, source: "game-learning-adapter",
-      privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: true,
+      actor: input.userInitiated === true ? "USER" : "SYSTEM", actionType: "MANUAL_EDIT", domain: "game", moduleId: "game", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
+      before: input.before, after: input.after, correlationId: input.correlationId, metadata: { gameAction: input.action, generatedAutomatically: input.userInitiated !== true }, source: "game-learning-adapter",
+      privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: input.userInitiated === true,
     });
   }
 }

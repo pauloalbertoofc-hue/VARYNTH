@@ -14,6 +14,8 @@ export interface AudioLearningInput {
   after?: unknown;
   source?: string;
   correlationId?: string;
+  /** True only when this edit is directly attributed to an explicit user action. */
+  userInitiated?: boolean;
 }
 
 export interface AudioLearningObservation {
@@ -44,16 +46,26 @@ export function collectAudioLearningObservations(previous: AudioDocumentState, n
 
 export class AudioLearningAdapter {
   async record(input: AudioLearningInput): Promise<ExperienceEvent> {
-    const preferenceSignal = input.action === "BPM_CHANGED" && typeof input.before === "number" && Number.isFinite(input.before) && typeof input.after === "number" && Number.isFinite(input.after) && input.before !== input.after
+    const preferenceSignal = input.userInitiated === true && input.action === "BPM_CHANGED" && typeof input.before === "number" && Number.isFinite(input.before) && typeof input.after === "number" && Number.isFinite(input.after) && input.before !== input.after
       ? { key: "tempoDirection", value: input.after > input.before ? "increase" : "decrease" }
       : undefined;
     return experienceService.record({
-      actor: "USER", actionType: input.action === "COMPOSITION_PROPOSAL_ACCEPTED" ? "PROPOSAL_ACCEPTED" : input.action === "COMPOSITION_PROPOSAL_REJECTED" ? "PROPOSAL_REJECTED" : "USER_ACTION",
+      actor: input.userInitiated === true ? "USER" : "SYSTEM",
+      actionType: input.action === "COMPOSITION_PROPOSAL_ACCEPTED" ? "PROPOSAL_ACCEPTED" : input.action === "COMPOSITION_PROPOSAL_REJECTED" ? "PROPOSAL_REJECTED" : "USER_ACTION",
       moduleId: "audio", domain: "audio", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
-      before: input.before, after: input.after, correlationId: input.correlationId,
-      metadata: { audioAction: input.action, ...(preferenceSignal ? { preferenceSignal } : {}) }, source: input.source || "audio-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: true,
+      before: input.action === "BPM_CHANGED" ? safeValue(input.before) : undefined,
+      after: input.action === "BPM_CHANGED" ? safeValue(input.after) : undefined,
+      correlationId: input.correlationId,
+      metadata: { audioAction: input.action, generatedAutomatically: input.userInitiated !== true, ...(preferenceSignal ? { preferenceSignal } : {}) }, source: input.source || "audio-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: input.userInitiated === true,
     });
   }
+}
+
+function safeValue(value: unknown): number | boolean | string | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string" && value.length <= 80 && /^[\p{L}\p{N}_ -]+$/u.test(value)) return value;
+  return undefined;
 }
 
 export const audioLearningAdapter = new AudioLearningAdapter();

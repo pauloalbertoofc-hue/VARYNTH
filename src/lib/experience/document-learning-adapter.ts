@@ -13,15 +13,17 @@ export interface DocumentLearningInput {
   after?: unknown;
   domain?: "writing" | "legal-workflow" | "research";
   correlationId?: string;
+  /** True only when this edit is directly attributed to an explicit user action. */
+  userInitiated?: boolean;
 }
 
 export class DocumentLearningAdapter {
   async record(input: DocumentLearningInput): Promise<ExperienceEvent> {
     return experienceService.record({
-      actor: "USER", actionType: input.action === "DRAFT_ACCEPTED" ? "PROPOSAL_ACCEPTED" : input.action === "DRAFT_REJECTED" ? "PROPOSAL_REJECTED" : "MANUAL_EDIT", domain: input.domain || "writing",
+      actor: input.userInitiated === true ? "USER" : "SYSTEM", actionType: input.action === "DRAFT_ACCEPTED" ? "PROPOSAL_ACCEPTED" : input.action === "DRAFT_REJECTED" ? "PROPOSAL_REJECTED" : "MANUAL_EDIT", domain: input.domain || "writing",
       moduleId: "document", projectId: input.projectId, sessionId: input.sessionId, artifactId: input.artifactId, targetId: input.targetId,
-      before: input.before, after: input.after, correlationId: input.correlationId, metadata: { documentAction: input.action, domain: input.domain || "writing" },
-      source: "document-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: true,
+      before: input.before, after: input.after, correlationId: input.correlationId, metadata: { documentAction: input.action, domain: input.domain || "writing", generatedAutomatically: input.userInitiated !== true },
+      source: "document-learning-adapter", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: input.userInitiated === true,
     });
   }
 }

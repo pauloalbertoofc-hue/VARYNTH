@@ -4,8 +4,10 @@ import type { GameDocumentState } from "@/lib/studio/game/types";
 
 async function run() {
   await experienceEventRepository.clear();
-  const event = await gameLearningAdapter.record({ action: "DIFFICULTY_CHANGED", projectId: "game-project", before: "normal", after: "hard" });
-  if (event.moduleId !== "game" || event.domain !== "game" || event.actionType !== "MANUAL_EDIT" || event.metadata.gameAction !== "DIFFICULTY_CHANGED") throw new Error("game adapter mapping failed");
+  const event = await gameLearningAdapter.record({ action: "DIFFICULTY_CHANGED", projectId: "game-project", before: "normal", after: "hard", userInitiated: true });
+  if (event.moduleId !== "game" || event.domain !== "game" || event.actionType !== "MANUAL_EDIT" || event.metadata.gameAction !== "DIFFICULTY_CHANGED" || event.actor !== "USER" || !event.learningEligible) throw new Error("explicit game edit mapping failed");
+  const unattributed = await gameLearningAdapter.record({ action: "AGENT_PROPOSAL_MODIFIED", projectId: "game-project", before: { entities: 1 }, after: { entities: 2 } });
+  if (unattributed.actor !== "SYSTEM" || unattributed.learningEligible) throw new Error("unattributed or agent-produced game edits must not be treated as user learning evidence");
   const base: GameDocumentState = { artifactId: "game-a", entrySceneId: "scene-a", scenes: [{ id: "scene-a", name: "A", entityIds: [], ruleIds: [], nextSceneIds: [] }], entities: [], variables: [], rules: [], scripts: [], inputActions: [], selectedEntityIds: [], updatedAt: "now" };
   const entity: GameDocumentState["entities"][number] = { id: "entity-a", name: "A", sceneId: "scene-a", components: [], active: true, tags: [] };
   const levelEdit = collectGameLearningObservation(base, { ...base, entities: [entity] });

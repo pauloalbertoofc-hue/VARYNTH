@@ -537,7 +537,7 @@ export default function MusicPage() {
     if (!selectedId) return;
     const item: MusicFeedback = { id: crypto.randomUUID(), trackId: selectedId, rating: feedbackRating, tags: [], note: feedbackNote.trim(), createdAt: new Date().toISOString() };
     await musicStudio.saveFeedback(item);
-    const experienceRecorded = await recordMusicExperience({ action: "TRACK_RATED", trackId: selectedId, before: null, after: feedbackRating, note: feedbackNote.trim() });
+    const experienceRecorded = await recordMusicExperience({ action: "TRACK_RATED", trackId: selectedId, before: null, after: feedbackRating, userInitiated: true });
     const rows = await musicStudio.listFeedback();
     setFeedbackRows(rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     setFeedbackCount(rows.length);
@@ -658,7 +658,7 @@ export default function MusicPage() {
       await musicStudio.saveVisualProfile({ ...next });
       if (musicLibrary.isAccountStorageAvailable()) await musicLibrary.saveVisualSettings(selectedTrack.id, { particleType: next.particleType, particleDensity: next.particleDensity, motionSpeed: next.motionSpeed, reducedMotion: next.reducedMotion });
       const status = `Movimento ${modeLabel} aplicado e salvo para esta faixa.`; setVisualActionStatus(status); setMessage(status);
-      void recordMusicExperience({ action: "VISUAL_MOTION_CHANGED", trackId: selectedTrack.id, before: base.motionSpeed, after: next.motionSpeed }).catch(() => undefined);
+      void recordMusicExperience({ action: "VISUAL_MOTION_CHANGED", trackId: selectedTrack.id, before: base.motionSpeed, after: next.motionSpeed, userInitiated: true }).catch(() => undefined);
     } catch (error) {
       const status = error instanceof Error ? error.message : "Não foi possível salvar o movimento visual."; setVisualActionStatus(status); setMessage(status);
     }
@@ -676,7 +676,7 @@ export default function MusicPage() {
       await musicStudio.saveVisualProfile(next);
       if (musicLibrary.isAccountStorageAvailable()) await musicLibrary.saveVisualSettings(selectedTrack.id, { particleType: next.particleType, particleDensity: next.particleDensity, motionSpeed: next.motionSpeed, reducedMotion: next.reducedMotion });
       const status = `Efeito ${labels[effect]} salvo para esta faixa.`; setVisualActionStatus(status); setMessage(status);
-      void recordMusicExperience({ action: "VISUAL_EFFECT_CHANGED", trackId: selectedTrack.id, before: base.particleType, after: next.particleType }).catch(() => undefined);
+      void recordMusicExperience({ action: "VISUAL_EFFECT_CHANGED", trackId: selectedTrack.id, before: base.particleType, after: next.particleType, userInitiated: true }).catch(() => undefined);
     } catch (error) {
       const status = error instanceof Error ? error.message : "Não foi possível salvar o efeito visual."; setVisualActionStatus(status); setMessage(status);
     }
