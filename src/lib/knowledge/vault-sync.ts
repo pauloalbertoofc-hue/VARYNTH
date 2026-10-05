@@ -6,6 +6,8 @@ import type { KnowledgeItem } from "./contracts";
 
 const VAULT_TYPES: VaultItemType[] = ["artigo", "livro", "jurisprudencia", "lei", "pdf", "link", "video", "citacao", "codigo", "ideia"];
 const READING_STATUSES: ReadingStatus[] = ["para_ler", "lendo", "concluido", "arquivado"];
+const KNOWLEDGE_VISIBILITIES = ["PRIVATE", "AGENT_PRIVATE", "PROJECT", "DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"];
+const KNOWLEDGE_SENSITIVITIES = ["PUBLIC", "INTERNAL", "SENSITIVE", "PRIVATE"];
 
 /** Rebuild a Vault projection on the server; never accept client-supplied policy fields. */
 export function canonicalVaultProjection(value: unknown): KnowledgeItem | null {
@@ -21,7 +23,12 @@ export function canonicalVaultProjection(value: unknown): KnowledgeItem | null {
     || (item.knowledgeDomains !== undefined && (!Array.isArray(item.knowledgeDomains) || !item.knowledgeDomains.every((id) => typeof id === "string")))
     || (item.knowledgeCategories !== undefined && (!Array.isArray(item.knowledgeCategories) || !item.knowledgeCategories.every((value) => typeof value === "string")))
     || (item.knowledgeTags !== undefined && (!Array.isArray(item.knowledgeTags) || !item.knowledgeTags.every((value) => typeof value === "string")))
+    || (item.knowledgeOwnerAgent !== undefined && (typeof item.knowledgeOwnerAgent !== "string" || (item.knowledgeOwnerAgent !== "" && !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(item.knowledgeOwnerAgent))))
+    || (item.knowledgeVisibility !== undefined && !KNOWLEDGE_VISIBILITIES.includes(item.knowledgeVisibility))
+    || (item.knowledgeSensitivity !== undefined && !KNOWLEDGE_SENSITIVITIES.includes(item.knowledgeSensitivity))
   ) return null;
+  if (item.knowledgeSensitivity === "PRIVATE" && item.knowledgeVisibility && !["PRIVATE", "AGENT_PRIVATE"].includes(item.knowledgeVisibility)) return null;
+  if (item.knowledgeSensitivity === "SENSITIVE" && item.knowledgeVisibility && !["PRIVATE", "AGENT_PRIVATE", "PROJECT", "DOMAIN"].includes(item.knowledgeVisibility)) return null;
   return knowledgeFromVaultItem(item as VaultItem);
 }
 
@@ -52,6 +59,7 @@ function projectionMatches(existing: Awaited<ReturnType<typeof knowledgeReposito
   return existing.updatedAt === projected.updatedAt
     && existing.title === projected.title && existing.content === projected.content
     && existing.primaryDomain === projected.primaryDomain && existing.visibility === projected.visibility
+    && existing.ownerAgent === projected.ownerAgent
     && existing.sensitivity === projected.sensitivity && existing.freshness === projected.freshness
     && existing.provenance.sourceReference === projected.provenance.sourceReference
     && existing.provenance.observedAt === projected.provenance.observedAt

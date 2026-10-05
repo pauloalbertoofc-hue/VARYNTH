@@ -33,6 +33,10 @@ export interface VaultItem {
   knowledgeDomains?: string[];
   knowledgeCategories?: string[];
   knowledgeTags?: string[];
+  /** Explicit Knowledge governance metadata; absent legacy values retain safe defaults. */
+  knowledgeOwnerAgent?: string;
+  knowledgeVisibility?: "PRIVATE" | "AGENT_PRIVATE" | "PROJECT" | "DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS";
+  knowledgeSensitivity?: "PUBLIC" | "INTERNAL" | "SENSITIVE" | "PRIVATE";
   originalFileName?: string;
   sourceOrigin?: string;
   taxonomyVersion?: 2;

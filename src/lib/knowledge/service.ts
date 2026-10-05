@@ -186,6 +186,22 @@ export async function updateKnowledge(id: string, requester: string, patch: Part
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_UPDATE_DENIED] Somente o owner ou sistema pode atualizar conhecimento.");
+  const visibilities = ["PRIVATE", "AGENT_PRIVATE", "PROJECT", "DOMAIN", "CROSS_DOMAIN", "PUBLIC_TO_AGENTS"];
+  const sensitivities = ["PUBLIC", "INTERNAL", "SENSITIVE", "PRIVATE"];
+  if (patch.visibility !== undefined && !visibilities.includes(patch.visibility)) throw new Error("[KNOWLEDGE_PATCH_INVALID] Visibilidade inválida.");
+  if (patch.sensitivity !== undefined && !sensitivities.includes(patch.sensitivity)) throw new Error("[KNOWLEDGE_PATCH_INVALID] Sensibilidade inválida.");
+  const nextVisibility = patch.visibility ?? current.visibility;
+  const nextSensitivity = patch.sensitivity ?? current.sensitivity;
+  if (patch.visibility === "PUBLIC_TO_AGENTS" && current.visibility !== "PUBLIC_TO_AGENTS") throw new Error("[KNOWLEDGE_PATCH_INVALID] Use o fluxo de publicação para compartilhar entre agentes.");
+  if (nextSensitivity === "PRIVATE" && !["PRIVATE", "AGENT_PRIVATE"].includes(nextVisibility)) throw new Error("[KNOWLEDGE_PATCH_INVALID] Conhecimento privado não pode ser compartilhado.");
+  if (nextSensitivity === "SENSITIVE" && !["PRIVATE", "AGENT_PRIVATE", "PROJECT", "DOMAIN"].includes(nextVisibility)) throw new Error("[KNOWLEDGE_PATCH_INVALID] Conhecimento sensível só pode ser privado, de projeto ou de domínio.");
+  if (patch.ownerAgent !== undefined && (typeof patch.ownerAgent !== "string" || (patch.ownerAgent !== "" && !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(patch.ownerAgent)))) throw new Error("[KNOWLEDGE_PATCH_INVALID] Owner inválido.");
+  for (const field of ["primaryDomain"] as const) {
+    if (patch[field] !== undefined && (typeof patch[field] !== "string" || !/^[a-z0-9][a-z0-9.-]{0,119}$/u.test(patch[field]))) throw new Error("[KNOWLEDGE_PATCH_INVALID] Domínio inválido.");
+  }
+  for (const field of ["relatedDomains", "categories", "tags"] as const) {
+    if (patch[field] !== undefined && (!Array.isArray(patch[field]) || !patch[field]!.every((value) => typeof value === "string"))) throw new Error("[KNOWLEDGE_PATCH_INVALID] Classificação inválida.");
+  }
   if (patch.lifecycleState !== undefined) assertKnowledgeLifecycleTransition(current.lifecycleState, patch.lifecycleState);
   const next = { ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: new Date().toISOString() };
   return storeKnowledge(next);

@@ -34,10 +34,10 @@ export function knowledgeFromVaultItem(item: VaultItem, ownerAgent?: string): Kn
     relatedDomains,
     categories: categories.length ? categories : ["Não classificado", "Outro"],
     tags: item.knowledgeTags || item.tags,
-    ownerAgent,
+    ownerAgent: item.knowledgeOwnerAgent !== undefined ? item.knowledgeOwnerAgent || undefined : ownerAgent,
     contributingAgents: [],
-    visibility: item.relatedProjectIds?.length ? "PROJECT" : "DOMAIN",
-    sensitivity: "INTERNAL",
+    visibility: item.knowledgeVisibility || (item.relatedProjectIds?.length ? "PROJECT" : "DOMAIN"),
+    sensitivity: item.knowledgeSensitivity || "INTERNAL",
     kind: item.sourceOrigin === "user" ? "USER_PROVIDED" : "DOCUMENT",
     assertion: "REFERENCE",
     provenance: {

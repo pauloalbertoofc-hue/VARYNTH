@@ -13,6 +13,7 @@ import { KnowledgeLifecycleControl } from "./KnowledgeLifecycleControl";
 import type { DomainKnowledgePolicyConfig } from "@/lib/knowledge/domain-registry";
 import { DomainKnowledgePolicyControl } from "./DomainKnowledgePolicyControl";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
+import { KnowledgeGovernanceControl } from "./KnowledgeGovernanceControl";
 
 export default function KnowledgePage() {
   const { isLoaded: vaultLoaded, vaultItems, updateVaultItem } = useVarynthStore();
@@ -76,7 +77,7 @@ export default function KnowledgePage() {
     const result = await response.json().catch(() => ({})) as { authorized?: boolean; error?: string };
     if (!response.ok || !result.authorized) throw new Error(result.error || "Ação não autorizada.");
   }
-  async function classifyItem(item: KnowledgeItem) {
+  async function classifyItem(item: KnowledgeItem, governance = { primaryDomain: classificationTargets[item.id] || item.primaryDomain, relatedDomains: item.relatedDomains, categories: item.categories, tags: item.tags, ownerAgent: item.ownerAgent || "", visibility: item.visibility, sensitivity: item.sensitivity }) {
     setBusyItem(item.id); setActionMessage("");
     try {
       await authorize("CLASSIFY", item.id);
@@ -84,21 +85,26 @@ export default function KnowledgePage() {
       if (vaultSourceId && (!vaultLoaded || !vaultItems.some((source) => source.id === vaultSourceId))) {
         throw new Error("Aguarde o Vault carregar a fonte antes de corrigir sua classificação.");
       }
-      const classified = applyKnowledgeClassification(item, { primaryDomain: classificationTargets[item.id] || item.primaryDomain });
-      const patch = { primaryDomain: classified.primaryDomain, categories: classified.categories, tags: classified.tags, classification: classified.classification };
-      const response = await fetch("/api/knowledge/update", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id, patch }) });
-      const result = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(result.error || "Não foi possível persistir a classificação compartilhada.");
-      const updated = await updateKnowledge(item.id, "system", patch);
+      if (!/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(governance.ownerAgent)) throw new Error("Informe um ID válido para o owner.");
+      const classified = applyKnowledgeClassification(item, governance);
+      const patch = { primaryDomain: classified.primaryDomain, relatedDomains: classified.relatedDomains, categories: classified.categories, tags: classified.tags, ownerAgent: governance.ownerAgent, visibility: governance.visibility, sensitivity: governance.sensitivity, classification: classified.classification };
+      let updated: KnowledgeItem;
       if (vaultSourceId) {
-          updateVaultItem(vaultSourceId, {
-            knowledgeDomains: [classified.primaryDomain, ...classified.relatedDomains],
-            knowledgeCategories: classified.categories,
-            knowledgeTags: classified.tags,
-            classificationSource: "manual",
-            classificationConfidence: 1,
-            classificationReviewedAt: classified.classification?.classifiedAt,
-          });
+        const source = vaultItems.find((candidate) => candidate.id === vaultSourceId)!;
+        const updatedSource = { ...source, knowledgeDomains: [classified.primaryDomain, ...classified.relatedDomains], knowledgeCategories: classified.categories, knowledgeTags: classified.tags, knowledgeOwnerAgent: governance.ownerAgent, knowledgeVisibility: governance.visibility as Exclude<KnowledgeItem["visibility"], "SYSTEM">, knowledgeSensitivity: governance.sensitivity, classificationSource: "manual" as const, classificationConfidence: 1, classificationReviewedAt: classified.classification?.classifiedAt, updatedAt: new Date().toISOString() };
+        const vaultResponse = await fetch("/api/vault/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: [updatedSource] }) });
+        const vaultResult = await vaultResponse.json().catch(() => ({})) as { error?: string };
+        if (!vaultResponse.ok) throw new Error(vaultResult.error || "Não foi possível persistir a fonte no Vault.");
+        const projectionResponse = await fetch("/api/knowledge/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation: "UPSERT_VAULT", item: updatedSource }) });
+        const projectionResult = await projectionResponse.json().catch(() => ({})) as { item?: KnowledgeItem; error?: string };
+        if (!projectionResponse.ok || !projectionResult.item) throw new Error(projectionResult.error || "Vault salvo, mas a projeção Knowledge não foi atualizada.");
+        updated = projectionResult.item;
+        updateVaultItem(vaultSourceId, updatedSource);
+      } else {
+        const response = await fetch("/api/knowledge/update", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id, patch }) });
+        const result = await response.json().catch(() => ({})) as { error?: string };
+        if (!response.ok) throw new Error(result.error || "Não foi possível persistir a classificação compartilhada.");
+        updated = await updateKnowledge(item.id, "system", patch);
       }
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...updated, content: item.content } : candidate));
       setActionMessage("Classificação salva.");
@@ -250,6 +256,7 @@ export default function KnowledgePage() {
       </section>
       <KnowledgeTaxonomyTree roots={taxonomy.roots} unmappedItemCount={taxonomy.unmappedItemCount} selectedDomain={domain} onSelect={setDomain} />
       <KnowledgeLifecycleControl items={lifecycleItems} canManage={canManageDomains} busyItem={busyItem} onChange={(item, state) => void setItemLifecycle(item, state)} />
+      <section className="rounded-xl border border-violet-500/20 bg-violet-500/[0.03] p-5"><h2 className="text-sm font-semibold text-violet-100">Inspector de governança</h2><p className="mt-1 text-xs text-slate-400">Reatribua domínio, owner e acesso. Itens do Vault atualizam a fonte persistida e sua projeção Knowledge.</p><div className="mt-4 space-y-3">{items.slice(0, 20).map((item) => <details key={`governance-${item.id}`} className="rounded-lg border border-white/10 px-3 py-2"><summary className="cursor-pointer text-xs text-slate-200">{item.title} · {item.primaryDomain} · {item.visibility}</summary><div className="mt-3 border-t border-white/10 pt-3"><KnowledgeGovernanceControl item={item} domains={domains} busy={busyItem === item.id} onSave={(patch) => void classifyItem(item, patch)} /></div></details>)}</div></section>
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Domain Registry</h2><p className="mt-1 text-xs text-slate-500">Athena conhece o mapa; o conteúdo continua protegido por policy.</p></div><span className="rounded-full border border-white/10 px-2 py-1 text-[10px] text-slate-400">Registry: {domainPersistence} · Knowledge: {knowledgePersistence}</span></div>
         {domainMessage && <p role="status" className="mt-3 text-xs text-violet-200">{domainMessage}</p>}

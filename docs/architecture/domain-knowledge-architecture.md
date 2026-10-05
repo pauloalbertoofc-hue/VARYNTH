@@ -12,7 +12,7 @@ The implemented foundation provides:
 - fail-closed access decisions for private agent, project, and public-agent scopes;
 - opt-in public capability contracts with explicit input/output and consumer lists; registered capabilities are not automatically advertised;
 - query filtering by domain, category (the existing item-level subcategory taxonomy), project, and text, with corpus-aware lexical relevance (term frequency and inverse document frequency), title, and tag signals; access policy is independently evaluated before results are returned;
-- Vault projection with canonical server-side policy fields, immutable revisions, revocation, and persisted user-corrected semantic taxonomy.
+- Vault projection with canonical server-side policy fields, immutable revisions, revocation, persisted user-corrected semantic taxonomy, and explicit source-backed owner/visibility/sensitivity.
 
 ## Existing boundaries preserved
 
@@ -30,9 +30,9 @@ The implemented foundation provides:
 4. Vault classification adapter and migration-safe backfill (implemented; taxonomy corrections persist on the source item).
 5. Public knowledge contracts and capability discovery through Athena (explicit per-capability allowlist and consumer contract; discovery does not imply a generic executable adapter, and not every proposed capability is wired).
 6. Domain router, multi-domain decomposition, and bounded knowledge packets (implemented incrementally; routes are derived from registry routing terms/priorities, expose matching evidence and all matched-domain specialists, and knowledge/experience share the context item budget; Euterpe and Justitia expose explicit, source-only consultation methods, not neural domain reasoning).
-7. Knowledge Center UI and inspectors (implemented for registry, retrieval, classification, publication, revocation, conflicts, audit, and persistence state).
+7. Knowledge Center UI and inspectors (implemented for registry, retrieval, classification, owner/domain reassignment, Vault-backed visibility and sensitivity, publication, revocation, conflicts, audit, and persistence state; public-agent exposure still uses the dedicated publication flow).
 8. Cache invalidation, conflict/version views, adversarial tests (implemented incrementally); multi-instance load testing and authenticated production end-to-end validation remain open.
 
 ## Verification
 
-The foundation is covered by `src/lib/knowledge/service.test.ts`. The repository typecheck and this focused regression must pass before advancing to Vault integration.
+The Knowledge subsystem regression suite is `npm run test:knowledge`; governance-specific coverage also lives in `src/lib/knowledge/update.test.ts` and `src/lib/knowledge/vault-sync.test.ts`. Repository-wide typecheck currently depends on the installed optional Capacitor package used elsewhere in the app.

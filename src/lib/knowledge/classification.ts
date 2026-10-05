@@ -14,6 +14,7 @@ export function suggestKnowledgeClassification(input: Pick<KnowledgeItem, "title
   return { primaryDomain: SUBJECT_DOMAINS[subject] || "general-knowledge", categories: [taxonomy.literaryCategory, taxonomy.workType], tags: [...new Set([...input.tags, ...taxonomy.tags])], confidence, source: "INFERRED" };
 }
 
-export function applyKnowledgeClassification(item: KnowledgeItem, correction: { primaryDomain: string; categories?: string[]; tags?: string[] }): KnowledgeItem {
-  return { ...item, primaryDomain: correction.primaryDomain, categories: correction.categories || item.categories, tags: correction.tags || item.tags, classification: { confidence: 1, source: "USER_CORRECTED", classifiedAt: new Date().toISOString() }, updatedAt: new Date().toISOString() };
+export function applyKnowledgeClassification(item: KnowledgeItem, correction: { primaryDomain: string; relatedDomains?: string[]; categories?: string[]; tags?: string[] }): KnowledgeItem {
+  const relatedDomains = [...new Set(correction.relatedDomains ?? item.relatedDomains)].filter((domain) => domain !== correction.primaryDomain);
+  return { ...item, primaryDomain: correction.primaryDomain, relatedDomains, categories: correction.categories || item.categories, tags: correction.tags || item.tags, classification: { confidence: 1, source: "USER_CORRECTED", classifiedAt: new Date().toISOString() }, updatedAt: new Date().toISOString() };
 }
