@@ -13,11 +13,11 @@ import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
 import { euterpeAgent } from "./music-curator";
 import { prepareAgentConversationHistory, resolveAgentFollowUp } from "../base-agent";
-import { converseAsSpecialist } from "../base-agent";
+import type { AthenaAgent } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
 
-const agents = [athenaGeneralistAgent, justitiaAgent, logosAgent, sophiaAgent, musaAgent, strategosAgent, critiasAgent, archivistAgent, mnemosyneAgent, bibliotecarioAgent, curadorPesquisaAgent, euterpeAgent];
+const agents: AthenaAgent[] = [athenaGeneralistAgent, justitiaAgent, logosAgent, sophiaAgent, musaAgent, strategosAgent, critiasAgent, archivistAgent, mnemosyneAgent, bibliotecarioAgent, curadorPesquisaAgent, euterpeAgent];
 const personas = agents.map((agent) => agent.manifest.persona);
 for (const agent of agents) {
   const persona = agent.manifest.persona;
@@ -55,7 +55,9 @@ const task = (rawPrompt: string): AthenaTask => ({ id: "agent-grounding", title:
 
 void (async () => {
   for (const agent of agents.filter((candidate) => candidate.manifest.id !== "athena-generalist")) {
-    const conversationalResult = await converseAsSpecialist(agent, task("Explique isso em poucas palavras."), ctx);
+    const converse = agent.converseWithFeedback;
+    assert.ok(converse, `${agent.manifest.id} needs a runtime conversational entrypoint`);
+    const conversationalResult = await converse.call(agent, task("Explique isso em poucas palavras."), ctx);
     assert.equal(conversationalResult.metadata?.conversationPresentation, true, `${agent.manifest.id} must use the shared conversational presentation`);
     assert.ok(conversationalResult.content.includes(agent.manifest.name) || conversationalResult.content.includes(agent.manifest.persona.identity), `${agent.manifest.id} must retain its identity in conversation`);
     if (agent.manifest.id === "euterpe") assert.equal((conversationalResult.content.match(/Sou Euterpe/g) ?? []).length, 1, "Euterpe's native voice must not receive a duplicate generic introduction");

@@ -5,7 +5,7 @@ import type { AgentResult } from "../../domain/result";
 import type { MusicAgentMemory, MusicDNA, MusicPreferenceMemory } from "@/lib/music/music-studio";
 import { EUTERPE_PERSONALITY } from "@/lib/music/euterpe";
 import { interpretEuterpeRequest, type EuterpeContext, type EuterpeConversationTurn } from "@/lib/music/euterpe";
-import { renderAgentPersona } from "../base-agent";
+import { converseAsSpecialist, renderAgentPersona } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
 import { relevantExperienceGuidance } from "../experience-guidance";
 
@@ -71,6 +71,10 @@ export class EuterpeAgent implements AthenaAgent {
 
   canHandle(task: AthenaTask): boolean {
     return /\b(music|música|musical|playlist|faixa|canção|álbum|artista|gênero)\b/i.test(task.rawPrompt);
+  }
+
+  async converseWithFeedback(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
+    return converseAsSpecialist(this, task, context);
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {

@@ -1,7 +1,7 @@
 # VARYNTH Experience & Learning Layer — Architecture Map
 
 Status: CORE IMPLEMENTED; ECOSYSTEM-WIDE EVENT INTEGRATION AND VALIDATION REMAIN IN PROGRESS
-Last audited: 2026-10-01
+Last audited: 2026-10-05
 
 This document replaces the initial Milestone A-only snapshot. The Experience Layer is no longer architecture-only: its local contracts, persistence, evidence pipeline, account-scoped controls, selected adapters, and first consumers exist. It is not yet a completed transversal layer for every module or provider.
 
@@ -55,9 +55,9 @@ Experience Center (/modules/experience)
 | C — feedback and signals | IMPLEMENTED CORE, ATHENA WIRED | Feedback/signal services, Athena response controls, and privacy-minimal bridge are tested; add intentional feedback entry points to remaining module result surfaces. |
 | D — preferences, confidence, scope | IMPLEMENTED CORE | Candidate thresholds, conflict/decay, manual declaration, and scoped resolution are tested. |
 | E — experiences, patterns, outcomes | IMPLEMENTED CORE | Services and retrospective tests pass; increase evidence from real completed project workflows. |
-| F — retrieval and context builder | IMPLEMENTED, EXPANDING CONSUMERS | Knowledge and local-model Athena consume bounded context; direct workflow agents now receive individually resolved bounded packets. Athena's deterministic dialogue/persona path does not yet consume Experience directly. |
+| F — retrieval and context builder | IMPLEMENTED, EXPANDING CONSUMERS | Knowledge and local-model Athena consume bounded context; direct workflow agents receive individually resolved bounded packets. The async deterministic Athena path retrieves account-scoped communication style only; the synchronous compatibility facade and deterministic dialogue do not consume episodic experience or factual memories. |
 | G — privacy, permissions, learning policy | IMPLEMENTED LOCALLY | Ownership, exclusions, and forget tests pass. Cross-device policy/sync is absent. |
-| H — agent integration contract | PARTIAL, FOUR DETERMINISTIC CONSUMERS | Knowledge packets and all 12 direct workflow agents receive bounded Experience; Sophia, Musa, Strategos, and Critias consume a small allowlist of manually confirmed, agent-appropriate guidance. Explicit request wins, unrecognized values fail closed, and guidance cannot fabricate facts or mutate system state. Justitia, Logos, Euterpe, other specialists, and Athena's deterministic conversation do not yet behaviorally consume Experience. Local-model/provider coverage and full end-to-end trace remain incomplete. |
+| H — agent integration contract | PARTIAL, FOUR DETERMINISTIC CONSUMERS | Knowledge packets and all 12 direct workflow agents receive bounded Experience; all 11 specialist entrypoints use the shared feedback/follow-up/presentation adapter, and Euterpe keeps her native introduction without duplication. Sophia, Musa, Strategos, and Critias additionally consume a small allowlist of manually confirmed, agent-appropriate guidance. Explicit request wins, unrecognized values fail closed, and guidance cannot fabricate facts or mutate system state. Justitia, Logos, Euterpe, other specialists, and Athena's deterministic conversation do not yet consume domain experiences as behavioral guidance. Local-model/provider coverage and full end-to-end trace remain incomplete. |
 | I — project experience and retrospective | PARTIAL | Retrospective service exists and is tested; a full project-level user workflow and visible provenance review remain incomplete. |
 | J — Experience Center | PARTIAL | `/modules/experience` exposes working local controls; it is not yet a full lifecycle/inspector UI. |
 | K — adapters | PARTIAL, EXPANDED | Audio, Music, Game, and Document have confirmed production call sites. The new Game/Document calls run only after successful user saves and exclude raw document text, game scripts, labels, and assets. Image, Video, and Web are not covered. |
@@ -66,23 +66,23 @@ Experience Center (/modules/experience)
 | N/O — performance, automated and adversarial tests | PARTIAL, CORE TESTS PASS | Experience, ownership, exclusion, conflict, forgetting, and candidate adversarial tests pass; production event-volume and cross-module E2E coverage remain. |
 | P — docs, migration, production validation | PARTIAL | Core model and learning policy are documented; the complete manual plan, test report, privacy/integration/limitations/changelog deliverables and production walkthrough remain. |
 
-## Verified validation snapshot (2026-10-01)
+## Verified validation snapshot (2026-10-05)
 
 - `npm run test:experience` — passed, all 21 registered Experience tests.
 - `npm run test:athena-intelligence` — 100/100 passed, including colloquial task queries, project readiness, and post-Studio project reference continuity.
 - Athena system suite — 50/50 passed; response-quality suite — 30/30 passed.
-- Athena certification — 16/16 passed; TypeScript and full Next production build passed.
+- Athena certification — 18/18 passed; TypeScript and full Next production build passed on the current conversation/persona revision.
 - `npm run test:music:complete` — passed, covering library, import, cloud contracts, studio, chat, Athena bridge, visual AI and advanced Euterpe/engine tests.
 - Euterpe refinements in this release share the same grounded interpreter across the Music module and Athena agent workflow. Tests cover selected-track/DNA boundaries, missing evidence, saved tastes as uncertain hints, explicit refusal/negation, conversational follow-ups and review-only proposals.
 - Knowledge/Vault suite — passed after source-addressable Vault chunk changes were integrated.
 - Documentation regression inventory at build — 44 routes, 36 tools, 12 agents, 18 modules.
-- Production deployment evidence above applies only to the 2026-09-23 snapshot. For any later snapshot, verify the deployment associated with its exact commit and the public route; do not reuse that historical deployment ID as evidence.
+- Production validation for commit `8304a2e` completed on 2026-10-05: Vercel deployment `dpl_Ay5GSR3kAtFECJXPT1KMsDgFmv6H` reached `READY` and received `https://varynth-ynqv-plum.vercel.app`; `/login` and `/manifest.json` returned 200 and protected `/modules/athena` redirected to login (307). This verifies deployment and routing, not an authenticated in-product conversation walkthrough.
 
 ## Next implementation sequence
 
 1. Extend the Athena feedback-to-Experience bridge pattern to remaining Studio result surfaces; persist only deliberate feedback or well-attributed edits.
 2. Wire real, scoped Experience producers into each Studio and governed action lifecycle, including cancellation/undo/redo without false causal learning.
-3. Add evidence-specific, non-authoritative Experience use to Justitia, Logos, Euterpe, and remaining agents; integrate bounded context into Athena's deterministic dialogue/persona path, with instruction/policy precedence and per-consumer isolation tests.
+3. Add evidence-specific, non-authoritative Experience use to Justitia, Logos, Euterpe, and remaining agents; extend bounded context in Athena's deterministic dialogue/persona path beyond its existing communication-style adaptation, with instruction/policy precedence and per-consumer isolation tests.
 4. Complete the manual test plan, privacy and agent-integration docs, and user-visible explanations/decision traces.
 5. Decide and implement sync/retention only with explicit ownership, export, deletion, and conflict semantics; until then keep Experience clearly local-only.
 6. Re-run the full regression and cross-module tests, inspect Experience Center behavior, and validate the production alias after each publication.
