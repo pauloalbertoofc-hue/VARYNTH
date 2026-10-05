@@ -22,7 +22,7 @@ export interface DomainDefinition {
   knowledgePolicy?: DomainKnowledgePolicyConfig;
   relatedDomains: string[];
   enabled: boolean;
-  ownershipHistory?: Array<{ agentId: string; transferredAt: string }>;
+  ownershipHistory?: Array<{ agentId: string; transferredAt: string; fromAgentId?: string; toAgentId?: string }>;
 }
 export interface DomainBridge { id: string; domains: [string, string]; concepts: string[]; description: string; enabled: boolean; }
 export interface KnowledgeAwarenessIndex {
@@ -116,7 +116,11 @@ export class DomainRegistry {
       if (!bridgeId || !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(bridgeId) || endpoints.length !== 2 || endpoints.some((endpoint) => !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(endpoint)) || !concepts.length || concepts.some((concept) => concept.length > 120) || !description || !endpoints.includes(id)) throw new Error("[DOMAIN_BRIDGE_INVALID] Bridge precisa de id, dois domínios canônicos, conceitos e descrição, e deve pertencer a um dos domínios.");
       return { id: bridgeId, domains: endpoints as [string, string], concepts, description, enabled: bridge.enabled !== false };
     });
-    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, bridges, specialists, capabilities, publicCapabilities, knowledgePolicy, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory: (domain.ownershipHistory || []).map((entry) => ({ ...entry })) });
+    const ownershipHistory = (Array.isArray(domain.ownershipHistory) ? domain.ownershipHistory : []).flatMap((entry) => {
+      if (!entry || typeof entry !== "object" || typeof entry.agentId !== "string" || !entry.agentId.trim() || typeof entry.transferredAt !== "string" || !entry.transferredAt.trim()) return [];
+      return [{ ...entry, agentId: entry.agentId.trim(), transferredAt: entry.transferredAt, fromAgentId: typeof entry.fromAgentId === "string" && entry.fromAgentId.trim() ? entry.fromAgentId.trim() : entry.agentId.trim(), toAgentId: typeof entry.toAgentId === "string" && entry.toAgentId.trim() ? entry.toAgentId.trim() : undefined }];
+    });
+    this.domains.set(id, { ...domain, id, primaryOwner, coOwners, routingTerms, routingPriority, bridges, specialists, capabilities, publicCapabilities, knowledgePolicy, relatedDomains: normalizeStrings(domain.relatedDomains), ownershipHistory });
     this.persistBrowserSnapshot();
   }
 
@@ -138,7 +142,7 @@ export class DomainRegistry {
     const normalizedOwner = typeof owner === "string" ? owner.trim() : "";
     if (!normalizedOwner) throw new Error("[DOMAIN_OWNER_INVALID] Owner obrigatório.");
     if (domain.primaryOwner && domain.primaryOwner !== normalizedOwner) {
-      domain.ownershipHistory = [...(domain.ownershipHistory || []), { agentId: domain.primaryOwner, transferredAt: new Date().toISOString() }];
+      domain.ownershipHistory = [...(domain.ownershipHistory || []), { agentId: domain.primaryOwner, fromAgentId: domain.primaryOwner, toAgentId: normalizedOwner, transferredAt: new Date().toISOString() }];
       domain.specialists = domain.specialists.filter((agent) => agent !== domain.primaryOwner);
     }
     domain.primaryOwner = normalizedOwner;

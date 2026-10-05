@@ -11,6 +11,7 @@ registry.registerSpecialist("music.game-audio", "game-agent");
 registry.registerCapability("music", "music.explainTheory");
 assert.equal(registry.resolveOwner("music.game-audio"), "future-euterpe");
 assert.equal(registry.getDomain("music")?.ownershipHistory?.[0]?.agentId, "euterpe");
+assert.deepEqual(registry.getDomain("music")?.ownershipHistory?.[0], { agentId: "euterpe", fromAgentId: "euterpe", toAgentId: "future-euterpe", transferredAt: registry.getDomain("music")?.ownershipHistory?.[0]?.transferredAt });
 assert.deepEqual(registry.resolveCoOwners("music"), ["music-coordinator"]);
 assert.deepEqual(registry.resolveSpecialists("music"), ["future-euterpe", "music-coordinator"]);
 const exposedDomain = registry.getDomain("music")!;
@@ -30,6 +31,9 @@ assert.throws(() => registry.register({ id: "music.game-audio", label: "Cycle", 
 const restored = new DomainRegistry(false);
 restored.replaceDomains(registry.listAllDomains());
 assert.deepEqual(restored.listAllDomains(), registry.listAllDomains());
+const legacyHistory = new DomainRegistry(false);
+legacyHistory.register({ id: "legacy-history", label: "Legacy history", specialists: [], capabilities: [], relatedDomains: [], enabled: true, ownershipHistory: [{ agentId: "former-owner", transferredAt: "2026-01-01T00:00:00.000Z" }] });
+assert.deepEqual(legacyHistory.getDomain("legacy-history")?.ownershipHistory?.[0], { agentId: "former-owner", fromAgentId: "former-owner", toAgentId: undefined, transferredAt: "2026-01-01T00:00:00.000Z" }, "legacy owner history remains readable as a partial handoff event");
 assert.deepEqual(restored.getDomain("music")?.knowledgePolicy, registry.getDomain("music")?.knowledgePolicy, "domain policy must persist in registry snapshots");
 restored.removeCoOwner("music", "music-coordinator");
 assert.equal(restored.resolveCoOwners("music").includes("music-coordinator"), false);
