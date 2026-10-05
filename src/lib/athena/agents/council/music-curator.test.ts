@@ -55,5 +55,60 @@ void (async () => {
   assert.match(delegated.content, /Consultei Athena/);
   assert.equal(delegated.agentId, "euterpe");
   assert.equal((delegated.metadata as { toolAccess: boolean }).toolAccess, false);
+
+  const nativeDelegation = await euterpeAgent.converse(task("Crie um projeto para divulgar o álbum"), {
+    recentConversation: [],
+    experienceContext: { experiences: [], preferences: [] },
+  } as never, async () => ({ text: "O plano está pronto para revisão." }));
+  assert.equal(nativeDelegation.metadata?.conversationPresentation, true, "delegated Euterpe replies use the shared conversational boundary");
+  assert.match(nativeDelegation.content, /^Sou Euterpe/);
+  assert.match(nativeDelegation.content, /Consultei Athena/);
+  assert.match(nativeDelegation.content, /plano está pronto/);
+  assert.equal((nativeDelegation.metadata as { consultedAthena: boolean }).consultedAthena, true);
+  assert.equal((nativeDelegation.metadata as { toolAccess: boolean }).toolAccess, false);
+
+  let followUpQuery = "";
+  let followUpContext: unknown;
+  const contextualDelegation = await euterpeAgent.converse(task("Quais os riscos?"), {
+    recentConversation: [
+      { role: "user", text: "Crie um projeto para divulgar o álbum" },
+      { role: "athena", text: "Uma campanha por etapas é uma opção." },
+      { role: "user", text: "Quais os riscos?" },
+    ],
+    experienceContext: { experiences: [], preferences: [] },
+  } as never, async (request, conversation = []) => {
+    followUpQuery = request;
+    followUpContext = conversation;
+    return { text: "Porque permite validar o interesse gradualmente." };
+  });
+  assert.equal(followUpQuery, "Quais os riscos?", "keep the user's exact follow-up as the delegated request");
+  assert.deepEqual(followUpContext, [], "the test callback defaults context only when AthenaContext carries history");
+  assert.match(contextualDelegation.content, /Voltando ao que conversávamos/);
+  assert.match(contextualDelegation.content, /validar o interesse gradualmente/);
+  assert.equal(contextualDelegation.metadata?.conversationReferenceResolved, true);
+
+  const contextualMusicTurn = await euterpeAgent.converse(task("E os riscos?", {
+    musicConversation: [
+      { sender: "user", text: "Crie um projeto para divulgar o álbum" },
+      { sender: "curator", text: "Consultei Athena: uma campanha por etapas é uma opção.", consultedAthena: true },
+      { sender: "user", text: "E os riscos?" },
+    ],
+  }), {
+    experienceContext: { experiences: [], preferences: [] },
+  } as never, async (request, conversation = []) => {
+    followUpQuery = request;
+    followUpContext = conversation;
+    return { text: "Há riscos de cronograma que devem ser avaliados." };
+  });
+  assert.equal(followUpQuery, "Quais os riscos?");
+  assert.deepEqual(followUpContext, [], "AthenaContext and Music transcripts remain isolated");
+  assert.equal(contextualMusicTurn.metadata?.conversationPresentation, true, "direct Euterpe follow-ups still receive the shared presentation");
+  assert.match(contextualMusicTurn.content, /Selecione uma faixa/);
+
+  const directEuterpe = await euterpeAgent.converse(task("O que você acha?"), {
+    recentConversation: [], experienceContext: { experiences: [], preferences: [] },
+  } as never, async () => { throw new Error("Euterpe-owned music questions stay in her own executor"); });
+  assert.equal(directEuterpe.metadata?.consultedAthena, undefined);
+  assert.equal(directEuterpe.metadata?.conversationPresentation, true);
   console.log("Athena music curator registry and authority-boundary regression passed.");
 })();

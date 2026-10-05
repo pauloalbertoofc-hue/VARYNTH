@@ -5,7 +5,7 @@ import type { AgentResult } from "../../domain/result";
 import type { MusicAgentMemory, MusicDNA, MusicPreferenceMemory } from "@/lib/music/music-studio";
 import { EUTERPE_PERSONALITY } from "@/lib/music/euterpe";
 import { interpretEuterpeRequest, type EuterpeContext, type EuterpeConversationTurn } from "@/lib/music/euterpe";
-import { converseAsSpecialist, renderAgentPersona } from "../base-agent";
+import { converseAsSpecialist, renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import type { MusicTrack } from "@/lib/music/types";
 import { relevantExperienceGuidance } from "../experience-guidance";
 
@@ -152,12 +152,17 @@ export class EuterpeAgent implements AthenaAgent {
           }]
           : [])
       : [];
-    if (!musicAgentShouldConsultAthena(task.rawPrompt, conversation)) return this.execute(task, context);
+    if (!musicAgentShouldConsultAthena(task.rawPrompt, conversation)) return this.converseWithFeedback(task, context);
     const precedingTurns = conversation.at(-1)?.sender === "user" && conversation.at(-1)?.text.trim() === task.rawPrompt.trim()
       ? conversation.slice(0, -1)
       : conversation;
-    const response = await consultAthena(task.rawPrompt, precedingTurns.slice(-8));
-    return {
+    const followUpContext = context.recentConversation?.length
+      ? context
+      : { ...context, recentConversation: precedingTurns.slice(-8).map((turn) => ({ role: turn.sender === "user" ? "user" as const : "athena" as const, text: turn.text })) };
+    const resolution = resolveAgentFollowUp(task.rawPrompt, followUpContext);
+    const query = task.rawPrompt;
+    const response = await consultAthena(query, precedingTurns.slice(-8));
+    return converseAsSpecialist({ ...this, execute: async () => ({
       agentId: this.manifest.id,
       agentName: this.manifest.name,
       role: this.manifest.role,
@@ -165,7 +170,7 @@ export class EuterpeAgent implements AthenaAgent {
       content: `Consultei Athena sobre o seu pedido e trouxe o retorno para nossa conversa:\n\n${response.text}`,
       confidence: 0.7,
       metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA"], toolAccess: false, localFileAccess: false, consultedAthena: true, athenaMetadata: response.metadata },
-    };
+    }) }, task, resolution.usedHistory ? followUpContext : context);
   }
 }
 
