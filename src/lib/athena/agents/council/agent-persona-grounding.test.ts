@@ -13,6 +13,7 @@ import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
 import { euterpeAgent } from "./music-curator";
 import { prepareAgentConversationHistory, resolveAgentFollowUp } from "../base-agent";
+import { converseAsSpecialist } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
 
@@ -53,6 +54,13 @@ const ctx = { scope: "geral", relevantProjects: [], relevantTasks: [], relevantV
 const task = (rawPrompt: string): AthenaTask => ({ id: "agent-grounding", title: rawPrompt, rawPrompt, type: "GENERAL_DELIBERATION", priority: "media", status: "CREATED", scope: "geral", entities: {}, createdAt: "", updatedAt: "" });
 
 void (async () => {
+  for (const agent of agents.filter((candidate) => candidate.manifest.id !== "athena-generalist")) {
+    const conversationalResult = await converseAsSpecialist(agent, task("Explique isso em poucas palavras."), ctx);
+    assert.equal(conversationalResult.metadata?.conversationPresentation, true, `${agent.manifest.id} must use the shared conversational presentation`);
+    assert.ok(conversationalResult.content.includes(agent.manifest.name) || conversationalResult.content.includes(agent.manifest.persona.identity), `${agent.manifest.id} must retain its identity in conversation`);
+    if (agent.manifest.id === "euterpe") assert.equal((conversationalResult.content.match(/Sou Euterpe/g) ?? []).length, 1, "Euterpe's native voice must not receive a duplicate generic introduction");
+  }
+
   const legal = await justitiaAgent.execute(task("Analise a legislação aplicável"), ctx);
   assert.match(legal.content, /não recebi.*tese formal/i);
   assert.equal(legal.metadata?.legalAdvice, false);

@@ -3,6 +3,7 @@ import { AthenaContext } from "../domain/context";
 import { AgentResult } from "../domain/result";
 import { resolveSpecialistCorrection } from "../conversation/specialist-correction";
 import { athenaConversationFeedback } from "../conversation/quality-feedback";
+import { agentGuidanceInstruction, confirmedAgentGuidance } from "./experience-guidance";
 
 export interface AgentManifest {
   id: string;
@@ -46,6 +47,46 @@ export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { 
   const previousUserTurn = [...(context.recentConversation ?? [])].reverse().find((turn) => turn.role === "user" && turn.text.trim());
   if (!previousUserTurn) return { prompt, usedHistory: false };
   return { prompt: `${previousUserTurn.text.slice(0, 500)}\n\nContinuação solicitada agora: ${prompt.trim()}`, usedHistory: true };
+}
+
+function conversationalizeSpecialistResult(
+  result: AgentResult,
+  manifest: AgentManifest,
+  originalPrompt: string,
+  usedHistory: boolean,
+  context: AthenaContext,
+): AgentResult {
+  const body = result.content.trim();
+  if (!body || result.metadata?.conversationPresentation === true) return result;
+
+  const explicitStyle = originalPrompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const learnedStyle = agentGuidanceInstruction(context, manifest.id, originalPrompt).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const verbosity = confirmedAgentGuidance(context, manifest.id, "verbosity", originalPrompt)
+    ?? (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined);
+  const formality = confirmedAgentGuidance(context, manifest.id, "formality", originalPrompt)
+    ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : undefined);
+  const identity = manifest.persona.identity.replace(/^Sou\s+[^,;:]+[,;:]?\s*/i, "").trim() || manifest.persona.voice;
+  const continuity = usedHistory ? (formality === "formal" ? " Retomando o assunto anterior," : " Voltando ao que conversávamos,") : "";
+  const alreadyIntroduced = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").startsWith(`sou ${manifest.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")}`);
+  const lead = alreadyIntroduced ? "" : formality === "formal"
+    ? `Sou ${manifest.name}; ${identity}${continuity}`
+    : `Sou ${manifest.name} — ${identity}${continuity}`;
+  const nextStep = result.recommendations?.find((item) => item.trim())
+    ?? (result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.");
+  const concise = verbosity === "concise";
+  const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
+  const content = `${lead ? `${lead}\n\n` : ""}${body}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
+
+  return {
+    ...result,
+    content,
+    metadata: {
+      ...result.metadata,
+      conversationPresentation: true,
+      conversationReferenceResolved: usedHistory || result.metadata?.conversationReferenceResolved === true,
+      presentationPreferences: { ...(verbosity ? { verbosity } : {}), ...(formality ? { formality } : {}) },
+    },
+  };
 }
 
 export function prepareAgentConversationHistory(
@@ -118,12 +159,15 @@ export async function converseAsSpecialist(
       metadata: { conversationRepair: true, executedDomainWork: false, authority: agent.manifest.persona.authorityBoundary },
     };
   }
-  const resolvedTask = correction.prompt === task.rawPrompt ? task : { ...task, rawPrompt: correction.prompt };
-  const result = await agent.execute(resolvedTask, context);
+  const resolution = resolveAgentFollowUp(correction.prompt, context);
+  const resolvedTask = resolution.prompt === correction.prompt ? task : { ...task, rawPrompt: resolution.prompt };
+  const executionTask = correction.repaired ? { ...resolvedTask, rawPrompt: correction.prompt } : resolvedTask;
+  const result = await agent.execute(executionTask, context);
+  const presented = conversationalizeSpecialistResult(result, agent.manifest, task.rawPrompt, resolution.usedHistory, context);
   return {
-    ...result,
+    ...presented,
     metadata: {
-      ...result.metadata,
+      ...presented.metadata,
       ...(correction.repaired ? { conversationRepair: true, repairedFromExplicitFeedback: true } : {}),
     },
   };
