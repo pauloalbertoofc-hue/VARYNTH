@@ -85,7 +85,7 @@ export default function KnowledgePage() {
       if (vaultSourceId && (!vaultLoaded || !vaultItems.some((source) => source.id === vaultSourceId))) {
         throw new Error("Aguarde o Vault carregar a fonte antes de corrigir sua classificação.");
       }
-      if (!/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(governance.ownerAgent)) throw new Error("Informe um ID válido para o owner.");
+      if (governance.ownerAgent && !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(governance.ownerAgent)) throw new Error("Informe um ID válido para o owner.");
       const classified = applyKnowledgeClassification(item, governance);
       const patch = { primaryDomain: classified.primaryDomain, relatedDomains: classified.relatedDomains, categories: classified.categories, tags: classified.tags, ownerAgent: governance.ownerAgent, visibility: governance.visibility, sensitivity: governance.sensitivity, classification: classified.classification };
       let updated: KnowledgeItem;
@@ -93,18 +93,20 @@ export default function KnowledgePage() {
         const source = vaultItems.find((candidate) => candidate.id === vaultSourceId)!;
         const updatedSource = { ...source, knowledgeDomains: [classified.primaryDomain, ...classified.relatedDomains], knowledgeCategories: classified.categories, knowledgeTags: classified.tags, knowledgeOwnerAgent: governance.ownerAgent, knowledgeVisibility: governance.visibility as Exclude<KnowledgeItem["visibility"], "SYSTEM">, knowledgeSensitivity: governance.sensitivity, classificationSource: "manual" as const, classificationConfidence: 1, classificationReviewedAt: classified.classification?.classifiedAt, updatedAt: new Date().toISOString() };
         const vaultResponse = await fetch("/api/vault/sync", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items: [updatedSource] }) });
-        const vaultResult = await vaultResponse.json().catch(() => ({})) as { error?: string };
+        const vaultResult = await vaultResponse.json().catch(() => ({})) as { error?: string; items?: typeof vaultItems };
         if (!vaultResponse.ok) throw new Error(vaultResult.error || "Não foi possível persistir a fonte no Vault.");
-        const projectionResponse = await fetch("/api/knowledge/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation: "UPSERT_VAULT", item: updatedSource }) });
+        const persistedSource = vaultResult.items?.find((candidate) => candidate.id === vaultSourceId) || updatedSource;
+        const projectionResponse = await fetch("/api/knowledge/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ operation: "UPSERT_VAULT", item: persistedSource }) });
         const projectionResult = await projectionResponse.json().catch(() => ({})) as { item?: KnowledgeItem; error?: string };
         if (!projectionResponse.ok || !projectionResult.item) throw new Error(projectionResult.error || "Vault salvo, mas a projeção Knowledge não foi atualizada.");
         updated = projectionResult.item;
-        updateVaultItem(vaultSourceId, updatedSource);
+        updateVaultItem(vaultSourceId, persistedSource);
       } else {
         const response = await fetch("/api/knowledge/update", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: item.id, patch }) });
-        const result = await response.json().catch(() => ({})) as { error?: string };
+        const result = await response.json().catch(() => ({})) as { item?: KnowledgeItem; error?: string };
         if (!response.ok) throw new Error(result.error || "Não foi possível persistir a classificação compartilhada.");
-        updated = await updateKnowledge(item.id, "system", patch);
+        if (!result.item) throw new Error("A API não retornou o Knowledge atualizado.");
+        updated = await storeKnowledge(result.item);
       }
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...updated, content: item.content } : candidate));
       setActionMessage("Classificação salva.");

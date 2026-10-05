@@ -24,6 +24,7 @@ export function canonicalVaultProjection(value: unknown): KnowledgeItem | null {
     || (item.knowledgeCategories !== undefined && (!Array.isArray(item.knowledgeCategories) || !item.knowledgeCategories.every((value) => typeof value === "string")))
     || (item.knowledgeTags !== undefined && (!Array.isArray(item.knowledgeTags) || !item.knowledgeTags.every((value) => typeof value === "string")))
     || (item.knowledgeOwnerAgent !== undefined && (typeof item.knowledgeOwnerAgent !== "string" || (item.knowledgeOwnerAgent !== "" && !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(item.knowledgeOwnerAgent))))
+    || (item.knowledgeOwnerHistory !== undefined && (!Array.isArray(item.knowledgeOwnerHistory) || !item.knowledgeOwnerHistory.every((entry) => entry && typeof entry === "object" && (entry.fromAgent === undefined || typeof entry.fromAgent === "string" && /^[a-z0-9][a-z0-9._-]{0,79}$/u.test(entry.fromAgent)) && (entry.toAgent === undefined || typeof entry.toAgent === "string" && /^[a-z0-9][a-z0-9._-]{0,79}$/u.test(entry.toAgent)) && typeof entry.changedAt === "string" && Number.isFinite(Date.parse(entry.changedAt)) && ["USER", "AGENT", "SYSTEM"].includes(entry.changedBy) && (entry.actorId === undefined || typeof entry.actorId === "string" && entry.actorId.length > 0 && entry.actorId.length <= 128))))
     || (item.knowledgeVisibility !== undefined && !KNOWLEDGE_VISIBILITIES.includes(item.knowledgeVisibility))
     || (item.knowledgeSensitivity !== undefined && !KNOWLEDGE_SENSITIVITIES.includes(item.knowledgeSensitivity))
   ) return null;

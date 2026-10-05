@@ -7,8 +7,11 @@ import { queryKnowledge, revokeKnowledge } from "./service";
 
 async function main() {
   const sourceContent = `A fonte descreve licenciamento e copyright. ${"Condições de uso comercial e licenças dependem do contrato e da jurisdição. ".repeat(35)}`;
-  const vaultItem = { id: "e2e-vault", title: "Copyright de trilha musical", content: sourceContent, type: "livro" as const, tags: ["copyright"], category: "Direito", primarySubject: "Direito", readingStatus: "para_ler" as const, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  await persistVaultKnowledgeProjection(vaultItem);
+  const ownerChange = { fromAgent: "athena", toAgent: "justitia", changedAt: new Date().toISOString(), changedBy: "USER" as const, actorId: "owner" };
+  const vaultItem = { id: "e2e-vault", title: "Copyright de trilha musical", content: sourceContent, type: "livro" as const, tags: ["copyright"], category: "Direito", primarySubject: "Direito", readingStatus: "para_ler" as const, knowledgeOwnerAgent: "justitia", knowledgeOwnerHistory: [ownerChange], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const projected = await persistVaultKnowledgeProjection(vaultItem);
+  assert.equal(projected.ownerAgent, "justitia");
+  assert.deepEqual(projected.ownershipHistory, [ownerChange]);
   const unauthorized = await requestDomainResponse({ requester: "athena", domain: "legal", query: "copyright trilha", purpose: "global awareness is not domain access", scope: "DOMAIN" });
   assert.ok(!unauthorized.sources.includes("vault:e2e-vault"));
   const response = await requestDomainResponse({ requester: "justitia", domain: "legal", query: "copyright trilha", purpose: "consulta pelo especialista responsável", scope: "DOMAIN" });

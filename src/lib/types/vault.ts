@@ -35,6 +35,8 @@ export interface VaultItem {
   knowledgeTags?: string[];
   /** Explicit Knowledge governance metadata; absent legacy values retain safe defaults. */
   knowledgeOwnerAgent?: string;
+  /** Server-maintained handoff audit; clients cannot replace existing entries. */
+  knowledgeOwnerHistory?: Array<{ fromAgent?: string; toAgent?: string; changedAt: string; changedBy: "USER" | "AGENT" | "SYSTEM"; actorId?: string }>;
   knowledgeVisibility?: "PRIVATE" | "AGENT_PRIVATE" | "PROJECT" | "DOMAIN" | "CROSS_DOMAIN" | "PUBLIC_TO_AGENTS";
   knowledgeSensitivity?: "PUBLIC" | "INTERNAL" | "SENSITIVE" | "PRIVATE";
   originalFileName?: string;

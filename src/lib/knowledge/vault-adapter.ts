@@ -35,6 +35,7 @@ export function knowledgeFromVaultItem(item: VaultItem, ownerAgent?: string): Kn
     categories: categories.length ? categories : ["Não classificado", "Outro"],
     tags: item.knowledgeTags || item.tags,
     ownerAgent: item.knowledgeOwnerAgent !== undefined ? item.knowledgeOwnerAgent || undefined : ownerAgent,
+    ownershipHistory: item.knowledgeOwnerHistory || [],
     contributingAgents: [],
     visibility: item.knowledgeVisibility || (item.relatedProjectIds?.length ? "PROJECT" : "DOMAIN"),
     sensitivity: item.knowledgeSensitivity || "INTERNAL",
@@ -67,7 +68,7 @@ export function knowledgeProjectionMatches(existing: KnowledgeItem | null | unde
     "version", "freshness", "validFrom", "validUntil", "createdAt", "updatedAt", "conflictGroupId", "supersedesId", "invalidatedAt",
   ];
   const structuredFields: (keyof KnowledgeItem)[] = [
-    "relatedDomains", "categories", "tags", "contributingAgents", "provenance", "classification", "relatedProjectIds", "relatedArtifactIds",
+    "relatedDomains", "categories", "tags", "contributingAgents", "provenance", "classification", "relatedProjectIds", "relatedArtifactIds", "ownershipHistory",
   ];
   return scalarFields.every((field) => existing[field] === projected[field])
     && structuredFields.every((field) => JSON.stringify(existing[field]) === JSON.stringify(projected[field]));

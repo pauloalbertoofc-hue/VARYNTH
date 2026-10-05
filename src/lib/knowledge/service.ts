@@ -2,6 +2,7 @@ import { knowledgeAccessLogRepository, knowledgeRelationshipRepository, knowledg
 import { KnowledgeDiscovery, KnowledgeItem, KnowledgeQuery, KnowledgeRelationship } from "./contracts";
 import { decideKnowledgeAccess } from "./policy";
 import { assertKnowledgeLifecycleTransition, getKnowledgeLifecycleState, isKnowledgeLifecycleState, lifecycleAllowsRequester } from "./lifecycle";
+import { appendKnowledgeOwnershipChange } from "./ownership-history";
 import { buildKnowledgeRetrievalIndex, nextKnowledgeValidityBoundary, scoreKnowledgeRelevance, selectKnowledgeCandidates, type KnowledgeRetrievalIndex } from "./retrieval-index";
 
 const queryCache = new Map<string, { revision: number; expiresAt: number; items: KnowledgeItem[] }>();
@@ -182,7 +183,7 @@ export function storeKnowledgeProjection(item: KnowledgeItem, options: { cascade
   });
 }
 
-export async function updateKnowledge(id: string, requester: string, patch: Partial<KnowledgeItem>): Promise<KnowledgeItem> {
+export async function updateKnowledge(id: string, requester: string, patch: Partial<KnowledgeItem>, actor?: { type: "USER" | "AGENT" | "SYSTEM"; id?: string }): Promise<KnowledgeItem> {
   const current = await knowledgeRepository.getById(id);
   if (!current) throw new Error("[KNOWLEDGE_NOT_FOUND] Item inexistente.");
   if (requester !== "system" && requester !== current.ownerAgent) throw new Error("[KNOWLEDGE_UPDATE_DENIED] Somente o owner ou sistema pode atualizar conhecimento.");
@@ -203,7 +204,10 @@ export async function updateKnowledge(id: string, requester: string, patch: Part
     if (patch[field] !== undefined && (!Array.isArray(patch[field]) || !patch[field]!.every((value) => typeof value === "string"))) throw new Error("[KNOWLEDGE_PATCH_INVALID] Classificação inválida.");
   }
   if (patch.lifecycleState !== undefined) assertKnowledgeLifecycleTransition(current.lifecycleState, patch.lifecycleState);
-  const next = { ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: new Date().toISOString() };
+  const ownershipHistory = patch.ownerAgent !== undefined
+    ? appendKnowledgeOwnershipChange(current.ownershipHistory, current.ownerAgent, patch.ownerAgent || undefined, actor?.type || (requester === "system" ? "SYSTEM" : "AGENT"), actor?.id)
+    : [...(current.ownershipHistory || [])];
+  const next = { ...current, ...patch, ownershipHistory, id: current.id, createdAt: current.createdAt, updatedAt: new Date().toISOString() };
   return storeKnowledge(next);
 }
 

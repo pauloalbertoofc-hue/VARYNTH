@@ -10,7 +10,8 @@ export async function PATCH(request: Request) {
   const allowed = new Set(["title", "content", "primaryDomain", "relatedDomains", "categories", "tags", "ownerAgent", "visibility", "sensitivity", "lifecycleState", "classification", "validFrom", "validUntil"]);
   if (Object.keys(body.patch).some((key) => !allowed.has(key))) return Response.json({ error: "O patch contém campos não editáveis." }, { status: 400 });
   try {
-    const item = await withKnowledgeAccount(knowledgeAccountId(session.user as typeof session.user & { id?: string }), () => updateKnowledge(body.id!, "system", body.patch!));
+    const user = session.user as typeof session.user & { id?: string };
+    const item = await withKnowledgeAccount(knowledgeAccountId(user), () => updateKnowledge(body.id!, "system", body.patch!, { type: "USER", id: "owner" }));
     return Response.json({ item, updatedAt: new Date().toISOString() });
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("[KNOWLEDGE_LIFECYCLE_")) {
