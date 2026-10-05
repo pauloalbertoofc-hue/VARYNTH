@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { musicAgentShouldConsultAthena, resolveEuterpeCorrectionRequest, runMusicAgentTurn } from "./music-agent-bridge";
+import { musicAgentShouldConsultAthena, prepareEuterpeExperienceContext, resolveEuterpeCorrectionRequest, runMusicAgentTurn } from "./music-agent-bridge";
+import { experienceEventRepository, experiencePreferenceRepository, experienceRepository } from "@/lib/persistence/repositories";
+import { preferenceService } from "@/lib/experience/preference-service";
+import { experienceService } from "@/lib/experience/experience-service";
+import { retainExperience } from "@/lib/experience/outcome-service";
 
 assert.deepEqual(resolveEuterpeCorrectionRequest("Faça uma playlist"), { kind: "continue", prompt: "Faça uma playlist" });
 assert.equal(resolveEuterpeCorrectionRequest("corrija a resposta").kind, "clarify", "A retry without Euterpe-scoped feedback must not invent the previous correction");
@@ -35,11 +39,31 @@ assert.equal(musicAgentShouldConsultAthena("Por quê?", [{ sender: "curator", te
 
 void (async () => {
   let consultCount = 0;
+  await Promise.all([experienceEventRepository.clear(), experiencePreferenceRepository.clear(), experienceRepository.clear()]);
+  await preferenceService.declare({ domain: "music", key: "formality", value: "formal", scope: "AGENT", scopeId: "euterpe" }, "local-owner");
+  const trackEvent = await experienceService.record({ ownerId: "local-owner", actor: "USER", actionType: "OUTCOME_RECORDED", moduleId: "music", domain: "music", artifactId: "track-1", metadata: {}, source: "music-test", privacyScope: "USER_SHARED", learningEligible: true });
+  await retainExperience({ ownerId: "local-owner", domain: "music", context: {}, situation: "revisão de uma faixa", action: "comparar tags sem inferir gênero", outcome: "a comparação ajudou a escolher um perfil", evidence: [{ eventId: trackEvent.id, weight: "HIGH", reason: "resultado revisado" }], scope: "ARTIFACT", scopeId: "track-1", usefulness: 0.8 });
+  const preparedExperience = await prepareEuterpeExperienceContext({ trackId: "track-1", currentInstruction: "O que acha dessa faixa?" });
+  assert.equal(preparedExperience?.preferences.length, 1, "direct Music context retrieves the confirmed preference for Euterpe");
+  assert.equal(preparedExperience?.experiences[0]?.scopeId, "track-1", "artifact-scoped precedent is retrieved for the selected track");
+  assert.match(preparedExperience?.experiences[0]?.action || "", /comparar tags sem inferir gênero/);
+  const otherTrackExperience = await prepareEuterpeExperienceContext({ trackId: "track-2" });
+  assert.equal(otherTrackExperience?.experiences.length, 0, "track-scoped precedent is isolated from other tracks");
   const direct = await runMusicAgentTurn({ message: "Oi!", consultAthena: async () => { consultCount++; return { text: "não esperado" }; } });
   assert.equal(direct.agent, "euterpe");
   assert.equal(direct.consultedAthena, false);
   assert.match(direct.text, /Euterpe/);
   assert.equal(consultCount, 0);
+  const greetingWithExperience = await runMusicAgentTurn({ message: "Oi!", experienceContext: await prepareEuterpeExperienceContext({ trackId: "track-1" }), consultAthena: async () => { throw new Error("A saudação não deve ser delegada"); } });
+  assert.doesNotMatch(greetingWithExperience.text, /abordagem musical que pode valer testar/i, "historical experience should not turn a greeting into unsolicited advice");
+
+  const personalized = await runMusicAgentTurn({ message: "O que acha dessa faixa?", experienceContext: preparedExperience, consultAthena: async () => { throw new Error("A pergunta musical não deve ser delegada"); } });
+  assert.match(personalized.text, /Não há uma faixa selecionada nesta conversa/, "the direct Music chat receives Euterpe-scoped confirmed preferences through the bridge");
+  const currentInstructionWins = await runMusicAgentTurn({ message: "Fale de forma informal. O que acha dessa faixa?", experienceContext: preparedExperience, consultAthena: async () => { throw new Error("A pergunta musical não deve ser delegada"); } });
+  assert.match(currentInstructionWins.text, /Ainda não tenho uma faixa selecionada/, "the current request overrides Euterpe's stored formality");
+  const trackAware = await runMusicAgentTurn({ message: "O que acha dessa faixa?", track: { id: "track-1", name: "Noite", artist: "Demo", durationMs: 0, mimeType: "audio/mpeg", sizeBytes: 0, addedAt: "now" }, experienceContext: preparedExperience, consultAthena: async () => { throw new Error("A pergunta musical não deve ser delegada"); } });
+  assert.match(trackAware.text, /abordagem musical que pode valer testar/i);
+  assert.match(trackAware.text, /comparar tags sem inferir gênero/i, "Euterpe may use useful method precedent scoped to this track without claiming facts about its audio");
 
   const visualProposal = await runMusicAgentTurn({
     message: "Faça uma capa escura",

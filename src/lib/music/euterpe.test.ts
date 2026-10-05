@@ -34,6 +34,12 @@ const noDnaTrackOpinion = interpretEuterpeRequest("O que acha dessa faixa?", { .
 assert.match(noDnaTrackOpinion.response, /Noite.*não recebi Music DNA/i);
 const noTrackFollowUp = interpretEuterpeRequest("E essa?", { ...context, track: undefined, dna: undefined });
 assert.match(noTrackFollowUp.response, /não tenho uma faixa selecionada/i);
+const euterpeFormalityContext = { ...context, track: undefined, dna: undefined, experienceContext: {
+  preferences: [{ id: "euterpe-formality", ownerId: "test-owner", subject: "test-owner", domain: "music", key: "formality", value: "formal", scope: "AGENT" as const, scopeId: "euterpe", confidence: 1, status: "CONFIRMED" as const, source: "MANUAL" as const, evidence: [], createdAt: "2026-10-01", updatedAt: "2026-10-01" }],
+  experiences: [], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION" as const, generatedAt: "now", truncated: false,
+} };
+assert.match(interpretEuterpeRequest("O que acha dessa faixa?", euterpeFormalityContext).response, /Não há uma faixa selecionada nesta conversa/, "confirmed Euterpe-only formality should adapt her direct Music response");
+assert.match(interpretEuterpeRequest("Fale de forma informal. O que acha dessa faixa?", euterpeFormalityContext).response, /Ainda não tenho uma faixa selecionada/, "the current informal instruction must override saved formality");
 const savedTaste = interpretEuterpeRequest("Que estilo combina comigo?", { ...context, preferences: [{ id: "p1", key: "style", value: "jazz", confidence: 1, source: "explicit", updatedAt: "2026-09-22" }], memories: [{ id: "m1", kind: "favorite", value: "trilhas instrumentais", createdAt: "2026-09-22" }] });
 assert.match(savedTaste.response, /jazz, trilhas instrumentais/);
 assert.match(savedTaste.response, /não como certeza/);

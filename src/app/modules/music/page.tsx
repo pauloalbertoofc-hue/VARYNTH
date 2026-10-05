@@ -11,7 +11,7 @@ import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { adjacentTrackIndex, createMusicTrack, formatMusicTime, isSupportedMusicFile, musicLibrary } from "@/lib/music/music-library";
 import { resolveAccountArtwork } from "@/lib/music/visual-artwork-persistence";
 import { analyzeSections, LocalVisualGenerationProvider, makeMusicDNA, MUSIC_ANALYSIS_LIMITS, musicSpecialist, musicStudio, RemoteVisualGenerationProvider, spectralFeatures, type MusicDNA, type MusicFeedback, type MusicPlaylist, type VisualQuality } from "@/lib/music/music-studio";
-import { musicAgentShouldConsultAthena, resolveEuterpeCorrectionRequest, runMusicAgentTurn } from "@/lib/music/music-agent-bridge";
+import { musicAgentShouldConsultAthena, prepareEuterpeExperienceContext, resolveEuterpeCorrectionRequest, runMusicAgentTurn } from "@/lib/music/music-agent-bridge";
 import { athenaConversationFeedback } from "@/lib/athena/conversation/quality-feedback";
 import { readMusicMetadata } from "@/lib/music/music-metadata";
 import { importMusicBatch } from "@/lib/music/music-import";
@@ -705,13 +705,18 @@ export default function MusicPage() {
     varynthEventBus.emit("AGENT.THINKING", { agentId: "euterpe", delegatedTo: delegatesToAthena ? "athena" : undefined });
     try {
       const scopeId = musicLibrary.getIdentityNamespace();
-      const [preferences, memories] = await Promise.all([musicStudio.listPreferences(scopeId), musicStudio.listAgentMemory(scopeId)]);
+      const [preferences, memories, experienceContext] = await Promise.all([
+        musicStudio.listPreferences(scopeId),
+        musicStudio.listAgentMemory(scopeId),
+        prepareEuterpeExperienceContext({ trackId: selectedTrack?.id, sessionId: athenaSessionIdRef.current || undefined, currentInstruction: effectiveMessage }),
+      ]);
       const turn = await runMusicAgentTurn({
         message: effectiveMessage,
         track: selectedTrack,
         dna,
         preferences,
         memories,
+        experienceContext,
         conversation: recentConversation,
         consultAthena: async (userRequest, conversationContext) => {
           varynthEventBus.emit("ATHENA.ENTERED_CONTEXT", { sessionId: athenaSessionIdRef.current });

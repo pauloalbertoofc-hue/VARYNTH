@@ -4,6 +4,8 @@ import type { AthenaTask } from "@/lib/athena/domain/task";
 import type { MusicDNA } from "./music-studio";
 import type { MusicTrack } from "./types";
 import type { EuterpeContext, EuterpeConversationTurn, EuterpeProposal } from "./euterpe";
+import type { ExperienceContext } from "@/lib/experience/context-builder";
+import { buildExperienceContext } from "@/lib/experience/context-builder";
 
 export { musicAgentShouldConsultAthena };
 export interface MusicAgentTurnResult { agent: "euterpe"; text: string; consultedAthena: boolean; athenaMetadata?: Record<string, unknown>; proposal?: EuterpeProposal }
@@ -18,6 +20,19 @@ export type EuterpeCorrectionResolution =
   | { kind: "clarify"; response: string };
 
 const correctionRequestPattern = /^(corrija a resposta|corrija|tente novamente|nao foi isso)[.!?]*$/i;
+
+/** Bounded account-owned context for Euterpe's direct Music conversation. */
+export async function prepareEuterpeExperienceContext(input: { trackId?: string; sessionId?: string; currentInstruction?: string }): Promise<ExperienceContext | undefined> {
+  try {
+    return await buildExperienceContext({
+      requester: "music:euterpe", domain: "music", agentId: "euterpe", moduleId: "music",
+      artifactId: input.trackId, sessionId: input.sessionId, currentInstruction: input.currentInstruction, budget: 6,
+    });
+  } catch {
+    // Experience is optional; identity or storage failure must not break chat.
+    return undefined;
+  }
+}
 
 /** Resolve an explicit repair request only from Euterpe's own saved feedback. */
 export function resolveEuterpeCorrectionRequest(message: string, feedback?: EuterpeCorrectionFeedback): EuterpeCorrectionResolution {
@@ -39,6 +54,7 @@ export async function runMusicAgentTurn(input: {
   preferences?: EuterpeContext["preferences"];
   memories?: EuterpeContext["memories"];
   conversation?: EuterpeConversationTurn[];
+  experienceContext?: ExperienceContext;
   consultAthena: MusicAthenaConsult;
   context?: AthenaContext;
 }): Promise<MusicAgentTurnResult> {
@@ -55,7 +71,10 @@ export async function runMusicAgentTurn(input: {
     },
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   } as AthenaTask;
-  const result = await euterpeAgent.converse(task, input.context ?? {} as AthenaContext, input.consultAthena);
+  const result = await euterpeAgent.converse(task, {
+    ...input.context,
+    experienceContext: input.experienceContext ?? input.context?.experienceContext,
+  } as AthenaContext, input.consultAthena);
   const metadata = result.metadata ?? {};
   return {
     agent: "euterpe", text: result.content,

@@ -1,13 +1,15 @@
 import { PermissionPolicyEngine } from "@/lib/permissions/permission-policy";
 import type { MusicDNA, MusicAgentMemory, MusicPreferenceMemory } from "./music-studio";
 import type { MusicTrack } from "./types";
+import type { ExperienceContext } from "@/lib/experience/context-builder";
+import { confirmedAgentGuidance } from "@/lib/athena/agents/experience-guidance";
 
 export type EuterpeProposal =
   | { kind: "visual-profile"; trackId: string; instruction: string }
   | { kind: "playlist"; name: string; trackIds: string[] }
   | { kind: "preference"; key: string; value: string };
 export const EUTERPE_PERSONALITY = `Você é Euterpe, uma sub-IA musical artística, sensorial e curiosa, especializada em música e expressão visual. A pessoa conversa diretamente com você dentro do Music. Athena é a coordenadora geral e sua autoridade superior: consulte-a apenas quando o pedido exigir capacidades gerais da plataforma. Fale em primeira pessoa com naturalidade e nunca se apresente como “curadora musical”. Suas propostas são revisáveis; não afirme que executou uma mudança antes da confirmação da pessoa.`;
-export type EuterpeContext = { track?: Pick<MusicTrack, "id" | "name" | "artist">; dna?: Pick<MusicDNA, "trackId" | "schemaVersion" | "status" | "visualTags" | "intensity" | "calmness">; preferences: MusicPreferenceMemory[]; memories: MusicAgentMemory[] };
+export type EuterpeContext = { track?: Pick<MusicTrack, "id" | "name" | "artist">; dna?: Pick<MusicDNA, "trackId" | "schemaVersion" | "status" | "visualTags" | "intensity" | "calmness">; preferences: MusicPreferenceMemory[]; memories: MusicAgentMemory[]; experienceContext?: ExperienceContext };
 export type EuterpeConversationTurn = { sender: "user" | "curator"; text: string; consultedAthena?: boolean };
 export const euterpeManifest = { id: "euterpe", name: "Euterpe", role: "Sub-IA musical subordinada à Athena", version: "1.0.0", namespace: "varynth.music.euterpe.v1", authority: "advisory-and-proposal-only" as const, tools: ["music.context.read", "music.profile.propose", "music.playlist.propose", "music.preference.propose"] as const };
 
@@ -70,7 +72,10 @@ function describeSelectedTrack(context: EuterpeContext, formal: boolean): string
 export function interpretEuterpeRequest(message: string, context: EuterpeContext, conversation: EuterpeConversationTurn[] = []) {
   const text = message.trim();
   const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const formal = /\b(senhor|senhora|gostaria|poderia|por gentileza|formalmente)\b/.test(normalized);
+  const explicitInformal = /\b(informal|casual|descontraid[oa])\b/.test(normalized);
+  const explicitFormal = /\b(senhor|senhora|gostaria|poderia|por gentileza|formal(?:mente)?)\b/.test(normalized) && !/\b(?:nao|não)\s+(?:quero|precisa|precise|seja|ser)\s+(?:ser\s+)?formal\b/.test(normalized);
+  const savedFormality = confirmedAgentGuidance({ experienceContext: context.experienceContext }, "euterpe", "formality", text);
+  const formal = explicitFormal || (!explicitInformal && savedFormality === "formal");
   const followUpResponse = resolveEuterpeFollowUp(text, context, conversation);
   if (followUpResponse) return { response: followUpResponse, proposal: undefined };
   const match = text.match(/(?:visual(?:mente)?|capa|fundo|tema|apar[eê]ncia|atmosfera|clima).{0,48}(?:escur[oa]|clar[oa]|urban[oa]|calm[oa]|agressiv[oa]|chuva|estrelas|sem movimento|noturn[oa]|minimalista|quente|fri[oa]|cinematogr[aá]fic[oa]|suave|dram[aá]tic[oa])/i)

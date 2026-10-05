@@ -66,18 +66,32 @@ export function agentGuidanceInstruction(context: ExperienceAwareContext, agentI
  * Convert only positively useful, properly scoped past outcomes into a bounded
  * method hint. Experience is precedent, not evidence about the current task.
  */
-export function relevantExperienceGuidance(context: ExperienceAwareContext, agentId: string): string[] {
+function suppressHistoricalGuidance(instruction: string): boolean {
+  const normalized = instruction.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /\b(?:nao\s+(?:use|considere|aplique|consulte)|sem|ignore|desconsidere)\b.{0,80}\b(?:experien|historico|memoria|preferenc|personaliz)\w*/i.test(normalized);
+}
+
+export function relevantExperienceGuidance(
+  context: ExperienceAwareContext,
+  agentId: string,
+  activeArtifactId?: string,
+  activeDomain?: string,
+  currentInstruction = "",
+): string[] {
+  if (suppressHistoricalGuidance(currentInstruction)) return [];
   const records = (context.experienceContext?.experiences ?? []).filter((record) => {
     if (!record.outcome.trim() || !record.action.trim() || (record.usefulness ?? 0) <= 0) return false;
     if (record.scope === "GLOBAL") return true;
     if (record.scope === "AGENT") return record.scopeId === agentId;
     if (record.scope === "DOMAIN") {
-      return record.scopeId === record.domain || record.domain === agentId || record.scopeId === agentId;
+      return record.scopeId === record.domain || record.domain === agentId || record.scopeId === agentId
+        || (!!activeDomain && (record.scopeId === activeDomain || record.domain === activeDomain));
     }
     if (record.scope === "PROJECT") {
       const projectId = context.activeProject?.id;
       return !!projectId && record.scopeId === projectId;
     }
+    if (record.scope === "ARTIFACT") return !!activeArtifactId && record.scopeId === activeArtifactId;
     return false;
   }).slice(0, 2);
 

@@ -51,9 +51,15 @@ async function main() {
   assert.equal(experienceHints.length, 1);
   assert.match(experienceHints[0], /não é fato sobre este caso/i);
   assert.match(experienceHints[0], /prototipar um/);
+  assert.deepEqual(relevantExperienceGuidance(experienceContext, "musa", undefined, undefined, "Não use experiências anteriores"), [], "a direct instruction not to use history suppresses retained outcomes");
   assert.deepEqual(relevantExperienceGuidance(experienceContext, "sophia"), [], "agent-scoped precedent cannot leak to other specialists");
   assert.deepEqual(relevantExperienceGuidance({ ...experienceContext, activeProject: { id: "different-project", title: "Outro projeto", description: "", category: "pessoal", status: "ativo", priority: "media", tags: [], createdAt: "", updatedAt: "" } }, "strategos"), [], "project precedent cannot leave its project");
   assert.deepEqual(relevantExperienceGuidance({ ...context(), experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, usefulness: 0 }] } }, "musa"), [], "neutral or negative outcomes do not become positive method hints");
+  const trackOutcome = { ...priorOutcome, scope: "ARTIFACT" as const, scopeId: "track-1", domain: "music", action: "comparar tags registradas sem inferir gênero" };
+  const trackContext = { ...context(), experienceContext: { ...experienceContext.experienceContext, experiences: [trackOutcome] } };
+  assert.equal(relevantExperienceGuidance(trackContext, "euterpe", "track-1", "music").length, 1, "Euterpe may use positive precedent attached to the selected music artifact");
+  assert.deepEqual(relevantExperienceGuidance(trackContext, "euterpe", "track-2", "music"), [], "artifact-scoped precedent cannot cross to another track");
+  assert.equal(relevantExperienceGuidance(trackContext, "euterpe", "track-1", "music", "Não use minhas experiências musicais").length, 0, "current user wording suppresses artifact-scoped precedent");
 
   const scopedPreference = pref("ideationMode", "practical", { domain: "musa", scope: "AGENT", scopeId: "musa" });
   assert.equal(confirmedAgentGuidance(context([scopedPreference]), "musa", "ideationMode", "Me dê ideias"), "practical");

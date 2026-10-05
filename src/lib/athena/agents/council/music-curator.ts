@@ -55,6 +55,11 @@ function providedTrack(task: AthenaTask): MusicTrack | undefined {
     : undefined;
 }
 
+function asksForMusicalGuidance(prompt: string): boolean {
+  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return /\b(?:sugest|recomend|ideia|analise|descrev|o que acha|combina comigo|qual a vibe|qual o clima|que estilo|me ajuda a escolher|explore essa faixa)\w*/.test(normalized);
+}
+
 export class EuterpeAgent implements AthenaAgent {
   get personalityPrompt(): string { return `${EUTERPE_PERSONALITY} ${renderAgentPersona(this.manifest)}`; }
   manifest: AgentManifest = {
@@ -99,9 +104,12 @@ export class EuterpeAgent implements AthenaAgent {
       dna: dna ? { trackId: dna.trackId, schemaVersion: dna.schemaVersion, status: dna.status, visualTags: dna.visualTags, intensity: dna.intensity, calmness: dna.calmness } : undefined,
       preferences: Array.isArray(candidatePreferences) ? candidatePreferences as MusicPreferenceMemory[] : [],
       memories: Array.isArray(candidateMemories) ? candidateMemories as MusicAgentMemory[] : [],
+      experienceContext: context.experienceContext,
     };
     const interpretation = interpretEuterpeRequest(task.rawPrompt, musicContext, conversation);
-    const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
+    const priorOutcomes = asksForMusicalGuidance(task.rawPrompt)
+      ? relevantExperienceGuidance(context, this.manifest.id, track?.id, "music", task.rawPrompt)
+      : [];
     const userDeclinedPreferenceRetention = /não vou propor guardar|não vou propor salvar/i.test(interpretation.response);
     const content = !interpretation.proposal && !userDeclinedPreferenceRetention && priorOutcomes.length
       ? `${interpretation.response}\n\n**Uma abordagem musical que pode valer testar:** ${priorOutcomes[0]}`
