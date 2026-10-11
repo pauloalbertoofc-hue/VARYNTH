@@ -90,3 +90,11 @@ A Camada Semântica Local Híbrida da Athena atua como o elo de tradução semâ
             └───────────────────────┘       └───────────────┘
 ```
 
+## 4. Aprovação coloquial e separação entre plano e esclarecimento
+
+`hasPendingSlot` representa uma pergunta de esclarecimento em aberto; não é autorização para executar. O analisador pragmático recebe apenas `hasPendingPlan` como contexto de aprovação, e a fusão estatística também rebaixa `APPROVAL` para conversa social quando não existe plano pendente. Isso evita que uma resposta curta a uma dúvida seja confundida com confirmação operacional.
+
+O vocabulário contextual inclui variantes formais e coloquiais como “Confirmo”, “Pode mandar” e “Manda ver no rascunho”. O caminho operacional reconhece essas formas somente para localizar um plano persistido na mesma sessão; pontuação terminal é normalizada antes da comparação. Sem plano correspondente, nenhuma mutação é executada e Athena informa que não há confirmação pendente.
+
+Verificação local em 2026-10-11: `npm run test:athena-semantic` passou 33/33 cenários, incluindo execução governada do plano exato na mesma sessão e recusa sem plano; `npm run test:athena-intelligence` e `npm run test:athena-communication` também passaram após a alteração. Esses resultados são testes automatizados, não substituem um walkthrough manual autenticado.
+

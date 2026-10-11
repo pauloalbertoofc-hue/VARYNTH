@@ -87,7 +87,9 @@ export class SemanticInterpretationEngine {
     }
 
     // 3. Layer 3: Pragmatics & Speech Acts Analysis
-    const pragRes = PragmaticsAnalyzer.analyze(cleanText, Boolean(context.hasPendingPlan || context.hasPendingSlot));
+    // A missing clarification slot is not an executable plan and must never
+    // make an approval-shaped answer authoritative.
+    const pragRes = PragmaticsAnalyzer.analyze(cleanText, Boolean(context.hasPendingPlan));
     if (pragRes.isSarcasticOrIronic) pragmaticFlags.push("SARCASM_OR_IRONY");
     if (pragRes.isEmotionalVenting) pragmaticFlags.push("EMOTIONAL_VENTING");
     if (pragRes.isCapabilityQuestion) pragmaticFlags.push("CAPABILITY_INQUIRY");
@@ -187,7 +189,12 @@ export class SemanticInterpretationEngine {
     }
     // Rule H: Similarity Ranking & Statistical Score
     else if (topSim && topSim.score >= 0.28) {
-      if (topSim.intent === "CLARIFICATION_RESPONSE" && !context.hasPendingSlot) {
+      if (topSim.intent === "APPROVAL" && !context.hasPendingPlan) {
+        selectedIntent = "SOCIAL_CONVERSATION";
+        finalConfidence = 0.7;
+        semanticSource = "DETERMINISTIC";
+        deterministicSignals.push("APPROVAL_REQUIRES_PENDING_PLAN");
+      } else if (topSim.intent === "CLARIFICATION_RESPONSE" && !context.hasPendingSlot) {
         selectedIntent = "SOCIAL_CONVERSATION";
         finalConfidence = 0.7;
       } else {

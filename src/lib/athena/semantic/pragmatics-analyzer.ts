@@ -159,7 +159,7 @@ export class PragmaticsAnalyzer {
 
     // 7. Approval Phrase with vs without pending context
     // e.g. "pode", "pode fazer", "manda bala", "vai", "fechado"
-    const approvalTokens = new Set(["pode", "pode fazer", "manda bala", "fechado", "vai", "vai em frente", "aprovado", "autorizado", "pode ser"]);
+    const approvalTokens = new Set(["confirmo", "confirmar", "pode", "pode fazer", "sim pode", "sim execute", "manda bala", "manda ver", "manda ver no rascunho", "pode mandar", "toca ficha", "vai nessa", "fechado", "vai", "vai em frente", "aprovado", "autorizado", "pode ser"]);
     if (approvalTokens.has(text) || text.startsWith("pode fazer") || text === "pode.") {
       return {
         speechAct: "ACKNOWLEDGEMENT",

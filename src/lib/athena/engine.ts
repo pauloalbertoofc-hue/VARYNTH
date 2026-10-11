@@ -156,8 +156,8 @@ async function tryCanonicalPlanControl(
   sessionId: string,
   projectId?: string
 ): Promise<AthenaMessage | undefined> {
-  const clean = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const isConfirm = /^(confirmo|confirmar|pode executar|pode fazer|sim,? execute|sim,? pode)$/.test(clean);
+  const clean = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[.!?]+$/g, "").trim();
+  const isConfirm = /^(confirmo|confirmar|pode executar|pode fazer|sim,? execute|sim,? pode|manda ver(?: no rascunho)?|pode mandar|toca ficha|vai nessa)$/.test(clean);
   const isCancel = /^(cancelar|cancele|nao execute|nao,? cancela)$/.test(clean);
   const isUndo = /^(desfazer|desfaca|desfaz|undo)( a ultima acao| ultima acao)?$/.test(clean);
   if (!isConfirm && !isCancel && !isUndo) return undefined;

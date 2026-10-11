@@ -1,6 +1,6 @@
 /**
  * VARYNTH OS — ATHENA SEMANTIC REGRESSION SUITE
- * 30 Regression Scenarios (SEM-REG-001 .. SEM-REG-030)
+ * 33 Regression Scenarios (SEM-REG-001 .. SEM-REG-033)
  * Validates Hybrid Local Semantic Layer, Negation, Pragmatics, Noise, Slot Provenance,
  * Generalization on Unseen Holdout, and Invariants INV-037..042.
  */
@@ -17,6 +17,12 @@ import { permissionPolicyEngine } from "../../permissions/permission-policy";
 import { SystemInvariantValidator } from "../../hardening/system-invariant-validator";
 import { createMockContext } from "./athena-intelligence-suite.test";
 import { processAthenaQueryAsync, processAthenaQuery } from "../engine";
+import { capabilityPlanBuilder } from "../runtime/capability-plan-builder";
+import { capabilityPlanRuntime } from "../runtime/capability-plan-runtime";
+import { capabilityPlanStore } from "../runtime/capability-plan-store";
+import type { AthenaTask } from "../domain/task";
+import type { AthenaWorkflow } from "../domain/workflow";
+import type { AthenaContext } from "../domain/context";
 
 interface SemanticTestRecord {
   id: string;
@@ -27,7 +33,7 @@ interface SemanticTestRecord {
 
 export async function runSemanticRegressionSuite(): Promise<{ total: number; passed: number; failed: number }> {
   console.log("\n===============================================================");
-  console.log("  VARYNTH OS — ATHENA SEMANTIC REGRESSION SUITE (30 CASES)");
+  console.log("  VARYNTH OS — ATHENA SEMANTIC REGRESSION SUITE (33 CASES)");
   console.log("===============================================================\n");
 
   const results: SemanticTestRecord[] = [];
@@ -339,6 +345,58 @@ export async function runSemanticRegressionSuite(): Promise<{ total: number; pas
     "Semantic evaluation holdout generalizes without direct corpus memorization (HOLDOUT)",
     r30.intent === "TASK_QUERY" || r30.intent === "ECOSYSTEM_STATUS",
     `Holdout result: ${r30.intent}`
+  );
+
+  // SEM-REG-031: Colloquial approval is contextual and cannot cross a clarification slot.
+  const colloquialApproval = "Manda ver no rascunho.";
+  const approvalWithoutPlan = SemanticInterpretationEngine.interpretSync(normalizeText(colloquialApproval), colloquialApproval);
+  const approvalWithPlan = SemanticInterpretationEngine.interpretSync(normalizeText(colloquialApproval), colloquialApproval, { hasPendingPlan: true });
+  const approvalWithOnlyClarification = SemanticInterpretationEngine.interpretSync(normalizeText(colloquialApproval), colloquialApproval, { hasPendingSlot: true });
+  const engineApprovalWithoutPlan = await processAthenaQueryAsync(colloquialApproval, "geral", ctx, undefined, "semantic-colloquial-approval-without-plan");
+  record(
+    "SEM-REG-031",
+    "Colloquial approval requires an actual pending plan, not a missing clarification slot",
+    approvalWithoutPlan.intent === "SOCIAL_CONVERSATION" && approvalWithPlan.intent === "APPROVAL" && approvalWithOnlyClarification.intent === "SOCIAL_CONVERSATION" && engineApprovalWithoutPlan.text.includes("Não há nenhum plano persistido aguardando confirmação"),
+    `No plan: ${approvalWithoutPlan.intent}; plan: ${approvalWithPlan.intent}; clarification only: ${approvalWithOnlyClarification.intent}; engine: ${engineApprovalWithoutPlan.text}`
+  );
+
+  // SEM-REG-032: Conversational confirmation language has equivalent formal/casual readings.
+  const casualApproval = SemanticInterpretationEngine.interpretSync(normalizeText("Pode mandar."), "Pode mandar.", { hasPendingPlan: true });
+  const formalApproval = SemanticInterpretationEngine.interpretSync(normalizeText("Confirmo."), "Confirmo.", { hasPendingPlan: true });
+  record(
+    "SEM-REG-032",
+    "Formal and colloquial approvals map to the same contextual intent",
+    casualApproval.intent === "APPROVAL" && formalApproval.intent === "APPROVAL",
+    `Casual: ${casualApproval.intent}; formal: ${formalApproval.intent}`
+  );
+
+  // SEM-REG-033: Colloquial confirmation executes only the exact plan in this session.
+  const approvalSession = "semantic-colloquial-approval-with-plan";
+  capabilityPlanStore.clear();
+  const approvalTask: AthenaTask = {
+    id: "semantic-approval-task", title: "Criar rascunho", rawPrompt: "Criar tarefa de rascunho",
+    type: "ACTION_FAST", priority: "media", status: "CREATED", scope: "geral", entities: {},
+    metadata: { sessionId: approvalSession }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  const approvalWorkflow: AthenaWorkflow = {
+    id: "semantic-approval-workflow", taskId: approvalTask.id, name: "Rascunho", plannerId: "semantic-test",
+    status: "PENDING", currentStepIndex: 0, createdAt: new Date().toISOString(),
+    steps: [{ id: "create-draft", name: "Criar rascunho", status: "PENDING", toolCall: { toolName: "tasks.create", params: { title: "Rascunho aprovado" } } }],
+  };
+  const approvalContext: AthenaContext = {
+    scope: "geral", relevantProjects: [], relevantTasks: [], relevantVaultItems: [], relevantChronosEvents: [],
+    relevantTheses: [], relevantEvidences: [], relevantOpportunities: [], systemTime: new Date().toISOString(),
+  };
+  capabilityPlanRuntime.register(capabilityPlanBuilder.build(approvalTask, approvalWorkflow, approvalContext));
+  const taskCountBeforeApproval = ctx.tasks.length;
+  const confirmedDraft = await processAthenaQueryAsync("Manda ver no rascunho.", "geral", ctx, undefined, approvalSession);
+  const confirmedPlanStatus = confirmedDraft.metadata?.capabilityPlanStatus;
+  capabilityPlanStore.clear();
+  record(
+    "SEM-REG-033",
+    "Colloquial confirmation executes only the persisted plan in the same session",
+    confirmedPlanStatus === "COMPLETED" && ctx.tasks.length === taskCountBeforeApproval + 1 && ctx.tasks.at(-1)?.title === "Rascunho aprovado",
+    `Plan status: ${String(confirmedPlanStatus)}; created task: ${ctx.tasks.at(-1)?.title || "none"}`
   );
 
   console.log("\n===============================================================");
