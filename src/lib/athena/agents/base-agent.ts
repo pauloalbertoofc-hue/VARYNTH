@@ -74,8 +74,12 @@ function conversationalizeSpecialistResult(
   const lead = alreadyIntroduced ? "" : formality === "formal"
     ? `Sou ${manifest.name}; ${identity}${continuity}`
     : `Sou ${manifest.name} — ${identity}${continuity}`;
-  const nextStep = result.recommendations?.find((item) => item.trim())
-    ?? (result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.");
+  const recommendation = result.recommendations?.find((item) => item.trim());
+  const nextStep = recommendation
+    ? formality === "formal" ? `Como próximo passo, sugiro: ${recommendation}` : recommendation
+    : formality === "formal"
+      ? result.success ? "Caso deseje, posso aprofundar no ponto que considerar mais importante." : "Para prosseguir com precisão, informe qual dado ou trecho devo considerar."
+      : result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.";
   const concise = verbosity === "concise";
   const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
   // Put the domain answer first: identity and conversational scaffolding must

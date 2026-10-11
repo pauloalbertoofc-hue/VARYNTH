@@ -63,8 +63,10 @@ void (async () => {
   const registerMatched = await converseAsSpecialist(agent, { rawPrompt: "Vc pode me dar uma força nisso?", scope: "pesquisa" } as AthenaTask, context);
   assert.deepEqual(registerMatched.metadata?.presentationPreferences, { formality: "informal" }, "A clear informal register may guide this reply without being persisted as a preference");
   assert.ok(registerMatched.content.startsWith("Resposta revisada"));
+  assert.match(registerMatched.content, /Se quiser, posso aprofundar/);
   const formalRegister = await converseAsSpecialist(agent, { rawPrompt: "Poderia, por gentileza, revisar esta análise?", scope: "pesquisa" } as AthenaTask, context);
   assert.deepEqual(formalRegister.metadata?.presentationPreferences, { formality: "formal" }, "A clear formal register may guide this reply without being persisted as a preference");
+  assert.match(formalRegister.content, /Caso deseje, posso aprofundar/);
 
   responseBody = "🔬 **Análise Metodológica & Científica (Logos):**\n\nOs estudos recebidos ainda não permitem uma conclusão firme.";
   const athenaOwned = await converseAsSpecialist(agent, { rawPrompt: "Avalie esta evidência", scope: "pesquisa" } as AthenaTask, {
