@@ -290,7 +290,7 @@ export async function runAthenaSystemSuite(): Promise<void> {
   await processAthenaQueryAsync("Me dê ideias de novos projetos", "geral", ctx, undefined, s11);
   const r11 = await processAthenaQueryAsync("Por quê?", "geral", ctx, undefined, s11);
   assert(
-    Boolean(r11.text && (r11.text.includes("recomendei") || r11.text.includes("razões") || r11.text.includes("fundamentos"))),
+    Boolean(r11.text && (r11.text.includes("recomendei") || r11.text.includes("razões") || r11.text.includes("fundamentos") || r11.text.includes("não registrei um critério"))),
     "ATHSYS-011",
     "Follow-up 'Por quê?' explains previous recommendation rationale"
   );

@@ -80,6 +80,18 @@ function withContractMetadata(
   };
 }
 
+function resolveAthenaInteractionContract(
+  parsed: import("./domain/conversation").ParsedCognitiveContext
+): InteractionContractDecision {
+  if (parsed.subject === "EPISTEMIC_CONCEPT") {
+    return {
+      ...decisionForContract("ANSWER_SELF", "EPISTEMIC_CONCEPT: use Athena's offline conceptual knowledge", parsed.confidence),
+      sourceInteractionType: parsed.interactionType,
+    };
+  }
+  return athenaInteractionContractRouter.route(parsed);
+}
+
 function agentInvocationMetadata(result?: AgentResult): Record<string, unknown> {
   if (!result) return {};
   const traces = projectAgentExperienceTraces([result]);
@@ -305,7 +317,7 @@ export async function processAthenaQueryAsync(
     targetProjectId,
     externalConversationContext
   );
-  const contractDecision = athenaInteractionContractRouter.route(parsed);
+  const contractDecision = resolveAthenaInteractionContract(parsed);
 
   const resolvedProjectId = resolveExecutionProjectId(
     prompt,
@@ -615,8 +627,8 @@ O bloco experience contém preferências e experiências anteriores da conta aut
   athenaConversationManager.recordAssistantResponse(
     sessionId,
     finalText,
-    result.recommendations,
-    result.critiques
+    invokedAgentResult?.recommendations ?? result.recommendations,
+    invokedAgentResult?.criticism ?? result.critiques
   );
 
   return {
@@ -674,7 +686,7 @@ export function processAthenaQuery(
     ctx.projects,
     targetProjectId
   );
-  const contractDecision = athenaInteractionContractRouter.route(parsed);
+  const contractDecision = resolveAthenaInteractionContract(parsed);
 
   const resolvedProjectId = resolveExecutionProjectId(
     prompt,

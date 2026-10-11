@@ -29,8 +29,8 @@ export class JustitiaAgent implements AthenaAgent {
       p.includes("stf") ||
       p.includes("stj") ||
       p.includes("jurisprudencia") ||
-      p.includes("hermeneutica") ||
-      p.includes("hermenêutica") ||
+      p.includes("hermeneutica juridica") ||
+      p.includes("hermenêutica jurídica") ||
       p.includes("processo") ||
       p.includes("constitucional")
     );
