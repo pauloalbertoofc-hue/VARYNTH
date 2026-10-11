@@ -30,6 +30,19 @@ const colloquialTrackFollowUp = interpretEuterpeRequest("E essa? O que acha?", c
 assert.match(colloquialTrackFollowUp.response, /Noite.*X/);
 assert.match(colloquialTrackFollowUp.response, /parcial.*dark.*20%.*80%/i, "A response should use the current track's provided DNA with its limitations");
 assert.match(colloquialTrackFollowUp.response, /não identificam.*gênero.*instrumentos.*letra/i, "DNA intensity/tags must not be inflated into unsupported audio claims");
+const staleDna = interpretEuterpeRequest("Qual o gênero desta faixa?", {
+  ...context,
+  track: { id: "t2", name: "Manhã", artist: "Y" },
+});
+assert.match(staleDna.response, /Manhã.*não recebi Music DNA/i, "DNA from the previously selected track must not be attributed to the current track");
+assert.doesNotMatch(staleDna.response, /dark|intensidade \(20%\)/i, "stale track tags and measurements must be excluded");
+const staleDnaFallback = interpretEuterpeRequest("Oi, Euterpe", { ...context, track: { id: "t2", name: "Manhã", artist: "Y" } });
+assert.match(staleDnaFallback.response, /Manhã.*ainda sem Music DNA/i);
+assert.doesNotMatch(staleDnaFallback.response, /dark/);
+const asksLyrics = interpretEuterpeRequest("Sobre o que fala a letra?", { ...context, dna: undefined });
+assert.match(asksLyrics.response, /não vou fingir que ouvi/i, "lyrics questions must state that no lyric or audio analysis was provided");
+const asksInstruments = interpretEuterpeRequest("Quais instrumentos você percebe?", { ...context, dna: undefined });
+assert.match(asksInstruments.response, /não vou fingir que ouvi/i, "instrument questions must state the acoustic evidence boundary");
 const noDnaTrackOpinion = interpretEuterpeRequest("O que acha dessa faixa?", { ...context, dna: undefined });
 assert.match(noDnaTrackOpinion.response, /Noite.*não recebi Music DNA/i);
 const noTrackFollowUp = interpretEuterpeRequest("E essa?", { ...context, track: undefined, dna: undefined });
