@@ -12,7 +12,7 @@ import { mnemosyneAgent } from "./mnemosyne";
 import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
 import { euterpeAgent } from "./music-curator";
-import { prepareAgentConversationHistory, resolveAgentFollowUp } from "../base-agent";
+import { inferCurrentConversationRegister, prepareAgentConversationHistory, resolveAgentFollowUp } from "../base-agent";
 import type { AthenaAgent } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
@@ -56,6 +56,12 @@ assert.match(suppliedHistory[0].text, /preservação de rios/i);
 
 const ctx = { scope: "geral", relevantProjects: [], relevantTasks: [], relevantVaultItems: [], relevantChronosEvents: [], relevantTheses: [], relevantEvidences: [], relevantOpportunities: [], systemTime: "2026-09-23T12:00:00.000Z" } as unknown as AthenaContext;
 const task = (rawPrompt: string): AthenaTask => ({ id: "agent-grounding", title: rawPrompt, rawPrompt, type: "GENERAL_DELIBERATION", priority: "media", status: "CREATED", scope: "geral", entities: {}, createdAt: "", updatedAt: "" });
+
+assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí, por favor."), "formal", "explicit politeness takes precedence over mixed colloquial markers");
+assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí."), "informal");
+assert.equal(inferCurrentConversationRegister("Você pode analisar esta proposta?"), undefined, "standard Brazilian Portuguese pronouns are not informal markers by themselves");
+assert.equal(inferCurrentConversationRegister("Poderia revisar, por gentileza?"), "formal");
+assert.equal(inferCurrentConversationRegister("Analise os riscos da proposta."), undefined, "domain vocabulary alone must not imply a communication preference");
 
 void (async () => {
   for (const agent of agents.filter((candidate) => candidate.manifest.id !== "athena-generalist")) {

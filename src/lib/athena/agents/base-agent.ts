@@ -39,6 +39,15 @@ export function renderAgentPersona(manifest: AgentManifest): string {
   ].join(" ");
 }
 
+export function inferCurrentConversationRegister(prompt: string): "formal" | "informal" | undefined {
+  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const formalSignals = /\b(por favor|por gentileza|poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente|agradeco desde ja|encaminho|gostaria de solicitar)\b/;
+  const informalSignals = /\b(vc|vcs|c[eê]|pra|pro|t[aá]|t[oô]|tava|tavam|blz|valeu|kkk|rsrs|mano|cara|tipo assim|me da uma forca|me ajuda ai|faz pra mim)\b/;
+  if (formalSignals.test(normalized)) return "formal";
+  if (informalSignals.test(normalized)) return "informal";
+  return undefined;
+}
+
 /** Resolves only clear follow-up references from the active session's user turns.
  * Assistant turns are intentionally excluded: they are not independent evidence. */
 export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { prompt: string; usedHistory: boolean } {
@@ -61,9 +70,7 @@ function conversationalizeSpecialistResult(
 
   const explicitStyle = originalPrompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const learnedStyle = agentGuidanceInstruction(context, manifest.id, originalPrompt).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const currentRegister = /\b(por gentileza|poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente)\b/.test(explicitStyle)
-    ? "formal"
-    : /\b(vc|vcs|pra|ta|to|blz|valeu|kkk|mano)\b|me da uma forca/.test(explicitStyle) ? "informal" : undefined;
+  const currentRegister = inferCurrentConversationRegister(originalPrompt);
   const verbosity = confirmedAgentGuidance(context, manifest.id, "verbosity", originalPrompt)
     ?? (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined);
   const formality = confirmedAgentGuidance(context, manifest.id, "formality", originalPrompt)
