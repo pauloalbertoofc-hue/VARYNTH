@@ -6,8 +6,8 @@ import { retainExperience } from "./outcome-service";
 async function run() {
   await Promise.all([experienceEventRepository.clear(), experiencePreferenceRepository.clear(), experienceRepository.clear()]);
   const event = await experienceService.record({ actor: "USER", actionType: "FEEDBACK_SUBMITTED", metadata: {}, source: "test", privacyScope: "USER_SHARED", learningEligible: true });
-  const inferred = await preferenceService.propose({ subject: "user", domain: "audio", key: "mix", value: "warm", scope: "DOMAIN", scopeId: "audio", evidence: [{ eventId: event.id, weight: "HIGH", reason: "approved" }], proposedAt: new Date().toISOString() });
-  const confirmed = await preferenceService.propose({ subject: "user", domain: "audio", key: "style", value: "natural", scope: "DOMAIN", scopeId: "audio", evidence: [{ eventId: event.id, weight: "VERY_HIGH", reason: "explicit" }], proposedAt: new Date().toISOString() });
+  const inferred = await preferenceService.propose({ subject: "local-owner", domain: "audio", key: "mix", value: "warm", scope: "DOMAIN", scopeId: "audio", evidence: [{ eventId: event.id, weight: "HIGH", reason: "approved" }], proposedAt: new Date().toISOString() });
+  const confirmed = await preferenceService.propose({ subject: "local-owner", domain: "audio", key: "style", value: "natural", scope: "DOMAIN", scopeId: "audio", evidence: [{ eventId: event.id, weight: "VERY_HIGH", reason: "explicit" }], proposedAt: new Date().toISOString() });
   await preferenceService.setStatus(confirmed.id, "CONFIRMED");
   const retained = await retainExperience({ domain: "audio", context: {}, situation: "mix a scene", action: "lower the pad", outcome: "accepted", evidence: [{ eventId: event.id, weight: "HIGH", reason: "approved" }] });
 

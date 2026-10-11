@@ -2,6 +2,7 @@ import { experienceEventRepository, learningExclusionRepository } from "@/lib/pe
 import { experienceService } from "./experience-service";
 import { learningExclusionService } from "./learning-exclusion-service";
 import { derivePreferenceCandidatesWithPolicy } from "./preference-candidate-service";
+import { preferenceService } from "./preference-service";
 import type { ExperienceEvent } from "./contracts";
 
 async function run() {
@@ -13,9 +14,14 @@ async function run() {
     privacyScope: "PROJECT_SHARED", learningEligible: true, schemaVersion: 1,
   }));
   await experienceEventRepository.saveBatch(historicalSignals);
-  if ((await derivePreferenceCandidatesWithPolicy(historicalSignals, "local-owner")).length !== 1) throw new Error("eligible historical events did not produce a reviewable candidate");
+  const [historicalCandidate] = await derivePreferenceCandidatesWithPolicy(historicalSignals, "local-owner");
+  if (!historicalCandidate) throw new Error("eligible historical events did not produce a reviewable candidate");
   await learningExclusionService.disable("PROJECT", "private-project", "não usar como aprendizado");
   if ((await derivePreferenceCandidatesWithPolicy(historicalSignals, "local-owner")).length !== 0) throw new Error("active exclusion did not suppress candidates from historical events");
+  let excludedProposalRejected = false;
+  try { await preferenceService.propose(historicalCandidate, "local-owner"); }
+  catch (error) { excludedProposalRejected = error instanceof Error && error.message.includes("PREFERENCE_LEARNING_EXCLUDED"); }
+  if (!excludedProposalRejected) throw new Error("direct candidate persistence bypassed the active project learning exclusion");
 
   const excluded = await experienceService.record({
     actor: "USER", actionType: "MANUAL_EDIT", metadata: {}, source: "editor", domain: "audio",

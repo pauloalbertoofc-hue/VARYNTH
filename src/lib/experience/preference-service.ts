@@ -5,6 +5,9 @@ import { getExperienceOwnerId } from "./identity";
 import { experienceService } from "./experience-service";
 import { domainRegistry } from "@/lib/knowledge/domain-registry";
 import { EXPERIENCE_AGENT_CATALOG } from "./agent-catalog";
+import { extractSignal } from "./signals";
+import { findLearningExclusion } from "./learning-policy";
+import { resolveExperienceFeatureFlags } from "./feature-flags";
 
 const scopeRank: Record<PreferenceScope, number> = { GLOBAL: 1, DOMAIN: 2, AGENT: 3, MODULE: 3, PROJECT: 4, ARTIFACT: 5, SESSION: 6 };
 
@@ -43,11 +46,18 @@ export class PreferenceService {
   async propose(candidate: PreferenceCandidate, requestedOwnerId?: string): Promise<Preference> {
     if (!candidate.evidence.length) throw new Error("[PREFERENCE_INVALID] Preferência inferida exige evidência.");
     const ownerId = await getExperienceOwnerId(requestedOwnerId);
-    if (typeof window !== "undefined" && candidate.subject !== ownerId) throw new Error("[PREFERENCE_OWNER_MISMATCH] A hipótese precisa pertencer à conta autenticada.");
+    if (candidate.subject.trim() !== ownerId) throw new Error("[PREFERENCE_OWNER_MISMATCH] A hipótese precisa pertencer à conta autenticada.");
+    const featureFlags = resolveExperienceFeatureFlags();
+    if (!featureFlags.enabled || !featureFlags.preferenceInferenceEnabled) throw new Error("[PREFERENCE_INFERENCE_DISABLED] A inferência está pausada nesta implantação.");
     const evidenceEventIds = new Set(candidate.evidence.map((item) => item.eventId));
+    if (evidenceEventIds.size !== candidate.evidence.length) throw new Error("[PREFERENCE_EVIDENCE_INVALID] Evidências duplicadas não contam como sinais independentes.");
     const sourceEvents = await experienceEventRepository.getAll((event) => evidenceEventIds.has(event.id));
     if (sourceEvents.length !== evidenceEventIds.size || sourceEvents.some((event) => event.ownerId !== ownerId)) {
       throw new Error("[PREFERENCE_EVIDENCE_INVALID] Todas as evidências devem existir e pertencer à mesma conta.");
+    }
+    for (const event of sourceEvents) {
+      if (!extractSignal(event)?.eligible) throw new Error("[PREFERENCE_EVIDENCE_INELIGIBLE] Evidência não elegível não pode gerar preferência.");
+      if (await findLearningExclusion(event)) throw new Error("[PREFERENCE_LEARNING_EXCLUDED] O escopo de uma evidência está excluído do aprendizado.");
     }
     const now = new Date().toISOString();
     const id = idFor(candidate, ownerId);
