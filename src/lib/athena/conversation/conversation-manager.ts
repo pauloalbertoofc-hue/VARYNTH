@@ -313,6 +313,19 @@ export class ConversationManager {
       }
     }
 
+    // Shared pragmatic cues are useful only when there is an actual prior
+    // exchange to bind them to. Keep short standalone fragments ambiguous.
+    if (
+      !isEllipsis &&
+      pragmaticUnderstanding.intent === "FOLLOW_UP" &&
+      lastUserTurn?.text.trim() &&
+      lastAthenaTurn?.text.trim()
+    ) {
+      isEllipsis = true;
+      originalReferent = lastUserTurn.text.slice(0, 500);
+      resolvedMeaning = `Continuar a solicitação anterior da pessoa usuária: "${originalReferent}"`;
+    }
+
     // -------------------------------------------------------------
     // 3. SEMANTIC INTERPRETATION LAYER INTEGRATION
     // -------------------------------------------------------------

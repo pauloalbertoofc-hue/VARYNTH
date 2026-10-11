@@ -72,6 +72,16 @@ async function run(): Promise<void> {
   const greeting = await processAthenaQueryAsync("Oi Athena", "geral", context, undefined, "communication-greeting");
   assert(!greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural without leaking another account name");
 
+  const colloquialFollowUp = athenaConversationManager.processMessage("communication-colloquial-follow-up", "E aí?", [], undefined, [
+    { role: "user", text: "Quero entender as opções para estruturar esse projeto." },
+    { role: "athena", text: "Posso comparar as opções com você." },
+  ]);
+  assert(colloquialFollowUp.ellipsisResolved?.isEllipsis, "A colloquial short follow-up must bind only when a prior exchange exists");
+  assert(colloquialFollowUp.ellipsisResolved?.originalReferent === "Quero entender as opções para estruturar esse projeto.", "The exact preceding user request must remain the contextual referent");
+  assert(colloquialFollowUp.interactionType === "COGNITIVE_REQUEST", "A contextual continuation should stay on the cognitive path instead of resetting to social conversation");
+  const greetingEai = athenaConversationManager.processMessage("communication-eai-greeting", "E aí, tudo bem?");
+  assert(!greetingEai.ellipsisResolved?.isEllipsis, "A greeting-shaped turn must not manufacture a previous-topic reference");
+
   const clarificationSession = "communication-clarify-previous-answer";
   const priorAnswer = "A revisão encontrou duas premissas sem fonte e recomendou separar hipótese de evidência antes da conclusão.";
   athenaConversationManager.updateSessionWithHistory(clarificationSession, [
