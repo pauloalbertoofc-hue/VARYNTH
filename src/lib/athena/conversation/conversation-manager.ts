@@ -156,6 +156,13 @@ export class ConversationManager {
         break;
       }
     }
+    const explicitlyMentionedProjectTitles = allProjects.filter((proj) => {
+      const projectTokens = normalizeText(proj.title)
+        .split(" ")
+        .filter((token) => token.length > 1 && !["de", "da", "do", "das", "dos", "e"].includes(token));
+      return clean.includes(normalizeText(proj.title))
+        || (projectTokens.length >= 2 && projectTokens.every((token) => clean.split(" ").includes(token)));
+    }).map((project) => project.title);
 
     // Pronoun Target Resolution
     let pronounTarget: "ATHENA" | "USER_SYSTEM" | "SPECIFIC_PROJECT" | "GENERAL" = "GENERAL";
@@ -346,6 +353,12 @@ export class ConversationManager {
     const isComparisonRequest =
       clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
       clean.includes("vale mais a pena") || clean.includes("versus");
+    const isPluralDeicticComparison = /\b(os dois|as duas|ambos|ambas|entre eles|entre elas)\b/.test(clean);
+    const knownComparisonTargets = new Set([
+      ...state.recentEntities,
+      ...explicitlyMentionedProjectTitles,
+    ].map((entity) => normalizeText(entity)));
+    const isUnresolvedComparison = isComparisonRequest && isPluralDeicticComparison && knownComparisonTargets.size < 2;
     const isPositiveSlangFeedback = /\b(?:ideia|resultado|trabalho|projeto)\b.{0,12}\bficou\b.{0,8}\b(?:foda|demais|louco|maluco)\b/.test(clean)
       || /\b(?:ideia|resultado|trabalho|projeto)\s+e\s+foda\b/.test(clean)
       || /\bficou\s+foda\b/.test(clean);
@@ -389,7 +402,7 @@ export class ConversationManager {
       isVaultSaveRequest ||
       isExplicitMutation ||
       isCritiqueRequest ||
-      isComparisonRequest ||
+      (isComparisonRequest && !isUnresolvedComparison) ||
       isBrainstormRequest ||
       isPlanningRequest ||
       isConditionalFallback ||
@@ -425,6 +438,15 @@ export class ConversationManager {
       subject = "UNRESOLVED_REFERENCE";
       isAmbiguous = true;
       clarificationPrompt = "Não tenho um item anterior confiável para associar a essa referência. Qual é o nome do item ou projeto?";
+    }
+    else if (isUnresolvedComparison) {
+      interactionType = "CONVERSATION";
+      intents.push("CLARIFICATION_REQUIRED");
+      confidence = "LOW";
+      requiresContext = false;
+      subject = "UNRESOLVED_COMPARISON";
+      isAmbiguous = true;
+      clarificationPrompt = "Quais são os dois itens ou projetos que você quer comparar? Não vou presumir o segundo referente.";
     }
     else if (semantic.isNoise || (semantic.requiresClarification && !hasSupportedConversationSignal)) {
       interactionType = "CONVERSATION";
@@ -765,6 +787,8 @@ export class ConversationManager {
       ? ["vaultItem"]
       : subject === "UNRESOLVED_REFERENCE"
         ? ["referencedItem"]
+        : subject === "UNRESOLVED_COMPARISON"
+          ? ["comparisonTargets"]
         : semantic.missingInformation;
     const comprehensionStatus = subject === "VAULT_ITEM_REQUIRED"
       ? "MISSING_INFORMATION" as const

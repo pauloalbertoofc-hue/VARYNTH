@@ -46,4 +46,19 @@ parsed = process(openSession, "Uma síntese curta, sem jargão");
 assert.ok(parsed.intents.includes("CLARIFICATION_RESPONSE"), "a concise answer should resolve an explicitly open clarification");
 assert.equal(manager.getOrCreateSession(openSession).pendingQuestion, undefined);
 
+const comparisonSession = "comparison-targets-required";
+const comparisonState = manager.getOrCreateSession(comparisonSession);
+comparisonState.recentEntities = ["VARYNTH OS"];
+parsed = process(comparisonSession, "Compare os dois.");
+assert.ok(parsed.intents.includes("CLARIFICATION_REQUIRED"), "a plural comparison without two known targets must ask instead of inventing a referent");
+assert.equal(parsed.subject, "UNRESOLVED_COMPARISON");
+assert.equal(parsed.isAmbiguous, true);
+assert.deepEqual(parsed.missingInformation, ["comparisonTargets"]);
+assert.match(parsed.clarificationPrompt || "", /quais são os dois itens/i);
+
+const explicitComparisonSession = "comparison-explicit-targets";
+parsed = process(explicitComparisonSession, "Compare VARYNTH OS e Pesquisa CNJ.");
+assert.ok(parsed.intents.includes("COMPARE"), "two explicitly named projects provide sufficient comparison targets");
+assert.notEqual(parsed.subject, "UNRESOLVED_COMPARISON");
+
 console.log("Pending clarification accepts only compatible answers and preserves context across unrelated input.");
