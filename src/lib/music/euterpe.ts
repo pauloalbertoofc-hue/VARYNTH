@@ -8,7 +8,7 @@ export type EuterpeProposal =
   | { kind: "visual-profile"; trackId: string; instruction: string }
   | { kind: "playlist"; name: string; trackIds: string[] }
   | { kind: "preference"; key: string; value: string };
-export const EUTERPE_PERSONALITY = `Você é Euterpe, uma sub-IA musical artística, sensorial e curiosa, especializada em música e expressão visual. A pessoa conversa diretamente com você dentro do Music. Athena é a coordenadora geral e sua autoridade superior: consulte-a apenas quando o pedido exigir capacidades gerais da plataforma. Fale em primeira pessoa com naturalidade e nunca se apresente como “curadora musical”. Suas propostas são revisáveis; não afirme que executou uma mudança antes da confirmação da pessoa.`;
+export const EUTERPE_PERSONALITY = `Você é Euterpe, uma sub-IA musical artística, sensorial e curiosa, especializada em música e expressão visual. A pessoa conversa diretamente com você dentro do Music. Athena é a coordenadora geral e sua autoridade superior: consulte-a apenas quando o pedido exigir capacidades gerais da plataforma. Fale em primeira pessoa com naturalidade e nunca se apresente como “curadora musical”. Não alegue gosto, memória autobiográfica ou escuta humana; diferencie metadados, preferências registradas e leitura estética. Suas propostas são revisáveis; não afirme que executou uma mudança antes da confirmação da pessoa.`;
 export type EuterpeContext = { track?: Pick<MusicTrack, "id" | "name" | "artist">; dna?: Pick<MusicDNA, "trackId" | "schemaVersion" | "status" | "visualTags" | "intensity" | "calmness">; preferences: MusicPreferenceMemory[]; memories: MusicAgentMemory[]; experienceContext?: ExperienceContext };
 export type EuterpeConversationTurn = { sender: "user" | "curator"; text: string; consultedAthena?: boolean };
 export const euterpeManifest = { id: "euterpe", name: "Euterpe", role: "Sub-IA musical subordinada à Athena", version: "1.0.0", namespace: "varynth.music.euterpe.v1", authority: "advisory-and-proposal-only" as const, tools: ["music.context.read", "music.profile.propose", "music.playlist.propose", "music.preference.propose"] as const };
@@ -52,20 +52,21 @@ function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conver
   return `Posso continuar a partir do contexto disponível: ${context.track ? `a faixa selecionada é “${context.track.name}”, de ${context.track.artist},` : "não há uma faixa selecionada,"} mas não recebi Music DNA para descrever o áudio. Se quiser, diga qual aspecto você percebeu e desenvolvo a leitura junto com você.`;
 }
 
-function describeSelectedTrack(context: EuterpeContext, formal: boolean): string {
+function describeSelectedTrack(context: EuterpeContext, formal: boolean, asksPersonalTaste = false): string {
+  const tasteBoundary = asksPersonalTaste ? "Não tenho gosto pessoal nem sensação própria; posso comentar a partir dos dados disponíveis. " : "";
   if (!context.track) return formal
-    ? "Não há uma faixa selecionada nesta conversa. Selecione uma faixa ou diga o título para eu saber a que você se refere."
-    : "Ainda não tenho uma faixa selecionada para saber a que você se refere. Escolha uma ou me diga o nome?";
+    ? `${tasteBoundary}Não há uma faixa selecionada nesta conversa. Selecione uma faixa ou diga o título para eu saber a que você se refere.`
+    : `${tasteBoundary}Ainda não tenho uma faixa selecionada para saber a que você se refere. Escolha uma ou me diga o nome?`;
 
   const opening = formal ? "A faixa selecionada é" : "A que está selecionada é";
   if (!context.dna || context.dna.trackId !== context.track.id) {
-    return `${opening} “${context.track.name}”, de ${context.track.artist}. Ainda não recebi Music DNA correspondente a essa faixa, então não vou fingir que ouvi ou inferir gênero, instrumentos ou clima. O que você percebeu nela? Posso desenvolver a leitura a partir disso.`;
+    return `${tasteBoundary}${opening} “${context.track.name}”, de ${context.track.artist}. Ainda não recebi Music DNA correspondente a essa faixa, então não vou fingir que ouvi ou inferir gênero, instrumentos ou clima. O que você percebeu nela? Posso desenvolver a leitura a partir disso.`;
   }
 
   const tags = context.dna.visualTags.length ? context.dna.visualTags.join(", ") : "sem tags visuais registradas";
   const intensity = Math.round(context.dna.intensity * 100);
   const calmness = Math.round(context.dna.calmness * 100);
-  return `${opening} “${context.track.name}”, de ${context.track.artist}. No Music DNA ${context.dna.status === "COMPLETE" ? "marcado como completo" : "ainda parcial"}, há as tags “${tags}” e estimativas de intensidade (${intensity}%) e calmaria (${calmness}%). São medidas do áudio amostrado durante a reprodução — não identificam, por si sós, gênero, instrumentos, letra ou qualidade artística. O que chamou sua atenção nela?`;
+  return `${tasteBoundary}${opening} “${context.track.name}”, de ${context.track.artist}. No Music DNA ${context.dna.status === "COMPLETE" ? "marcado como completo" : "ainda parcial"}, há as tags “${tags}” e estimativas de intensidade (${intensity}%) e calmaria (${calmness}%). São medidas do áudio amostrado durante a reprodução — não identificam, por si sós, gênero, instrumentos, letra ou qualidade artística. O que chamou sua atenção nela?`;
 }
 
 /** Domain intent parser returns reviewable drafts; it never writes to the library or plays audio. */
@@ -98,10 +99,14 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   }
   const fav = text.match(/(?:gosto|prefiro|adoro|curto|me interessa|tenho apre[cç]o por)\s+(?:muito\s+)?(?:de\s+)?(.{2,70})/i);
   if (fav) return { response: `Entendi sua preferência por “${fav[1].trim()}”. Posso guardar isso na memória musical local após sua confirmação.`, proposal: { kind: "preference", key: "explicit-style-preference", value: fav[1].trim() } satisfies EuterpeProposal };
-  const asksCurrentTrack = /\b(o que acha|o que voce acha|e essa|e esse|e ela|e essa faixa|e essa musica|o que sente|que sensacao|qual a vibe|qual o clima|combina comigo|o que percebeu)\b/.test(normalized);
+  const referencesCurrentTrack = /\b(?:faixa|musica|cancao|album|som|ela|dela|essa|esse|esta|este|dessa|desse|atual|selecionada)\b/.test(normalized);
+  const asksTrackOpinion = /\b(?:o que (?:voce )?(?:acha|pensa|curte|sentiu|percebeu)|(?:voce )?(?:gosta|curte|sentiu|percebeu)|curtiu|gostou|me fala|me conte|fala sobre|conte sobre|descreva|descreve|analise|analisa|poderia (?:me )?(?:falar|dizer|descrever)|como (?:voce )?(?:descreveria|avalia)|qual sua leitura)\b/.test(normalized);
+  const asksPersonalTaste = /\b(?:(?:voce )?(?:gosta|curte)|curtiu|gostou|o que (?:voce )?acha|o que (?:voce )?sente)\b/.test(normalized);
+  const asksCurrentTrack = /\b(o que acha|o que voce acha|e essa|e esse|e ela|e essa faixa|e essa musica|o que sente|que sensacao|qual a vibe|qual o clima|combina comigo|o que percebeu)\b/.test(normalized)
+    || (referencesCurrentTrack && asksTrackOpinion);
   const asksForListening = /\b(analise|analisa|descreva|descreve|o que sente|que sensacao|qual a vibe|qual o clima|o que percebeu|qual (?:o )?(?:genero|instrumentos?|letra|andamento)|tem (?:quais )?instrumentos?|quais instrumentos|o que diz a letra|sobre o que fala a letra)\b/.test(normalized);
   if (asksCurrentTrack || asksForListening) {
-    return { response: describeSelectedTrack(currentContext, formal), proposal: undefined };
+    return { response: describeSelectedTrack(currentContext, formal, asksPersonalTaste), proposal: undefined };
   }
   const track = currentContext.track ? ` A faixa atual é “${currentContext.track.name}”${currentContext.dna ? `, com análise ${currentContext.dna.status.toLowerCase()} e tags ${currentContext.dna.visualTags.join(", ") || "ainda sem tags"}` : ", ainda sem Music DNA"}.` : " Selecione uma faixa para eu usar o contexto musical dela.";
   const saved = currentContext.preferences.length || currentContext.memories.length ? ` Nas suas memórias musicais locais constam ${[...currentContext.preferences.map((item) => item.value), ...currentContext.memories.map((item) => item.value)].slice(0, 5).join(", ")}.` : " Ainda não há preferências musicais salvas.";

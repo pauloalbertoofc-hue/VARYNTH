@@ -30,6 +30,15 @@ const colloquialTrackFollowUp = interpretEuterpeRequest("E essa? O que acha?", c
 assert.match(colloquialTrackFollowUp.response, /Noite.*X/);
 assert.match(colloquialTrackFollowUp.response, /parcial.*dark.*20%.*80%/i, "A response should use the current track's provided DNA with its limitations");
 assert.match(colloquialTrackFollowUp.response, /não identificam.*gênero.*instrumentos.*letra/i, "DNA intensity/tags must not be inflated into unsupported audio claims");
+const casualTasteQuestion = interpretEuterpeRequest("Pô, curtiu essa? Fala real.", context);
+assert.match(casualTasteQuestion.response, /não tenho gosto pessoal/i, "An informal request for Euterpe's taste should get an honest, direct answer");
+assert.match(casualTasteQuestion.response, /Noite.*dark.*20%.*80%/i, "A direct response should still use the selected track's actual Music DNA");
+assert.doesNotMatch(casualTasteQuestion.response, /eu (?:gostei|adorei|curti) essa faixa/i, "Euterpe must not fabricate subjective human taste");
+const casualTrackQuestionWithoutDna = interpretEuterpeRequest("O que você acha dela?", { ...context, dna: undefined });
+assert.match(casualTrackQuestionWithoutDna.response, /Não tenho gosto pessoal.*Noite.*não vou fingir que ouvi/i, "A casual anaphoric opinion question must be answered without pretending to hear the track");
+const formalTrackQuestion = interpretEuterpeRequest("Poderia falar dessa faixa, por gentileza?", context);
+assert.match(formalTrackQuestion.response, /A faixa selecionada é.*Noite/i, "A formal request to discuss the selected track should resolve to its provided context");
+assert.match(formalTrackQuestion.response, /não identificam.*gênero.*instrumentos.*letra/i, "Formal phrasing must retain Euterpe's evidence boundary");
 const staleDna = interpretEuterpeRequest("Qual o gênero desta faixa?", {
   ...context,
   track: { id: "t2", name: "Manhã", artist: "Y" },
