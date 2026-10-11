@@ -41,10 +41,14 @@ export function renderAgentPersona(manifest: AgentManifest): string {
 
 export function inferCurrentConversationRegister(prompt: string): "formal" | "informal" | undefined {
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const formalSignals = /\b(por favor|por gentileza|poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente|agradeco desde ja|encaminho|gostaria de solicitar)\b/;
-  const informalSignals = /\b(vc|vcs|c[eê]|pra|pro|t[aá]|t[oô]|tava|tavam|blz|valeu|kkk|rsrs|mano|cara|tipo assim|me da uma forca|me ajuda ai|faz pra mim)\b/;
-  if (formalSignals.test(normalized)) return "formal";
-  if (informalSignals.test(normalized)) return "informal";
+  // Courtesy is common in informal Brazilian Portuguese; it must not outweigh
+  // clear register markers such as "cê" or "poderia/solicito" on its own.
+  const formalSignals = /\b(poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente|agradeco desde ja|encaminho|gostaria de solicitar|por gentileza)\b/g;
+  const informalSignals = /\b(vc|vcs|c[eê]|pra|pro|t[aá]|t[oô]|tava|tavam|blz|valeu|kkk|rsrs|mano|cara|tipo assim|me da uma forca|me ajuda ai|faz pra mim)\b/g;
+  const formalCount = [...normalized.matchAll(formalSignals)].length;
+  const informalCount = [...normalized.matchAll(informalSignals)].length;
+  if (formalCount > informalCount) return "formal";
+  if (informalCount > formalCount) return "informal";
   return undefined;
 }
 
