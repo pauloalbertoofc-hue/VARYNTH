@@ -127,15 +127,15 @@ function anonymizeSpecialistLead(body: string, agentName: string): string {
 }
 
 export function prepareAgentConversationHistory(
-  turns: ReadonlyArray<{ role: string; text: string }>,
+  turns: ReadonlyArray<{ role: string; text: string; messageId?: string }>,
   currentPrompt: string,
   limit = 6,
-): Array<{ role: "user" | "athena"; text: string }> {
+): Array<{ role: "user" | "athena"; text: string; messageId?: string }> {
   const priorTurns = [...turns];
   const latest = priorTurns.at(-1);
   if (latest?.role === "user" && latest.text.trim() === currentPrompt.trim()) priorTurns.pop();
   return priorTurns
-    .filter((turn): turn is { role: "user" | "athena"; text: string } => (turn.role === "user" || turn.role === "athena") && typeof turn.text === "string")
+    .filter((turn): turn is { role: "user" | "athena"; text: string; messageId?: string } => (turn.role === "user" || turn.role === "athena") && typeof turn.text === "string")
     .slice(-Math.max(0, Math.min(6, Math.floor(limit))))
     .map((turn) => ({ ...turn, text: turn.text.slice(0, 1_200) }));
 }
@@ -179,8 +179,9 @@ export async function converseAsSpecialist(
   task: AthenaTask,
   context: AthenaContext,
 ): Promise<AgentResult> {
-  const latestFeedback = context.conversationSessionId
-    ? athenaConversationFeedback.latest(context.conversationSessionId, agent.manifest.id)
+  const latestAssistantTurn = [...(context.recentConversation ?? [])].reverse().find((turn) => turn.role === "athena");
+  const latestFeedback = context.conversationSessionId && latestAssistantTurn?.messageId
+    ? athenaConversationFeedback.latestForMessage(context.conversationSessionId, latestAssistantTurn.messageId, agent.manifest.id)
     : undefined;
   const correction = resolveSpecialistCorrection(task.rawPrompt, context.recentConversation ?? [], agent.manifest.id, latestFeedback);
   if (correction.kind === "clarify") {

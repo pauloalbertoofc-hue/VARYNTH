@@ -27,10 +27,24 @@ void (async () => {
   const context = { scope: "pesquisa", recentConversation: [], conversationSessionId: sessionId, experienceContext: { experiences: [], preferences: [] } } as unknown as AthenaContext;
 
   athenaConversationFeedback.record({ sessionId, messageId: "response-1", agentId: "logos", category: "MISUNDERSTOOD", correction: "Explique em linguagem simples e separe achado de hipótese" });
-  const repaired = await converseAsSpecialist(agent, { rawPrompt: "corrija a resposta", scope: "pesquisa" } as AthenaTask, { ...context, recentConversation: [{ role: "athena", text: "A resposta ficou genérica." }] });
+  const repaired = await converseAsSpecialist(agent, { rawPrompt: "corrija a resposta", scope: "pesquisa" } as AthenaTask, { ...context, recentConversation: [{ role: "athena", messageId: "response-1", text: "A resposta ficou genérica." }] });
   assert.equal(receivedPrompt, "Explique em linguagem simples e separe achado de hipótese");
   assert.match(repaired.content, /Resposta revisada/);
   assert.equal(repaired.metadata?.repairedFromExplicitFeedback, true);
+
+  athenaConversationFeedback.record({ sessionId, messageId: "response-old", agentId: "logos", category: "MISUNDERSTOOD", correction: "Correção antiga que não deve ser reutilizada" });
+  receivedPrompt = "";
+  const staleFeedback = await converseAsSpecialist(agent, { rawPrompt: "tente novamente", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    recentConversation: [
+      { role: "athena", messageId: "response-old", text: "A resposta genérica inicial." },
+      { role: "user", text: "Agora, uma nova pergunta" },
+      { role: "athena", messageId: "response-2", text: "Resposta mais recente, sem avaliação" },
+    ],
+  });
+  assert.equal(receivedPrompt, "", "feedback on an older response must not trigger domain execution for the latest one");
+  assert.match(staleFeedback.content, /Qual parte da resposta anterior devo ajustar/);
+  assert.equal(staleFeedback.metadata?.executedDomainWork, false);
 
   const contextual = await converseAsSpecialist(agent, { rawPrompt: "Por quê?", title: "Por quê?", scope: "pesquisa" } as AthenaTask, {
     ...context,
@@ -100,7 +114,7 @@ void (async () => {
 
   athenaConversationFeedback.record({ sessionId, messageId: "response-2", agentId: "logos", category: "WRONG_ACTION" });
   receivedPrompt = "";
-  const stopped = await converseAsSpecialist(agent, { rawPrompt: "tente novamente", scope: "pesquisa" } as AthenaTask, { ...context, recentConversation: [{ role: "athena", text: "A proposta estava errada." }] });
+  const stopped = await converseAsSpecialist(agent, { rawPrompt: "tente novamente", scope: "pesquisa" } as AthenaTask, { ...context, recentConversation: [{ role: "athena", messageId: "response-2", text: "A proposta estava errada." }] });
   assert.equal(receivedPrompt, "", "wrong-action feedback must stop before domain execution");
   assert.match(stopped.content, /não vou repeti-la nem executá-la/);
   assert.equal(stopped.metadata?.executedDomainWork, false);

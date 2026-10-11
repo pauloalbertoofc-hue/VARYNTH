@@ -15,7 +15,7 @@ export interface AthenaContext {
   relevantEvidences: EvidenceItem[];
   relevantOpportunities: Opportunity[];
   /** Bounded turns from the active session, supplied only for conversational reference resolution. */
-  recentConversation?: Array<{ role: "user" | "athena"; text: string }>;
+  recentConversation?: Array<{ role: "user" | "athena"; text: string; messageId?: string }>;
   /** Controls who speaks in the UI; delegated agents return findings to Athena without self-introductions. */
   responseAudience?: "ATHENA" | "SPECIALIST";
   /** Stable owner/session key used only to resolve this specialist's explicit feedback. */

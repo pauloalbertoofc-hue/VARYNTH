@@ -92,7 +92,7 @@ export class ConversationManager {
     const history = externalConversationContext
       ? externalConversationContext.slice(-12).flatMap((turn): ConversationTurn[] =>
         turn && (turn.role === "user" || turn.role === "athena") && typeof turn.text === "string" && turn.text.trim()
-          ? [{ role: turn.role, text: turn.text.trim().slice(0, 2000), timestamp: new Date().toISOString() }]
+          ? [{ role: turn.role, text: turn.text.trim().slice(0, 2000), timestamp: new Date().toISOString(), id: `ath-external-${Math.random().toString(36).slice(2, 10)}` }]
           : [])
       : this.sessionHistories.get(sessionId) || [];
     const prompt = rawPrompt.trim();
@@ -752,6 +752,7 @@ export class ConversationManager {
     history.push({
       role: "user",
       text: prompt,
+      id: `ath-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
       intents,
       entities: referencedEntityName ? [referencedEntityName] : [],
@@ -811,11 +812,12 @@ export class ConversationManager {
     };
   }
 
-  recordAssistantResponse(sessionId: string, text: string, recommendations?: string[], critiques?: string[]): void {
+  recordAssistantResponse(sessionId: string, text: string, recommendations?: string[], critiques?: string[], messageId?: string): void {
     const history = this.sessionHistories.get(sessionId) || [];
     history.push({
       role: "athena",
       text,
+      id: messageId || `ath-response-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
     });
     if (history.length > 20) history.shift();
@@ -843,10 +845,11 @@ export class ConversationManager {
   updateSessionWithHistory(sessionId: string, messages: AthenaMessage[]): void {
     const state = this.getOrCreateSession(sessionId);
     const relevant = messages.slice(-20);
-    this.sessionHistories.set(sessionId, relevant.map((message) => ({
+    this.sessionHistories.set(sessionId, relevant.map((message, index) => ({
       role: message.sender === "athena" ? "athena" : "user",
       text: message.text,
       timestamp: message.timestamp,
+      id: message.id || `ath-migrated-${index}-${Date.now()}`,
     })));
 
     // Restore numbered recommendations after a page reload, device switch, or chat selection.

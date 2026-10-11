@@ -404,9 +404,10 @@ export async function processAthenaQueryAsync(
       responseIntent,
       sessionId
     );
-    athenaConversationManager.recordAssistantResponse(sessionId, clarResult.text);
+    const responseId = "ath-" + Date.now();
+    athenaConversationManager.recordAssistantResponse(sessionId, clarResult.text, undefined, undefined, responseId);
     return {
-      id: "ath-" + Date.now(),
+      id: responseId,
       sender: "athena",
       text: clarResult.text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -424,7 +425,7 @@ export async function processAthenaQueryAsync(
       const agentContext = athenaContextBuilder.buildContext(agentTask, scope, ctx, resolvedProjectId);
       agentContext.conversationSessionId = sessionId;
       agentContext.recentConversation = prepareAgentConversationHistory(
-        athenaConversationManager.getRecentTurns(sessionId, 7), prompt,
+        athenaConversationManager.getRecentTurns(sessionId, 7).map((turn) => ({ ...turn, messageId: turn.id })), prompt,
       );
       try {
         invokedAgentResult = (await athenaInteractionContractGateway.executeAsync(
@@ -482,7 +483,7 @@ export async function processAthenaQueryAsync(
         keyFacts: responseIntent.keyFacts,
         responseMode: responseIntent.mode,
         responseTone: responseIntent.tone,
-        recentConversation: athenaConversationManager.getRecentTurns(sessionId, 8).map((turn) => ({ role: turn.role, text: turn.text })),
+        recentConversation: athenaConversationManager.getRecentTurns(sessionId, 8).map((turn) => ({ role: turn.role, text: turn.text, messageId: turn.id })),
         specialist: capabilitySelection?.selected ? {
           id: capabilitySelection.selected.id,
           name: capabilitySelection.selected.name,
@@ -522,10 +523,11 @@ O bloco experience contém preferências e experiências anteriores da conta aut
 
         if (factLockCheck.isValid) {
           const finalReply = enforceResponseQuality(prompt, parsed, candidateReply, sessionId, resolvedProjectId);
-          athenaConversationManager.recordAssistantResponse(sessionId, finalReply);
+          const responseId = "ath-" + Date.now();
+          athenaConversationManager.recordAssistantResponse(sessionId, finalReply, undefined, undefined, responseId);
 
           return {
-            id: "ath-" + Date.now(),
+            id: responseId,
             sender: "athena",
               text: finalReply,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -624,15 +626,17 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     : enforceResponseQuality(prompt, parsed, safeResponseCandidate, sessionId, resolvedProjectId);
 
   // Record in History for future turns / ellipses
+  const responseId = "ath-" + Date.now();
   athenaConversationManager.recordAssistantResponse(
     sessionId,
     finalText,
     invokedAgentResult?.recommendations ?? result.recommendations,
-    invokedAgentResult?.criticism ?? result.critiques
+    invokedAgentResult?.criticism ?? result.critiques,
+    responseId
   );
 
   return {
-    id: "ath-" + Date.now(),
+    id: responseId,
     sender: "athena",
     text: finalText,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -750,9 +754,10 @@ export function processAthenaQuery(
       responseIntent,
       sessionId
     );
-    athenaConversationManager.recordAssistantResponse(sessionId, clarResult.text);
+    const responseId = "ath-" + Date.now();
+    athenaConversationManager.recordAssistantResponse(sessionId, clarResult.text, undefined, undefined, responseId);
     return {
-      id: "ath-" + Date.now(),
+      id: responseId,
       sender: "athena",
       text: clarResult.text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -778,15 +783,17 @@ export function processAthenaQuery(
 
   const finalText = enforceResponseQuality(prompt, parsed, result.text, sessionId, resolvedProjectId);
 
+  const responseId = "ath-" + Date.now();
   athenaConversationManager.recordAssistantResponse(
     sessionId,
     finalText,
     result.recommendations,
-    result.critiques
+    result.critiques,
+    responseId
   );
 
   return {
-    id: "ath-" + Date.now(),
+    id: responseId,
     sender: "athena",
     text: finalText,
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),

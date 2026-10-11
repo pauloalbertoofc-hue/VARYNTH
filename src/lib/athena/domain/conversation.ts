@@ -94,6 +94,7 @@ export interface ConversationTurn {
   role: "user" | "athena";
   text: string;
   timestamp: string;
+  id: string;
   intents?: CognitiveIntent[];
   entities?: string[];
   projectReferenced?: string;

@@ -71,4 +71,13 @@ export const athenaConversationFeedback = {
       record.category !== "HELPFUL"
     );
   },
+
+  latestForMessage(sessionId: string, messageId: string, agentId = "athena"): AthenaConversationFeedback | undefined {
+    return readStored().find(record =>
+      record.sessionId === sessionId &&
+      record.messageId === messageId &&
+      (record.agentId || "athena") === agentId &&
+      record.category !== "HELPFUL"
+    );
+  },
 };
