@@ -18,9 +18,11 @@ export default function VectorStudioPage() {
   const [text, setText] = useState("VARYNTH");
   const [isSending, setIsSending] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const selected = objects.find((item) => item.id === selectedId) ?? objects[0];
 
-  useEffect(() => { try { const raw = window.localStorage.getItem(STORAGE_KEY); if (!raw) return; const draft = JSON.parse(raw) as { objects?: VectorObject[]; savedAt?: string }; if (Array.isArray(draft.objects) && draft.objects.length) setObjects(draft.objects); setSavedAt(draft.savedAt ?? null); } catch { /* invalid draft is ignored */ } }, []);
+  useEffect(() => { try { const raw = window.localStorage.getItem(STORAGE_KEY); if (raw) { const draft = JSON.parse(raw) as { objects?: VectorObject[]; savedAt?: string }; if (Array.isArray(draft.objects) && draft.objects.length) setObjects(draft.objects); setSavedAt(draft.savedAt ?? null); } } catch { /* invalid draft is ignored */ } finally { setHydrated(true); } }, []);
+  useEffect(() => { if (!hydrated) return; const timestamp = new Date().toISOString(); try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ objects, savedAt: timestamp })); setSavedAt(timestamp); } catch { /* storage limits do not break editing */ } }, [objects, hydrated]);
   const update = (field: "x" | "y" | "width" | "height", value: number) => setObjects((items) => items.map((item) => item.id === selectedId ? { ...item, [field]: Math.max(1, value) } : item));
   const add = () => { const id = `vector-${Date.now()}`; const index = objects.length; const item: VectorObject = { id, type, x: 120 + (index % 4) * 180, y: 100 + (index % 3) * 150, width: type === "circle" ? 140 : 260, height: type === "circle" ? 140 : 120, color, ...(type === "text" ? { text } : {}) }; setObjects((items) => [...items, item]); setSelectedId(id); };
   const remove = () => { if (selectedId === "background") return; setObjects((items) => items.filter((item) => item.id !== selectedId)); setSelectedId("background"); };
