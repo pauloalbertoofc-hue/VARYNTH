@@ -40,6 +40,10 @@ assert.match(resolvedFollowUp.prompt, /preservação de rios/i);
 assert.equal(resolveAgentFollowUp("Explique preservação de rios", followUpContext).usedHistory, false, "Explicit current topics must not be overwritten by history");
 assert.equal(resolveAgentFollowUp("E literatura brasileira?", followUpContext).usedHistory, false, "A new explicit topic joined by 'e' must not inherit the previous subject");
 assert.equal(resolveAgentFollowUp("E os riscos?", followUpContext).usedHistory, true, "Short risk follow-ups should inherit the prior user subject");
+assert.equal(resolveAgentFollowUp("E essa resposta, pode explicar essa parte?", followUpContext).usedHistory, true, "Follow-ups that refer to a prior answer should inherit the user topic");
+assert.equal(resolveAgentFollowUp("Isso funciona?", followUpContext).usedHistory, true, "Short evaluative follow-ups should inherit the user topic");
+assert.equal(resolveAgentFollowUp("Qual delas você recomenda?", followUpContext).usedHistory, true, "Choice follow-ups should inherit the user topic");
+assert.equal(resolveAgentFollowUp("E literatura brasileira?", followUpContext).usedHistory, false, "A new explicit topic must not inherit history even when introduced by 'e'");
 assert.equal(resolveAgentFollowUp("Por quê?", followUpContext).usedHistory, true, "Short why follow-ups should inherit the prior user subject");
 assert.equal(resolveAgentFollowUp("E literatura brasileira?", { recentConversation: [...(followUpContext.recentConversation ?? []), { role: "user", text: "E literatura brasileira?" }] } as unknown as AthenaContext).usedHistory, false, "The current message must not become its own historical referent");
 const suppliedHistory = prepareAgentConversationHistory([

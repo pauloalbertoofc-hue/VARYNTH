@@ -42,7 +42,7 @@ export function renderAgentPersona(manifest: AgentManifest): string {
 /** Resolves only clear follow-up references from the active session's user turns.
  * Assistant turns are intentionally excluded: they are not independent evidence. */
 export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { prompt: string; usedHistory: boolean } {
-  const followUp = /^(?:(?:e|mas\s+e)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|quanto\s+a\s+isso|as\s+fontes|essa\s+obra|no\s+cap[ií]tulo)\b[^.!?]{0,70}|(?:continue|desenvolva|explique\s+melhor|fale\s+mais|escreva\s+mais|redija\s+mais|e\s+agora|o\s+que\s+mais|explique\s+isso\s+melhor)\b[^.!?]{0,70}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,70}|(?:por\s+que|quais\s+(?:são\s+)?(?:os\s+)?riscos|quais\s+as\s+consequências))\s*[.!?]?$/i.test(prompt.trim()) || /^por\s+quê\s*[.!?]?$/i.test(prompt.trim());
+  const followUp = /^(?:(?:e|mas\s+e|quanto\s+a)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|essa\s+resposta|essa\s+parte|esse\s+detalhe|o\s+exemplo|o\s+resultado|o\s+plano|o\s+texto|o\s+rascunho|a\s+análise|o\s+trecho|a\s+segunda\s+opção|as\s+fontes|essa\s+obra|no\s+cap[ií]tulo)\b[^.!?]{0,90}|(?:continue|desenvolva\s+(?:isso|essa\s+ideia|essa\s+proposta)|explique\s+(?:isso|essa\s+parte|essa\s+resposta|melhor)|fale\s+mais(?:\s+sobre\s+isso)?|escreva\s+mais\s+sobre\s+isso|redija\s+mais\s+sobre\s+isso|e\s+agora|o\s+que\s+mais|pode\s+(?:explicar\s+(?:isso|essa\s+parte)|detalhar\s+isso|desenvolver\s+isso)|me\s+explica(?:r)?\s+(?:isso|essa\s+parte)|qual\s+(?:delas|deles|das\s+opções)|isso\s+(?:funciona|serve|resolve))\b[^.!?]{0,90}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,90}|(?:por\s+que|quais\s+(?:são\s+)?(?:os\s+)?riscos|quais\s+as\s+consequências))\s*[.!?]?$/i.test(prompt.trim()) || /^por\s+quê\s*[.!?]?$/i.test(prompt.trim());
   if (!followUp) return { prompt, usedHistory: false };
   const previousUserTurn = [...(context.recentConversation ?? [])].reverse().find((turn) => turn.role === "user" && turn.text.trim());
   if (!previousUserTurn) return { prompt, usedHistory: false };
@@ -61,10 +61,13 @@ function conversationalizeSpecialistResult(
 
   const explicitStyle = originalPrompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const learnedStyle = agentGuidanceInstruction(context, manifest.id, originalPrompt).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const currentRegister = /\b(por gentileza|poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente)\b/.test(explicitStyle)
+    ? "formal"
+    : /\b(vc|vcs|pra|ta|to|blz|valeu|kkk|mano)\b|me da uma forca/.test(explicitStyle) ? "informal" : undefined;
   const verbosity = confirmedAgentGuidance(context, manifest.id, "verbosity", originalPrompt)
     ?? (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined);
   const formality = confirmedAgentGuidance(context, manifest.id, "formality", originalPrompt)
-    ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : undefined);
+    ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : currentRegister);
   const identity = manifest.persona.identity.replace(/^Sou\s+[^,;:]+[,;:]?\s*/i, "").trim() || manifest.persona.voice;
   const continuity = usedHistory ? (formality === "formal" ? " Retomando o assunto anterior," : " Voltando ao que conversávamos,") : "";
   const alreadyIntroduced = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").startsWith(`sou ${manifest.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")}`);
@@ -75,7 +78,9 @@ function conversationalizeSpecialistResult(
     ?? (result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.");
   const concise = verbosity === "concise";
   const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
-  const content = `${lead ? `${lead}\n\n` : ""}${body}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
+  // Put the domain answer first: identity and conversational scaffolding must
+  // never make a short answer feel like a fresh introduction instead of a reply.
+  const content = `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
 
   return {
     ...result,

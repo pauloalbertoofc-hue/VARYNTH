@@ -43,7 +43,8 @@ void (async () => {
   assert.match(receivedPrompt, /Continuação solicitada agora: Por quê\?/);
   assert.equal(receivedTitle, "Por quê?", "the original task title stays stable for telemetry");
   assert.equal(receivedScope, "pesquisa");
-  assert.match(contextual.content, /^Sou Logos — avalio como uma afirmação é sustentada/);
+  assert.ok(contextual.content.startsWith("Resposta revisada"), "Follow-up answers should lead with the specialist's answer");
+  assert.match(contextual.content, /Sou Logos — avalio como uma afirmação é sustentada/);
   assert.match(contextual.content, /Voltando ao que conversávamos/);
   assert.match(contextual.content, /Resposta revisada/);
   assert.match(contextual.content, /Se quiser, posso aprofundar/);
@@ -54,9 +55,16 @@ void (async () => {
     ...context,
     experienceContext: { preferences: [{ key: "verbosity", value: "concise", status: "CONFIRMED", source: "MANUAL", scope: "GLOBAL", domain: "communication" }] },
   } as unknown as AthenaContext);
-  assert.match(informal.content, /^Sou Logos — avalio como uma afirmação é sustentada/);
+  assert.match(informal.content, /Sou Logos — avalio como uma afirmação é sustentada/);
   assert.doesNotMatch(informal.content, /Se quiser, posso aprofundar/);
   assert.match(informal.content, /Resposta revisada/);
+  assert.ok(informal.content.startsWith("Resposta revisada"), "The specialist should answer the current request before identity and follow-up scaffolding");
+
+  const registerMatched = await converseAsSpecialist(agent, { rawPrompt: "Vc pode me dar uma força nisso?", scope: "pesquisa" } as AthenaTask, context);
+  assert.deepEqual(registerMatched.metadata?.presentationPreferences, { formality: "informal" }, "A clear informal register may guide this reply without being persisted as a preference");
+  assert.ok(registerMatched.content.startsWith("Resposta revisada"));
+  const formalRegister = await converseAsSpecialist(agent, { rawPrompt: "Poderia, por gentileza, revisar esta análise?", scope: "pesquisa" } as AthenaTask, context);
+  assert.deepEqual(formalRegister.metadata?.presentationPreferences, { formality: "formal" }, "A clear formal register may guide this reply without being persisted as a preference");
 
   const priorOutcome = {
     id: "trace-experience", domain: "research", context: {}, situation: "Uma síntese misturava camadas",
