@@ -73,9 +73,9 @@ export const musicLibrary = {
   },
   async uploadArtwork(file: File, kind: "cover" | "background", trackIds: string[]): Promise<void> {
     if (!accountStorageAvailable || !accountUploadPrefix) throw new Error("Entre na conta e carregue a biblioteca sincronizada antes de salvar artes na nuvem.");
-    const mimeTypes: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif", "image/svg+xml": "svg" };
+    const mimeTypes: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/apng": "apng", "image/avif": "avif", "image/svg+xml": "svg" };
     const extension = mimeTypes[file.type];
-    if (!extension) throw new Error("Formato de imagem não suportado. Use PNG, JPEG, WebP, GIF, AVIF ou SVG.");
+    if (!extension) throw new Error("Formato de imagem não suportado. Use PNG, JPEG, WebP, APNG, GIF, AVIF ou SVG.");
     const targets = normalizeMusicArtworkTrackIds(trackIds);
     const assetId = crypto.randomUUID();
     const pathname = `${accountUploadPrefix.replace(/\/tracks$/, "")}/artwork/${assetId}.${extension}`;
