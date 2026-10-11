@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, CircleStop, Download, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { CameraSession, listCameraCaptures, saveCameraCapture, type CameraCapabilities, type CameraCaptureRecord, type CameraMode } from "@/lib/visual-core";
+import { CameraSession, getCameraModeProfile, listCameraCaptures, saveCameraCapture, type CameraCapabilities, type CameraCaptureRecord, type CameraMode } from "@/lib/visual-core";
 import { imageService } from "@/lib/studio/image/image-service";
 import { analyzeCameraFrame, type CameraQualityReport } from "@/lib/visual-core";
 
@@ -38,11 +38,8 @@ export default function CameraPage() {
     setError(null);
     try {
       const session = new CameraSession();
-      const constraints: MediaStreamConstraints = mode === "DOCUMENT"
-        ? { video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }
-        : mode === "VIDEO"
-          ? { video: { facingMode: { ideal: "environment" }, frameRate: { ideal: 30 } }, audio: true }
-          : { video: true, audio: false };
+      const profile = getCameraModeProfile(mode);
+      const constraints: MediaStreamConstraints = profile.constraints;
       const detected = await session.start(videoRef.current, constraints);
       sessionRef.current = session;
       setCapabilities(detected);
@@ -117,10 +114,11 @@ export default function CameraPage() {
             {!active && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-[var(--vly-text-secondary)]"><Camera size={34} /><p className="text-sm">A câmera ainda não foi iniciada.</p></div>}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-[var(--vly-border-subtle)] p-4">
-            <select value={mode} onChange={(event) => setMode(event.target.value as CameraMode)} disabled={active} className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"><option value="AUTO">AUTO</option><option value="DOCUMENT">DOCUMENT</option><option value="VIDEO">VIDEO</option></select>
+            <select value={mode} onChange={(event) => setMode(event.target.value as CameraMode)} disabled={active} className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"><option value="AUTO">AUTO</option><option value="SMART">SMART</option><option value="PRO">PRO</option><option value="DOCUMENT">DOCUMENT</option><option value="VIDEO">VIDEO</option><option value="STUDIO">STUDIO</option></select>
             {!active ? <button onClick={() => void start()} className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-4 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Video size={14} className="mr-2 inline" />Iniciar câmera</button> : <button onClick={stop} className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-4 py-2 text-xs font-bold text-[var(--vly-text-primary)]"><CircleStop size={14} className="mr-2 inline" />Parar</button>}
             <button onClick={() => void capture()} disabled={!active} className="vly-interactive rounded-lg bg-[var(--vly-info)] px-4 py-2 text-xs font-bold text-white disabled:opacity-40"><Camera size={14} className="mr-2 inline" />Capturar frame</button>
           </div>
+          <p className="border-t border-[var(--vly-border-subtle)] px-4 py-2 text-[11px] text-[var(--vly-text-muted)]">{getCameraModeProfile(mode).description}{getCameraModeProfile(mode).requiresHardwareControls ? " Controles manuais dependem das capacidades reais do track." : ""}</p>
           {error && <p role="alert" className="border-t border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">{error}</p>}
         </section>
         <aside className="space-y-4">
