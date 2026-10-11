@@ -30,6 +30,24 @@ export interface AgentPersona {
   authorityBoundary: string;
 }
 
+function conversationalStyleInstructions(prompt: string, context: AthenaContext, agentId: string): { verbosity?: string; formality?: string; instructions: string[] } {
+  const explicitStyle = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const pragmatic = understandPragmatics(prompt);
+  const learnedStyle = agentGuidanceInstruction(context, agentId, prompt).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const verbosity = confirmedAgentGuidance(context, agentId, "verbosity", prompt)
+    ?? (pragmatic.requestedVerbosity || (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined));
+  const formality = confirmedAgentGuidance(context, agentId, "formality", prompt)
+    ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : inferCurrentConversationRegister(prompt));
+  return {
+    verbosity,
+    formality,
+    instructions: [
+      ...(verbosity ? [verbosity === "concise" ? "Responda de forma concisa, sem omitir ressalvas essenciais." : "Desenvolva a resposta com explicação e etapas suficientes, sem repetir ideias."] : []),
+      ...(formality ? [formality === "formal" ? "Use registro formal, claro e natural." : "Use registro informal respeitoso, sem perder precisão."] : []),
+    ],
+  };
+}
+
 const specialistConversationMethods: Record<string, string> = {
   "athena-generalist": "Para perguntas gerais, responda apenas quando a rota central fornecer conteúdo substantivo; se ela não o fornecer, declare esse limite sem simular uma resposta.",
   justitia: "Na análise jurídica, delimite a controvérsia, apresente fundamentos e objeções separadamente e indique quando a vigência ou a fonte oficial não foi verificada.",
@@ -119,41 +137,17 @@ function conversationalizeSpecialistResult(
   const body = result.content.trim();
   if (!body || result.metadata?.conversationPresentation === true) return result;
 
-  const explicitStyle = originalPrompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const pragmatic = understandPragmatics(originalPrompt);
-  const learnedStyle = agentGuidanceInstruction(context, manifest.id, originalPrompt).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const currentRegister = inferCurrentConversationRegister(originalPrompt);
-  const verbosity = confirmedAgentGuidance(context, manifest.id, "verbosity", originalPrompt)
-    ?? (pragmatic.requestedVerbosity || (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined));
-  const formality = confirmedAgentGuidance(context, manifest.id, "formality", originalPrompt)
-    ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : currentRegister);
-  const identity = manifest.persona.identity.replace(/^Sou\s+[^,;:]+[,;:]?\s*/i, "").trim() || manifest.persona.voice;
-  const continuity = usedHistory ? (formality === "formal" ? " Retomando o assunto anterior," : " Voltando ao que conversávamos,") : "";
-  const normalizedBody = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const normalizedAgentName = manifest.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const alreadyIntroduced = new RegExp(`^(?:sou|aqui e)\\s+${normalizedAgentName}\\b`).test(normalizedBody);
-  const alreadyInCharacter = normalizedBody.startsWith("sou ") || normalizedBody.startsWith("como ") || normalizedBody.startsWith("aqui e ");
-  const lead = alreadyIntroduced || alreadyInCharacter ? "" : formality === "formal"
-    ? `Sou ${manifest.name}; ${identity}${continuity}`
-    : `Sou ${manifest.name} — ${identity}${continuity}`;
-  const recommendation = result.recommendations?.find((item) => item.trim());
-  const nextStep = recommendation
-    ? formality === "formal" ? `Como próximo passo, sugiro: ${recommendation}` : recommendation
-    : formality === "formal"
-      ? result.success ? "Caso deseje, posso aprofundar no ponto que considerar mais importante." : "Para prosseguir com precisão, informe qual dado ou trecho devo considerar."
-      : result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.";
-  const concise = verbosity === "concise";
-  const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
-  const asksForDepth = /\b(?:detalhad[oa]mente|com (?:mais )?detalhes|passo a passo|aprofunde|desenvolva|explique melhor|analise a fundo|com profundidade)\b/i.test(originalPrompt);
-  // Put the domain answer first: identity and conversational scaffolding must
-  // never make a short answer feel like a fresh introduction instead of a reply.
+  const { verbosity, formality } = conversationalStyleInstructions(originalPrompt, context, manifest.id);
+  // The specialist has already produced its domain response. Presentation
+  // preferences guide its generation upstream; do not append a stock identity
+  // paragraph or invitation that competes with the answer or its own voice.
   const responseAudience = context.responseAudience ?? "SPECIALIST";
   const priorOutcomeHints = specialistExperienceGuidance(context, manifest.id, originalPrompt);
   const hasExistingExperienceHints = /em experiências anteriores, mostrou-se útil:/i.test(body);
   const withExperienceGuidance = hasExistingExperienceHints ? body : `${body}${formatExperienceMethodHints(priorOutcomeHints)}`;
   const content = responseAudience === "ATHENA"
     ? anonymizeSpecialistLead(withExperienceGuidance, manifest.name)
-    : `${withExperienceGuidance}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp || asksForDepth ? "" : `\n\n${nextStep}`}`;
+    : withExperienceGuidance;
 
   return {
     ...result,
@@ -257,10 +251,14 @@ export async function converseAsSpecialist(
       metadata: { conversationRepair: true, executedDomainWork: false, authority: agent.manifest.persona.authorityBoundary },
     };
   }
+  const { instructions: conversationalInstructions } = conversationalStyleInstructions(task.rawPrompt, context, agent.manifest.id);
   const resolution = resolveAgentFollowUp(correction.prompt, context);
   const resolvedTask = resolution.prompt === correction.prompt ? task : { ...task, rawPrompt: resolution.prompt };
   const executionTask = correction.repaired ? { ...resolvedTask, rawPrompt: correction.prompt } : resolvedTask;
-  const result = await agent.execute(executionTask, context);
+  const taskForExecution = conversationalInstructions.length
+    ? { ...executionTask, rawPrompt: `${executionTask.rawPrompt}\n\nPreferências de apresentação para esta resposta (sem alterar o objetivo): ${conversationalInstructions.join(" ")}` }
+    : executionTask;
+  const result = await agent.execute(taskForExecution, context);
   const presented = conversationalizeSpecialistResult(result, agent.manifest, task.rawPrompt, resolution.usedHistory || correction.repaired === true, context);
   const retrievedExperiences = context.experienceContext?.experiences ?? [];
   const experiencesReferencedInResponse = retrievedExperiences.filter((experience) => {

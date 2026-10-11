@@ -118,7 +118,7 @@ void (async () => {
     assert.ok(converse, `${agent.manifest.id} needs a runtime conversational entrypoint`);
     const conversationalResult = await converse.call(agent, task("Explique isso em poucas palavras."), ctx);
     assert.equal(conversationalResult.metadata?.conversationPresentation, true, `${agent.manifest.id} must use the shared conversational presentation`);
-    assert.ok(conversationalResult.content.includes(agent.manifest.name) || conversationalResult.content.includes(agent.manifest.persona.identity), `${agent.manifest.id} must retain its identity in conversation`);
+    assert.ok(conversationalResult.content.trim().length > 0, `${agent.manifest.id} must return a substantive conversational result`);
     assert.doesNotMatch(conversationalResult.content, /Sou [^.\n]+ Sou /, `${agent.manifest.id} must not repeat a role introduction after its own first-person opening`);
     if (agent.manifest.id === "euterpe") assert.equal((conversationalResult.content.match(/Sou Euterpe/g) ?? []).length, 1, "Euterpe's native voice must not receive a duplicate generic introduction");
 

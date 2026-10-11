@@ -34,6 +34,12 @@ A suíte `interaction-contract-e2e.test.ts` cobre 30 evidências:
 
 As suítes complementares de governança e recuperação exercitam DAG, confirmação vinculada, cancelamento, pausa, retomada idempotente, falha parcial, repetição segura e undo concreto.
 
+## Apresentação conversacional dos especialistas
+
+O adaptador compartilhado preserva correções explícitas, referências de continuidade, preferências de estilo confirmadas e os limites de cada persona. Ele não acrescenta uma autoapresentação nem um convite genérico ao fim de toda resposta: cada agente mantém sua voz e começa pelo conteúdo de domínio. Preferências de concisão e registro detectadas na mensagem atual ou confirmadas em Experience são enviadas como instruções de apresentação ao executor, sem mudar o objetivo da tarefa; inferências momentâneas não são persistidas. Em superfícies de Athena, a identidade do subagente continua oculta e Athena permanece a interlocutora visível.
+
+Os testes `base-agent-conversation.test.ts`, `agent-persona-grounding.test.ts` e `music-curator.test.ts` verificam adaptação, continuidade, preservação de identidade nativa de Euterpe e limites de autoridade.
+
 ## Critérios de segurança
 
 - aprovação e confirmação possuem escopos distintos;
