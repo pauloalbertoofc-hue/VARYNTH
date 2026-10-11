@@ -22,7 +22,7 @@ export const visualCapabilities: VisualStudioCapability[] = [
   { id: "quality", name: "Capture Quality Gate", workflow: "ANALYZE", description: "Métricas locais de nitidez, exposição e alertas técnicos.", status: "READY", evidence: "camera-quality + persisted report" },
   { id: "painting", name: "Digital Painting Studio", workflow: "CREATE", description: "Canvas local com pincel, borracha, limpeza, PNG e abertura no Image Studio.", status: "READY", href: "/modules/digital-painting", evidence: "Canvas 2D + PNG export + Image Studio import" },
   { id: "vector", name: "Vector Studio", workflow: "CREATE", description: "Objetos SVG editáveis, inspector, rascunho local, exportação e abertura no Image Studio.", status: "READY", href: "/modules/vector-studio", evidence: "SVG editor + localStorage draft + Image Studio import" },
-  { id: "shader", name: "Shader Forge", workflow: "CREATE", description: "Espaço reservado para shaders com preview seguro.", status: "PLANNED", evidence: "Não há sandbox de shader conectado" },
+  { id: "shader", name: "Shader Forge", workflow: "CREATE", description: "Preview procedural determinístico com parâmetros locais e exportação PNG, sem execução arbitrária.", status: "PARTIAL", href: "/modules/shader-forge", evidence: "Canvas procedural + localStorage parameters + PNG export" },
   { id: "pictor", name: "Pictor", workflow: "ANALYZE", description: "Agente visual com assistência contextual e operações autorizadas.", status: "PARTIAL", evidence: "Contratos de integração ainda não expõem agente visual" },
 ];
 
