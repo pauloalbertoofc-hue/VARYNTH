@@ -472,6 +472,7 @@ test("keeps Euterpe present after playback ends and moves her to a rest spot aft
   test.setTimeout(60_000);
   await page.clock.install({ time: new Date() });
   await page.addInitScript(() => {
+    let recognitionAttempt = 0;
     class FakeSpeechRecognition {
       lang = ""; continuous = false; interimResults = false;
       onstart: null | (() => void) = null;
@@ -479,8 +480,14 @@ test("keeps Euterpe present after playback ends and moves her to a rest spot aft
       onerror: null | ((event: { error?: string }) => void) = null;
       onend: null | (() => void) = null;
       start() {
+        recognitionAttempt += 1;
         this.onstart?.();
         window.setTimeout(() => {
+          if (recognitionAttempt > 1) {
+            this.onerror?.({ error: "audio-capture" });
+            this.onend?.();
+            return;
+          }
           const results = [{ 0: { transcript: "Quero ouvir música calma" } }];
           this.onresult?.({ resultIndex: 0, results });
           this.onend?.();
@@ -521,6 +528,8 @@ test("keeps Euterpe present after playback ends and moves her to a rest spot aft
   await expect(page.getByLabel("Mensagem para Euterpe")).toHaveValue("Quero ouvir música calma");
   await expect(page.getByText("Quero ouvir música calma", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("status").filter({ hasText: "Revise a mensagem" })).toBeVisible();
+  await page.getByRole("button", { name: "Ditado por voz para Euterpe" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Nenhum microfone disponível" })).toBeVisible();
 });
 
 test("restores a track's saved motion and environment effect on another signed-in device", async ({ browser }) => {

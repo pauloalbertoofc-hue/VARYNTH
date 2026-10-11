@@ -3,7 +3,7 @@ import { speakEuterpeText } from "./euterpe-browser-speech";
 export type EuterpeSpeechToTextProvider = {
   readonly id: string;
   readonly available: boolean;
-  startListening(onTranscript: (text: string) => void, onEnd?: () => void): Promise<() => void>;
+  startListening(onTranscript: (text: string) => void, onEnd?: () => void, onError?: (error: Error) => void): Promise<() => void>;
 };
 
 export type EuterpeTextToSpeechProvider = {
@@ -18,7 +18,7 @@ export type EuterpeVoiceProvider = {
   readonly available: boolean;
   readonly speechToText: EuterpeSpeechToTextProvider;
   readonly textToSpeech: EuterpeTextToSpeechProvider;
-  startListening(onTranscript: (text: string) => void, onEnd?: () => void): Promise<() => void>;
+  startListening(onTranscript: (text: string) => void, onEnd?: () => void, onError?: (error: Error) => void): Promise<() => void>;
   speak(text: string): Promise<void>;
   stopSpeaking(): void;
 };
@@ -51,7 +51,7 @@ export class BrowserSpeechToTextProvider implements EuterpeSpeechToTextProvider 
   readonly id = "browser-speech-recognition-pt-BR";
   get available() { return Boolean(recognitionConstructor()); }
 
-  async startListening(onTranscript: (text: string) => void, onEnd?: () => void): Promise<() => void> {
+  async startListening(onTranscript: (text: string) => void, onEnd?: () => void, onError?: (error: Error) => void): Promise<() => void> {
     const Recognition = recognitionConstructor();
     if (!Recognition) throw new Error("O reconhecimento de voz não está disponível neste navegador. Você ainda pode digitar para conversar com Euterpe.");
 
@@ -73,12 +73,18 @@ export class BrowserSpeechToTextProvider implements EuterpeSpeechToTextProvider 
         if (transcript) onTranscript(transcript);
       };
       recognition.onerror = (event) => {
-        if (settled) return;
-        settled = true;
         const reason = event.error === "not-allowed" || event.error === "service-not-allowed"
           ? "Permita o acesso ao microfone para ditar uma mensagem à Euterpe."
-          : "O navegador não conseguiu iniciar o reconhecimento de voz.";
-        reject(new Error(reason));
+          : event.error === "audio-capture"
+            ? "Nenhum microfone disponível. Conecte um microfone e tente novamente."
+            : event.error === "no-speech"
+              ? "Não detectei fala. Tente novamente em um lugar mais silencioso."
+              : event.error === "network"
+                ? "O serviço de reconhecimento de voz está indisponível. Você ainda pode digitar para conversar."
+                : "O navegador não conseguiu reconhecer sua fala.";
+        const error = new Error(reason);
+        if (settled && started) onError?.(error);
+        else if (!settled) { settled = true; reject(error); }
       };
       recognition.onend = () => {
         if (!started && !settled) {
@@ -113,7 +119,7 @@ export class BrowserEuterpeVoiceProvider implements EuterpeVoiceProvider {
   readonly speechToText: EuterpeSpeechToTextProvider = new BrowserSpeechToTextProvider();
   readonly textToSpeech: EuterpeTextToSpeechProvider = new BrowserTextToSpeechProvider();
   get available() { return this.speechToText.available && this.textToSpeech.available; }
-  startListening(onTranscript: (text: string) => void, onEnd?: () => void) { return this.speechToText.startListening(onTranscript, onEnd); }
+  startListening(onTranscript: (text: string) => void, onEnd?: () => void, onError?: (error: Error) => void) { return this.speechToText.startListening(onTranscript, onEnd, onError); }
   speak(text: string) { return this.textToSpeech.speak(text); }
   stopSpeaking() { this.textToSpeech.stop(); }
 }

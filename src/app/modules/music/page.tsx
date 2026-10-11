@@ -760,7 +760,9 @@ export default function MusicPage() {
       const stop = await euterpeVoiceProvider.startListening((transcript) => {
         setChatInput((current) => current ? `${current} ${transcript}` : transcript);
         setChatStatus("Fala transcrita. Revise a mensagem e toque em enviar para Euterpe.");
-      }, () => { recognitionStopRef.current = null; setEuterpeListening(false); });
+      }, () => { recognitionStopRef.current = null; setEuterpeListening(false); }, (error) => {
+        recognitionStopRef.current = null; setEuterpeListening(false); setChatStatus(error.message);
+      });
       recognitionStopRef.current = stop; setEuterpeListening(true);
     } catch (error) {
       setEuterpeListening(false); setChatStatus(error instanceof Error ? error.message : "Não foi possível acessar o microfone.");
