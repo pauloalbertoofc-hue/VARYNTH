@@ -16,6 +16,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Visual Handbook** | 📖 | `/modules/visual-handbook` | Documentação contextual das capacidades e limites do ecossistema visual |
 | **Varynth Camera** | 📷 | `/modules/camera` | Captura real, Quality Gate e proveniência preservada |
 | **Visual Compare** | ↔️ | `/modules/visual-compare` | Comparação local de imagens com divisão deslizante |
+| **Digital Painting** | 🖌️ | `/modules/digital-painting` | Canvas local com pincel, borracha e exportação PNG |
 | **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |
 | **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
 | **Athena AI** | 🦉 | `/modules/athena` | Centro de comando cognitivo e chat soberano |
