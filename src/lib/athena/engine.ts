@@ -32,6 +32,7 @@ import type { CapabilitySelectionResult } from "./domain/capability-selection";
 import { agentRegistry } from "./agents/registry";
 import { executeAgentWithExperience } from "./runtime/agent-execution";
 import { projectAgentExperienceTraces } from "./runtime/experience-trace-projection";
+import { projectAgentEvidenceDisclosure } from "./runtime/agent-evidence-disclosure";
 import { prepareAgentConversationHistory } from "./agents/base-agent";
 import type { AgentResult } from "./domain/result";
 import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
@@ -95,12 +96,13 @@ function resolveAthenaInteractionContract(
 function agentInvocationMetadata(result?: AgentResult): Record<string, unknown> {
   if (!result) return {};
   const traces = projectAgentExperienceTraces([result]);
+  const evidenceDisclosure = projectAgentEvidenceDisclosure(result);
   return {
     agentExecution: {
       agentId: result.agentId,
       agentName: result.agentName,
       success: result.success,
-      confidence: result.confidence,
+      ...evidenceDisclosure,
       conversationReferenceResolved: result.metadata?.conversationReferenceResolved === true,
     },
     ...(traces.length ? { agentExperienceTraces: traces } : {}),

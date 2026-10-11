@@ -15,7 +15,7 @@
 
 ## Cenários automatizados
 
-A suíte `interaction-contract-e2e.test.ts` cobre 28 evidências:
+A suíte `interaction-contract-e2e.test.ts` cobre 30 evidências:
 
 1. roteamento real dos três contratos;
 2. ausência de mutação em `ANSWER_SELF` e `USE_AGENT`;
@@ -29,7 +29,8 @@ A suíte `interaction-contract-e2e.test.ts` cobre 28 evidências:
 10. rejeição de alegações factuais e operacionais não sustentadas por um especialista;
 11. ausência de uma segunda geração por modelo local após a resposta real do especialista;
 12. preservação da resposta limitada à evidência e da identidade visível única de Athena;
-13. rejeição de conteúdo parcial quando o próprio especialista sinaliza execução malsucedida e descarte de recomendações/críticas desse retorno.
+13. rejeição de conteúdo parcial quando o próprio especialista sinaliza execução malsucedida e descarte de recomendações/críticas desse retorno;
+14. projeção das fontes e limitações aceitas para a divulgação expansível no Hub e no Sidecar, mantendo confiança explicitamente heurística.
 
 As suítes complementares de governança e recuperação exercitam DAG, confirmação vinculada, cancelamento, pausa, retomada idempotente, falha parcial, repetição segura e undo concreto.
 

@@ -24,6 +24,7 @@ import { AthenaMessageText } from "./AthenaMessageText";
 import { AthenaFeedbackControls } from "./AthenaFeedbackControls";
 import { feedbackTargetFromMetadata } from "@/lib/athena/conversation/feedback-target";
 import { AthenaExperienceTrace } from "./AthenaExperienceTrace";
+import { AthenaAgentEvidence } from "./AthenaAgentEvidence";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaCapabilityPlanPanel } from "./AthenaCapabilityPlanPanel";
 import { AthenaObservabilityPanel } from "./AthenaObservabilityPanel";
@@ -296,6 +297,7 @@ export function AthenaSidecar() {
                       )}
                     >
                       <AthenaMessageText text={msg.text} />
+                      {isAthena && <AthenaAgentEvidence metadata={msg.metadata} />}
                       {isAthena && <AthenaExperienceTrace metadata={msg.metadata} />}
                       {msg.sender === "athena" && (
                         <AthenaFeedbackControls

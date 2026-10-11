@@ -115,6 +115,10 @@ async function run(): Promise<void> {
     check(failedSpecialist.text.includes("não foi concluída") && !failedSpecialist.text.includes("onze vulnerabilidades"), "E2E-025", "Partial specialist content is not presented as a completed finding");
     const failedSession = athenaConversationManager.getOrCreateSession("e2e-agent-failed-result");
     check((failedSession.recentRecommendations ?? []).length === 0 && (failedSession.recentCritiques ?? []).length === 0, "E2E-026", "Recommendations and critiques from failed partial work do not leak into later follow-ups");
+
+    const boundedExecution = boundedSpecialist.metadata?.agentExecution as { sources?: string[]; limitations?: string[]; confidence?: number } | undefined;
+    check(boundedExecution?.sources?.includes("Descrição do Projeto Aurora fornecida no contexto da tarefa") && boundedExecution.limitations?.includes("Nenhum diagrama, código ou relatório técnico foi fornecido para inspeção."), "E2E-027", "Accepted specialist sources and limitations are preserved in the user-visible disclosure metadata");
+    check(boundedExecution?.confidence === 0.58, "E2E-028", "The specialist's confidence indicator remains numeric so the UI can label it as heuristic, not calibrated probability");
   } finally {
     critiasAgent.execute = originalCritiasExecute;
     ollamaAdapter.isAvailable = previousOllamaAvailability;
@@ -152,7 +156,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 28 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 30 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {

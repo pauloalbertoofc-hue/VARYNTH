@@ -12,6 +12,8 @@ const checks = [
   "src/lib/athena/agents/council/agent-persona-grounding.test.ts",
   "src/lib/athena/agents/base-agent-conversation.test.ts",
   "src/lib/athena/runtime/experience-trace-projection.test.ts",
+  "src/lib/athena/runtime/agent-evidence-disclosure.test.ts",
+  "src/components/athena/AthenaAgentEvidence.test.tsx",
   "src/lib/athena/conversation/specialist-correction.test.ts",
   "src/lib/athena/conversation/pending-clarification.test.ts",
   "src/lib/athena/tests/capability-plan.test.ts",
