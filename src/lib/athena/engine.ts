@@ -298,7 +298,10 @@ export async function processAthenaQueryAsync(
 ): Promise<AthenaMessage> {
   let prompt = rawPrompt.trim();
   if (/^(corrija a resposta|corrija|tente novamente|nao foi isso)[.!?]*$/i.test(prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
-    const feedback = athenaConversationFeedback.latest(sessionId);
+    const latestAssistantTurn = athenaConversationManager.getRecentTurns(sessionId, 8).reverse().find((turn) => turn.role === "athena");
+    const feedback = latestAssistantTurn?.id
+      ? athenaConversationFeedback.latestForMessage(sessionId, latestAssistantTurn.id)
+      : undefined;
     if (feedback) {
       if (feedback.category === "WRONG_ACTION") return operationalMessage("Registrei que a ação foi incorreta. Não vou repeti-la automaticamente. Informe qual resultado ou item precisa ser ajustado; o histórico da ação permanece disponível.", scope);
       if (feedback.correction) prompt = feedback.correction;
