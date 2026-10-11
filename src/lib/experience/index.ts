@@ -12,6 +12,7 @@ export * from "./studio-structure-adapter";
 export * from "./game-learning-adapter";
 export * from "./document-learning-adapter";
 export * from "./retrospective-service";
+export * from "./reviewed-outcome-service";
 export * from "./learning-policy";
 export * from "./learning-exclusion-service";
 export * from "./pattern-service";

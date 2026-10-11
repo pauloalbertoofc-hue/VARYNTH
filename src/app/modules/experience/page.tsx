@@ -13,6 +13,7 @@ import { getExperienceOwnerId } from "@/lib/experience/identity";
 import { legacyExperienceMigrationService } from "@/lib/experience/legacy-migration-service";
 import { EXPERIENCE_AGENT_CATALOG } from "@/lib/experience/agent-catalog";
 import { buildProjectRetrospective, type ProjectRetrospective } from "@/lib/experience/retrospective-service";
+import { recordReviewedProjectOutcome } from "@/lib/experience/reviewed-outcome-service";
 
 export default function ExperiencePage() {
   const [events, setEvents] = useState<ExperienceEvent[]>([]);
@@ -34,6 +35,12 @@ export default function ExperiencePage() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [retrospective, setRetrospective] = useState<ProjectRetrospective | null>(null);
   const [retrospectiveError, setRetrospectiveError] = useState("");
+  const [retrospectiveEvidenceIds, setRetrospectiveEvidenceIds] = useState<string[]>([]);
+  const [outcomeSituation, setOutcomeSituation] = useState("");
+  const [outcomeAction, setOutcomeAction] = useState("");
+  const [outcomeResult, setOutcomeResult] = useState("");
+  const [outcomeUsefulnessConfirmed, setOutcomeUsefulnessConfirmed] = useState(false);
+  const [outcomeSavedMessage, setOutcomeSavedMessage] = useState("");
   async function refresh() {
     const currentOwnerId = await getExperienceOwnerId();
     const [nextEvents, allPreferences, nextExclusions] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), learningExclusionService.list(currentOwnerId)]);
@@ -74,10 +81,40 @@ export default function ExperiencePage() {
   }
   async function loadRetrospective() {
     if (!selectedProjectId) return;
-    setBusy(true); setRetrospectiveError("");
+    setBusy(true); setRetrospectiveError(""); setOutcomeSavedMessage(""); setRetrospectiveEvidenceIds([]);
     try { setRetrospective(await buildProjectRetrospective(selectedProjectId, ownerId)); }
     catch (error) { setRetrospective(null); setRetrospectiveError(error instanceof Error ? error.message : "Não foi possível montar a retrospectiva."); }
     finally { setBusy(false); }
+  }
+  function resetOutcomeDraft() {
+    setRetrospectiveEvidenceIds([]); setOutcomeSituation(""); setOutcomeAction(""); setOutcomeResult("");
+    setOutcomeUsefulnessConfirmed(false); setOutcomeSavedMessage("");
+  }
+  async function saveReviewedOutcome() {
+    if (!retrospective || !ownerId) return;
+    setBusy(true); setRetrospectiveError(""); setOutcomeSavedMessage("");
+    try {
+      await recordReviewedProjectOutcome({
+        ownerId,
+        projectId: retrospective.projectId,
+        situation: outcomeSituation,
+        action: outcomeAction,
+        outcome: outcomeResult,
+        evidenceEventIds: retrospectiveEvidenceIds,
+        confirmsUseful: outcomeUsefulnessConfirmed,
+      });
+      const savedProjectId = retrospective.projectId;
+      resetOutcomeDraft();
+      setOutcomeSavedMessage("Experiência registrada com proveniência e escopo exclusivo deste projeto.");
+      try {
+        await refresh();
+        setRetrospective(await buildProjectRetrospective(savedProjectId, ownerId));
+      } catch {
+        setOutcomeSavedMessage("Experiência salva; não consegui atualizar a retrospectiva agora. Reabra-a para conferir o registro.");
+      }
+    } catch (error) {
+      setRetrospectiveError(error instanceof Error ? error.message : "Não foi possível registrar esta experiência.");
+    } finally { setBusy(false); }
   }
   const observedProjectIds = [...new Set(events.map((event) => event.projectId).filter((id): id is string => Boolean(id?.trim())))].sort((a, b) => a.localeCompare(b));
   const retrospectiveGroups = retrospective ? [
@@ -113,13 +150,14 @@ export default function ExperiencePage() {
         <h2 className="text-sm font-semibold text-white">Retrospectiva de projeto</h2>
         <p className="mt-1 text-xs text-slate-400">Reconstruída apenas com eventos e experiências da sua conta ligados ao projeto. Cada item aponta para registros reais; isso não é uma avaliação automática de sucesso.</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <select aria-label="Projeto para retrospectiva" value={selectedProjectId} onChange={(event) => { setSelectedProjectId(event.target.value); setRetrospective(null); setRetrospectiveError(""); }} className="min-h-10 min-w-64 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white">
+          <select aria-label="Projeto para retrospectiva" value={selectedProjectId} onChange={(event) => { setSelectedProjectId(event.target.value); setRetrospective(null); setRetrospectiveError(""); resetOutcomeDraft(); }} className="min-h-10 min-w-64 rounded-lg border border-white/10 bg-slate-950 px-3 text-xs text-white">
             <option value="">Selecione um projeto observado</option>
             {observedProjectIds.map((id) => <option key={id} value={id}>{id}</option>)}
           </select>
           <button type="button" disabled={busy || !selectedProjectId || !ownerId} onClick={() => void loadRetrospective()} className="min-h-10 rounded-lg border border-violet-300/30 px-3 text-xs font-semibold text-violet-100 disabled:opacity-40">Montar retrospectiva</button>
         </div>
         {retrospectiveError && <p role="alert" className="mt-3 text-xs text-rose-300">{retrospectiveError}</p>}
+        {outcomeSavedMessage && <p role="status" className="mt-3 text-xs text-emerald-300">{outcomeSavedMessage}</p>}
         {retrospective && <div className="mt-4 space-y-4" aria-live="polite">
           <p className="text-[10px] text-slate-500">Projeto {retrospective.projectId} · {retrospective.evidence.length} eventos verificáveis · gerada em {new Date(retrospective.generatedAt).toLocaleString("pt-BR")}</p>
           {retrospective.initialApproach.length > 0 && <p className="rounded-lg border border-white/10 p-3 text-xs text-slate-200"><span className="font-medium">Abordagem inicial registrada:</span> {retrospective.initialApproach.join(" · ")}</p>}
@@ -133,6 +171,29 @@ export default function ExperiencePage() {
           <div>
             <h3 className="text-xs font-medium text-slate-200">Experiências úteis com evidência neste projeto</h3>
             {retrospective.successfulExperiences.length === 0 ? <p className="mt-1 text-[10px] text-slate-500">Nenhuma experiência útil vinculada a evidências deste projeto.</p> : <ul className="mt-2 space-y-2">{retrospective.successfulExperiences.map((experience) => <li key={experience.id} className="rounded-lg border border-white/10 p-3"><p className="text-xs text-slate-100">{experience.situation} → {experience.action} → {experience.outcome}</p><p className="mt-1 break-all text-[10px] text-slate-500">Evidências: {experience.evidence.map((item) => item.eventId).join(", ") || "escopo explicitamente associado ao projeto"}</p></li>)}</ul>}
+          </div>
+          <div className="rounded-lg border border-emerald-300/15 bg-emerald-500/[0.03] p-4">
+            <h3 className="text-xs font-medium text-emerald-100">Registrar experiência revisada</h3>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-400">Apenas o que você escrever e confirmar será retido. Selecione até 12 eventos desta retrospectiva como proveniência. A experiência ficará limitada a este projeto; não criará preferência global nem alterará o modelo.</p>
+            <div className="mt-3 space-y-2">
+              {retrospective.evidence.length === 0 ? <p className="text-[10px] text-slate-500">Sem eventos verificáveis; não é possível registrar uma experiência sem evidência.</p> : retrospective.evidence.map((item) => {
+                const event = events.find((candidate) => candidate.id === item.eventId);
+                const checked = retrospectiveEvidenceIds.includes(item.eventId);
+                const limitReached = retrospectiveEvidenceIds.length >= 12 && !checked;
+                return <label key={item.eventId} className={`flex cursor-pointer items-start gap-2 rounded border px-3 py-2 text-[10px] ${checked ? "border-emerald-300/30 bg-emerald-500/[0.05]" : "border-white/5"} ${limitReached ? "opacity-40" : ""}`}>
+                  <input type="checkbox" className="mt-0.5" checked={checked} disabled={busy || limitReached} onChange={() => setRetrospectiveEvidenceIds((current) => checked ? current.filter((id) => id !== item.eventId) : [...current, item.eventId])} />
+                  <span className="min-w-0 text-slate-300"><span className="font-medium">{event?.actionType || "Evento"}</span> · {event?.source || "origem não informada"}<span className="ml-2 break-all font-mono text-slate-500">{item.eventId}</span></span>
+                </label>;
+              })}
+              <p className="text-[10px] text-slate-500">Evidências selecionadas: {retrospectiveEvidenceIds.length}/12</p>
+            </div>
+            <div className="mt-3 grid gap-2">
+              <textarea aria-label="Situação da experiência" maxLength={500} value={outcomeSituation} onChange={(event) => setOutcomeSituation(event.target.value)} placeholder="Situação: o que estava acontecendo?" className="min-h-16 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white" />
+              <textarea aria-label="Ação da experiência" maxLength={500} value={outcomeAction} onChange={(event) => setOutcomeAction(event.target.value)} placeholder="Ação: o que foi feito ou escolhido?" className="min-h-16 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white" />
+              <textarea aria-label="Resultado da experiência" maxLength={500} value={outcomeResult} onChange={(event) => setOutcomeResult(event.target.value)} placeholder="Resultado: o que aconteceu depois?" className="min-h-16 rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white" />
+            </div>
+            <label className="mt-3 flex items-start gap-2 text-[10px] leading-relaxed text-slate-300"><input type="checkbox" className="mt-0.5" checked={outcomeUsefulnessConfirmed} onChange={(event) => setOutcomeUsefulnessConfirmed(event.target.checked)} /><span>Confirmo que este resultado foi útil e autorizo seu uso como referência somente neste projeto.</span></label>
+            <button type="button" disabled={busy || !ownerId || !retrospectiveEvidenceIds.length || !outcomeSituation.trim() || !outcomeAction.trim() || !outcomeResult.trim() || !outcomeUsefulnessConfirmed} onClick={() => void saveReviewedOutcome()} className="mt-3 rounded-lg border border-emerald-300/30 px-3 py-2 text-xs font-semibold text-emerald-100 disabled:opacity-40">Salvar experiência revisada neste projeto</button>
           </div>
         </div>}
         {observedProjectIds.length === 0 && <p className="mt-3 text-xs text-slate-500">Ainda não há eventos de Experience associados a projetos para revisar.</p>}
