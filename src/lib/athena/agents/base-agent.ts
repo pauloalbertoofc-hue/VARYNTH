@@ -55,12 +55,35 @@ export function inferCurrentConversationRegister(prompt: string): "formal" | "in
   return undefined;
 }
 
+function normalizeFollowUpText(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[.,!?;:()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function isExplicitTopicSwitch(value: string): boolean {
+  const normalized = normalizeFollowUpText(value);
+  return /^(?:mudando de assunto|mudando de tema|outra coisa|falando de outra coisa|sobre outro assunto|(?:e\s+)?agora\s+(?:sobre|quanto a))\b/.test(normalized);
+}
+
 /** Resolves only clear follow-up references from the active session's user turns.
  * Assistant turns are intentionally excluded: they are not independent evidence. */
 export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { prompt: string; usedHistory: boolean } {
+  const turns = [...(context.recentConversation ?? [])];
+  if (turns.at(-1)?.role === "user" && normalizeFollowUpText(turns.at(-1)!.text) === normalizeFollowUpText(prompt)) turns.pop();
+  const explicitReturn = /^(?:voltando|retomando)\s+(?:ao|a|para|pro)\b/.test(normalizeFollowUpText(prompt));
+  if (explicitReturn) {
+    let lastTopicSwitch = -1;
+    for (let index = turns.length - 1; index >= 0; index -= 1) {
+      if (turns[index].role === "user" && isExplicitTopicSwitch(turns[index].text)) { lastTopicSwitch = index; break; }
+    }
+    if (lastTopicSwitch >= 0) {
+      const previousUserTurn = turns.slice(0, lastTopicSwitch).reverse().find((turn) => turn.role === "user" && turn.text.trim());
+      if (previousUserTurn) return { prompt: `${previousUserTurn.text.slice(0, 500)}\n\nRetomada explícita solicitada agora: ${prompt.trim()}`, usedHistory: true };
+    }
+  }
+  if (isExplicitTopicSwitch(prompt)) return { prompt, usedHistory: false };
   const followUp = /^(?:(?:e|mas\s+e|quanto\s+a)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|essa\s+resposta|essa\s+parte|esse\s+detalhe|o\s+exemplo|o\s+resultado|o\s+plano|o\s+texto|o\s+rascunho|a\s+análise|o\s+trecho|a\s+segunda\s+opção|as\s+fontes|essa\s+obra|no\s+cap[ií]tulo)\b[^.!?]{0,90}|(?:continue|desenvolva\s+(?:isso|essa\s+ideia|essa\s+proposta)|explique\s+(?:isso|essa\s+parte|essa\s+resposta|melhor)|fale\s+mais(?:\s+sobre\s+isso)?|escreva\s+mais\s+sobre\s+isso|redija\s+mais\s+sobre\s+isso|e\s+agora|o\s+que\s+mais|pode\s+(?:explicar\s+(?:isso|essa\s+parte)|detalhar\s+isso|desenvolver\s+isso)|me\s+explica(?:r)?\s+(?:isso|essa\s+parte)|qual\s+(?:delas|deles|das\s+opções)|isso\s+(?:funciona|serve|resolve))\b[^.!?]{0,90}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,90}|(?:por\s+que|quais\s+(?:são\s+)?(?:os\s+)?riscos|quais\s+as\s+consequências))\s*[.!?]?$/i.test(prompt.trim()) || /^por\s+quê\s*[.!?]?$/i.test(prompt.trim());
   if (!followUp) return { prompt, usedHistory: false };
-  const previousUserTurn = [...(context.recentConversation ?? [])].reverse().find((turn) => turn.role === "user" && turn.text.trim());
+  const previousUserTurn = [...turns].reverse().find((turn) => turn.role === "user" && turn.text.trim());
   if (!previousUserTurn) return { prompt, usedHistory: false };
   return { prompt: `${previousUserTurn.text.slice(0, 500)}\n\nContinuação solicitada agora: ${prompt.trim()}`, usedHistory: true };
 }

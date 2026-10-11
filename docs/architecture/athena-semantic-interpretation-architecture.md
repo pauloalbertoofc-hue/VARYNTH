@@ -100,5 +100,7 @@ Referências comparativas plurais como “Compare os dois” só são resolvidas
 
 Marcadores explícitos de mudança de assunto (“mudando de assunto”, “outra coisa”, “agora sobre...”) suspendem o projeto ativo quando nenhum novo projeto é citado. Entidades recentes permanecem no histórico para referências explícitas, mas não bastam para ancorar “isso/ele/ela” no contexto novo; o usuário pode retomar o tópico interrompido com “voltando a...”.
 
+O adaptador conversacional dos especialistas também remove o turno atual da busca de antecedentes, não atribui uma referência curta a uma mensagem de mudança de assunto, e só atravessa essa fronteira quando o usuário pede explicitamente para retomar o tema anterior. A janela de histórico continua limitada à sessão ativa; assistentes não são tratados como evidência independente do pedido do usuário.
+
 Verificação local em 2026-10-11: `npm run test:athena-semantic` passou 33/33 cenários, incluindo execução governada do plano exato na mesma sessão e recusa sem plano; `npm run test:athena-intelligence` passou 100 cenários e `npm run test:athena-communication` cobre agora respostas compatíveis, referências comparativas sem alvo e alvos nomeados. Esses resultados são testes automatizados, não substituem um walkthrough manual autenticado.
 
