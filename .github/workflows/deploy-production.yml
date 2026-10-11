@@ -32,8 +32,23 @@ jobs:
           npm run test:athena-communication
           npx tsx src/lib/athena/agents/experience-guidance.test.ts
       - run: npm run build
-      - name: Deploy verified commit to Vercel production
-        run: npx vercel deploy --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Verify Vercel deployment credentials
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          for secret_name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!secret_name}" ]; then
+              echo "::error::Missing required GitHub Actions secret: ${secret_name}"
+              exit 1
+            fi
+          done
+          npx vercel whoami --token="$VERCEL_TOKEN" --no-color >/dev/null
+          echo "Vercel token authentication succeeded."
+      - name: Deploy verified commit to Vercel production
+        run: npx vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
