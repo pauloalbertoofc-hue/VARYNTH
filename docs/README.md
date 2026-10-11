@@ -49,6 +49,7 @@ Para acomodar diferentes necessidades de profundidade técnica sem exigir a leit
 - [`global-app-branding.md`](./architecture/global-app-branding.md): Ícone global do Web App, persistência, controles do proprietário e atualização entre dispositivos.
 - [`system-map.md`](./architecture/system-map.md): Mapa topológico e matriz de subsistemas implementados vs planejados.
 - [`data-flow.md`](./architecture/data-flow.md): Fluxo reativo de dados, mutações e barramento de eventos.
+- [`experience-layer-architecture-map.md`](./architecture/experience-layer-architecture-map.md) e [`experience-manual-test-plan.md`](./architecture/experience-manual-test-plan.md): arquitetura, limites verificados e plano manual de aceitação da Experience Layer.
 - [`security-model.md`](./architecture/security-model.md): Modelo de segurança local, auditoria e princípio *Fail-Closed* (Alex Principle).
 - [`local-first.md`](./architecture/local-first.md): Arquitetura Local-First, soberania de dados e inferência local adaptativa.
 - [`DOMAIN-ARCHITECTURE.md`](./architecture/DOMAIN-ARCHITECTURE.md), [`KNOWLEDGE-MODEL.md`](./architecture/KNOWLEDGE-MODEL.md), [`domain-ownership.md`](./architecture/domain-ownership.md), [`knowledge-policy.md`](./architecture/knowledge-policy.md) e [`knowledge-sharing.md`](./architecture/knowledge-sharing.md): ownership, modelo e política de acesso ao conhecimento.

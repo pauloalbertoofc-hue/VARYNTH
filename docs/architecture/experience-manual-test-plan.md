@@ -1,0 +1,82 @@
+# Experience Layer — Manual Acceptance Plan
+
+This is a runnable QA checklist for the current local-first implementation. It is a plan, not evidence that the scenarios have already been executed. Record build/commit, browser, account fixture, date, result, and evidence for every run. A scenario marked **Gap** is intentionally not passable until the missing product surface exists; do not convert absence of a control into a pass.
+
+## Test setup and evidence
+
+- Run against a local build with an authenticated test account, a second account, and a clean browser profile. Keep production user data out of the test.
+- Open the in-product **Experience Layer** at `/modules/experience`; open Athena at `/modules/athena` and the relevant Studio from the app navigation. Exact labels may vary by enabled module.
+- For event-producing tests, use a disposable project/artifact and capture its project/artifact identifiers. For account-isolation tests, sign out fully before switching accounts.
+- Before each scenario, note the applicable `NEXT_PUBLIC_VARYNTH_EXPERIENCE_*` build flags. They are build/deployment configuration, not live UI switches. Default is enabled. Changing them requires a new build/deployment.
+- Capture only synthetic test data. Export files and screenshots may contain local identifiers; store them with restricted test evidence.
+- A pass requires the stated observable result plus no console/runtime error that changes the outcome. Backend/service success alone does not prove the user-visible path.
+
+Result legend: **Implemented** = a current UI/service path exists to exercise; **Partial** = only part of the end-to-end behavior is exposed; **Gap** = required user-visible behavior is not implemented. These labels describe testability, not a test result.
+
+## Scenarios
+
+| # | Scenario / status | Procedure | Expected acceptance evidence |
+|---:|---|---|---|
+| 01 | Record event — **Implemented** | In a disposable Studio, make and save one deliberate user edit; open Experience Layer and refresh. | A new account-owned event is visible with a source/action and bounded metadata; no raw document, prompt, code, or asset content is exposed. |
+| 02 | Explicit like — **Implemented** | In Athena, submit a useful synthetic request and use the positive response-quality control. | One feedback event is stored for the authenticated account; the UI confirms the action without claiming that a model was trained. |
+| 03 | Explicit dislike — **Implemented** | Repeat with a separate response and select the negative quality control. | Negative feedback is recorded once, distinguishable from positive feedback, and does not become an automatically confirmed preference. |
+| 04 | Accept proposal — **Partial** | Produce a reviewable preference candidate using eligible repeated actions; save it for review, then confirm it. | The candidate is explicitly reviewed; only the confirmed preference is eligible for retrieval and its evidence is inspectable. If no candidate can be generated through the UI, record the producer path as a gap. |
+| 05 | Reject proposal — **Implemented** | Generate a reviewable candidate and reject it; refresh the page. | Rejected preference remains rejected after refresh and is not retrieved as active guidance. |
+| 06 | Immediate undo — **Implemented** | Save a real edit in Audio, Game, Image, or Video Studio; within 30 seconds use the editor's actual Undo control; inspect events. | The undo event is classified as immediate and attributed to the right artifact; state is recorded only after a real history transition. |
+| 07 | Delayed edit/undo — **Implemented** | Save an edit, wait more than 30 seconds, then invoke the actual Undo control. | Event is classified as delayed/unknown rather than immediate; no document state or edit content is retained. |
+| 08 | Preference candidate threshold — **Implemented** | Generate the same eligible allowlisted signal across at least three independent events and two artifacts; refresh hypotheses. | A candidate appears only after threshold is met, includes evidence IDs/confidence, and requires explicit user action before becoming a preference. |
+| 09 | Confidence growth — **Partial** | Record additional independent eligible evidence for a candidate and compare its confidence before/after. | Confidence changes only according to independent evidence and remains bounded; repeated automatic signals do not inflate it. UI-level trend display is not currently guaranteed. |
+| 10 | Contradictory evidence — **Implemented** | Create eligible contradictory evidence for the same preference scope, then inspect preferences and candidate results. | Conflict handling is deterministic and visible in resulting statuses/confidence; neither side silently overrides an explicit declaration. |
+| 11 | Confirm preference — **Implemented** | Confirm one inferred preference in Experience Layer and refresh. | Status becomes confirmed and persists; its evidence/provenance remains attached. |
+| 12 | Reject preference — **Implemented** | Reject an inferred preference and refresh. | Status remains rejected and preference is excluded from active retrieval. |
+| 13 | Correct preference — **Partial** | Declare a new explicit preference with the same domain/key/scope but a corrected value; inspect history. | Explicit declaration wins for that scope, receives provenance, and the former inference is not silently treated as current truth. Verify exact lifecycle status in the UI. |
+| 14 | Project scope — **Implemented** | Create project-specific evidence/preference; ask a relevant Athena question with that project active, then switch to another project. | Project-scoped context is available only in the matching project; no leakage after switching. |
+| 15 | Domain scope — **Implemented** | Declare a preference for one domain; query two different domains. | Preference is retrieved only in its matching domain unless the contract explicitly permits a confirmed global communication preference. |
+| 16 | Agent scope — **Implemented** | Declare an agent-scoped preference for a named specialist; compare that specialist and another specialist. | Only the selected agent receives the preference; trace shows IDs, not stored preference contents. |
+| 17 | Session scope — **Partial** | Create session-scoped evidence, open a new conversation session, and compare retrieval. | Session data does not leak to a different session. If the producer/UI cannot create a session-scoped item, record a gap rather than infer behavior from service tests. |
+| 18 | Current instruction override — **Implemented** | Confirm a concise-style preference, then explicitly ask Athena or a specialist for a detailed answer. | Current request wins; answer is detailed and trace/response does not claim the saved style overruled it. |
+| 19 | Experience creation — **Implemented** | In Experience Layer, select a project, build its retrospective, write a synthetic situation/action/outcome, select evidence, explicitly confirm usefulness, and save. | Only the authored and confirmed outcome is retained; event and ExperienceRecord link to the same account/project and selected evidence. |
+| 20 | Experience retrieval — **Partial** | With a confirmed positive project outcome, ask Athena for brainstorming/recommendations in that exact active project; repeat in an unrelated project. | Prior outcome appears only as an optional method reference in the exact project; it is not stated as a current fact and does not cross projects. |
+| 21 | Agent isolation — **Implemented** | Create an agent-scoped outcome/preference, then query two other specialists with a comparable task. | Other agents do not receive the scoped item; their ID-only trace does not list its identifiers. |
+| 22 | Cross-agent sharing — **Partial** | Create a confirmed global communication preference and a separate agent-specific method outcome; query multiple specialists. | Only explicitly global communication style may cross domains; method outcome remains scoped. Verify each agent's returned trace and visible answer. |
+| 23 | Project retrospective — **Implemented** | In Experience Layer choose a project with events, build retrospective, inspect evidence groups and chronology. | Only current-account project events appear; source event IDs are selectable; empty/unauthorized projects fail closed. |
+| 24 | Delta analysis — **Gap** | Attempt to compare project state before/after selected events using a user-facing retrospective control. | No delta-analysis UI is currently documented. Mark **Not testable / product gap** until a real before/after comparison is implemented. |
+| 25 | Outcome — **Implemented** | Save a manually authored project outcome using selected evidence and explicit usefulness confirmation; reopen retrospective. | Outcome persists with project-only scope, owner and provenance; it does not automatically create a global preference or change model weights. |
+| 26 | Forget — **Implemented** | Select an event in Experience Layer and invoke its forget action; reload and inspect linked records. | Event is removed for the current owner and dependent evidence is recomputed or cascaded; another account's records remain unchanged. |
+| 27 | Cascade invalidation — **Implemented** | Forget an event used by an inferred preference and a project outcome; reopen both views. | No retained item continues to cite the forgotten evidence; empty inferred records are removed and manual records are deprecated/cleared per policy. |
+| 28 | Do Not Learn — **Implemented** | Add a global exclusion, perform a new eligible-looking action, then inspect events/candidates; remove exclusion and retry. | Excluded event remains auditable but is ineligible with a reason; no candidate is produced from excluded evidence. Re-enable removes only that exclusion. |
+| 29 | Experiment mode — **Gap** | Look for a sandbox that simulates events without writing to the account's production-like local store. | A dedicated non-contaminating Experiment Mode is not currently implemented. Mark **Not testable / product gap**; use automated fixtures only. |
+| 30 | Data export — **Implemented** | Use **Exportar dados da Experience Layer**; inspect the downloaded JSON with synthetic data. | Export identifies local-device storage, schema version and export time; includes only the current account's events/preferences/experiences/exclusions; file parses as JSON. |
+| 31 | Explanation — **Partial** | Open an Athena response with Experience use and inspect its disclosure. Ask why a preference was applied. | UI explains bounded retrieval, scope and current-instruction precedence without exposing stored contents or claiming causal proof. A full natural-language explanation of every decision remains incomplete. |
+| 32 | Decision trace — **Partial** | Inspect Athena Hub/Sidecar trace for a response that uses Experience and one that does not. | Trace distinguishes retrieved IDs from textually referenced IDs and states limits; full event→signal→candidate→preference→retrieval→decision chain is not yet available. |
+| 33 | Retrieval budget — **Partial** | Query with many eligible records across scopes; inspect returned IDs and response latency. | Retrieval respects the documented per-consumer record bound and scope filters; no unbounded record dump. There is no complete user-facing budget inspector yet. |
+| 34 | Duplicate event — **Implemented** | Repeat the same producer operation with the same correlation/event ID; inspect list and account ownership. | Idempotent write returns one event; duplicate ID owned by another account fails closed. |
+| 35 | Offline mode — **Implemented** | Disconnect network after local app load; record an eligible local action, refresh/reopen the Experience Layer, then reconnect. | Local event and controls continue to work without network; no cross-device sync is implied. Record any feature that unexpectedly requires a network call. |
+| 36 | Failure recovery / kill switches — **Partial** | Build once with all flags defaulted; build again with global flag off; separately disable inference and retrospective flags. | Defaults preserve current behavior. Global pause yields empty context; inference pause produces no candidates; retrospective pause blocks retrospective reads/writes. UI reports deployment pause and stored data remains intact. Capture build-time flag values and deployment. |
+| 37 | Audio adapter — **Implemented** | In Audio Studio change BPM as a user, then separately trigger a non-user/agent-generated change; inspect events. | Only directly attributed user action is eligible; allowlisted tempo direction may be captured; arbitrary values/raw audio are not stored as learning payload. |
+| 38 | Agent integration — **Partial** | Ask Athena to delegate one task to a specialist with scoped confirmed guidance; compare visible answer, attribution, and trace. | Specialist contributes through the supported execution path; Athena remains the visible speaker where configured; trace reflects bounded IDs and rejected/blocked output is not shown. Repeat for remaining agents before asserting full coverage. |
+| 39 | Legacy migration — **Implemented** | With a fixture containing ownerless legacy records, review the migration inventory and select only safe categories; confirm reassociation. | No data moves before explicit confirmation; only selected records passing ownership/provenance checks are reassociated; legacy exclusions stay fail-closed. |
+| 40 | Restart / persistence — **Implemented** | Save synthetic preference/outcome/exclusion, close and reopen the app/browser, then inspect as the same account and a second account. | Local data persists for the owning account only; another account cannot read or modify it. Clearly document that a different device does not receive this local data. |
+
+## Run record template
+
+Copy once per test run and retain alongside restricted evidence:
+
+```text
+Commit/build:
+Environment/browser:
+Test account fixture:
+Feature flags:
+Date/time:
+Scenarios executed (IDs):
+Passed:
+Failed (include reproduction and evidence path):
+Not testable / gaps:
+Follow-up issue or commit:
+```
+
+## Current known acceptance gaps
+
+- The Experience Center is not yet a full event-to-decision inspector; scenarios 24, 29 and the complete form of 32/33 are gaps or partial.
+- Cross-device sync and configurable retention are not implemented. Local persistence must not be described as account-wide cloud memory.
+- This document does not claim any manual scenario has been run. A release acceptance report must link actual run evidence, current commit, and the authenticated product walkthrough.

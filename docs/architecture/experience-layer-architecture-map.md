@@ -65,7 +65,7 @@ Experience Center (/modules/experience)
 | L — forget, export, retention | PARTIAL | Forget cascade and local JSON export exist; scheduled retention and sync-aware deletion are not implemented. |
 | M — observability and developer inspector | NOT IMPLEMENTED END TO END | Need a trace joining event, signal, candidate, preference, retrieval, and consuming decision. |
 | N/O — performance, automated and adversarial tests | PARTIAL, CORE TESTS PASS | Experience, ownership, exclusion, conflict, forgetting, and candidate adversarial tests pass; production event-volume and cross-module E2E coverage remain. |
-| P — docs, migration, production validation | PARTIAL | Core model and learning policy are documented; the complete manual plan, test report, privacy/integration/limitations/changelog deliverables and production walkthrough remain. |
+| P — docs, migration, production validation | PARTIAL, MANUAL PLAN ADDED | `experience-manual-test-plan.md` now specifies all 40 acceptance scenarios and marks implemented/partial/gap without claiming they were executed. Run evidence, dedicated privacy/integration/limitations/changelog deliverables and authenticated production walkthrough remain. |
 
 ## Verified validation snapshot (2026-10-05; prior snapshot)
 
@@ -84,6 +84,6 @@ Experience Center (/modules/experience)
 1. Extend the Athena feedback-to-Experience bridge pattern to remaining Studio result surfaces; persist only deliberate feedback or well-attributed edits.
 2. Wire real, scoped Experience producers into each Studio and governed action lifecycle, including cancellation/undo/redo without false causal learning.
 3. Extend non-authoritative, scope-verified Experience use to remaining agents and Athena's generic deterministic dialogue/persona path, with explicit current-instruction precedence, agent isolation, and truthful provenance.
-4. Complete the manual test plan, privacy and agent-integration docs, and user-visible explanations/decision traces.
+4. Execute `experience-manual-test-plan.md` against a local build, attach evidence, and complete privacy and agent-integration docs plus user-visible explanations/decision traces.
 5. Decide and implement sync/retention only with explicit ownership, export, deletion, and conflict semantics; until then keep Experience clearly local-only.
 6. Re-run the full regression and cross-module tests, inspect Experience Center behavior, and validate the production alias after each publication.
