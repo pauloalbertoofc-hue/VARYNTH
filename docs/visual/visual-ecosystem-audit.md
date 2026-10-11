@@ -73,10 +73,13 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 - Camera possui adapter Web, sessão de captura, modos AUTO/DOCUMENT/VIDEO, Quality Gate local, biblioteca persistente e caminho Camera → Image Studio.
 - Foram adicionados os fundamentos determinísticos de geometria, cor, máscaras, efeitos, proveniência e runtime de processamento.
 - O módulo visível `/modules/camera` foi incluído no catálogo do VARYNTH; suas limitações de hardware permanecem explícitas.
+- Foram adicionados os módulos locais `Visual Studio`, `Visual Handbook`, `Visual Compare`, `Digital Painting` e `Vector Studio`, com rotas reais, persistência quando aplicável, exportação e integração incremental com Image Studio.
+- Camera agora cobre os seis perfis AUTO, SMART, PRO, DOCUMENT, VIDEO e STUDIO; VIDEO usa `MediaRecorder` quando suportado e a mídia original é persistida em IndexedDB.
 
 ## Lacunas ainda abertas
 
 - Não há backend nativo Android/Desktop de câmera nem captura RAW/DNG validada.
-- Não há ainda editor dedicado de vetor, pintura, nós, shaders, 3D ou AI Image Studio.
+- Não há ainda editor dedicado de nós, shaders, 3D ou AI Image Studio; Vector Studio e Digital Painting cobrem somente os fluxos locais explicitamente implementados.
 - ICC/HDR, segmentação semântica, depth capture, multiframe HDR e processamento GPU permanecem não implementados.
 - A validação de proveniência atual é estrutural; integridade criptográfica e cadeia assinada ainda exigem decisão de armazenamento.
+- As revisões posteriores ao último deploy confirmado estão no branch GitHub, mas a publicação Vercel está temporariamente impedida pelo limite diário `api-deployments-free-per-day`; produção não deve ser inferida do build local.
