@@ -12,4 +12,5 @@ const session = new CameraSession(adapter);
 session.stop();
 assert.equal(stopped, false);
 console.log("Camera session tests passed: lifecycle is safe before start.");
+assert.equal(typeof session.recordVideo, "function");
 

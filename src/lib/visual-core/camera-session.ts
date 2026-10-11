@@ -10,6 +10,15 @@ export interface CameraCapture {
   generated: false;
 }
 
+export interface CameraVideoCapture {
+  blob: Blob;
+  mimeType: string;
+  durationMs: number;
+  capturedAt: string;
+  source: "DEVICE_CAMERA";
+  generated: false;
+}
+
 export class CameraSession {
   private stream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
@@ -46,6 +55,28 @@ export class CameraSession {
       canvas.toBlob((value) => value ? resolve(value) : reject(new Error("CAMERA_CAPTURE_FAILED")), "image/jpeg", 0.95);
     });
     return { blob, mimeType: "image/jpeg", width, height, capturedAt: new Date().toISOString(), source: "DEVICE_CAMERA", generated: false };
+  }
+
+  async recordVideo(durationMs = 5000): Promise<CameraVideoCapture> {
+    if (!this.stream) throw new Error("CAMERA_SESSION_NOT_STARTED");
+    if (typeof MediaRecorder === "undefined") throw new Error("CAMERA_VIDEO_UNSUPPORTED");
+    const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+    if (!mimeType) throw new Error("CAMERA_VIDEO_FORMAT_UNSUPPORTED");
+    const chunks: BlobPart[] = [];
+    const recorder = new MediaRecorder(this.stream, { mimeType });
+    const startedAt = Date.now();
+    return await new Promise<CameraVideoCapture>((resolve, reject) => {
+      const timer = window.setTimeout(() => recorder.stop(), Math.max(250, durationMs));
+      recorder.addEventListener("dataavailable", (event) => { if (event.data.size) chunks.push(event.data); });
+      recorder.addEventListener("error", () => { window.clearTimeout(timer); reject(new Error("CAMERA_VIDEO_RECORDING_FAILED")); });
+      recorder.addEventListener("stop", () => {
+        window.clearTimeout(timer);
+        const blob = new Blob(chunks, { type: mimeType });
+        if (!blob.size) { reject(new Error("CAMERA_VIDEO_EMPTY")); return; }
+        resolve({ blob, mimeType, durationMs: Date.now() - startedAt, capturedAt: new Date().toISOString(), source: "DEVICE_CAMERA", generated: false });
+      });
+      recorder.start();
+    });
   }
 
   stop(): void {
