@@ -86,9 +86,11 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   if (match && currentContext.track) return { response: `Posso preparar um perfil visual ${match[0].trim()} para “${currentContext.track.name}”.`, proposal: { kind: "visual-profile", trackId: currentContext.track.id, instruction: match[0].trim() } satisfies EuterpeProposal };
   const playlist = text.match(/playlist(?: chamada| com nome)?\s+["“]?([^"”.,!?]+)["”]?/i);
   if (playlist) return { response: `Preparei um rascunho de playlist “${playlist[1].trim()}”. Revise antes de aplicar.`, proposal: { kind: "playlist", name: playlist[1].trim(), trackIds: currentContext.track ? [currentContext.track.id] : [] } satisfies EuterpeProposal };
-  const negatedPreference = /\b(?:nao|nunca|jamais)\s+(?:gosto|prefiro|adoro|curto|me interessa)\b|\bnao\s+guarde\b|\bnao\s+salve\b/.test(normalized);
+  const declinesRetention = /\b(?:(?:nao|nunca|jamais)\s+(?:(?:quero|gostaria|prefiro|preciso)\s+)?(?:que\s+)?(?:voce\s+)?(?:guard\w*|salv\w*|registr\w*|memoriz\w*|armazen\w*)|(?:prefiro|quero|gostaria|peco|prefira)\s+(?:que\s+)?(?:voce\s+)?(?:nao|nunca|jamais)\s+(?:guard\w*|salv\w*|registr\w*|memoriz\w*|armazen\w*))\b/.test(normalized);
+  if (declinesRetention) return { response: "Entendido. Não vou propor guardar essa informação na memória musical. Se quiser remover algo que já esteja salvo, indique qual registro.", proposal: undefined };
+
+  const negatedPreference = /\b(?:nao|nunca|jamais)\s+(?:gosto|prefiro|adoro|curto|me interessa)\b/.test(normalized);
   if (negatedPreference && /\b(?:gosto|prefiro|adoro|curto|me interessa)\b/.test(normalized)) return { response: "Entendi que isso não é uma preferência sua; não vou propor guardar essa informação como gosto musical.", proposal: undefined };
-  if (/\bnao\s+(?:guarde|salve)\b/.test(normalized)) return { response: "Entendido. Não vou propor guardar isso na memória musical.", proposal: undefined };
   if (/\b(estilo|gosto|preferencia|preferência|combina comigo|meu gosto)\b/.test(normalized)) {
     const savedValues = [...new Set([...currentContext.preferences.map((item) => item.value), ...currentContext.memories.map((item) => item.value)].map((value) => value.trim()).filter(Boolean))].slice(0, 5);
     if (savedValues.length) return { response: `Pelo que está salvo na sua memória musical local, aparecem ${savedValues.join(", ")}. Posso usar isso como pista para conversar — não como certeza sobre tudo de que você gosta. Alguma dessas referências você quer priorizar agora?`, proposal: undefined };

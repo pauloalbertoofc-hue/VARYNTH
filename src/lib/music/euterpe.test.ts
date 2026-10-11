@@ -63,6 +63,12 @@ assert.equal(negatedTaste.proposal, undefined, "A negated taste must not become 
 assert.match(negatedTaste.response, /não é uma preferência/);
 const refusedStorage = interpretEuterpeRequest("Gosto de jazz, mas não guarde isso", { ...context, preferences: [], memories: [] });
 assert.equal(refusedStorage.proposal, undefined, "Explicit refusal to store must suppress proposals");
+const politeRefusedStorage = interpretEuterpeRequest("Prefiro não guardar isso na memória", { ...context, preferences: [], memories: [] });
+assert.equal(politeRefusedStorage.proposal, undefined, "Polite negative retention language must not be captured as a preference value");
+const explicitRefusedStorage = interpretEuterpeRequest("Prefiro que você não registre que gosto de jazz", { ...context, preferences: [], memories: [] });
+assert.equal(explicitRefusedStorage.proposal, undefined, "A polite refusal must outrank a positive preference clause in the same sentence");
+const affirmativeTaste = interpretEuterpeRequest("Prefiro jazz", { ...context, preferences: [], memories: [] });
+assert.equal(affirmativeTaste.proposal?.kind, "preference", "An affirmative preference without retention refusal should remain reviewable");
 const ordinaryBecause = interpretEuterpeRequest("Eu gosto de jazz porque me lembra viagens", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "A faixa não tem dados suficientes." }, { sender: "user", text: "Eu gosto de jazz porque me lembra viagens" }]);
 assert.match(ordinaryBecause.response, /Entendi sua preferência/ , "A conjunction because in a statement is not a why follow-up");
 const formalExplain = interpretEuterpeRequest("Poderia explicar?", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "Music DNA registra tags dark." }, { sender: "user", text: "Poderia explicar?" }]);
