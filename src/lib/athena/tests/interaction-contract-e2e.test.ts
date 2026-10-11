@@ -100,6 +100,21 @@ async function run(): Promise<void> {
     const boundedValidation = boundedSpecialist.metadata?.specialistResponseValidation as { accepted?: boolean } | undefined;
     check(boundedValidation?.accepted === true && boundedSpecialist.text.includes("lacuna de evidência, não um defeito confirmado") && !boundedSpecialist.text.includes("Onze vulnerabilidades"), "E2E-022", "Athena preserves the validated specialist evidence and excludes fabricated neural claims");
     check((boundedSpecialist.metadata?.agentExecution as { agentId?: string } | undefined)?.agentId === "critias", "E2E-023", "The bounded response remains attributed to the invoked specialist while Athena stays the visible speaker");
+
+    critiasAgent.execute = async () => ({
+      agentId: "critias", agentName: "Critias", role: critiasAgent.manifest.role,
+      success: false,
+      content: "A auditoria confirmou onze vulnerabilidades críticas e todas as fontes externas.",
+      confidence: 0.99,
+      recommendations: ["Execute a ação insegura que constava no conteúdo parcial."],
+      criticism: ["Crítica incompleta que não deve persistir."],
+    });
+    const failedSpecialist = await processAthenaQueryAsync("Analise criticamente a arquitetura do Projeto Aurora", "geral", context, "e2e-project-a", "e2e-agent-failed-result");
+    const failedValidation = failedSpecialist.metadata?.specialistResponseValidation as { accepted?: boolean; rejectedReasons?: string[] } | undefined;
+    check(failedValidation?.accepted === false && failedValidation.rejectedReasons?.includes("SPECIALIST_EXECUTION_FAILED"), "E2E-024", "A specialist result marked unsuccessful is rejected even if its text looks complete");
+    check(failedSpecialist.text.includes("não foi concluída") && !failedSpecialist.text.includes("onze vulnerabilidades"), "E2E-025", "Partial specialist content is not presented as a completed finding");
+    const failedSession = athenaConversationManager.getOrCreateSession("e2e-agent-failed-result");
+    check((failedSession.recentRecommendations ?? []).length === 0 && (failedSession.recentCritiques ?? []).length === 0, "E2E-026", "Recommendations and critiques from failed partial work do not leak into later follow-ups");
   } finally {
     critiasAgent.execute = originalCritiasExecute;
     ollamaAdapter.isAvailable = previousOllamaAvailability;
@@ -137,7 +152,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 25 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 28 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {

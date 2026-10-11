@@ -594,16 +594,19 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     specialistCompleteness.isComplete = specialistCompleteness.missingAspects.length === 0;
   }
   const specialistRejectionReasons = [
+    ...(invokedAgentResult?.success === false ? ["SPECIALIST_EXECUTION_FAILED"] : []),
     ...(specialistFactCheck && !specialistFactCheck.isValid ? specialistFactCheck.rejectedReasons : []),
     ...(specialistCompleteness && !specialistCompleteness.isComplete ? specialistCompleteness.missingAspects : []),
   ];
-  const specialistResponseAccepted = specialistCandidate !== undefined && specialistRejectionReasons.length === 0;
+  const specialistResponseAccepted = invokedAgentResult?.success === true && specialistCandidate !== undefined && specialistRejectionReasons.length === 0;
   if (invokedAgentResult && !specialistResponseAccepted) {
     athenaObservabilityJournal.record({
       category: "SYSTEM",
       type: "SPECIALIST_RESPONSE_REJECTED",
       status: "BLOCKED",
-      message: "A resposta do especialista foi bloqueada por conflito factual, alegação operacional não autorizada ou incompletude.",
+      message: invokedAgentResult.success
+        ? "A resposta do especialista foi bloqueada por conflito factual, alegação operacional não autorizada ou incompletude."
+        : "O especialista não concluiu a análise; o conteúdo parcial não será apresentado como conclusão.",
       sessionId,
       projectId: resolvedProjectId,
       capabilityId: invokedAgentResult?.agentId,
@@ -613,22 +616,32 @@ O bloco experience contém preferências e experiências anteriores da conta aut
   const responseCandidate = invokedAgentResult
     ? specialistResponseAccepted
       ? specialistCompletenessCandidate
-      : parsed.clarificationPrompt || (specialistFactCheck?.isValid
+      : !invokedAgentResult.success
+        ? "A análise especializada não foi concluída, então não vou apresentar o conteúdo parcial como uma conclusão. Se quiser, reformule o recorte para eu tentar novamente."
+        : parsed.clarificationPrompt || (specialistFactCheck?.isValid
         ? `${invokedAgentResult.content}${invokedAgentResult.recommendations?.length ? `\n\n**Próximo passo:** ${invokedAgentResult.recommendations[0]}` : ""}`
         : "Não consegui validar a análise do especialista contra os dados e permissões desta conversa. Posso tentar novamente com um recorte mais específico.")
     : `${result.text}${projectExperienceGuidance.text}`;
   const safeResponseCandidate = responseCandidate ?? "Não consegui validar uma resposta para este pedido. Pode reformulá-lo com o resultado esperado?";
-  const finalText = invokedAgentResult && specialistResponseAccepted
+  // An explicit abstention after a failed invocation is truthful even though
+  // it cannot satisfy the original cognitive task's completeness checklist.
+  const finalText = invokedAgentResult && (specialistResponseAccepted || invokedAgentResult.success === false)
     ? safeResponseCandidate
     : enforceResponseQuality(prompt, parsed, safeResponseCandidate, sessionId, resolvedProjectId);
 
   // Record in History for future turns / ellipses
   const responseId = "ath-" + Date.now();
+  const recordedRecommendations = invokedAgentResult
+    ? invokedAgentResult.success ? invokedAgentResult.recommendations : []
+    : result.recommendations;
+  const recordedCritiques = invokedAgentResult
+    ? invokedAgentResult.success ? invokedAgentResult.criticism : []
+    : result.critiques;
   athenaConversationManager.recordAssistantResponse(
     sessionId,
     finalText,
-    invokedAgentResult?.recommendations ?? result.recommendations,
-    invokedAgentResult?.criticism ?? result.critiques,
+    recordedRecommendations,
+    recordedCritiques,
     responseId
   );
 
