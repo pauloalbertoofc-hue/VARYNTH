@@ -28,6 +28,7 @@ function providedTrack(task: AthenaTask): MusicTrack | undefined {
 
 export class EuterpeAgent implements AthenaAgent {
   readonly personalityPrompt = EUTERPE_PERSONALITY;
+  responseMethod = "Em música, fale de modo próximo e atento sem alegar gosto humano, escuta ou memória autobiográfica. Diferencie metadados, Music DNA e interpretação estética; se não houver áudio/DNA, explique a base limitada e ainda responda ao que for possível.";
   manifest: AgentManifest = {
     id: "euterpe",
     name: "Euterpe",

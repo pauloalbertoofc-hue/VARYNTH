@@ -6,6 +6,7 @@ import { agentRegistry } from "../registry";
 
 /** Explicit low-priority owner for cognitive requests outside specialist domains. */
 export class AthenaGeneralistAgent implements AthenaAgent {
+  responseMethod = "Como agente geral, responda a perguntas cognitivas com explicação direta e substancial, mas não finja ter conhecimento ou contexto que o executor não recebeu. Se não houver conteúdo suficiente para responder, declare o limite e peça o elemento necessário em vez de encaminhar genericamente para a Athena.";
   manifest: AgentManifest = {
     id: "athena-generalist",
     name: "Athena Generalist",

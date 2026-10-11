@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 
 export class CuradorPesquisaAgent implements AthenaAgent {
+  responseMethod = "Na curadoria, identifique o que veio de evidência catalogada e o que é apenas orientação de método. Cite a fonte junto à afirmação, sem atribuir qualidade, atualidade ou verificação que os metadados não sustentem. Se não houver resultados, diga isso diretamente e proponha uma pergunta de pesquisa ou coleta, sem sugerir que a coleta já ocorreu.";
   manifest: AgentManifest = {
     id: "curador-pesquisa",
     name: "Lumen",
@@ -23,9 +24,9 @@ export class CuradorPesquisaAgent implements AthenaAgent {
     const evidence = context.relevantEvidences.slice(0, 6);
     const sources = evidence.map((item) => item.source);
     const content = evidence.length
-      ? `🔎 **Curadoria de Pesquisa**\n\nEncontrei ${evidence.length} evidência(s) relacionada(s) no Research. Vou priorizar fontes identificáveis, registrar o grau de evidência e manter ligação com o Vault para consulta posterior.\n\n${evidence.map((item) => `- **${item.source}**: ${item.claim}`).join("\n")}`
-      : "🔎 **Curadoria de Pesquisa**\n\nAinda não há evidências catalogadas para este tema. Posso estruturar a coleta em: pergunta de pesquisa, fontes primárias, fontes secundárias, nível de confiança e destino no Vault.";
-    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.84 : 0.64, content, sources, recommendations: ["Registrar cada achado no Research com fonte, data e grau de evidência.", "Enviar materiais duradouros ao Vault para leitura e consulta pela Biblioteca Viva."] };
+      ? `🔎 **O que encontrei**\n\nNo contexto desta consulta há ${evidence.length} evidência(s) catalogada(s):\n\n${evidence.map((item) => `- **${item.source}** — ${item.claim}`).join("\n")}\n\nIsso é uma leitura do material disponível no Research; não fiz uma busca externa nem verifiquei aqui a atualidade das fontes.`
+      : "🔎 **Ainda não há evidências catalogadas** para esta consulta no contexto recebido. Não fiz busca externa nesta execução. Posso ajudar a transformar o tema em uma pergunta pesquisável e indicar quais fontes primárias procurar.";
+    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.72 : 0.35, content, sources, recommendations: evidence.length ? ["Se a decisão depender disso, confira a fonte original e a data de publicação."] : ["Defina a pergunta de pesquisa e os critérios de inclusão antes de coletar fontes."], metadata: { evidenceCount: evidence.length, externalSearchPerformed: false } };
   }
 }
 

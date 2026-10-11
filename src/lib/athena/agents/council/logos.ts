@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 
 export class LogosAgent implements AthenaAgent {
+  responseMethod = "Na análise científica, descreva o que os registros mostram sem tratar o rótulo de força como confirmação independente de qualidade. Diferencie dado, interpretação e conclusão; a ausência de evidências significa ausência no contexto recebido, não inexistência na literatura.";
   manifest: AgentManifest = {
     id: "logos",
     name: "Logos",
@@ -37,9 +38,9 @@ export class LogosAgent implements AthenaAgent {
     let content = `🔬 **Análise Metodológica & Científica (Logos):**\n\n`;
 
     if (evidences.length > 0) {
-      content += `Localizei **${evidences.length} evidências catalogadas** no Evidence Board (${strongEvs.length} de alta robustez probatória).\n\n`;
+      content += `No contexto recebido há **${evidences.length} evidências catalogadas** no Evidence Board; ${strongEvs.length} estão marcadas como “forte” no registro. Esse rótulo é metadado do acervo, não uma validação independente da fonte.\n\n`;
       if (strongEvs.length > 0) {
-        content += `📌 **Evidência Central em Destaque:**\n> *"${strongEvs[0].claim}"*\n> *(Fonte: ${strongEvs[0].source})*\n\n`;
+      content += `📌 **Registro marcado como forte:**\n> *"${strongEvs[0].claim}"*\n> *(Fonte registrada: ${strongEvs[0].source})*\n\n`;
       }
       content += `• **Recomendação Epistêmica:** Garanta a replicabilidade das fontes e estruture a discussão confrontando variáveis intervenientes.`;
     } else {
@@ -52,7 +53,7 @@ export class LogosAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.92,
+      confidence: evidences.length ? 0.68 : 0.3,
       sources: evidences.map((e) => e.source),
       recommendations: [
         "Indexar novas referências no Vault",

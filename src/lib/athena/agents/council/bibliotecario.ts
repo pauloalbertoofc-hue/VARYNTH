@@ -6,6 +6,7 @@ import { AgentResult } from "../../domain/result";
 const tokens = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 3);
 
 export class BibliotecarioAgent implements AthenaAgent {
+  responseMethod = "Na consulta bibliográfica, preserve o trecho e a identificação exatamente como retornados pelo Vault. Distinga texto encontrado de síntese própria, informe quando uma busca não retornar resultados e não atribua paginação, autoria ou conteúdo ausentes nos metadados.";
   manifest: AgentManifest = {
     id: "bibliotecario",
     name: "Alexandria",

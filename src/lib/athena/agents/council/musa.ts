@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 
 export class MusaAgent implements AthenaAgent {
+  responseMethod = "Na ideação, diferencie propostas novas de fatos existentes. Gere possibilidades ligadas ao objetivo declarado, explique brevemente o valor ou risco de cada uma e deixe claro que são opções para avaliação, não decisões nem ações executadas.";
   manifest: AgentManifest = {
     id: "musa",
     name: "Musa",

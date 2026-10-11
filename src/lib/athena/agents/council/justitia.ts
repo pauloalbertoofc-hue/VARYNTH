@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 
 export class JustitiaAgent implements AthenaAgent {
+  responseMethod = "Em matéria jurídica, delimite jurisdição, período e fatos conhecidos. Diferencie informação geral de aplicação ao caso; não chame uma fonte de vinculante, vigente ou verificada se o contexto não prova isso. Se faltarem fatos ou fontes atuais, apresente uma análise preliminar com esse limite e pergunte apenas o dado que mudaria a conclusão.";
   manifest: AgentManifest = {
     id: "justitia",
     name: "Justitia",
@@ -36,7 +37,7 @@ export class JustitiaAgent implements AthenaAgent {
     const thesis = context.relevantTheses[0];
     const vaultLegal = context.relevantVaultItems.filter((v) => v.type === "jurisprudencia" || v.type === "lei");
 
-    let content = `⚖️ **Parecer Jurídico (Justitia):**\n\n`;
+    let content = `⚖️ **Análise jurídica preliminar**\n\n`;
 
     if (thesis) {
       content += `Com base na tese ativa **"${thesis.title}"** (Área: ${thesis.area}):\n`;
@@ -48,14 +49,14 @@ export class JustitiaAgent implements AthenaAgent {
         content += `• **Objeções & Riscos:** ${thesis.cons.map((c) => c.statement).join("; ")}\n`;
       }
       if (thesis.precedents.length > 0) {
-        content += `• **Precedentes Vinculantes:** ${thesis.precedents.join(", ")}\n`;
+        content += `• **Precedentes registrados na tese (vinculação não verificada):** ${thesis.precedents.join(", ")}\n`;
       }
     } else {
-      content += `Analisei a consulta sob a ótica jurídica. Nenhuma tese formal está aberta na Argument Arena no momento. Recomendo cadastrar a controvérsia para estruturar o quadro dialético com base no acervo de legislação e precedentes do Vault.`;
+      content += `Não recebi uma tese formal da Argument Arena nem fontes jurídicas correspondentes no contexto. Por isso, ainda não há base para afirmar qual regra ou precedente se aplica. Se você trouxer a jurisdição e os fatos centrais (ou selecionar as fontes), posso estruturar a análise.`;
     }
 
     if (vaultLegal.length > 0) {
-      content += `\n\n📚 **Obras e Precedentes Relacionados no Vault:**\n${vaultLegal.map((v) => `• ${v.title} (${v.author || "Acervo"})`).join("\n")}`;
+      content += `\n\n📚 **Itens jurídicos relacionados no Vault (não verificados quanto à vigência nesta resposta):**\n${vaultLegal.map((v) => `• ${v.title} (${v.author || "autoria não informada"})`).join("\n")}`;
     }
 
     return {
@@ -64,12 +65,10 @@ export class JustitiaAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.95,
-      sources: thesis?.precedents || [],
-      recommendations: [
-        "Verificar conformidade com súmulas vinculantes",
-        "Confrontar argumentos contrários no Codex",
-      ],
+      confidence: thesis ? 0.68 : 0.3,
+      sources: [...(thesis?.precedents || []), ...vaultLegal.map((item) => item.title)],
+      recommendations: thesis ? ["Confirmar vigência e jurisdição das fontes antes de usar esta análise em uma decisão.", "Confrontar os argumentos contrários registrados na tese."] : ["Informe a jurisdição e os fatos relevantes ou selecione uma fonte jurídica do acervo."],
+      metadata: { formalThesisAvailable: Boolean(thesis), vaultLegalItemCount: vaultLegal.length, currentLawVerified: false },
     };
   }
 }

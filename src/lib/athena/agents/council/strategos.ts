@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 
 export class StrategosAgent implements AthenaAgent {
+  responseMethod = "Na estratégia, use apenas tarefas, prioridades, datas e compromissos recebidos. Não conclua que a rotina está estável ou que um prazo é viável sem dados de carga e duração. Transforme a leitura em uma próxima decisão concreta e sinalize quando a lista pode estar incompleta.";
   manifest: AgentManifest = {
     id: "strategos",
     name: "Strategos",
@@ -39,7 +40,7 @@ export class StrategosAgent implements AthenaAgent {
     if (urgentTasks.length > 0) {
       content += `🔥 **Foco Imediato (${urgentTasks.length} tarefas de alta prioridade):**\n${urgentTasks.map((t) => `• [${t.priority.toUpperCase()}] ${t.title}`).join("\n")}\n\n`;
     } else {
-      content += `Nenhuma tarefa urgente pendente no momento. Fluxo de execução estabilizado.\n\n`;
+      content += `Não há tarefas de prioridade alta ou urgente na lista recebida. Isso não confirma que todas as pendências estão representadas nem que a rotina esteja estabilizada.\n\n`;
     }
 
     if (upcomingEvents.length > 0) {

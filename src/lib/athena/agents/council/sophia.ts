@@ -5,6 +5,7 @@ import { AgentResult } from "../../domain/result";
 import { assessSourceGovernance } from "../../quality/source-governance";
 
 export class SophiaAgent implements AthenaAgent {
+  responseMethod = "Na escrita e interpretação, preserve o sentido pretendido e adapte estrutura e registro ao pedido, em vez de aplicar um molde acadêmico por padrão. Não invente citações nem trate referências listadas como se sustentassem afirmações que não foram conferidas.";
   manifest: AgentManifest = {
     id: "sophia",
     name: "Sophia",

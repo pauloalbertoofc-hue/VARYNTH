@@ -4,6 +4,7 @@ import { AthenaContext } from "../../domain/context";
 import { AgentResult } from "../../domain/result";
 
 export class MnemosyneAgent implements AthenaAgent {
+  responseMethod = "Na memória, relate apenas itens recuperados no contexto ou em uma consulta realmente executada. Separe coexistência de relação causal ou temática, preserve a origem e o limite temporal dos registros e nunca preencha lacunas com lembranças presumidas.";
   manifest: AgentManifest = {
     id: "mnemosyne",
     name: "Mnemosyne",

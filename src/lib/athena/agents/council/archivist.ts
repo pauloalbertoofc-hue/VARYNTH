@@ -5,6 +5,7 @@ import { AgentResult } from "../../domain/result";
 import { documentationGuardian } from "../../guardian/documentation-guardian";
 
 export class ArchivistAgent implements AthenaAgent {
+  responseMethod = "Na documentação, diferencie inventário, avaliação automática e funcionamento observado. Identifique a origem e o momento de métricas quando disponíveis; não trate cobertura documental como prova de comportamento operacional.";
   manifest: AgentManifest = {
     id: "archivist",
     name: "Archivist",
