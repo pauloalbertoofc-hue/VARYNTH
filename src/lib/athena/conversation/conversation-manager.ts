@@ -164,6 +164,24 @@ export class ConversationManager {
         || (projectTokens.length >= 2 && projectTokens.every((token) => clean.split(" ").includes(token)));
     }).map((project) => project.title);
 
+    const explicitTopicSwitch = explicitlyMentionedProjectTitles.length === 0
+      && /^(?:mudando de assunto|mudando de tema|outra coisa|falando de outra coisa|agora sobre|sobre outro assunto)\b/.test(clean);
+    if (explicitTopicSwitch) {
+      if (state.currentTopic) {
+        state.interruptedTopicStack = state.interruptedTopicStack || [];
+        state.interruptedTopicStack.push({
+          topic: state.currentTopic,
+          projectId: state.currentProjectId,
+          timestamp: new Date().toISOString(),
+        });
+        state.interruptedTopicStack = state.interruptedTopicStack.slice(-8);
+      }
+      state.currentProjectId = undefined;
+      targetProjectId = undefined;
+      targetProjectTitle = undefined;
+      state.currentTopic = prompt.replace(/^(?:mudando de assunto|mudando de tema|outra coisa|falando de outra coisa|agora sobre|sobre outro assunto)\s*[:,-]?\s*/i, "").trim().slice(0, 180) || undefined;
+    }
+
     // Pronoun Target Resolution
     let pronounTarget: "ATHENA" | "USER_SYSTEM" | "SPECIFIC_PROJECT" | "GENERAL" = "GENERAL";
     if (
@@ -386,7 +404,6 @@ export class ConversationManager {
       clean.split(" ").length <= 6;
     const isSelectedRecommendation = Boolean(originalReferent && selectedOption);
     const isUnresolvedDeictic =
-      state.recentEntities.length === 0 &&
       !targetProjectId &&
       !isVaultSaveRequest &&
       !isExplicitMutation &&

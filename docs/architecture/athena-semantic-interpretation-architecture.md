@@ -98,5 +98,7 @@ O vocabulário contextual inclui variantes formais e coloquiais como “Confirmo
 
 Referências comparativas plurais como “Compare os dois” só são resolvidas quando a sessão ou a mensagem atual contêm dois alvos rastreáveis. Sem esse par, Athena pede os nomes dos dois itens em vez de inferir o segundo. Títulos de projetos explicitamente mencionados na mesma mensagem contam como alvos, inclusive quando há mais de um.
 
+Marcadores explícitos de mudança de assunto (“mudando de assunto”, “outra coisa”, “agora sobre...”) suspendem o projeto ativo quando nenhum novo projeto é citado. Entidades recentes permanecem no histórico para referências explícitas, mas não bastam para ancorar “isso/ele/ela” no contexto novo; o usuário pode retomar o tópico interrompido com “voltando a...”.
+
 Verificação local em 2026-10-11: `npm run test:athena-semantic` passou 33/33 cenários, incluindo execução governada do plano exato na mesma sessão e recusa sem plano; `npm run test:athena-intelligence` passou 100 cenários e `npm run test:athena-communication` cobre agora respostas compatíveis, referências comparativas sem alvo e alvos nomeados. Esses resultados são testes automatizados, não substituem um walkthrough manual autenticado.
 
