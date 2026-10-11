@@ -110,10 +110,13 @@ export class EuterpeAgent implements AthenaAgent {
     const priorOutcomes = asksForMusicalGuidance(task.rawPrompt)
       ? relevantExperienceGuidance(context, this.manifest.id, track?.id, "music", task.rawPrompt)
       : [];
-    const userDeclinedPreferenceRetention = /não vou propor guardar|não vou propor salvar/i.test(interpretation.response);
-    const content = !interpretation.proposal && !userDeclinedPreferenceRetention && priorOutcomes.length
-      ? `${interpretation.response}\n\n**Uma abordagem musical que pode valer testar:** ${priorOutcomes[0]}`
+    const interpretedResponse = context.responseAudience === "ATHENA"
+      ? interpretation.response.replace(/^Sou Euterpe\.\s*/u, "")
       : interpretation.response;
+    const userDeclinedPreferenceRetention = /não vou propor guardar|não vou propor salvar/i.test(interpretedResponse);
+    const content = !interpretation.proposal && !userDeclinedPreferenceRetention && priorOutcomes.length
+      ? `${interpretedResponse}\n\n**Uma abordagem musical que pode valer testar:** ${priorOutcomes[0]}`
+      : interpretedResponse;
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
