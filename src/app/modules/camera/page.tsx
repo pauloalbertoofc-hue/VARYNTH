@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, CircleStop, Download, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { CameraSession, getCameraModeProfile, listCameraCaptures, saveCameraCapture, type CameraCapabilities, type CameraCaptureRecord, type CameraMode } from "@/lib/visual-core";
+import { CameraSession, getCameraModeProfile, listCameraCaptures, saveCameraCapture, saveCameraMedia, type CameraCapabilities, type CameraCaptureRecord, type CameraMode } from "@/lib/visual-core";
 import { imageService } from "@/lib/studio/image/image-service";
 import { analyzeCameraFrame, type CameraQualityReport } from "@/lib/visual-core";
 
@@ -71,6 +71,7 @@ export default function CameraPage() {
       setQuality(report);
       const recordId = `capture-${Date.now()}`;
       captureRecordIdRef.current = recordId;
+      void saveCameraMedia(recordId, result.blob);
       const record = { id: recordId, mode, capturedAt: result.capturedAt, source: "DEVICE_CAMERA" as const, generated: false as const, metadata: { quality: report, capabilities } };
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
@@ -87,7 +88,9 @@ export default function CameraPage() {
       const result = await sessionRef.current.recordVideo();
       if (videoUrl) URL.revokeObjectURL(videoUrl);
       setVideoUrl(URL.createObjectURL(result.blob));
-      saveCameraCapture({ id: `video-${Date.now()}`, mode, capturedAt: result.capturedAt, source: "DEVICE_CAMERA", generated: false, metadata: { mimeType: result.mimeType, durationMs: result.durationMs, media: "VIDEO" } });
+      const recordId = `video-${Date.now()}`;
+      void saveCameraMedia(recordId, result.blob);
+      saveCameraCapture({ id: recordId, mode, capturedAt: result.capturedAt, source: "DEVICE_CAMERA", generated: false, metadata: { mimeType: result.mimeType, durationMs: result.durationMs, media: "VIDEO", storedLocally: typeof indexedDB !== "undefined" } });
       setCaptures(listCameraCaptures());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "CAMERA_VIDEO_RECORDING_FAILED");
