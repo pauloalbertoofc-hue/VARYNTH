@@ -110,6 +110,13 @@ void (async () => {
   } as unknown as AthenaContext);
   assert.doesNotMatch(suppressedMethodHint.content, /Em experiências anteriores, mostrou-se útil/);
   assert.equal(suppressedMethodHint.metadata?.sharedExperienceHints, 0);
+  const unrelatedDomainHint = { ...scopedMethodHint, id: "unrelated-domain", scope: "DOMAIN" as const, scopeId: "legal", domain: "legal", action: "considerar apenas casos jurídicos" };
+  const noDomainLeak = await converseAsSpecialist(agent, { rawPrompt: "Avalie a evidência", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    experienceContext: { preferences: [], experiences: [unrelatedDomainHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  assert.doesNotMatch(noDomainLeak.content, /considerar apenas casos jurídicos/);
+  assert.equal(noDomainLeak.metadata?.sharedExperienceHints, 0, "unrelated domain history must not leak into a specialist response");
 
   responseBody = "🔬 **Análise Metodológica & Científica (Logos):**\n\nOs estudos recebidos ainda não permitem uma conclusão firme.";
   const athenaOwned = await converseAsSpecialist(agent, { rawPrompt: "Avalie esta evidência", scope: "pesquisa" } as AthenaTask, {

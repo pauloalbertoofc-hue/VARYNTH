@@ -109,6 +109,14 @@ async function main() {
   const guidedArchive = await archivistAgent.execute(task("Explique a saúde documental"), { ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [{ ...priorOutcome, domain: "documentation", scope: "AGENT", scopeId: "archivist", action: "separar saúde do catálogo de implantação em produção" }] } });
   assert.match(guidedArchive.content, /separar saúde do catálogo de implantação em produção/);
   assert.equal(guidedArchive.metadata?.auditScope, "registered-catalog-only");
+  const unrelatedDomain = { ...priorOutcome, domain: "legal", scope: "DOMAIN" as const, scopeId: "legal", action: "não transplantar uma conclusão jurídica" };
+  assert.deepEqual(relevantExperienceGuidance({ ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [unrelatedDomain] } }, "logos", undefined, "research"), [], "domain-scoped precedents must match the active domain instead of matching themselves unconditionally");
+  const matchedDomain = { ...unrelatedDomain, domain: "research", scopeId: "research", action: "separar estudo e inferência" };
+  assert.equal(relevantExperienceGuidance({ ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [matchedDomain] } }, "logos", undefined, "research").length, 1, "matching domain precedents remain available");
+  const unrelatedGlobal = { ...unrelatedDomain, scope: "GLOBAL" as const, action: "seguir protocolo jurídico" };
+  assert.deepEqual(relevantExperienceGuidance({ ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [unrelatedGlobal] } }, "logos"), [], "GLOBAL project scope must not erase the record's distinct domain");
+  const matchingGlobal = { ...unrelatedGlobal, domain: "research", action: "separar métodos de resultados" };
+  assert.equal(relevantExperienceGuidance({ ...experienceContext, experienceContext: { ...experienceContext.experienceContext, experiences: [matchingGlobal] } }, "logos").length, 1, "global research experience can guide the research specialist across projects");
   console.log("Athena specialist Experience guidance tests passed");
 }
 

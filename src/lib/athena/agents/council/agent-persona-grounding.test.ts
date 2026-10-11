@@ -102,6 +102,13 @@ void (async () => {
   } as unknown as AthenaContext);
   assert.doesNotMatch(isolatedGuidance.content, /começar pela ideia central/);
   assert.equal(isolatedGuidance.metadata?.sharedExperienceHints, 0, "agent-scoped method history must not leak to another specialist");
+  const unrelatedDomainHint = { ...scopedMethodHint, id: "legal-method", scope: "DOMAIN" as const, scopeId: "legal", domain: "legal", action: "considerar apenas precedentes jurídicos" };
+  const domainIsolation = await logosAgent.converseWithFeedback!(task("Avalie esta evidência."), {
+    ...ctx,
+    experienceContext: { preferences: [], experiences: [unrelatedDomainHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  assert.doesNotMatch(domainIsolation.content, /precedentes jurídicos/);
+  assert.equal(domainIsolation.metadata?.sharedExperienceHints, 0, "a legal-domain experience must not be treated as universally relevant to research");
 
   const legal = await justitiaAgent.execute(task("Analise a legislação aplicável"), ctx);
   assert.match(legal.content, /não recebi.*tese formal/i);

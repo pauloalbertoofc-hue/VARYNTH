@@ -38,6 +38,28 @@ function isEligible(preference: Preference, agentId: string, key: AgentGuidanceK
 
 type ExperienceAwareContext = Pick<AthenaContext, "experienceContext" | "activeProject">;
 
+const agentDomainAliases: Record<string, readonly string[]> = {
+  sophia: ["writing", "documents", "document"],
+  musa: ["creative", "creativity", "ideation"],
+  strategos: ["planning", "productivity", "workflow"],
+  critias: ["critique", "review", "validation"],
+  logos: ["research", "science", "scientific-methodology"],
+  justitia: ["legal", "law"],
+  "curador-pesquisa": ["research", "science"],
+  mnemosyne: ["memory", "knowledge-graph"],
+  bibliotecario: ["knowledge-management", "library"],
+  archivist: ["documentation", "architecture"],
+  euterpe: ["music", "audio", "voice", "mixing"],
+  "music-curator": ["music", "audio"],
+};
+
+function experienceMatchesAgentDomain(domain: string, agentId: string, activeDomain?: string): boolean {
+  const normalizedDomain = domain.trim().toLowerCase();
+  const aliases = [agentId, ...(agentDomainAliases[agentId] || []), ...(activeDomain ? [activeDomain] : [])]
+    .map((value) => value.trim().toLowerCase());
+  return aliases.includes(normalizedDomain);
+}
+
 export function confirmedAgentGuidance<K extends AgentGuidanceKey>(
   context: ExperienceAwareContext,
   agentId: string,
@@ -81,11 +103,11 @@ export function relevantExperienceGuidance(
   if (suppressHistoricalGuidance(currentInstruction)) return [];
   const records = (context.experienceContext?.experiences ?? []).filter((record) => {
     if (!record.outcome.trim() || !record.action.trim() || (record.usefulness ?? 0) <= 0) return false;
-    if (record.scope === "GLOBAL") return true;
+    if (record.scope === "GLOBAL") return experienceMatchesAgentDomain(record.domain, agentId, activeDomain);
     if (record.scope === "AGENT") return record.scopeId === agentId;
     if (record.scope === "DOMAIN") {
-      return record.scopeId === record.domain || record.domain === agentId || record.scopeId === agentId
-        || (!!activeDomain && (record.scopeId === activeDomain || record.domain === activeDomain));
+      return experienceMatchesAgentDomain(record.domain, agentId, activeDomain)
+        || (!!activeDomain && record.scopeId?.trim().toLowerCase() === activeDomain.trim().toLowerCase());
     }
     if (record.scope === "PROJECT") {
       const projectId = context.activeProject?.id;
