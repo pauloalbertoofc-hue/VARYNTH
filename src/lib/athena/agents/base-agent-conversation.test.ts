@@ -66,6 +66,17 @@ void (async () => {
   const formalRegister = await converseAsSpecialist(agent, { rawPrompt: "Poderia, por gentileza, revisar esta análise?", scope: "pesquisa" } as AthenaTask, context);
   assert.deepEqual(formalRegister.metadata?.presentationPreferences, { formality: "formal" }, "A clear formal register may guide this reply without being persisted as a preference");
 
+  responseBody = "🔬 **Análise Metodológica & Científica (Logos):**\n\nOs estudos recebidos ainda não permitem uma conclusão firme.";
+  const athenaOwned = await converseAsSpecialist(agent, { rawPrompt: "Avalie esta evidência", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    responseAudience: "ATHENA",
+  } as AthenaContext);
+  assert.match(athenaOwned.content, /^🔬 \*\*Análise Metodológica & Científica:\*\*/);
+  assert.doesNotMatch(athenaOwned.content.split("\n")[0], /Logos|Sou /, "Delegated findings should not appear to the user as another chatbot");
+  assert.match(athenaOwned.content, /Os estudos recebidos ainda não permitem uma conclusão firme/);
+  assert.equal(athenaOwned.metadata?.conversationAudience, "ATHENA");
+  responseBody = "Resposta revisada";
+
   const priorOutcome = {
     id: "trace-experience", domain: "research", context: {}, situation: "Uma síntese misturava camadas",
     action: "separar premissas e evidências", outcome: "a revisão ficou auditável", usefulness: 1, confidence: 0.5,

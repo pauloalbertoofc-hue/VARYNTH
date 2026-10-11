@@ -178,7 +178,9 @@ export class EuterpeAgent implements AthenaAgent {
       agentName: this.manifest.name,
       role: this.manifest.role,
       success: true,
-      content: `Consultei Athena sobre o seu pedido e trouxe o retorno para nossa conversa:\n\n${response.text}`,
+      content: context.responseAudience === "ATHENA"
+        ? response.text
+        : `Sou Euterpe. ${resolution.usedHistory ? "Retomando o assunto anterior, consultei Athena" : "Consultei Athena"} sobre o seu pedido e trouxe o retorno para nossa conversa:\n\n${response.text}`,
       confidence: 0.7,
       metadata: { authority: "advisory-only", capabilities: ["CONSULT_ATHENA"], toolAccess: false, localFileAccess: false, consultedAthena: true, athenaMetadata: response.metadata },
     }) }, task, resolution.usedHistory ? followUpContext : context);

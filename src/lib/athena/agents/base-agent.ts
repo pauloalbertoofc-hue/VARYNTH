@@ -82,7 +82,7 @@ function conversationalizeSpecialistResult(
   // never make a short answer feel like a fresh introduction instead of a reply.
   const responseAudience = context.responseAudience ?? "SPECIALIST";
   const content = responseAudience === "ATHENA"
-    ? body
+    ? anonymizeSpecialistLead(body, manifest.name)
     : `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
 
   return {
@@ -96,6 +96,23 @@ function conversationalizeSpecialistResult(
       presentationPreferences: { ...(verbosity ? { verbosity } : {}), ...(formality ? { formality } : {}) },
     },
   };
+}
+
+function anonymizeSpecialistLead(body: string, agentName: string): string {
+  const lineBreak = body.indexOf("\n");
+  const firstLine = lineBreak < 0 ? body : body.slice(0, lineBreak);
+  const remainder = lineBreak < 0 ? "" : body.slice(lineBreak);
+  const escapedName = agentName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parentheticalIdentity = new RegExp(`\\s*\\(\\s*${escapedName}(?:\\s*&[^)]*)?\\s*\\)`, "gi");
+  const inlineIdentity = new RegExp(`\\b${escapedName}\\b`, "gi");
+  const lead = firstLine
+    .replace(parentheticalIdentity, "")
+    .replace(inlineIdentity, "")
+    .replace(/(\*\*)\s*[—–-]\s*/g, "$1")
+    .replace(/\s+:/g, ":")
+    .replace(/\*\*\s*\*\*/g, "")
+    .trim();
+  return `${lead}${remainder}`.trim();
 }
 
 export function prepareAgentConversationHistory(
