@@ -28,6 +28,7 @@ export function applyConfirmedCommunicationStyle(
   prompt: string,
 ): ResponseIntent {
   const selected: Partial<Record<StyleKey, StyleValue>> = {};
+  const pragmatic = understandPragmatics(prompt);
   for (const preference of preferences) {
     if (preference.status !== "CONFIRMED" || preference.source !== "MANUAL") continue;
     if (preference.domain !== "communication" && preference.domain !== "communication-style") continue;
@@ -41,9 +42,11 @@ export function applyConfirmedCommunicationStyle(
 
   return {
     ...intent,
-    ...(selected.verbosity && intent.mode !== "CLARIFICATION" && intent.mode !== "EXECUTION_REPORT"
-      ? { verbosity: selected.verbosity === "concise" ? "SHORT" as const : "DETAILED" as const }
+    ...((pragmatic.requestedVerbosity || selected.verbosity) && intent.mode !== "CLARIFICATION" && intent.mode !== "EXECUTION_REPORT"
+      ? { verbosity: (pragmatic.requestedVerbosity || selected.verbosity) === "concise" ? "SHORT" as const : "DETAILED" as const }
       : {}),
-    ...(selected.formality ? { tone: selected.formality === "formal" ? "TECHNICAL" as const : "WARM" as const } : {}),
+    ...((pragmatic.register || selected.formality)
+      ? { tone: (pragmatic.register || selected.formality) === "formal" ? "TECHNICAL" as const : "WARM" as const }
+      : {}),
   };
 }
