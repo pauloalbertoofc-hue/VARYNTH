@@ -49,6 +49,17 @@ async function run(): Promise<void> {
   check(Boolean(agent.metadata?.selectedCapability), "E2E-004", "USE_AGENT expõe a capacidade selecionada sem autoridade de mutação");
   check(context.tasks.length === initialTasks, "E2E-005", "USE_AGENT preserva o estado operacional");
 
+  const invokedAgent = await processAthenaQueryAsync("Analise criticamente a arquitetura do Projeto Aurora", "geral", context, "e2e-project-a", "e2e-agent-invoked");
+  const agentExecution = invokedAgent.metadata?.agentExecution as { agentId?: string; success?: boolean } | undefined;
+  const traceEntries = invokedAgent.metadata?.agentExperienceTraces as Array<{ agentId: string; trace: { retrievedExperienceIds: string[]; evidenceEventIdsReferencedInResponse: string[] } }> | undefined;
+  const invokedDebug = invokedAgent.metadata?.debug as { interactionContract?: string; selectedCapability?: string } | undefined;
+  check(invokedDebug?.interactionContract === "USE_AGENT", "E2E-014", "Async cognitive request preserves the USE_AGENT contract");
+  check(Boolean(agentExecution?.agentId && agentExecution.success && agentExecution.agentId === invokedDebug?.selectedCapability), "E2E-015", "The selected registered specialist is actually invoked and attributed");
+  check(traceEntries?.[0]?.agentId === agentExecution?.agentId && Array.isArray(traceEntries?.[0]?.trace.retrievedExperienceIds), "E2E-016", "The response carries a structured ID-only Experience trace for the invoked specialist");
+  const traceKeys = Object.keys(traceEntries?.[0]?.trace ?? {}).sort().join(",");
+  check(traceKeys === "agentId,evidenceEventIdsReferencedInResponse,experienceIdsReferencedInResponse,instructionPrecedence,retrievedExperienceIds,retrievedPreferenceIds", "E2E-017", "The trace projection exposes only the documented identifier fields, not stored Experience contents");
+  check(context.tasks.length === initialTasks, "E2E-018", "A direct specialist analysis remains non-mutating");
+
   const tool = await processAthenaQueryAsync("Crie uma tarefa chamada Validar contrato ponta a ponta", "geral", context, "e2e-project-a", "e2e-tool");
   check(tool.metadata?.interactionContract === "USE_TOOL", "E2E-006", "USE_TOOL atravessa planejamento e executor persistente");
   check(tool.metadata?.capabilityPlanStatus === "COMPLETED" && context.tasks.length === initialTasks + 1, "E2E-007", "USE_TOOL apresenta somente a mutação realmente concluída");
@@ -79,7 +90,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 15 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 20 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {

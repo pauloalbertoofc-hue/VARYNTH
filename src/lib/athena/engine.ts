@@ -29,6 +29,11 @@ import { decisionForContract, InteractionContractDecision } from "./domain/inter
 import { athenaInteractionContractGateway } from "./runtime/interaction-contract-gateway";
 import { athenaCapabilitySelector } from "./kernel/capability-selector";
 import type { CapabilitySelectionResult } from "./domain/capability-selection";
+import { agentRegistry } from "./agents/registry";
+import { executeAgentWithExperience } from "./runtime/agent-execution";
+import { projectAgentExperienceTraces } from "./runtime/experience-trace-projection";
+import { prepareAgentConversationHistory } from "./agents/base-agent";
+import type { AgentResult } from "./domain/result";
 import { capabilityPlanBuilder } from "./runtime/capability-plan-builder";
 import { capabilityPlanRuntime } from "./runtime/capability-plan-runtime";
 import { capabilityPlanStore } from "./runtime/capability-plan-store";
@@ -72,6 +77,21 @@ function withContractMetadata(
       interactionContract: decision.contract,
       contractReason: decision.reason,
     },
+  };
+}
+
+function agentInvocationMetadata(result?: AgentResult): Record<string, unknown> {
+  if (!result) return {};
+  const traces = projectAgentExperienceTraces([result]);
+  return {
+    agentExecution: {
+      agentId: result.agentId,
+      agentName: result.agentName,
+      success: result.success,
+      confidence: result.confidence,
+      conversationReferenceResolved: result.metadata?.conversationReferenceResolved === true,
+    },
+    ...(traces.length ? { agentExperienceTraces: traces } : {}),
   };
 }
 
@@ -382,6 +402,38 @@ export async function processAthenaQueryAsync(
     };
   }
 
+  // USE_AGENT must invoke the selected implementation; merely handing its
+  // name to Athena's model is not evidence that the specialist participated.
+  let invokedAgentResult: AgentResult | undefined;
+  if (contractDecision.contract === "USE_AGENT" && capabilitySelection?.selected && capabilitySelection.selected.id !== "athena-generalist") {
+    const agent = agentRegistry.getAgent(capabilitySelection.selected.id);
+    if (agent) {
+      const agentTask = athenaPerceptionEngine.perceive(prompt, scope, resolvedProjectId);
+      const agentContext = athenaContextBuilder.buildContext(agentTask, scope, ctx, resolvedProjectId);
+      agentContext.conversationSessionId = sessionId;
+      agentContext.recentConversation = prepareAgentConversationHistory(
+        athenaConversationManager.getRecentTurns(sessionId, 7), prompt,
+      );
+      try {
+        invokedAgentResult = (await athenaInteractionContractGateway.executeAsync(
+          contractDecision,
+          async () => (await executeAgentWithExperience(agent, agentTask, agentContext, ctx.experienceOwnerId)).result,
+        )) as AgentResult;
+      } catch {
+        athenaObservabilityJournal.record({
+          category: "AGENT",
+          type: "SPECIALIST_INVOCATION_FAILED",
+          status: "FAILED",
+          contract: contractDecision.contract,
+          message: "A invocação do especialista falhou; Athena seguirá sem atribuir uma análise ao agente.",
+          sessionId,
+          projectId: resolvedProjectId,
+          capabilityId: agent.manifest.id,
+        });
+      }
+    }
+  }
+
   // 4. OPERATIONAL PATH: System Mutation Commands
   if (contractDecision.contract === "USE_TOOL") {
     athenaInteractionContractRouter.require(contractDecision, "USE_TOOL");
@@ -430,11 +482,21 @@ export async function processAthenaQueryAsync(
           priorExperiences: experienceContext.experiences,
           instructionPrecedence: experienceContext.instructionPrecedence,
         },
+        ...(invokedAgentResult ? {
+          specialistResult: {
+            success: invokedAgentResult.success,
+            content: invokedAgentResult.content,
+            confidence: invokedAgentResult.confidence,
+            sources: invokedAgentResult.sources ?? [],
+            limitations: invokedAgentResult.limitations ?? [],
+            experienceTrace: projectAgentExperienceTraces([invokedAgentResult])[0]?.trace,
+          },
+        } : {}),
       };
 
       const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
 Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
-Respeite estritamente os fatos fornecidos em keyFacts e no contexto vivo. O bloco recentConversation contém apenas turnos anteriores desta sessão: use-o para resolver referências e continuidade, nunca para inventar fatos ausentes. O especialista indicado contribui apenas com o recorte de domínio; você continua sendo a interlocutora e não afirme que ele executou análise, consulta ou ação sem resultado explícito.
+Respeite estritamente os fatos fornecidos em keyFacts e no contexto vivo. O bloco recentConversation contém apenas turnos anteriores desta sessão: use-o para resolver referências e continuidade, nunca para inventar fatos ausentes. Quando specialistResult estiver presente, ele é o resultado de uma invocação real do especialista escolhido: sintetize-o com fidelidade, preserve as limitações e o grau de confiança, não acrescente descobertas nem alegue verificação, pesquisa, consulta ou ação que não conste no resultado. Se o especialista não encontrou evidência, diga isso em vez de preencher lacunas com suposições. Sem specialistResult, não afirme que um especialista executou análise.
 O bloco experience contém preferências e experiências anteriores da conta autenticada, não fatos universais. Trate inferências como incertas, use apenas o que for pertinente e nunca as aplique quando conflitarem com a instrução atual; instrução atual, política do projeto e permissões têm precedência. Adapte formalidade e vocabulário ao usuário e ao pedido. Se a evidência não bastar, diga o que falta e faça uma pergunta objetiva. Não presuma nome, identidade ou relação do usuário.`;
 
       const modelResponse = await athenaInteractionContractGateway.executeAsync(
@@ -459,6 +521,7 @@ O bloco experience contém preferências e experiências anteriores da conta aut
             metadata: {
               engine: "ollama-local",
               model: ollamaAdapter.activeModel,
+              ...agentInvocationMetadata(invokedAgentResult),
               experienceContext: {
                 preferenceIds: experienceContext.preferences.map((preference) => preference.id),
                 experienceIds: experienceContext.experiences.map((experience) => experience.id),
@@ -502,7 +565,9 @@ O bloco experience contém preferências e experiências anteriores da conta aut
         currentInstruction: prompt,
       })
     : { text: "", experienceIds: [] };
-  const finalText = enforceResponseQuality(prompt, parsed, `${result.text}${projectExperienceGuidance.text}`, sessionId, resolvedProjectId);
+  const finalText = invokedAgentResult?.content
+    ? `${invokedAgentResult.content}${projectExperienceGuidance.text}`
+    : enforceResponseQuality(prompt, parsed, `${result.text}${projectExperienceGuidance.text}`, sessionId, resolvedProjectId);
 
   // Record in History for future turns / ellipses
   athenaConversationManager.recordAssistantResponse(
@@ -519,7 +584,8 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     scope,
     metadata: {
-      engine: "deterministic-core",
+      engine: invokedAgentResult ? "specialist-agent" : "deterministic-core",
+      ...agentInvocationMetadata(invokedAgentResult),
       ...(projectExperienceGuidance.experienceIds.length ? {
         experienceContext: {
           appliedExperienceIds: projectExperienceGuidance.experienceIds,

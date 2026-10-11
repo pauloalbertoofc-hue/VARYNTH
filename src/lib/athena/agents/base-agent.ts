@@ -1,6 +1,6 @@
 import { AthenaTask } from "../domain/task";
 import { AthenaContext } from "../domain/context";
-import { AgentResult } from "../domain/result";
+import { AgentExperienceTrace, AgentResult } from "../domain/result";
 import { resolveSpecialistCorrection } from "../conversation/specialist-correction";
 import { athenaConversationFeedback } from "../conversation/quality-feedback";
 import { agentGuidanceInstruction, confirmedAgentGuidance } from "./experience-guidance";
@@ -174,7 +174,7 @@ export async function converseAsSpecialist(
     const recordedAction = experience.action.trim().slice(0, 120);
     return recordedAction.length > 0 && presented.content.includes(recordedAction);
   });
-  const experienceTrace = {
+  const experienceTrace: AgentExperienceTrace = {
     agentId: agent.manifest.id,
     retrievedPreferenceIds: (context.experienceContext?.preferences ?? []).map((preference) => preference.id),
     retrievedExperienceIds: retrievedExperiences.map((experience) => experience.id),

@@ -12,6 +12,16 @@ export interface AgentResult {
   metadata?: Record<string, unknown>;
 }
 
+/** ID-only, non-causal trace for user-visible Experience inspection. */
+export interface AgentExperienceTrace {
+  agentId: string;
+  retrievedPreferenceIds: string[];
+  retrievedExperienceIds: string[];
+  experienceIdsReferencedInResponse: string[];
+  evidenceEventIdsReferencedInResponse: string[];
+  instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION";
+}
+
 export interface DeliberationContribution {
   agentId: string;
   specialty: string;

@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AthenaMessageText } from "@/components/athena/AthenaMessageText";
 import { AthenaFeedbackControls } from "@/components/athena/AthenaFeedbackControls";
+import { AthenaExperienceTrace } from "@/components/athena/AthenaExperienceTrace";
 import { analyzeAthenaState } from "@/lib/athena/insights/global-intelligence";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaGovernanceCenter } from "@/components/athena/AthenaGovernanceCenter";
@@ -423,6 +424,7 @@ export default function AthenaHubPage() {
                       )}
                     >
                       <AthenaMessageText text={msg.text} />
+                      {isAthena && <AthenaExperienceTrace metadata={msg.metadata} />}
                       {msg.sender === "athena" && (
                         <AthenaFeedbackControls
                           messageId={msg.id}
