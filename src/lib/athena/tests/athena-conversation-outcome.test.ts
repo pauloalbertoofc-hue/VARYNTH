@@ -60,7 +60,9 @@ async function run() {
 
   const compareSession = "outcome-context";
   athenaConversationManager.clearSession(compareSession);
-  await ask("Estou comparando VARYNTH OS e Pesquisa CNJ", compareSession);
+  const comparisonContext = await ask("Estou comparando VARYNTH OS e Pesquisa CNJ", compareSession);
+  assert.doesNotMatch(comparisonContext, /qual resultado você espera|quais são os dois itens/i, "A grounded statement that names both projects should establish context, not ask an unrelated clarification");
+  assert.deepEqual(athenaConversationManager.getOrCreateSession(compareSession).recentEntities.slice(0, 2), ["VARYNTH OS", "Pesquisa CNJ"], "Both named comparison targets must remain available in the session, in user order");
   const comparison = await ask("compare os dois", compareSession);
   assert.match(comparison, /comparando|versus|por outro lado|enquanto/i);
 

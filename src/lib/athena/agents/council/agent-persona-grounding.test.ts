@@ -12,7 +12,7 @@ import { mnemosyneAgent } from "./mnemosyne";
 import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
 import { euterpeAgent } from "./music-curator";
-import { inferCurrentConversationRegister, prepareAgentConversationHistory, resolveAgentFollowUp } from "../base-agent";
+import { inferCurrentConversationRegister, prepareAgentConversationHistory, renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import type { AthenaAgent } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
@@ -26,9 +26,30 @@ for (const agent of agents) {
   assert.ok(persona.voice.length > 8, `${agent.manifest.id} needs a voice`);
   assert.ok(persona.evidenceBoundary.length > 20, `${agent.manifest.id} needs an evidence boundary`);
   assert.ok(persona.authorityBoundary.length > 20, `${agent.manifest.id} needs an authority boundary`);
+  const prompt = renderAgentPersona(agent.manifest);
+  assert.match(prompt, /Comece respondendo ao pedido concreto/);
+  assert.match(prompt, /não invente contexto, acesso, consulta ou ação/i);
 }
   assert.equal(new Set(personas.map((persona) => persona.identity)).size, agents.length, "Every subagent must have its own identity");
   assert.equal(agentRegistry.listAgents().length, agents.length, "All persona-bearing agents must be registered");
+
+const expectedDomainMethods: Record<string, RegExp> = {
+  justitia: /controvérsia.*fundamentos e objeções/i,
+  logos: /força atribuída.*limitações metodológicas/i,
+  sophia: /rascunho editável.*lacunas/i,
+  musa: /possibilidades realmente distintas.*trade-off/i,
+  strategos: /prioridade, dependências, capacidade/i,
+  critias: /defeito comprovado de risco ou pergunta/i,
+  archivist: /estado observado, lacuna documental/i,
+  mnemosyne: /registros do contexto sustentam a conexão/i,
+  bibliotecario: /obra e trecho com sua origem/i,
+  "curador-pesquisa": /fontes recebidas.*estratégia de busca/i,
+  euterpe: /faixa e dos dados realmente fornecidos/i,
+};
+for (const agent of agents) {
+  const expected = expectedDomainMethods[agent.manifest.id];
+  if (expected) assert.match(renderAgentPersona(agent.manifest), expected, `${agent.manifest.id} needs a domain-specific response method`);
+}
 
 const followUpContext = { recentConversation: [
   { role: "user" as const, text: "Quero um texto sobre preservação de rios." },

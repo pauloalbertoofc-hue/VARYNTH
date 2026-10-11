@@ -162,7 +162,18 @@ export class ConversationManager {
         .filter((token) => token.length > 1 && !["de", "da", "do", "das", "dos", "e"].includes(token));
       return clean.includes(normalizeText(proj.title))
         || (projectTokens.length >= 2 && projectTokens.every((token) => clean.split(" ").includes(token)));
-    }).map((project) => project.title);
+    }).map((project) => project.title)
+      .sort((a, b) => clean.indexOf(normalizeText(a)) - clean.indexOf(normalizeText(b)));
+    const isComparisonStatement = explicitlyMentionedProjectTitles.length >= 2
+      && /\b(?:estou|estamos|to|tô)\s+comparando\b/.test(clean);
+    const hasComparisonLexeme = /\bcompar\w*\b|\bdiferenc\w*\b|\bversus\b|\bvs\b/.test(clean);
+    if (isComparisonStatement) {
+      const mentioned = new Set(explicitlyMentionedProjectTitles.map(normalizeText));
+      state.recentEntities = [
+        ...explicitlyMentionedProjectTitles,
+        ...state.recentEntities.filter((entity) => !mentioned.has(normalizeText(entity))),
+      ].slice(0, 6);
+    }
 
     const explicitTopicSwitch = explicitlyMentionedProjectTitles.length === 0
       && /^(?:mudando de assunto|mudando de tema|outra coisa|falando de outra coisa|agora sobre|sobre outro assunto)\b/.test(clean);
@@ -265,7 +276,7 @@ export class ConversationManager {
       }
     }
 
-    if (clean.includes("compare") || clean.includes("comparar") || clean.includes("vale mais a pena")) {
+    if ((hasComparisonLexeme && !isComparisonStatement) || clean.includes("vale mais a pena")) {
       isEllipsis = true;
       if (state.recentEntities.length >= 2) {
         resolvedMeaning = `Comparar as duas iniciativas recentes: "${state.recentEntities[0]}" e "${state.recentEntities[1]}"`;
@@ -368,9 +379,7 @@ export class ConversationManager {
       clean.includes("critique") || clean.includes("critica") ||
       clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
       clean.includes("ponto cego") || clean.includes("pontos cegos") || clean.includes("riscos");
-    const isComparisonRequest =
-      clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
-      clean.includes("vale mais a pena") || clean.includes("versus");
+    const isComparisonRequest = !isComparisonStatement && (hasComparisonLexeme || clean.includes("vale mais a pena"));
     const isPluralDeicticComparison = /\b(os dois|as duas|ambos|ambas|entre eles|entre elas)\b/.test(clean);
     const knownComparisonTargets = new Set([
       ...state.recentEntities,
@@ -416,6 +425,7 @@ export class ConversationManager {
     const hasSupportedConversationSignal =
       isSocialCheckIn ||
       isAthenaSelfDiagnostic ||
+      isComparisonStatement ||
       isVaultSaveRequest ||
       isExplicitMutation ||
       isCritiqueRequest ||
@@ -455,6 +465,13 @@ export class ConversationManager {
       subject = "UNRESOLVED_REFERENCE";
       isAmbiguous = true;
       clarificationPrompt = "Não tenho um item anterior confiável para associar a essa referência. Qual é o nome do item ou projeto?";
+    }
+    else if (isComparisonStatement) {
+      interactionType = "CONVERSATION";
+      intents.push("SOCIAL_CONVERSATION");
+      confidence = "HIGH";
+      requiresContext = false;
+      subject = "COMPARISON_CONTEXT";
     }
     else if (isUnresolvedComparison) {
       interactionType = "CONVERSATION";
@@ -679,7 +696,7 @@ export class ConversationManager {
       clean.includes("critique") || clean.includes("critica") ||
       clean.includes("ponto fraco") || clean.includes("pontos fracos") ||
       clean.includes("ponto cego") || clean.includes("pontos cegos") || clean.includes("riscos") ||
-      clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
+      isComparisonRequest ||
       clean.includes("vale mais a pena") || clean.includes("melhor continuar") ||
       clean.includes("ideia") || clean.includes("ideias") ||
       clean.includes("inventar") || clean.includes("criar") ||
@@ -710,8 +727,7 @@ export class ConversationManager {
       }
       // Priority 2: Compare
       else if (
-        clean.includes("compare") || clean.includes("comparar") || clean.includes("diferenca") ||
-        clean.includes("vale mais a pena") || clean.includes("versus")
+        isComparisonRequest
       ) {
         intents.push("COMPARE");
       }
@@ -807,7 +823,9 @@ export class ConversationManager {
         : subject === "UNRESOLVED_COMPARISON"
           ? ["comparisonTargets"]
         : semantic.missingInformation;
-    const comprehensionStatus = subject === "VAULT_ITEM_REQUIRED"
+    const comprehensionStatus = subject === "COMPARISON_CONTEXT"
+      ? "UNDERSTOOD" as const
+      : subject === "VAULT_ITEM_REQUIRED"
       ? "MISSING_INFORMATION" as const
       : isAmbiguous
         ? (semantic.comprehensionStatus === "UNKNOWN" ? "UNKNOWN" as const : "AMBIGUOUS" as const)

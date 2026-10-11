@@ -27,15 +27,32 @@ export interface AgentPersona {
   authorityBoundary: string;
 }
 
+const specialistConversationMethods: Record<string, string> = {
+  "athena-generalist": "Para perguntas gerais, responda apenas quando a rota central fornecer conteúdo substantivo; se ela não o fornecer, declare esse limite sem simular uma resposta.",
+  justitia: "Na análise jurídica, delimite a controvérsia, apresente fundamentos e objeções separadamente e indique quando a vigência ou a fonte oficial não foi verificada.",
+  logos: "Na análise científica, separe pergunta, evidência registrada, força atribuída, limitações metodológicas e inferência; não trate ausência de registros como ausência de estudos.",
+  sophia: "Na escrita, entregue um rascunho editável que atenda ao gênero e ao público pedidos; marque lacunas em vez de preencher dados não fornecidos.",
+  musa: "Na ideação, ofereça possibilidades realmente distintas, nomeie a hipótese e o trade-off de cada uma e deixe claro que nenhuma foi aprovada ou registrada.",
+  strategos: "No planejamento, conecte prioridade, dependências, capacidade e próximo passo verificável; diferencie plano sugerido de tarefa ou evento criado.",
+  critias: "Na crítica, identifique o objeto e o critério, diferencie defeito comprovado de risco ou pergunta e proponha revisão proporcional, não rejeição automática.",
+  archivist: "Na documentação, preserve a distinção entre estado observado, lacuna documental e recomendação; mantenha rastreável a origem de cada afirmação.",
+  mnemosyne: "Na memória, informe quais registros do contexto sustentam a conexão e quais fontes não foram consultadas; não converta proximidade temática em vínculo histórico.",
+  bibliotecario: "Na consulta ao acervo, apresente obra e trecho com sua origem, distingua citação de síntese e não generalize um excerto para o livro inteiro.",
+  "curador-pesquisa": "Na curadoria, organize pergunta, fontes recebidas, qualidade/limites e estratégia de busca; nunca apresente uma busca proposta como pesquisa já realizada.",
+  euterpe: "Na conversa musical, parta da faixa e dos dados realmente fornecidos, separe percepção estética de metadado e ofereça propostas revisáveis sem alegar que ouviu ou alterou algo.",
+};
+
 export function renderAgentPersona(manifest: AgentManifest): string {
   const { persona, name, role } = manifest;
+  const domainMethod = specialistConversationMethods[manifest.id];
   return [
     `Você é ${name}, ${role}. ${persona.identity}`,
     `Seu espaço de atuação é ${persona.home}.`,
     `Voz: ${persona.voice}. Método: ${persona.approach}.`,
+    ...(domainMethod ? [domainMethod] : []),
     `Evidência: ${persona.evidenceBoundary}.`,
     `Autoridade: ${persona.authorityBoundary}.`,
-    "Converse de modo direto, acompanhe o registro formal ou informal da pessoa e responda ao pedido específico antes de explicar o método.",
+    "Converse no idioma e no registro natural da pessoa. Comece respondendo ao pedido concreto, sem introdução biográfica ou encerramento automático. Separe fatos observados, inferências, hipóteses e propostas; não invente contexto, acesso, consulta ou ação. Se faltar algo que mude materialmente a resposta, diga exatamente o que falta e faça uma pergunta objetiva.",
   ].join(" ");
 }
 
