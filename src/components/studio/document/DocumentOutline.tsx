@@ -3,6 +3,7 @@
 import React from "react";
 import { DocumentHeading } from "@/lib/studio/document/types";
 import { Hash } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface DocumentOutlineProps {
   outline: DocumentHeading[];
@@ -11,32 +12,31 @@ interface DocumentOutlineProps {
 
 export function DocumentOutline({ outline, onSelectHeading }: DocumentOutlineProps) {
   return (
-    <div className="p-4 flex flex-col gap-2">
-      <div className="flex items-center justify-between pb-2 border-b border-[#1c1c2e]">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Estrutura (Outline)</span>
-        <span className="text-[10px] text-slate-500 bg-[#161626] px-1.5 py-0.5 rounded">{outline.length} títulos</span>
+    <nav aria-label="Outline do documento" className="flex flex-col gap-2 p-4">
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] pb-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)]">Estrutura (Outline)</span>
+        <span className="rounded bg-[var(--vly-surface-raised)] px-1.5 py-0.5 text-[10px] text-[var(--vly-text-muted)]">{outline.length} títulos</span>
       </div>
 
       {outline.length === 0 ? (
-        <p className="text-xs text-slate-500 italic mt-2">
-          Nenhum título identificado. Utilize `#`, `##` ou `###` para estruturar seu texto.
-        </p>
+        <StatePanel tone="empty" title="Sem títulos" description="Use #, ## ou ### para estruturar o documento." />
       ) : (
-        <div className="flex flex-col gap-1 mt-1">
+        <div role="list" className="mt-1 flex flex-col gap-1">
           {outline.map((heading) => (
             <button
               key={heading.id}
+              type="button"
+              aria-label={`Ir para ${heading.text}`}
               onClick={() => onSelectHeading && onSelectHeading(heading)}
-              className="text-left py-1 px-2 rounded hover:bg-[#181828] text-slate-300 hover:text-white text-xs truncate flex items-center gap-1.5 transition"
+              className="vly-interactive flex items-center gap-1.5 truncate rounded px-2 py-1 text-left text-xs text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
               style={{ paddingLeft: `${(heading.level - 1) * 12 + 8}px` }}
             >
-              <Hash size={11} className="text-blue-400 shrink-0" />
+              <Hash size={11} className="shrink-0 text-[var(--vly-info)]" />
               <span className="truncate">{heading.text}</span>
             </button>
           ))}
         </div>
       )}
-    </div>
+    </nav>
   );
 }
-

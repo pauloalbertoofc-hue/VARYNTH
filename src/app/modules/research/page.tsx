@@ -21,6 +21,8 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Surface } from "@/components/ui/Surface";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 type ResearchTab = "board" | "projetos";
 
@@ -138,19 +140,19 @@ export default function ResearchPage() {
 
   return (
     <PageLayout title="Research" subtitle="Pesquisas acadêmicas e Evidence Board">
-      <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <div className="vly-enter space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 glow-accent">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] glow-accent">
                 <GraduationCap size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-xl font-black tracking-tight text-[var(--vly-text-primary)] sm:text-2xl">
                 Research & Evidence Board
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="mt-1 text-xs text-[var(--vly-text-secondary)]">
               Catalogação sistemática de evidências científicas, proposições probatórias e acompanhamento de artigos.
             </p>
           </div>
@@ -159,7 +161,7 @@ export default function ResearchPage() {
             {activeTab === "board" ? (
               <button
                 onClick={() => setIsEviModalOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all"
+                className="vly-interactive flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--vly-text-primary)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-accent)]"
               >
                 <Plus size={16} />
                 <span>Nova Evidência</span>
@@ -167,7 +169,7 @@ export default function ResearchPage() {
             ) : (
               <button
                 onClick={() => setIsResModalOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all"
+                className="vly-interactive flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--vly-text-primary)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-accent)]"
               >
                 <Plus size={16} />
                 <span>Nova Pesquisa</span>
@@ -177,14 +179,14 @@ export default function ResearchPage() {
         </div>
 
         {/* Tab Selection */}
-        <div className="flex items-center gap-1.5 border-b border-[#1e1e30] pb-1">
+        <div className="flex items-center gap-1.5 border-b border-[var(--vly-border-subtle)] pb-1">
           <button
             onClick={() => setActiveTab("board")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-              activeTab === "board"
-                ? "bg-violet-600/20 text-violet-300 border border-violet-500/40"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+              "vly-interactive flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold",
+                activeTab === "board"
+                 ? "bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]"
+                 : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             )}
           >
             <Layers size={14} />
@@ -194,10 +196,10 @@ export default function ResearchPage() {
           <button
             onClick={() => setActiveTab("projetos")}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-              activeTab === "projetos"
-                ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/40"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+              "vly-interactive flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold",
+                activeTab === "projetos"
+                 ? "bg-[var(--vly-info-soft)] text-[var(--vly-info)] border border-[var(--vly-border-info)]"
+                 : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             )}
           >
             <GraduationCap size={14} />
@@ -209,7 +211,7 @@ export default function ResearchPage() {
         {activeTab === "board" && (
           <div className="space-y-6">
             {/* Search & Filters */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-[#0f0f1a] rounded-xl border border-[#1e1e30]">
+            <div className="flex flex-col items-stretch justify-between gap-3 rounded-[var(--vly-radius-md)] border border-[var(--vly-border-default)] bg-[var(--vly-surface)] p-3.5 md:flex-row md:items-center">
               <div className="relative flex-1">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -217,7 +219,8 @@ export default function ResearchPage() {
                   placeholder="Buscar por afirmação, autor, citação ou #tag..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                  aria-label="Buscar evidências"
+                  className="vly-field w-full pl-9 pr-3 py-1.5 rounded-lg text-xs"
                 />
               </div>
 
@@ -225,7 +228,8 @@ export default function ResearchPage() {
                 <select
                   value={selectedStrength}
                   onChange={(e) => setSelectedStrength(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                  aria-label="Filtrar por força da evidência"
+                  className="vly-field min-h-0 px-2.5 py-1.5 rounded-lg text-xs"
                 >
                   <option value="todas">Todas as Forças</option>
                   <option value="forte">Forte</option>
@@ -237,26 +241,21 @@ export default function ResearchPage() {
                 <select
                   value={selectedSection}
                   onChange={(e) => setSelectedSection(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                  aria-label="Filtrar por seção do artigo"
+                  className="vly-field min-h-0 px-2.5 py-1.5 rounded-lg text-xs"
                 >
                   <option value="todas">Todas as Seções</option>
                   {Object.entries(SECTION_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
-              </div>
+               </div>
             </div>
 
             {/* Evidence Cards */}
             <div>
               {filteredEvidences.length === 0 ? (
-                <div className="py-16 text-center rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3">
-                  <Quote size={36} className="mx-auto text-slate-600" />
-                  <p className="text-sm font-semibold text-slate-300">Nenhuma evidência cadastrada no Board</p>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Adicione trechos de artigos e proposições científicas para fundamentar seus artigos.
-                  </p>
-                </div>
+                <StatePanel tone="empty" title="Nenhuma evidência cadastrada no Board" description="Adicione trechos de artigos e proposições científicas para fundamentar seus artigos." action={<button type="button" onClick={() => setIsEviModalOpen(true)} className="vly-interactive rounded-lg bg-[var(--vly-surface-raised)] px-3 py-2 text-xs font-bold text-[var(--vly-text-primary)] border border-[var(--vly-border-accent)]">Adicionar evidência</button>} />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredEvidences.map((evi) => {
@@ -264,7 +263,7 @@ export default function ResearchPage() {
                     return (
                       <div
                         key={evi.id}
-                        className="group relative flex flex-col justify-between p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all clip-corner"
+                        className="group relative flex flex-col justify-between rounded-xl border border-[var(--vly-border-default)] bg-[var(--vly-surface)] p-5 transition-all hover:border-[var(--vly-border-accent)] clip-corner"
                       >
                         <div className="space-y-3">
                           {/* Top Badges */}
@@ -272,29 +271,29 @@ export default function ResearchPage() {
                             <span className={cn("text-[10px] px-2 py-0.5 rounded border font-semibold", st.bg, st.text, st.border)}>
                               {st.label}
                             </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-[#14141f] text-slate-400 border border-[#1e1e30] font-mono uppercase">
+                            <span className="rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-2 py-0.5 font-mono text-[10px] uppercase text-[var(--vly-text-secondary)]">
                               {SECTION_LABELS[evi.section] || evi.section}
                             </span>
                           </div>
 
                           {/* Claim */}
                           <div>
-                            <h3 className="text-xs font-bold text-slate-100 group-hover:text-violet-300 transition-colors">
+                            <h3 className="text-xs font-bold text-[var(--vly-text-primary)] transition-colors group-hover:text-[var(--vly-accent)]">
                               {evi.claim}
                             </h3>
-                            <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                            <p className="mt-1 text-[11px] font-medium text-[var(--vly-text-secondary)]">
                               Fonte: {evi.source} {evi.page && `(${evi.page})`}
                             </p>
                           </div>
 
                           {/* Quote Box */}
-                          <div className="p-3 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-300 italic leading-relaxed">
+                          <div className="rounded-lg border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-3 text-xs italic leading-relaxed text-[var(--vly-text-secondary)]">
                             &quot;{evi.quote}&quot;
                           </div>
                         </div>
 
                         {/* Footer */}
-                        <div className="mt-4 pt-3 border-t border-[#1e1e30] flex items-center justify-between text-[11px] text-slate-500">
+                        <div className="mt-4 flex items-center justify-between border-t border-[var(--vly-border-default)] pt-3 text-[11px] text-[var(--vly-text-muted)]">
                           <div className="flex items-center gap-1 flex-wrap">
                             {evi.tags.map((t) => (
                               <span key={t} className="text-[10px] px-1.5 py-0.2 rounded bg-[#14141f] text-slate-400">
@@ -305,7 +304,7 @@ export default function ResearchPage() {
 
                           <button
                             onClick={() => deleteEvidence(evi.id)}
-                            className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                            className="vly-interactive p-1.5 text-[var(--vly-text-muted)] opacity-70 hover:text-[var(--vly-danger)] sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
                             title="Remover evidência"
                           >
                             <Trash2 size={13} />
@@ -323,21 +322,22 @@ export default function ResearchPage() {
         {/* TAB 2: Projetos de Pesquisa */}
         {activeTab === "projetos" && (
           <div className="space-y-4">
-            {researches.map((res) => (
-              <div
+            {researches.length === 0 ? <StatePanel tone="empty" title="Nenhum projeto de pesquisa" description="Estruture um problema, hipótese e metodologia para iniciar um artigo." action={<button type="button" onClick={() => setIsResModalOpen(true)} className="vly-interactive rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white">Criar pesquisa</button>} /> : researches.map((res) => (
+              <Surface
                 key={res.id}
-                className="p-6 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-4 clip-corner"
+                tone="panel"
+                className="space-y-4 rounded-2xl p-6 clip-corner"
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold uppercase tracking-wider">
+                    <span className="rounded-full border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--vly-accent)]">
                       Status: {res.status.toUpperCase()}
                     </span>
-                    <h3 className="text-base font-black text-white mt-1.5">{res.title}</h3>
+                    <h3 className="mt-1.5 text-base font-black text-[var(--vly-text-primary)]">{res.title}</h3>
                   </div>
 
                   {res.submissionDeadline && (
-                    <div className="flex items-center gap-1.5 text-xs text-amber-400 font-mono bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-warning)] bg-[var(--vly-warning-soft)] px-3 py-1.5 font-mono text-xs text-[var(--vly-warning)]">
                       <Calendar size={13} />
                       <span>Prazo: {res.submissionDeadline}</span>
                     </div>
@@ -345,25 +345,25 @@ export default function ResearchPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-[#0a0a0f] border border-[#1e1e30] space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Pergunta de Pesquisa (Problema)</span>
-                    <p className="text-slate-300 leading-relaxed">{res.problem}</p>
+                   <div className="space-y-1 rounded-xl border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-3.5">
+                     <span className="block text-[10px] font-bold uppercase text-[var(--vly-text-secondary)]">Pergunta de Pesquisa (Problema)</span>
+                     <p className="leading-relaxed text-[var(--vly-text-secondary)]">{res.problem}</p>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#0a0a0f] border border-[#1e1e30] space-y-1">
-                    <span className="text-[10px] font-bold text-violet-400 uppercase block">Hipótese Principal</span>
-                    <p className="text-slate-300 leading-relaxed">{res.hypothesis}</p>
+                   <div className="space-y-1 rounded-xl border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] p-3.5">
+                     <span className="block text-[10px] font-bold uppercase text-[var(--vly-accent)]">Hipótese Principal</span>
+                     <p className="leading-relaxed text-[var(--vly-text-secondary)]">{res.hypothesis}</p>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-[#0a0a0f] border border-[#1e1e30] text-xs space-y-1">
-                  <span className="text-[10px] font-bold text-cyan-400 uppercase block">Metodologia & Veículo Alvo</span>
-                  <p className="text-slate-300">{res.methodology}</p>
+                 <div className="space-y-1 rounded-xl border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-3.5 text-xs">
+                   <span className="block text-[10px] font-bold uppercase text-[var(--vly-info)]">Metodologia & Veículo Alvo</span>
+                   <p className="text-[var(--vly-text-secondary)]">{res.methodology}</p>
                   {res.targetVenue && (
-                    <p className="text-violet-300 font-semibold mt-1">🎯 Veículo Alvo: {res.targetVenue}</p>
-                  )}
-                </div>
-              </div>
+                     <p className="mt-1 font-semibold text-[var(--vly-accent)]">🎯 Veículo Alvo: {res.targetVenue}</p>
+                   )}
+                  </div>
+                </Surface>
             ))}
           </div>
         )}
@@ -371,7 +371,7 @@ export default function ResearchPage() {
         {/* Modal: Nova Evidência */}
         {isEviModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-lg bg-[#0f0f1a] border border-[#2d2d4a] rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="w-full max-w-lg bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] rounded-xl shadow-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#1e1e30] pb-3">
                 <h2 className="text-sm font-bold text-white flex items-center gap-2">
                   <Quote size={16} className="text-violet-400" />
@@ -391,7 +391,7 @@ export default function ResearchPage() {
                     placeholder="Ex: A explicabilidade não garante segurança em modelos de alta dimensionalidade"
                     value={claim}
                     onChange={(e) => setClaim(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                    className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                     autoFocus
                   />
                 </div>
@@ -405,7 +405,7 @@ export default function ResearchPage() {
                       placeholder="Ex: Lipton, Z. C. (2018)"
                       value={source}
                       onChange={(e) => setSource(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                     />
                   </div>
 
@@ -416,7 +416,7 @@ export default function ResearchPage() {
                       placeholder="Ex: p. 36-40 ou Art. 14"
                       value={page}
                       onChange={(e) => setPage(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                     />
                   </div>
                 </div>
@@ -429,7 +429,7 @@ export default function ResearchPage() {
                     placeholder="Cole o trecho fiel do autor ou da decisão judicial..."
                     value={quote}
                     onChange={(e) => setQuote(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none font-sans"
+                    className="vly-field w-full resize-none rounded-lg px-3 py-2 text-xs font-sans"
                   />
                 </div>
 
@@ -439,7 +439,7 @@ export default function ResearchPage() {
                     <select
                       value={strength}
                       onChange={(e) => setStrength(e.target.value as EvidenceStrength)}
-                      className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                      className="vly-field w-full rounded-lg px-2.5 py-2 text-xs"
                     >
                       <option value="forte">Forte (Doutrina Pacífica / Lei)</option>
                       <option value="moderada">Moderada (Artigo / Estudo)</option>
@@ -453,7 +453,7 @@ export default function ResearchPage() {
                     <select
                       value={section}
                       onChange={(e) => setSection(e.target.value as PaperSection)}
-                      className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                      className="vly-field w-full rounded-lg px-2.5 py-2 text-xs"
                     >
                       {Object.entries(SECTION_LABELS).map(([k, v]) => (
                         <option key={k} value={k}>{v}</option>
@@ -469,7 +469,7 @@ export default function ResearchPage() {
                     placeholder="ia, explicabilidade, epistemologia"
                     value={eviTags}
                     onChange={(e) => setEviTags(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                    className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                   />
                 </div>
 

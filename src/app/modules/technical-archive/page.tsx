@@ -54,6 +54,7 @@ import { ExportModal } from "@/components/docs/ExportModal";
 import { DocumentReviewViewer } from "@/components/docs/DocumentReviewViewer";
 import { BackupModal } from "@/components/backup/BackupModal";
 import Link from "next/link";
+import { Surface } from "@/components/ui/Surface";
 
 type TabMode = "hub" | "guardian" | "map" | "handbook" | "adrs" | "lessons" | "component";
 
@@ -209,22 +210,22 @@ export default function TechnicalArchivePage() {
     switch (status) {
       case "IMPLEMENTED":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] text-[var(--vly-success)] border border-[color-mix(in_srgb,var(--vly-success)_20%,transparent)] flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--vly-success)]"></span>
             IMPLEMENTED
           </span>
         );
       case "PARTIALLY_IMPLEMENTED":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] text-[var(--vly-warning)] border border-[color-mix(in_srgb,var(--vly-warning)_20%,transparent)] flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--vly-warning)] animate-pulse"></span>
             PARTIALLY_IMPLEMENTED
           </span>
         );
       case "PLANNED":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)] text-[var(--vly-info)] border border-[color-mix(in_srgb,var(--vly-info)_20%,transparent)] flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--vly-info)]"></span>
             PLANNED
           </span>
         );
@@ -238,52 +239,56 @@ export default function TechnicalArchivePage() {
       title="Technical Archive"
       subtitle="Manual Arquitetural Oficial, ADRs e Memória de Engenharia do VARYNTH OS"
     >
-      <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in text-slate-200">
+      <div className="vly-enter p-6 max-w-7xl mx-auto space-y-8 text-[var(--vly-text-secondary)]">
         {/* ACTION FEEDBACK TOAST */}
         {actionMessage && (
-          <div className="p-4 rounded-xl bg-emerald-950/90 border border-emerald-800 text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-2xl animate-fade-in">
+          <div className="vly-motion-success p-4 rounded-xl bg-[color-mix(in_srgb,var(--vly-success)_16%,var(--vly-surface-floating))] border border-[color-mix(in_srgb,var(--vly-success)_45%,transparent)] text-[var(--vly-success)] text-xs font-semibold flex items-center justify-between shadow-2xl">
             <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-[var(--vly-success)]" />
               {actionMessage}
             </span>
           </div>
         )}
 
         {/* TOP STATUS BANNER */}
-        <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+        <Surface tone="raised" className="relative overflow-hidden p-6 backdrop-blur-md shadow-2xl">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[color-mix(in_srgb,var(--vly-info)_5%,transparent)] rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center text-xl shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-[var(--vly-surface-active)] border border-[var(--vly-border-accent)] flex items-center justify-center text-xl shadow-inner">
                   🏛️
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-3">
+                  <h1 className="text-xl font-bold tracking-tight text-[var(--vly-text-primary)] flex items-center gap-3">
                     VARYNTH Technical Archive
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 font-mono">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--vly-info)_12%,transparent)] text-[var(--vly-info)] border border-[color-mix(in_srgb,var(--vly-info)_35%,transparent)] font-mono">
                       v4.0.0
                     </span>
                   </h1>
-                  <p className="text-xs text-slate-400">
-                    Fonte da verdade técnica oficial mapeada diretamente de <code className="text-cyan-300">/docs</code>
+                  <p className="text-xs text-[var(--vly-text-secondary)]">
+                    Fonte da verdade técnica oficial mapeada diretamente de <code className="text-[var(--vly-info)]">/docs</code>
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs" role="group" aria-label="Ações do arquivo técnico">
               <button
+                type="button"
+                aria-label="Exportar manual técnico ou PDF"
                 onClick={() => setIsExportOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer"
+                    className="vly-interactive px-3.5 py-1.5 rounded-xl bg-[var(--vly-info)] hover:brightness-110 text-[var(--vly-accent-contrast)] font-bold flex items-center gap-2 shadow-md cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar Manual / PDF</span>
               </button>
 
               <button
+                type="button"
+                aria-label="Abrir backup e portabilidade"
                 onClick={() => setIsBackupOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer"
+                    className="vly-interactive px-3.5 py-1.5 rounded-xl bg-[var(--vly-accent)] hover:brightness-110 text-[var(--vly-accent-contrast)] font-bold flex items-center gap-2 shadow-md cursor-pointer"
                 title="Exportar ou restaurar backup universal de todo o VARYNTH OS"
               >
                 <Database className="w-3.5 h-3.5" />
@@ -291,26 +296,28 @@ export default function TechnicalArchivePage() {
               </button>
 
               <button
+                type="button"
+                aria-label="Atualizar auditoria do Documentation Guardian"
                 onClick={handleRefreshGuardian}
-                className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 flex items-center gap-2 transition-all cursor-pointer"
+                className="vly-interactive px-3 py-1.5 rounded-xl bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-default)] flex items-center gap-2 cursor-pointer"
                 title="Executar auditoria em tempo real do Documentation Guardian"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                <RefreshCw className="w-3.5 h-3.5 text-[var(--vly-info)]" />
                 <span className="font-mono text-[11px]">Audit Guardian</span>
               </button>
 
-              <div className="px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <div className="px-3 py-1.5 rounded-xl bg-[var(--vly-surface-raised)] border border-[var(--vly-border-subtle)] flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[var(--vly-success)]" />
                 <span>
                   Documentation Health:{" "}
-                  <strong className="text-emerald-300">{healthReport.score}% (SYNCED)</strong>
+                  <strong className="text-[var(--vly-success)]">{healthReport.score}% (SYNCED)</strong>
                 </span>
               </div>
 
-              <div className="px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+              <div className="px-3 py-1.5 rounded-xl bg-[var(--vly-surface-raised)] border border-[var(--vly-border-subtle)] flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[var(--vly-info)]" />
                 <span>
-                  Quality Gates: <strong className="text-cyan-300">73/73 Aprovados (100%)</strong>
+                  Quality Gates: <strong className="text-[var(--vly-info)]">73/73 Aprovados (100%)</strong>
                 </span>
               </div>
             </div>
@@ -318,25 +325,29 @@ export default function TechnicalArchivePage() {
 
           {/* SEARCH BAR */}
           <div className="mt-6 relative">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-[var(--vly-text-secondary)] absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Pesquisar documentação técnica, ADRs, lições aprendidas (ex: 'Alex Principle', 'MemoryGate', 'Lixeira', 'ADR-001')..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all font-sans"
+              aria-label="Pesquisar documentação técnica"
+              className="vly-field w-full pl-12 pr-4 py-3 rounded-xl text-sm font-sans"
             />
           </div>
-        </div>
+        </Surface>
 
         {/* NAVIGATION TABS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-[var(--vly-border-subtle)]" role="tablist" aria-label="Seções do Technical Archive">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "hub"}
             onClick={() => setActiveTab("hub")}
             className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "hub"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-raised)]"
             }`}
           >
             <Layers className="w-4 h-4" />
@@ -344,11 +355,14 @@ export default function TechnicalArchivePage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "guardian"}
             onClick={() => setActiveTab("guardian")}
             className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "guardian"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-raised)]"
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -356,11 +370,14 @@ export default function TechnicalArchivePage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "map"}
             onClick={() => setActiveTab("map")}
             className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "map"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-raised)]"
             }`}
           >
             <Compass className="w-4 h-4" />
@@ -368,11 +385,14 @@ export default function TechnicalArchivePage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "handbook"}
             onClick={() => setActiveTab("handbook")}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            className={`vly-interactive px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "handbook"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             }`}
           >
             <BookMarked className="w-4 h-4" />
@@ -380,11 +400,14 @@ export default function TechnicalArchivePage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "adrs"}
             onClick={() => setActiveTab("adrs")}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            className={`vly-interactive px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "adrs"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             }`}
           >
             <FileCode2 className="w-4 h-4" />
@@ -392,11 +415,14 @@ export default function TechnicalArchivePage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "lessons"}
             onClick={() => setActiveTab("lessons")}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            className={`vly-interactive px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "lessons"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             }`}
           >
             <History className="w-4 h-4" />
@@ -404,11 +430,14 @@ export default function TechnicalArchivePage() {
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "component"}
             onClick={() => setActiveTab("component")}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+            className={`vly-interactive px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
               activeTab === "component"
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] shadow-sm"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             }`}
           >
             <Cpu className="w-4 h-4" />
@@ -421,46 +450,46 @@ export default function TechnicalArchivePage() {
           <div className="space-y-8">
             {/* Top Guardian Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 space-y-2 shadow-lg">
+              <Surface tone="panel" className="space-y-2 border-[var(--vly-border-success)] p-5 shadow-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono uppercase text-slate-400 font-bold">Health Score</span>
-                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <span className="font-mono text-xs font-bold uppercase text-[var(--vly-text-muted)]">Health Score</span>
+                  <ShieldCheck className="h-5 w-5 text-[var(--vly-success)]" />
                 </div>
-                <div className="text-3xl font-extrabold text-white">{healthReport.score}%</div>
-                <p className="text-xs text-emerald-400 font-medium">Status: {healthReport.status} (Zero Drift)</p>
-              </div>
+                <div className="text-3xl font-extrabold text-[var(--vly-text-primary)]">{healthReport.score}%</div>
+                <p className="text-xs font-medium text-[var(--vly-success)]">Status: {healthReport.status} (Zero Drift)</p>
+              </Surface>
 
-              <div className="p-5 rounded-2xl bg-slate-900/80 border border-cyan-500/30 space-y-2 shadow-lg">
+              <Surface tone="panel" className="space-y-2 border-[var(--vly-border-info)] p-5 shadow-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono uppercase text-slate-400 font-bold">Contratos Runtime</span>
-                  <Cpu className="w-5 h-5 text-cyan-400" />
+                  <span className="font-mono text-xs font-bold uppercase text-[var(--vly-text-muted)]">Contratos Runtime</span>
+                  <Cpu className="h-5 w-5 text-[var(--vly-info)]" />
                 </div>
-                <div className="text-3xl font-extrabold text-white">
+                <div className="text-3xl font-extrabold text-[var(--vly-text-primary)]">
                   {healthReport.runtimeAudits.totalRoutes + healthReport.runtimeAudits.totalTools + healthReport.runtimeAudits.totalAgents}
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--vly-text-secondary)]">
                   {healthReport.runtimeAudits.totalRoutes} Rotas • {healthReport.runtimeAudits.totalTools} Tools • {healthReport.runtimeAudits.totalAgents} Agentes
                 </p>
-              </div>
+              </Surface>
 
-              <div className="p-5 rounded-2xl bg-slate-900/80 border border-amber-500/30 space-y-2 shadow-lg">
+              <Surface tone="panel" className="space-y-2 border-[var(--vly-border-warning)] p-5 shadow-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono uppercase text-slate-400 font-bold">Fila de Revisão Humana</span>
-                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                  <span className="font-mono text-xs font-bold uppercase text-[var(--vly-text-muted)]">Fila de Revisão Humana</span>
+                  <AlertCircle className="h-5 w-5 text-[var(--vly-warning)]" />
                 </div>
-                <div className="text-3xl font-extrabold text-white">{pendingReviewsCount}</div>
-                <p className="text-xs text-amber-300 font-medium">
+                <div className="text-3xl font-extrabold text-[var(--vly-text-primary)]">{pendingReviewsCount}</div>
+                <p className="text-xs font-medium text-[var(--vly-warning)]">
                   {pendingReviewsCount === 0
                     ? "Toda a documentação revisada e sincronizada"
                     : `${pendingReviewsCount} proposta(s) aguardando confirmação`}
                 </p>
-              </div>
+              </Surface>
             </div>
 
             {/* Subsystems Health Grid */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Activity className="w-4 h-4 text-cyan-400" />
+            <div className="bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] rounded-[var(--vly-radius-xl)] p-6 space-y-4">
+              <h3 className="text-sm font-bold text-[var(--vly-text-primary)] flex items-center gap-2">
+                <Activity className="w-4 h-4 text-[var(--vly-info)]" />
                 Auditoria de Sincronia por Subsistema
               </h3>
 
@@ -468,15 +497,15 @@ export default function TechnicalArchivePage() {
                 {Object.entries(healthReport.subsystems).map(([key, sub]) => (
                   <div
                     key={key}
-                    className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between"
+                    className="p-3.5 rounded-[var(--vly-radius-md)] bg-[var(--vly-world)] border border-[var(--vly-border-subtle)] flex items-center justify-between"
                   >
                     <div>
-                      <div className="text-xs font-bold text-white">{sub.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                      <div className="text-xs font-bold text-[var(--vly-text-primary)]">{sub.name}</div>
+                      <div className="text-[10px] text-[var(--vly-text-secondary)] font-mono mt-0.5">
                         {sub.totalDocumented}/{sub.totalActual} contratos verificados
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[color-mix(in_srgb,var(--vly-success)_10%,var(--vly-surface))] text-[var(--vly-success)] border border-[var(--vly-border-success)]">
                       {sub.status}
                     </span>
                   </div>
@@ -485,14 +514,14 @@ export default function TechnicalArchivePage() {
             </div>
 
             {/* REVIEW QUEUE (MASTER-DETAIL DOCUMENTATION REVIEW CENTER) */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6">
+            <div className="bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] rounded-[var(--vly-radius-xl)] p-6 space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <FileCheck className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-bold text-[var(--vly-text-primary)] flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-[var(--vly-warning)]" />
                     Centro de Revisão Documental & Workspace Interativa
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-[var(--vly-text-secondary)] mt-1">
                     Decisões e lições interpretativas geradas que exigem confirmação explícita antes da publicação oficial.
                   </p>
                 </div>
@@ -508,10 +537,10 @@ export default function TechnicalArchivePage() {
                     <button
                       key={filter.id}
                       onClick={() => setReviewStatusFilter(filter.id)}
-                      className={`px-3 py-1 rounded-lg transition-all ${
+                      className={`vly-interactive px-3 py-1 rounded-[var(--vly-radius-md)] transition-all ${
                         reviewStatusFilter === filter.id
-                          ? "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm"
-                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                          ? "bg-[color-mix(in_srgb,var(--vly-info)_16%,var(--vly-surface))] text-[var(--vly-info)] font-bold border border-[var(--vly-border-info)] shadow-sm"
+                          : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
                       }`}
                     >
                       {filter.label}
@@ -524,15 +553,15 @@ export default function TechnicalArchivePage() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* LEFT: DOCUMENT SELECTOR LIST */}
                 <div className="lg:col-span-5 space-y-3">
-                  <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                  <div className="text-xs font-mono font-bold text-[var(--vly-text-secondary)] uppercase tracking-wider flex items-center justify-between">
                     <span>1. Selecione o Arquivo / Proposta:</span>
-                    <span className="text-[10px] text-cyan-400">
+                    <span className="text-[10px] text-[var(--vly-info)]">
                       {reviewQueue.filter((r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter).length} exibidos
                     </span>
                   </div>
 
                   {reviewQueue.filter((r) => reviewStatusFilter === "ALL" || r.status === reviewStatusFilter).length === 0 ? (
-                    <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/60 text-xs text-slate-500 font-mono">
+                    <div className="p-8 text-center bg-[var(--vly-world)] rounded-[var(--vly-radius-md)] border border-[var(--vly-border-subtle)] text-xs text-[var(--vly-text-muted)] font-mono">
                       Zero itens encontrados para o filtro selecionado.
                     </div>
                   ) : (

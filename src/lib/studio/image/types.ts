@@ -82,6 +82,17 @@ export interface ImageDocumentState {
   layers: ImageLayer[];
   selectedLayerIds: string[];
   updatedAt: string;
+  /** Optional Visual Core provenance; omitted by legacy documents. */
+  visualProvenance?: Array<{
+    id: string;
+    operation: "CAPTURE" | "ENHANCE" | "EDIT" | "CREATE" | "ANALYZE" | "PRODUCE";
+    description: string;
+    actor: "USER" | "ATHENA" | "SYSTEM" | "DEVICE";
+    createdAt: string;
+    sourceAssetIds?: string[];
+    derivedAssetIds?: string[];
+    generated?: boolean;
+  }>;
 }
 
 export interface ImageMetadata {

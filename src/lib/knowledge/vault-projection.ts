@@ -5,7 +5,7 @@ import { revokeKnowledge, storeKnowledge } from "./service";
 
 const operations = new Map<string, Promise<unknown>>();
 
-async function syncServer(operation: "UPSERT_VAULT" | "REVOKE_VAULT", data: { item?: VaultItem; id?: string }) {
+async function syncServer(operation: "UPSERT_VAULT" | "UPSERT_VAULT_BATCH" | "REVOKE_VAULT", data: { item?: VaultItem; items?: VaultItem[]; id?: string }) {
   if (typeof window === "undefined") return;
   const response = await fetch("/api/knowledge/items", {
     method: "POST",
@@ -55,6 +55,21 @@ export function syncVaultKnowledgeItem(item: VaultItem) {
     await syncServer("UPSERT_VAULT", { item });
     return stored;
   });
+}
+
+/** Project a group of Vault items locally and persist the remote projection in one account-scoped request. */
+export async function syncVaultKnowledgeItems(items: VaultItem[]) {
+  if (!items.length) return [];
+  const stored = [];
+  for (const item of items) {
+    stored.push(await serializeByVaultId(item.id, async () => {
+      const projected = knowledgeFromVaultItem(item);
+      const existing = await knowledgeRepository.getById(projected.id);
+      return projectionMatches(existing, projected) ? existing! : storeKnowledge(projected);
+    }));
+  }
+  await syncServer("UPSERT_VAULT_BATCH", { items });
+  return stored;
 }
 
 /** Revoke the Vault projection in order with any pending projection writes. */

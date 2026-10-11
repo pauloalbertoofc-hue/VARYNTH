@@ -64,71 +64,77 @@ export function DocumentEditor({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#08080e] relative">
+    <section aria-label="Editor de documento Markdown" className="relative flex h-full flex-col bg-[var(--vly-surface)]">
       {/* Editor Toolbar */}
-      <div className="h-10 border-b border-[#1c1c2e] bg-[#0c0c16] px-3 flex items-center gap-1 shrink-0 overflow-x-auto">
+      <div role="toolbar" aria-label="Ferramentas de formatação Markdown" className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-3">
         <button
+          type="button"
+          aria-label="Inserir título H1"
           onClick={() => insertSnippet("# ", "", "Título Principal")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Título 1 (H1)"
         >
           <Heading1 size={15} />
         </button>
         <button
+          type="button"
+          aria-label="Inserir título H2"
           onClick={() => insertSnippet("## ", "", "Subtítulo")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Título 2 (H2)"
         >
           <Heading2 size={15} />
         </button>
         <button
+          type="button"
+          aria-label="Inserir título H3"
           onClick={() => insertSnippet("### ", "", "Seção")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Título 3 (H3)"
         >
           <Heading3 size={15} />
         </button>
 
-        <div className="w-[1px] h-4 bg-[#232338] mx-1" />
+        <div className="mx-1 h-4 w-px bg-[var(--vly-border-default)]" />
 
         <button
           onClick={() => insertSnippet("**", "**", "texto em negrito")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Negrito"
         >
           <Bold size={15} />
         </button>
         <button
           onClick={() => insertSnippet("*", "*", "texto em itálico")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Itálico"
         >
           <Italic size={15} />
         </button>
         <button
           onClick={() => insertSnippet("`", "`", "código inline")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Código inline"
         >
           <Code size={15} />
         </button>
         <button
           onClick={() => insertSnippet("> ", "", "Citação ou jurisprudência")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Citação em bloco"
         >
           <Quote size={15} />
         </button>
         <button
           onClick={() => insertSnippet("- ", "", "Item da lista")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Lista"
         >
           <List size={15} />
         </button>
         <button
           onClick={() => insertSnippet("[", "](url)", "Texto do Link")}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Inserir Link"
         >
           <Link size={15} />
@@ -139,7 +145,7 @@ export function DocumentEditor({
               "\n| Cabeçalho 1 | Cabeçalho 2 |\n| ----------- | ----------- |\n| Item 1      | Item 2      |\n"
             )
           }
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1e1e32] rounded transition"
+          className="vly-interactive rounded p-1.5 text-[var(--vly-text-muted)] transition hover:bg-[var(--vly-surface-raised)] hover:text-[var(--vly-text-primary)]"
           title="Tabela Básica"
         >
           <Table size={15} />
@@ -149,7 +155,7 @@ export function DocumentEditor({
           <div className="ml-auto">
             <button
               onClick={() => onAskAthenaAboutSelection(selectedText)}
-              className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-xs flex items-center gap-1.5 transition"
+              className="vly-interactive flex items-center gap-1.5 rounded border border-[var(--vly-border-warning)] bg-[var(--vly-surface-warning)] px-2 py-1 text-xs text-[var(--vly-warning)]"
             >
               <Sparkles size={12} />
               Reescrever Seleção com Athena
@@ -159,19 +165,19 @@ export function DocumentEditor({
       </div>
 
       {/* Editor Textarea */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-[var(--vly-world)] p-6">
         <textarea
+          aria-label="Conteúdo do documento em Markdown"
           ref={textareaRef}
           value={content}
           onChange={(e) => onChange(e.target.value)}
           onSelect={handleSelection}
           onKeyUp={handleSelection}
           placeholder="Escreva seu documento em Markdown..."
-          className="w-full h-full bg-transparent text-slate-200 resize-none outline-none font-mono text-sm leading-relaxed placeholder:text-slate-600"
+          className="h-full w-full resize-none bg-transparent font-mono text-sm leading-relaxed text-[var(--vly-text-primary)] outline-none placeholder:text-[var(--vly-text-muted)]"
           spellCheck={false}
         />
       </div>
-    </div>
+    </section>
   );
 }
-

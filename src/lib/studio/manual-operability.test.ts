@@ -223,7 +223,7 @@ export async function runManualStudioOperabilitySuite() {
     "MANUAL-REG-008",
     "Audio can be rendered without Athena",
     audioRenderRes.success && Boolean(audioRenderRes.blob) && (audioRenderRes.blob?.size || 0) > 0,
-    `Audio render format: ${audioRenderRes.format}, size: ${audioRenderRes.blob?.size} bytes`
+    `Audio render format: ${audioRenderRes.format}, size: ${audioRenderRes.blob?.size} bytes, error: ${audioRenderRes.error ?? "none"}`
   );
 
   // MANUAL-REG-009: Video timeline can be edited manually
@@ -330,7 +330,7 @@ export async function runManualStudioOperabilitySuite() {
     "MANUAL-REG-013",
     "Game Build works without Athena",
     gameBuildRes.success && Boolean(gameBuildRes.manifest),
-    `Game build success: ${gameBuildRes.success}, manifest: ${gameBuildRes.manifest?.targetPlatform}`
+    `Game build success: ${gameBuildRes.success}, manifest: ${gameBuildRes.manifest?.targetPlatform}, error: ${gameBuildRes.error ?? "none"}`
   );
 
   // MANUAL-REG-014: User can inspect Versions without Athena

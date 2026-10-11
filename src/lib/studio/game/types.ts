@@ -22,7 +22,9 @@ export type ComponentType =
   | "UI"
   | "RIGID_BODY"
   | "ANIMATOR"
-  | "CAMERA";
+  | "CAMERA"
+  | "HEALTH"
+  | "BEHAVIOR";
 
 export type BodyMode = "STATIC" | "DYNAMIC" | "KINEMATIC";
 export type ColliderShape = "RECTANGLE" | "CIRCLE";
@@ -40,10 +42,16 @@ export interface GameVariable {
 
 export type TriggerType =
   | "ON_START"
+  | "ON_UPDATE"
   | "ON_CLICK"
   | "ON_KEY"
+  | "ON_KEY_UP"
   | "ON_ACTION"
   | "ON_COLLISION"
+  | "ON_COLLISION_ENTER"
+  | "ON_COLLISION_EXIT"
+  | "ON_TRIGGER_ENTER"
+  | "ON_TRIGGER_EXIT"
   | "ON_VARIABLE_CHANGED"
   | "ON_SCENE_ENTER"
   | "ON_TIMER"
@@ -64,7 +72,9 @@ export type ConditionOperator =
   | "EQUALS"
   | "NOT_EQUALS"
   | "GREATER_THAN"
+  | "GREATER_OR_EQUALS"
   | "LESS_THAN"
+  | "LESS_OR_EQUALS"
   | "CONTAINS";
 
 export interface GameCondition {
@@ -82,9 +92,12 @@ export type ActionType =
   | "MOVE_ENTITY"
   | "SET_POSITION"
   | "APPLY_FORCE"
+  | "PLAY_ANIMATION"
   | "SHOW_ENTITY"
   | "HIDE_ENTITY"
   | "PLAY_AUDIO"
+  | "STOP_AUDIO"
+  | "RESTART_GAME"
   | "CHANGE_SCENE"
   | "SHOW_TEXT"
   | "END_GAME"
@@ -104,6 +117,7 @@ export interface GameAction {
   y?: number;
   forceX?: number;
   forceY?: number;
+  animationClipId?: string;
   assetId?: string;
   audioEventId?: string;
   targetSceneId?: string;
@@ -178,6 +192,10 @@ export interface ColliderComponent {
 export interface RigidBodyComponent { type: "RIGID_BODY"; mode: BodyMode; mass: number; gravityScale: number; velocityX: number; velocityY: number; }
 export interface AnimatorComponent { type: "ANIMATOR"; clips: AnimationClip[]; activeClipId?: string; playing: boolean; }
 export interface CameraComponent { type: "CAMERA"; followEntityId?: string; offsetX: number; offsetY: number; smoothing: number; zoom: number; limits?: { left: number; top: number; right: number; bottom: number }; }
+/** Binds an entity's life pool to an explicit game variable used by rules and HUDs. */
+export interface HealthComponent { type: "HEALTH"; variableId: string; max: number; }
+/** Declarative behavior metadata preserved through editor, play mode and export. */
+export interface BehaviorComponent { type: "BEHAVIOR"; behaviorId: string; enabled: boolean; }
 export interface AnimationClip { id: string; name: string; frames: { assetId: string; durationMs: number }[]; loop: boolean; }
 
 export interface InputComponent {
@@ -207,6 +225,10 @@ export interface UIComponent {
   elementType: "BUTTON" | "PANEL" | "PROGRESS_BAR" | "DIALOGUE_BOX";
   text?: string;
   onClickAction?: GameAction;
+  /** Runtime variable rendered by a progress bar, for example var-health. */
+  variableId?: string;
+  min?: number;
+  max?: number;
 }
 
 export type GameComponent =
@@ -222,7 +244,9 @@ export type GameComponent =
   | UIComponent
   | RigidBodyComponent
   | AnimatorComponent
-  | CameraComponent;
+  | CameraComponent
+  | HealthComponent
+  | BehaviorComponent;
 
 export interface GameEntity {
   id: string;

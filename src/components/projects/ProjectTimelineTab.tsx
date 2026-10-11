@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { ProjectTimelineEvent } from "@/lib/types";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
-import { Clock, Plus, Trash2, Milestone, Calendar, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Trash2 } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
+import { Surface } from "@/components/ui/Surface";
 
 interface ProjectTimelineTabProps {
   projectId: string;
@@ -42,12 +43,12 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+        <h3 className="text-xs font-bold text-[var(--vly-text-secondary)] uppercase tracking-wider">
           Linha do Tempo & Marcos ({projectEvents.length})
         </h3>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-[var(--vly-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--vly-accent-contrast)] transition-colors hover:opacity-90"
         >
           <Plus size={14} />
           <span>Registrar Marco</span>
@@ -56,7 +57,7 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
 
       {/* Add Form */}
       {isAdding && (
-        <form onSubmit={handleCreate} className="p-4 rounded-xl bg-[#14141f] border border-[#2d2d4a] space-y-3">
+        <form onSubmit={handleCreate} className="p-4 rounded-[var(--vly-radius-lg)] bg-[var(--vly-surface-raised)] border border-[var(--vly-border-strong)] space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input
               type="text"
@@ -64,14 +65,14 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
               placeholder="Título do marco ou evento..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="sm:col-span-2 px-3 py-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+              className="vly-field sm:col-span-2 px-3 py-2 text-xs"
               autoFocus
             />
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+              className="vly-field px-2.5 py-1.5 text-xs"
             />
           </div>
           <textarea
@@ -79,19 +80,19 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
             placeholder="Descrição ou resultado alcançado..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60 resize-none"
+            className="vly-field w-full resize-none px-3 py-2 text-xs"
           />
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setIsAdding(false)}
-              className="px-3 py-1 text-xs text-slate-400 hover:text-slate-200"
+              className="px-3 py-1 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-1 rounded bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white transition-colors"
+              className="px-4 py-1 rounded bg-[var(--vly-accent)] hover:opacity-90 text-xs font-semibold text-[var(--vly-accent-contrast)] transition-colors"
             >
               Salvar Marco
             </button>
@@ -100,38 +101,36 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
       )}
 
       {/* Timeline view */}
-      <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#1e1e30]">
+      <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--vly-border-default)]">
         {projectEvents.length === 0 ? (
-          <div className="py-12 text-center rounded-xl bg-[#0f0f1a] border border-[#1e1e30] text-slate-500 text-xs">
-            Nenhum marco registrado na linha do tempo.
-          </div>
+          <StatePanel tone="empty" className="bg-[var(--vly-surface)]" title="Nenhum marco registrado" description="Registre decisões, entregas e eventos para dar continuidade temporal ao projeto." action={<button type="button" onClick={() => setIsAdding(true)} className="vly-interactive rounded-[var(--vly-radius-md)] bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Plus size={13} className="mr-1 inline" />Registrar marco</button>} />
         ) : (
           projectEvents.map((evt) => (
             <div key={evt.id} className="relative group">
               {/* Dot */}
-              <div className="absolute -left-[27px] top-1.5 w-3 h-3 rounded-full bg-violet-500 border-2 border-[#0a0a0f] ring-2 ring-violet-500/30" />
+              <div className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2 border-[var(--vly-world)] bg-[var(--vly-accent)] ring-2 ring-[var(--vly-accent)]/30" />
 
-              <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all">
+              <Surface tone="raised" className="rounded-xl p-4 transition-all hover:border-[var(--vly-accent)]/40">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-semibold text-violet-400">{evt.date}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-[#14141f] text-slate-400 border border-[#1e1e30] uppercase">
+                    <span className="text-xs font-mono font-semibold text-[var(--vly-accent)]">{evt.date}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)] border border-[var(--vly-border-subtle)] uppercase">
                       {evt.type}
                     </span>
                   </div>
                   <button
                     onClick={() => deleteTimelineEvent(evt.id)}
-                    className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                    className="touch-manipulation p-1.5 text-[var(--vly-text-muted)] opacity-70 transition-opacity hover:text-[var(--vly-danger)] sm:opacity-0 sm:group-hover:opacity-100"
                     title="Remover evento"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
-                <h4 className="text-xs font-bold text-slate-200 mt-1">{evt.title}</h4>
+                <h4 className="text-xs font-bold text-[var(--vly-text-secondary)] mt-1">{evt.title}</h4>
                 {evt.description && (
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">{evt.description}</p>
+                  <p className="text-xs text-[var(--vly-text-secondary)] mt-1 leading-relaxed">{evt.description}</p>
                 )}
-              </div>
+              </Surface>
             </div>
           ))
         )}
@@ -139,4 +138,3 @@ export function ProjectTimelineTab({ projectId }: ProjectTimelineTabProps) {
     </div>
   );
 }
-

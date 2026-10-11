@@ -1,10 +1,11 @@
 import { AudioDocumentState } from "./types";
 import { assetManager } from "../../artifacts/asset-manager";
 import { createLocalSynthInstrument, InstrumentEngine, LocalSamplerInstrument, LocalSynthInstrument } from "./instrument-engine";
-import { effectiveNoteDurationBeats, flattenMusicNotes, pitchToMidi, tempoMapBeatsToSeconds, tempoMapSecondsToBeats } from "./music-domain";
+import { beatsPerMeasure, effectiveNoteDurationBeats, flattenMusicNotes, musicNoteScheduleTiming, pitchToMidi } from "./music-domain";
 import { isAudioTrackAudible, isAudioTrackDirectOutputAudible, isAudioTrackSendAudible, validateAudioBusRouting } from "./audio-routing";
 import { crossfadeLoopChannels } from "./audio-loop";
 import { resolveDrumSampler } from "./drum-sequencer-domain";
+import { scheduleMetronomeTicks } from "./metronome-domain";
 
 export interface AudioEngineSnapshot { state: "STOPPED" | "PLAYING" | "PAUSED"; positionMs: number; sampleRate?: number; }
 
@@ -26,6 +27,7 @@ export class AudioEngine {
   private musicInstruments = new Map<string, InstrumentEngine>();
   private musicTimers: ReturnType<typeof setTimeout>[] = [];
   private metronomeTimers: ReturnType<typeof setTimeout>[] = [];
+  private playbackBusNodes = new Map<string, GainNode>();
 
   private getContext(): AudioContext {
     if (typeof window === "undefined") throw new Error("[AUDIO_RUNTIME_UNAVAILABLE] Playback requires a browser AudioContext.");
@@ -54,13 +56,14 @@ export class AudioEngine {
     const busNodes = new Map<string, GainNode>();
     const busTails = new Map<string, AudioNode>();
     for (const bus of project.buses || []) { const node = context.createGain(); node.gain.value = bus.muted ? 0 : bus.volume; let busChain: AudioNode = node; for (const effect of bus.effects || []) { if (!effect.enabled) continue; const fx = this.createEffectNode(context, effect); if (fx) { busChain.connect(fx); busChain = fx; } } const panner = context.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, bus.pan)); busChain.connect(panner); const analyser = context.createAnalyser(); analyser.fftSize = 1024; panner.connect(analyser); this.busAnalysers.set(bus.id, analyser); busNodes.set(bus.id, node); busTails.set(bus.id, analyser); }
+    this.playbackBusNodes = busNodes;
     for (const bus of project.buses || []) { const destination = bus.outputBusId ? busNodes.get(bus.outputBusId) : this.master!; if (!destination) throw new Error(`[AUDIO_ROUTING_INVALID] Bus de saída '${bus.outputBusId}' não encontrado.`); busTails.get(bus.id)!.connect(destination); }
     const position = Math.max(0, this.offsetMs || project.playheadMs);
     const metronome = project.settings?.metronome;
     const countInBars = position === 0 && metronome?.enabled ? Math.max(0, Math.floor(metronome.countInBars ?? 0)) : 0;
-    const beatsPerBar = project.music?.timeSignature.numerator || project.settings?.timeSignature?.[0] || 4;
     const bpm = project.music?.tempoMap[0]?.bpm || project.settings?.bpm || 120;
-    const startDelayMs = countInBars * beatsPerBar * 60000 / bpm;
+    const timeSignature = project.music?.timeSignature || { numerator: project.settings?.timeSignature?.[0] || 4, denominator: (project.settings?.timeSignature?.[1] || 4) as 2 | 4 | 8 | 16 };
+    const startDelayMs = countInBars * beatsPerMeasure(timeSignature) * 60000 / bpm;
     for (const track of active) for (const clip of track.clips) {
       const clipStart = clip.timelineStartMs;
       const clipEnd = clipStart + (clip.sourceEndMs - clip.sourceStartMs);
@@ -117,7 +120,7 @@ export class AudioEngine {
       this.offsetMs = position;
       throw error;
     }
-    this.scheduleMetronome(project, position, startDelayMs, countInBars);
+    this.scheduleMetronome(project, position, countInBars);
     this.startedAt = context.currentTime; this.state = "PLAYING";
   }
 
@@ -126,6 +129,20 @@ export class AudioEngine {
   seek(positionMs: number): void { this.offsetMs = Math.max(0, positionMs); if (this.state === "PLAYING") this.state = "PAUSED"; this.stopNodes(); }
   positionMs(): number { return this.state === "PLAYING" && this.context ? this.offsetMs + (this.context.currentTime - this.startedAt) * 1000 : this.offsetMs; }
   snapshot(): AudioEngineSnapshot { return { state: this.state, positionMs: this.positionMs(), sampleRate: this.context?.sampleRate }; }
+  async refreshMusicSchedule(project: AudioDocumentState): Promise<void> {
+    if (this.state !== "PLAYING" || !this.context) return;
+    const positionMs = this.positionMs();
+    this.clearMusic();
+    try {
+      await this.scheduleMusic(project, positionMs, this.playbackBusNodes);
+      this.scheduleMetronome(project, this.positionMs());
+    } catch (error) {
+      this.stopNodes();
+      this.state = "STOPPED";
+      this.offsetMs = positionMs;
+      throw error;
+    }
+  }
   dispose(): void { this.stop(); void this.context?.close(); this.context = null; this.master = null; this.analyser = null; this.trackAnalysers.clear(); this.busAnalysers.clear(); }
   async startRecording(deviceId?: string): Promise<void> {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) throw new Error("[RECORDING_UNAVAILABLE] Microfone não disponível neste navegador.");
@@ -194,8 +211,6 @@ export class AudioEngine {
     if (!project.music?.notes.length && !project.music?.clips?.length) return;
     const music = project.music;
     const tempoMap = music.tempoMap.length ? music.tempoMap : [{ beat: 0, bpm: project.settings?.bpm || 120 }];
-    const positionSeconds = positionMs / 1000;
-    const positionBeat = tempoMapSecondsToBeats(positionSeconds, tempoMap);
     const structured = music.clips || [];
     const groups = new Map<string, ReturnType<typeof flattenMusicNotes>>();
     if (structured.length) {
@@ -238,17 +253,35 @@ export class AudioEngine {
         if (!sendBus) throw new Error(`[AUDIO_ROUTING_INVALID] Send bus '${send.busId}' não encontrado.`);
         if (isAudioTrackSendAudible(track, send.busId, project.buses || [])) { const sendGain = this.context!.createGain(); sendGain.gain.value = send.level; (send.preFader ? preFader : analyser).connect(sendGain).connect(sendBus); }
       }
-      const synthNotes = notes.filter((note) => !note.drum);
+      const synthNotes = notes.filter((note) => !note.drum && !track.samplerDefinitionId);
       let synth: LocalSynthInstrument | undefined;
       if (synthNotes.length) {
         synth = createLocalSynthInstrument(this.context!, instrumentInput);
         if (project.synthPreset) synth.loadPreset(project.synthPreset);
         this.musicInstruments.set(`${track.id}:synth`, synth);
       }
+      const melodicSampler = track.samplerDefinitionId ? (project.samplerDefinitions || []).find((item) => item.id === track.samplerDefinitionId) : undefined;
+      if (track.samplerDefinitionId && !melodicSampler) throw new Error(`[SAMPLER_DEFINITION_UNAVAILABLE] Sampler '${track.samplerDefinitionId}' da faixa '${track.name}' não existe no projeto.`);
+      if (melodicSampler && notes.some((note) => !note.drum)) {
+        const key = `${track.id}:melodic:${melodicSampler.id}`;
+        let sampler = this.musicInstruments.get(key) as LocalSamplerInstrument | undefined;
+        if (!sampler) {
+          const assetData = await assetManager.getAssetData(melodicSampler.assetId);
+          if (!assetData) throw new Error(`[SAMPLER_ASSET_UNAVAILABLE] Asset '${melodicSampler.assetId}' do sampler '${melodicSampler.name}' não está disponível.`);
+          const raw = typeof assetData === "string" ? await (await fetch(assetData)).arrayBuffer() : assetData instanceof ArrayBuffer ? assetData : await assetData.arrayBuffer();
+          const buffer = await this.context!.decodeAudioData(raw.slice(0));
+          sampler = new LocalSamplerInstrument(melodicSampler, this.context!, instrumentInput);
+          sampler.loadBuffer(buffer);
+          this.musicInstruments.set(key, sampler);
+        }
+        this.musicInstruments.set(`${track.id}:melodic-active`, sampler);
+      }
       for (const note of notes) {
-        if (note.startBeat + effectiveNoteDurationBeats(note) <= positionBeat) continue;
+        const livePositionMs = this.state === "PLAYING" ? this.positionMs() : positionMs;
+        const timing = musicNoteScheduleTiming(note.startBeat, note.startBeat + effectiveNoteDurationBeats(note), livePositionMs, tempoMap);
+        if (timing.endMs <= livePositionMs) continue;
         const pitch = pitchToMidi(note.pitch, note.octave, note.accidental);
-        let instrument: InstrumentEngine | undefined = synth;
+        let instrument: InstrumentEngine | undefined = note.drum ? synth : melodicSampler ? this.musicInstruments.get(`${track.id}:melodic:${melodicSampler.id}`) : synth;
         if (note.drum) {
           if (Math.random() >= note.drum.probability) continue;
           const pattern = project.drumPatterns?.find((item) => item.id === note.drum!.patternId);
@@ -267,43 +300,39 @@ export class AudioEngine {
           }
         }
         if (!instrument) continue;
-        const delayMs = Math.max(0, (tempoMapBeatsToSeconds(note.startBeat, tempoMap) - positionSeconds) * 1000);
         const onTimer = setTimeout(() => {
           if (note.drum && instrument instanceof LocalSamplerInstrument) {
             instrument.triggerOneShot(note.velocity);
             return;
           }
           instrument!.noteOn({ midi: pitch, velocity: note.velocity, articulation: note.articulation, expression: note.drum ? 1 : note.expression, concertPitchHz: music.tuning.concertPitchHz });
-          const offTimer = setTimeout(() => instrument.noteOff(pitch), Math.max(10, (tempoMapBeatsToSeconds(note.startBeat + effectiveNoteDurationBeats(note), tempoMap) - tempoMapBeatsToSeconds(note.startBeat, tempoMap)) * 1000));
+          const offTimer = setTimeout(() => instrument.noteOff(pitch), Math.max(10, timing.durationMs));
           this.musicTimers.push(offTimer);
-        }, startDelayMs + delayMs);
+        }, startDelayMs + timing.delayMs);
         this.musicTimers.push(onTimer);
       }
     }
   }
-  private scheduleMetronome(project: AudioDocumentState, positionMs: number, startDelayMs = 0, countInBars = 0): void {
+  private scheduleMetronome(project: AudioDocumentState, positionMs: number, countInBars = 0): void {
     const metronome = project.settings?.metronome;
     if (!metronome?.enabled || !this.context) return;
     const bpm = project.music?.tempoMap[0]?.bpm || project.settings?.bpm || 120;
-    const beatsPerBar = project.music?.timeSignature.numerator || project.settings?.timeSignature?.[0] || 4;
-    const positionSeconds = positionMs / 1000;
-    const positionBeat = tempoMapSecondsToBeats(positionSeconds, project.music?.tempoMap || [{ beat: 0, bpm }]);
-    const firstBeat = Math.ceil(positionBeat - 0.0001) - countInBars * beatsPerBar;
-    for (let beat = firstBeat; beat < firstBeat + 4096; beat++) {
-      const delay = Math.max(0, startDelayMs + (tempoMapBeatsToSeconds(beat, project.music?.tempoMap || [{ beat: 0, bpm }]) - positionSeconds) * 1000);
+    const timeSignature = project.music?.timeSignature || { numerator: project.settings?.timeSignature?.[0] || 4, denominator: (project.settings?.timeSignature?.[1] || 4) as 2 | 4 | 8 | 16 };
+    const ticks = scheduleMetronomeTicks({ positionMs, timeSignature, tempoMap: project.music?.tempoMap || [{ beat: 0, bpm }], fallbackBpm: bpm, countInBars });
+    for (const { beat, delayMs: delay, accented } of ticks) {
       const timer = setTimeout(() => {
         if (!this.context) return;
         const now = this.context.currentTime;
         const oscillator = this.context.createOscillator(); const gain = this.context.createGain();
-        oscillator.frequency.value = beat % beatsPerBar === 0 && metronome.accentFirstBeat ? 1760 : 1100;
-        gain.gain.setValueAtTime(Math.max(0, Math.min(1, metronome.volume)) * (beat % beatsPerBar === 0 ? 0.16 : 0.1), now);
+        oscillator.frequency.value = accented && metronome.accentFirstBeat ? 1760 : 1100;
+        gain.gain.setValueAtTime(Math.max(0, Math.min(1, metronome.volume)) * (accented ? 0.16 : 0.1), now);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045); oscillator.connect(gain).connect(this.master!); oscillator.start(now); oscillator.stop(now + 0.05);
       }, delay);
       this.metronomeTimers.push(timer);
     }
   }
   private clearMusic(): void { for (const timer of this.musicTimers) clearTimeout(timer); this.musicTimers = []; for (const timer of this.metronomeTimers) clearTimeout(timer); this.metronomeTimers = []; for (const instrument of this.musicInstruments.values()) instrument.dispose(); this.musicInstruments.clear(); }
-  private stopNodes(): void { for (const source of this.sources) { try { source.stop(); } catch {} } this.sources = []; this.clearMusic(); }
+  private stopNodes(): void { for (const source of this.sources) { try { source.stop(); } catch {} } this.sources = []; this.clearMusic(); this.playbackBusNodes.clear(); }
 }
 
 export const audioEngine = new AudioEngine();

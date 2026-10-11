@@ -15,6 +15,8 @@ import { createAudioExportPlan } from "./audio-export-plan";
 import { effectiveNoteDurationBeats, flattenMusicNotes, midiToFrequency, pitchToMidi, tempoMapBeatsToSeconds, tempoMapSecondsToBeats } from "./music-domain";
 import { isAudioTrackAudible, isAudioTrackDirectOutputAudible, isAudioTrackSendAudible, validateAudioBusRouting } from "./audio-routing";
 import { crossfadeLoopChannels } from "./audio-loop";
+import { mapSamplerVoice } from "./sampler-domain";
+import { prepareSamplerBuffer } from "./instrument-engine";
 
 export const MAX_AUDIO_DURATION_MS = 3600000; // 1 hour ceiling
 export const DEFAULT_MAX_DECODED_MEMORY_BYTES = 128 * 1024 * 1024; // 128 MB default limit
@@ -420,6 +422,19 @@ export class AudioRenderEngine {
       for (const [trackId, notes] of notesByTrack) {
         const track = activeTargetTracks.find((item) => item.id === trackId);
         if (!track) continue;
+        const melodicSampler = track.samplerDefinitionId ? (state.samplerDefinitions || []).find((item) => item.id === track.samplerDefinitionId) : undefined;
+        if (track.samplerDefinitionId && !melodicSampler) throw new Error(`[SAMPLER_DEFINITION_UNAVAILABLE] Sampler '${track.samplerDefinitionId}' da faixa '${track.name}' não existe no projeto.`);
+        let samplerBuffer: AudioBuffer | undefined;
+        let samplerLoopBounds: { loopStart?: number; loopEnd?: number } | undefined;
+        if (melodicSampler) {
+          const data = await this.withTimeout(assetManager.getAssetData(melodicSampler.assetId), 30000, `[SAMPLER_ASSET_READ_TIMEOUT] Leitura do sampler '${melodicSampler.assetId}' excedeu 30 segundos.`);
+          if (!data) throw new Error(`[SAMPLER_ASSET_UNAVAILABLE] Asset '${melodicSampler.assetId}' do sampler '${melodicSampler.name}' não está disponível.`);
+          const raw = typeof data === "string" ? await (await fetch(data)).arrayBuffer() : data instanceof ArrayBuffer ? data : await data.arrayBuffer();
+          const decodedSampler = await this.withTimeout(context.decodeAudioData(raw.slice(0)), 30000, `[SAMPLER_DECODE_TIMEOUT] Decodificação do sampler '${melodicSampler.assetId}' excedeu 30 segundos.`);
+          const preparedSampler = prepareSamplerBuffer(context, melodicSampler, decodedSampler);
+          samplerBuffer = preparedSampler.buffer;
+          samplerLoopBounds = preparedSampler;
+        }
         const instrumentInput = context.createGain();
         let chain: AudioNode = instrumentInput;
         for (const effect of track.effects || []) { if (!effect.enabled) continue; const effectNode = this.createEffectNode(context, effect); if (effectNode) { chain.connect(effectNode); chain = effectNode; } }
@@ -439,18 +454,40 @@ export class AudioRenderEngine {
           if (noteEnd <= renderStartSeconds || noteStart >= renderEndSeconds) continue;
           const start = Math.max(0, noteStart - renderStartSeconds);
           const end = Math.min(renderEndSeconds, noteEnd) - renderStartSeconds;
-          const oscillator = context.createOscillator();
-          oscillator.type = "sine";
-          oscillator.frequency.value = midiToFrequency(pitchToMidi(note.pitch, note.octave, note.accidental), music.tuning.concertPitchHz);
+          const midi = pitchToMidi(note.pitch, note.octave, note.accidental);
+          let oscillator: AudioBufferSourceNode | OscillatorNode;
+          if (melodicSampler && samplerBuffer) {
+            const source = context.createBufferSource();
+            const mapping = mapSamplerVoice(melodicSampler, midi);
+            source.buffer = samplerBuffer;
+            source.playbackRate.value = mapping.playbackRate;
+            if (melodicSampler.loop?.enabled) {
+              source.loop = true;
+              source.loopStart = samplerLoopBounds?.loopStart ?? melodicSampler.loop.startMs / 1000;
+              source.loopEnd = samplerLoopBounds?.loopEnd ?? melodicSampler.loop.endMs / 1000;
+            }
+            oscillator = source;
+          } else {
+            const source = context.createOscillator();
+            source.type = "sine";
+            source.frequency.value = midiToFrequency(midi, music.tuning.concertPitchHz);
+            oscillator = source;
+          }
           const envelope = context.createGain();
-          const velocity = Math.max(1, Math.min(127, note.velocity)) / 127; const articulation = note.articulation || "normal"; const expression = Math.max(0, Math.min(1, note.expression ?? 1)); const peak = 0.18 * velocity * expression * (articulation === "accent" ? 1.2 : 1); const attack = articulation === "legato" ? 0.006 : 0.012; const release = articulation === "staccato" ? 0.008 : articulation === "tenuto" || articulation === "sustain" ? 0.04 : 0.025;
+          const velocity = Math.max(1, Math.min(127, note.velocity)) / 127; const articulation = note.articulation || "normal"; const expression = Math.max(0, Math.min(1, note.expression ?? 1)); const peak = melodicSampler ? Math.min(1, melodicSampler.gain * velocity * expression * (articulation === "accent" ? 1.2 : 1)) : 0.18 * velocity * expression * (articulation === "accent" ? 1.2 : 1); const attack = melodicSampler ? Math.max(0.001, melodicSampler.envelope.attackMs / 1000) : articulation === "legato" ? 0.006 : 0.012; const decay = melodicSampler ? Math.max(0, melodicSampler.envelope.decayMs / 1000) : 0; const sustain = melodicSampler ? melodicSampler.envelope.sustain : 0.67; const release = melodicSampler ? Math.max(0.01, melodicSampler.envelope.releaseMs / 1000) : articulation === "staccato" ? 0.008 : articulation === "tenuto" || articulation === "sustain" ? 0.04 : 0.025;
+          const attackEnd = Math.min(end, start + attack);
+          const sustainEnd = Math.min(end, start + attack + decay);
+          const releaseStart = Math.min(end, Math.max(sustainEnd, end - release));
           envelope.gain.setValueAtTime(0.0001, start);
-          envelope.gain.linearRampToValueAtTime(peak, Math.min(end, start + attack));
-          envelope.gain.setValueAtTime(peak * 0.67, Math.max(start + attack + 0.001, end - release));
+          envelope.gain.linearRampToValueAtTime(peak, attackEnd);
+          envelope.gain.linearRampToValueAtTime(peak * sustain, sustainEnd);
+          envelope.gain.setValueAtTime(peak * sustain, releaseStart);
           envelope.gain.linearRampToValueAtTime(0.0001, end);
-          oscillator.connect(envelope).connect(instrumentInput);
+          if (melodicSampler?.filter) { const filter = context.createBiquadFilter(); filter.type = melodicSampler.filter.type; filter.frequency.value = Math.min(context.sampleRate / 2, melodicSampler.filter.frequencyHz); filter.Q.value = melodicSampler.filter.q; oscillator.connect(filter).connect(envelope); }
+          else oscillator.connect(envelope);
+          envelope.connect(instrumentInput);
           oscillator.start(start);
-          oscillator.stop(Math.min(durationMs / 1000, end + 0.03));
+          if (!melodicSampler) oscillator.stop(Math.min(durationMs / 1000, end + 0.03));
         }
       }
     }

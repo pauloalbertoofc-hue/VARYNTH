@@ -29,30 +29,32 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
+import { StatePanel } from "@/components/ui/StatePanel";
+import { Surface } from "@/components/ui/Surface";
 import { addProcessingJob, listProcessingJobs, updateProcessingJob } from "@/lib/vault/processing-queue";
 import { upload as uploadBlob } from "@vercel/blob/client";
 import { LITERARY_CATEGORIES, PRIMARY_SUBJECTS, VAULT_FORMATS, WORK_TYPES, suggestTaxonomy } from "@/lib/vault/taxonomy";
-import { revokeVaultKnowledgeItem, syncVaultKnowledgeItem } from "@/lib/knowledge";
+import { revokeVaultKnowledgeItem, syncVaultKnowledgeItems, syncVaultKnowledgeItem } from "@/lib/knowledge";
 import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
 
 const TYPE_CONFIG: Record<VaultItemType, { label: string; icon: React.ElementType; color: string }> = {
-  artigo: { label: "Artigo", icon: FileText, color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
-  livro: { label: "Livro / Doutrina", icon: BookOpen, color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
-  jurisprudencia: { label: "Jurisprudência", icon: Scale, color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
-  lei: { label: "Legislação", icon: Scale, color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  pdf: { label: "PDF / Doc", icon: FileText, color: "text-red-400 bg-red-500/10 border-red-500/20" },
-  link: { label: "Página Web", icon: ExternalLink, color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  video: { label: "Vídeo / Aula", icon: Layers, color: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
-  citacao: { label: "Citação", icon: Quote, color: "text-pink-400 bg-pink-500/10 border-pink-500/20" },
-  codigo: { label: "Trecho de Código", icon: Code2, color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
-  ideia: { label: "Ideia Solta", icon: Sparkles, color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
+  artigo: { label: "Artigo", icon: FileText, color: "text-[var(--vly-accent)] bg-[var(--vly-accent)]/10 border-[var(--vly-accent)]/20" },
+  livro: { label: "Livro / Doutrina", icon: BookOpen, color: "text-[var(--vly-info)] bg-[var(--vly-info)]/10 border-[var(--vly-info)]/20" },
+  jurisprudencia: { label: "Jurisprudência", icon: Scale, color: "text-[var(--vly-info)] bg-[var(--vly-info)]/10 border-[var(--vly-info)]/20" },
+  lei: { label: "Legislação", icon: Scale, color: "text-[var(--vly-warning)] bg-[var(--vly-warning)]/10 border-[var(--vly-warning)]/20" },
+  pdf: { label: "PDF / Doc", icon: FileText, color: "text-[var(--vly-danger)] bg-[var(--vly-danger)]/10 border-[var(--vly-danger)]/20" },
+  link: { label: "Página Web", icon: ExternalLink, color: "text-[var(--vly-success)] bg-[var(--vly-success)]/10 border-[var(--vly-success)]/20" },
+  video: { label: "Vídeo / Aula", icon: Layers, color: "text-[var(--vly-accent)] bg-[var(--vly-accent)]/10 border-[var(--vly-accent)]/20" },
+  citacao: { label: "Citação", icon: Quote, color: "text-[var(--vly-accent)] bg-[var(--vly-accent)]/10 border-[var(--vly-accent)]/20" },
+  codigo: { label: "Trecho de Código", icon: Code2, color: "text-[var(--vly-warning)] bg-[var(--vly-warning)]/10 border-[var(--vly-warning)]/20" },
+  ideia: { label: "Ideia Solta", icon: Sparkles, color: "text-[var(--vly-warning)] bg-[var(--vly-warning)]/10 border-[var(--vly-warning)]/20" },
 };
 
 const STATUS_CONFIG: Record<ReadingStatus, { label: string; color: string }> = {
-  para_ler: { label: "Para Ler", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  lendo: { label: "Lendo Agora", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" },
-  concluido: { label: "Concluído", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  arquivado: { label: "Arquivado", color: "text-slate-500 bg-slate-800/30 border-slate-700" },
+  para_ler: { label: "Para Ler", color: "text-[var(--vly-warning)] bg-[var(--vly-warning)]/10 border-[var(--vly-warning)]/20" },
+  lendo: { label: "Lendo Agora", color: "text-[var(--vly-info)] bg-[var(--vly-info)]/10 border-[var(--vly-info)]/20" },
+  concluido: { label: "Concluído", color: "text-[var(--vly-success)] bg-[var(--vly-success)]/10 border-[var(--vly-success)]/20" },
+  arquivado: { label: "Arquivado", color: "text-[var(--vly-text-muted)] bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)]" },
 };
 
 const legacyTypeFor = (workType: VaultWorkType, format: VaultFormat): VaultItemType => workType === "Livro" ? "livro" : workType === "Jurisprudência" ? "jurisprudencia" : workType === "Legislação" ? "lei" : workType === "Página web" ? "link" : workType === "Material audiovisual" ? "video" : format === "PDF" ? "pdf" : "artigo";
@@ -63,13 +65,14 @@ export default function VaultPage() {
   const projectedVaultItems = useRef(new Map<string, string>());
 
   useEffect(() => {
-    for (const item of vaultItems) {
+    const pendingItems = vaultItems.filter((item) => {
       const projectionKey = JSON.stringify([item.title, item.content, item.summary, item.primarySubject, item.tags, item.relatedProjectIds, item.updatedAt]);
-      if (projectedVaultItems.current.get(item.id) === projectionKey) continue;
-      void syncVaultKnowledgeItem(item).then(() => {
-        projectedVaultItems.current.set(item.id, projectionKey);
-      }).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
-    }
+      return projectedVaultItems.current.get(item.id) !== projectionKey;
+    });
+    if (!pendingItems.length) return;
+    void syncVaultKnowledgeItems(pendingItems).then(() => {
+      pendingItems.forEach((item) => projectedVaultItems.current.set(item.id, JSON.stringify([item.title, item.content, item.summary, item.primarySubject, item.tags, item.relatedProjectIds, item.updatedAt])));
+    }).catch((error) => console.warn("[Knowledge] projeção do Vault não persistida", error));
   }, [vaultItems]);
 
   const [search, setSearch] = useState("");
@@ -280,26 +283,26 @@ export default function VaultPage() {
 
   return (
     <PageLayout title="Vault" subtitle="Biblioteca pessoal e segundo cérebro relacional">
-      <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <div className="vly-enter space-y-6 max-w-7xl mx-auto">
         {/* Header & Metrics */}
         {preferences.vault.header && <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 glow-accent">
+               <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] glow-accent">
                 <BookOpen size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+               <h1 className="text-xl font-black tracking-tight text-[var(--vly-text-primary)] sm:text-2xl">
                 Vault de Conhecimento
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+             <p className="mt-1 text-xs text-[var(--vly-text-secondary)]">
               Segundo cérebro não-hierárquico: artigos, doutrina, leis, notas e jurisprudência conectados por tags.
             </p>
           </div>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all duration-200"
+            className="vly-interactive flex items-center gap-1.5 rounded-[var(--vly-radius-md)] bg-[var(--vly-accent)] px-4 py-2 text-xs font-bold text-[var(--vly-accent-contrast)] glow-accent hover:opacity-90"
           >
             <Plus size={16} />
             <span>Adicionar ao Vault</span>
@@ -308,52 +311,53 @@ export default function VaultPage() {
 
         {/* Stats Row */}
         {(preferences.vault.metricTotal || preferences.vault.metricReading || preferences.vault.metricCompleted || preferences.vault.metricToRead) && <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {preferences.vault.metricTotal && <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <span className="text-xs text-slate-400">Total de Obras</span>
-            <p className="text-xl font-bold text-white mt-1">{vaultItems.length}</p>
-          </div>}
-          {preferences.vault.metricReading && <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <span className="text-xs text-slate-400">Lendo Agora</span>
-            <p className="text-xl font-bold text-cyan-400 mt-1">
+          {preferences.vault.metricTotal && <Surface tone="panel" className="p-3.5 clip-corner-sm">
+             <span className="text-xs text-[var(--vly-text-secondary)]">Total de Obras</span>
+             <p className="mt-1 text-xl font-bold text-[var(--vly-text-primary)]">{vaultItems.length}</p>
+          </Surface>}
+          {preferences.vault.metricReading && <Surface tone="panel" className="p-3.5 clip-corner-sm">
+             <span className="text-xs text-[var(--vly-text-secondary)]">Lendo Agora</span>
+             <p className="mt-1 text-xl font-bold text-[var(--vly-info)]">
               {vaultItems.filter((v) => v.readingStatus === "lendo").length}
             </p>
-          </div>}
-          {preferences.vault.metricCompleted && <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <span className="text-xs text-slate-400">Concluídos / Fichados</span>
-            <p className="text-xl font-bold text-emerald-400 mt-1">
+          </Surface>}
+          {preferences.vault.metricCompleted && <Surface tone="panel" className="p-3.5 clip-corner-sm">
+             <span className="text-xs text-[var(--vly-text-secondary)]">Concluídos / Fichados</span>
+             <p className="mt-1 text-xl font-bold text-[var(--vly-success)]">
               {vaultItems.filter((v) => v.readingStatus === "concluido").length}
             </p>
-          </div>}
-          {preferences.vault.metricToRead && <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <span className="text-xs text-slate-400">Para Ler</span>
-            <p className="text-xl font-bold text-amber-400 mt-1">
+          </Surface>}
+          {preferences.vault.metricToRead && <Surface tone="panel" className="p-3.5 clip-corner-sm">
+             <span className="text-xs text-[var(--vly-text-secondary)]">Para Ler</span>
+             <p className="mt-1 text-xl font-bold text-[var(--vly-warning)]">
               {vaultItems.filter((v) => v.readingStatus === "para_ler").length}
             </p>
-          </div>}
+          </Surface>}
         </div>}
 
         {(preferences.vault.athena || preferences.vault.categories) && <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4">
-          {preferences.vault.athena && <div className="p-5 rounded-xl bg-gradient-to-br from-violet-950/40 to-[#0f0f1a] border border-violet-500/25 clip-corner">
-            <div className="flex items-start gap-3"><div className="p-2 rounded-lg bg-violet-500/15 text-violet-300"><WandSparkles size={18} /></div><div><p className="text-[10px] uppercase tracking-widest text-violet-300 font-bold">Athena · Biblioteca viva</p><h2 className="text-base font-bold text-white mt-1">Transforme leitura em material de consulta</h2><p className="text-xs text-slate-400 mt-1 leading-relaxed">Reúna livros, notícias e pesquisas; depois peça à Athena um fichamento, mapa de conceitos ou um livro de consulta com fontes rastreáveis.</p></div></div>
-            <div className="flex flex-wrap gap-2 mt-4"><Link href="/modules/research" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500/20"><Newspaper size={13} /> Pesquisar notícias e estudos</Link><button onClick={() => void compileLibrary()} disabled={compiling} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[11px] font-bold text-violet-300 hover:bg-violet-500/20 disabled:opacity-50"><WandSparkles size={13} /> {compiling ? "Compilando…" : "Compilar com Athena"}</button></div>
-          </div>}
-          {preferences.vault.categories && <div className="p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]"><div className="flex items-center gap-2 text-white text-sm font-bold"><BookMarked size={16} className="text-amber-300" /> Categorias</div><p className="text-[11px] text-slate-500 mt-1">Natureza geral da obra, separada do assunto.</p><div className="flex flex-wrap gap-2 mt-3">{["Todos", ...LITERARY_CATEGORIES].map((item) => <button key={item} onClick={() => setSelectedCategory(item)} className={cn("px-2.5 py-1 rounded-full border text-[10px] transition-colors", selectedCategory === item ? "bg-amber-500/15 border-amber-400/40 text-amber-300" : "bg-[#14141f] border-[#29293b] text-slate-400 hover:text-white")}>{item}</button>)}</div></div>}
+           {preferences.vault.athena && <Surface tone="raised" className="border-[var(--vly-border-accent)] p-5 clip-corner">
+             <div className="flex items-start gap-3"><div className="rounded-lg bg-[var(--vly-accent-soft)] p-2 text-[var(--vly-accent)]"><WandSparkles size={18} /></div><div><p className="text-[10px] font-bold uppercase tracking-widest text-[var(--vly-accent)]">Athena · Biblioteca viva</p><h2 className="mt-1 text-base font-bold text-[var(--vly-text-primary)]">Transforme leitura em material de consulta</h2><p className="mt-1 text-xs leading-relaxed text-[var(--vly-text-secondary)]">Reúna livros, notícias e pesquisas; depois peça à Athena um fichamento, mapa de conceitos ou um livro de consulta com fontes rastreáveis.</p></div></div>
+            <div className="mt-4 flex flex-wrap gap-2"><Link href="/modules/research" className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vly-info)]/20 bg-[var(--vly-info)]/10 px-3 py-1.5 text-[11px] font-bold text-[var(--vly-info)] hover:bg-[var(--vly-info)]/20"><Newspaper size={13} /> Pesquisar notícias e estudos</Link><button onClick={() => void compileLibrary()} disabled={compiling} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vly-accent)]/20 bg-[var(--vly-accent)]/10 px-3 py-1.5 text-[11px] font-bold text-[var(--vly-accent)] hover:bg-[var(--vly-accent)]/20 disabled:opacity-50"><WandSparkles size={13} /> {compiling ? "Compilando…" : "Compilar com Athena"}</button></div>
+          </Surface>}
+          {preferences.vault.categories && <Surface tone="panel" className="p-5"><div className="flex items-center gap-2 text-[var(--vly-text-primary)] text-sm font-bold"><BookMarked size={16} className="text-[var(--vly-warning)]" /> Categorias</div><p className="text-[11px] text-[var(--vly-text-muted)] mt-1">Natureza geral da obra, separada do assunto.</p><div className="flex flex-wrap gap-2 mt-3">{["Todos", ...LITERARY_CATEGORIES].map((item) => <button key={item} onClick={() => setSelectedCategory(item)} className={cn("vly-interactive px-2.5 py-1 rounded-full border text-[10px] transition-colors", selectedCategory === item ? "bg-[var(--vly-warning)]/15 border-[var(--vly-border-warning)] text-[var(--vly-warning)]" : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]")}>{item}</button>)}</div></Surface>}
         </div>}
 
-        {preferences.vault.sources && <section className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]"><p className="text-xs font-bold text-white">Fontes da compilação</p><div className="mt-2 flex flex-wrap gap-2">{vaultItems.filter((item) => item.content && item.storageId).map((item) => <label key={item.id} className="text-[10px] text-slate-300"><input type="checkbox" checked={selectedSources.includes(item.storageId!)} onChange={() => setSelectedSources((current) => current.includes(item.storageId!) ? current.filter((id) => id !== item.storageId) : [...current, item.storageId!])} /> {item.title}</label>)}</div></section>}
-        {preferences.vault.compilation && compilation && <section className="p-5 rounded-xl bg-[#0f0f1a] border border-violet-500/25"><div className="flex items-center justify-between gap-3"><h2 className="text-sm font-bold text-white">Livro de consulta compilado</h2><span className="text-[10px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-300">Confiança {compilationConfidence}</span></div><div className="mt-3 flex gap-3"><button onClick={() => setCompilationApproved(true)} className="text-xs text-emerald-300">{compilationApproved ? "Aprovado para exportação" : "Aprovar versão"}</button>{compilationApproved && <><button onClick={() => void exportCompilation("docx")} className="text-xs text-violet-300">Exportar DOCX</button><button onClick={() => void exportCompilation("pdf")} className="text-xs text-violet-300">Exportar PDF</button></>}</div><pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-slate-300">{compilation}</pre></section>}
-        {preferences.vault.processing && <section className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]"><h2 className="text-sm font-bold text-white">Processamentos em andamento</h2>{visibleJobs.length ? visibleJobs.map((job) => <div key={job.id} className="mt-2 text-xs text-slate-300"><div className="flex justify-between"><span>{job.title} · {job.type}</span><span>{job.progress}% · {job.status}</span></div><div className="mt-1 h-1.5 rounded bg-[#1e1e30]"><div className="h-full rounded bg-violet-500" style={{ width: `${job.progress}%` }} /></div><div className="mt-1 flex gap-2 text-[10px]"><button onClick={() => changeJob(job.id, "aguardando")} className="text-cyan-300">Pausar/retomar</button><button onClick={() => changeJob(job.id, "cancelado")} className="text-red-300">Cancelar</button></div></div>) : <p className="mt-2 text-xs text-slate-500">Nenhum processamento em andamento.</p>}</section>}
+        {preferences.vault.sources && <section className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-4"><p className="text-xs font-bold text-[var(--vly-text-primary)]">Fontes da compilação</p><div className="mt-2 flex flex-wrap gap-2">{vaultItems.filter((item) => item.content && item.storageId).map((item) => <label key={item.id} className="text-[10px] text-[var(--vly-text-secondary)]"><input type="checkbox" checked={selectedSources.includes(item.storageId!)} onChange={() => setSelectedSources((current) => current.includes(item.storageId!) ? current.filter((id) => id !== item.storageId) : [...current, item.storageId!])} /> {item.title}</label>)}</div></section>}
+        {preferences.vault.compilation && compilation && <section className="rounded-xl border border-[var(--vly-accent)]/25 bg-[var(--vly-surface-raised)] p-5"><div className="flex items-center justify-between gap-3"><h2 className="text-sm font-bold text-[var(--vly-text-primary)]">Livro de consulta compilado</h2><span className="rounded bg-[var(--vly-success)]/10 px-2 py-1 text-[10px] text-[var(--vly-success)]">Confiança {compilationConfidence}</span></div><div className="mt-3 flex gap-3"><button onClick={() => setCompilationApproved(true)} className="text-xs text-[var(--vly-success)]">{compilationApproved ? "Aprovado para exportação" : "Aprovar versão"}</button>{compilationApproved && <><button onClick={() => void exportCompilation("docx")} className="text-xs text-[var(--vly-accent)]">Exportar DOCX</button><button onClick={() => void exportCompilation("pdf")} className="text-xs text-[var(--vly-accent)]">Exportar PDF</button></>}</div><pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-[var(--vly-text-secondary)]">{compilation}</pre></section>}
+        {preferences.vault.processing && <section className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-4"><h2 className="text-sm font-bold text-[var(--vly-text-primary)]">Processamentos em andamento</h2>{visibleJobs.length ? visibleJobs.map((job) => <div key={job.id} className="mt-2 text-xs text-[var(--vly-text-secondary)]"><div className="flex justify-between"><span>{job.title} · {job.type}</span><span>{job.progress}% · {job.status}</span></div><div className="mt-1 h-1.5 rounded bg-[var(--vly-border-subtle)]"><div className="h-full rounded bg-[var(--vly-accent)]" style={{ width: `${job.progress}%` }} /></div><div className="mt-1 flex gap-2 text-[10px]"><button onClick={() => changeJob(job.id, "aguardando")} className="text-[var(--vly-info)]">Pausar/retomar</button><button onClick={() => changeJob(job.id, "cancelado")} className="text-[var(--vly-danger)]">Cancelar</button></div></div>) : <p className="mt-2 text-xs text-[var(--vly-text-muted)]">Nenhum processamento em andamento.</p>}</section>}
 
         {/* Controls and Filters */}
-        {preferences.vault.filters && <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5 bg-[#0f0f1a] rounded-xl border border-[#1e1e30]">
+        {preferences.vault.filters && <Surface tone="panel" className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3.5">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vly-text-muted)]" />
             <input
+              aria-label="Buscar na Vault"
               type="text"
               placeholder="Buscar por título, autor, anotações ou #tags..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+              className="vly-field w-full pl-9 pr-3 py-1.5 rounded-lg text-xs"
             />
           </div>
 
@@ -362,20 +366,22 @@ export default function VaultPage() {
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+              aria-label="Filtrar por tipo de obra"
+              className="vly-field min-h-0 px-2.5 py-1.5 rounded-lg text-xs"
             >
               <option value="todos">Todos os Tipos</option>
               {WORK_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
 
-            <select value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"><option>Todos</option>{VAULT_FORMATS.map((item) => <option key={item}>{item}</option>)}</select>
-            <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"><option>Todos</option>{PRIMARY_SUBJECTS.map((item) => <option key={item}>{item}</option>)}</select>
+            <select aria-label="Filtrar por formato" value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="vly-field min-h-0 px-2.5 py-1.5 rounded-lg text-xs"><option>Todos</option>{VAULT_FORMATS.map((item) => <option key={item}>{item}</option>)}</select>
+            <select aria-label="Filtrar por assunto" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="vly-field min-h-0 px-2.5 py-1.5 rounded-lg text-xs"><option>Todos</option>{PRIMARY_SUBJECTS.map((item) => <option key={item}>{item}</option>)}</select>
 
             {/* Status selector */}
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+              aria-label="Filtrar por status de leitura"
+              className="vly-field min-h-0 px-2.5 py-1.5 rounded-lg text-xs"
             >
               <option value="todos">Todos os Status</option>
               <option value="lendo">Lendo Agora</option>
@@ -384,18 +390,18 @@ export default function VaultPage() {
               <option value="arquivado">Arquivado</option>
             </select>
           </div>
-        </div>}
+        </Surface>}
 
         {/* Vault Grid */}
         {preferences.vault.items && <div>
           {filteredItems.length === 0 ? (
-            <div className="py-16 text-center rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3">
-              <BookOpen size={36} className="mx-auto text-slate-600" />
-              <p className="text-sm font-semibold text-slate-300">Nenhum item encontrado no Vault</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Adicione livros, jurisprudências, artigos ou leis para enriquecer seu segundo cérebro.
-              </p>
-            </div>
+            <StatePanel
+              tone="empty"
+              className="min-h-52 bg-[var(--vly-surface)]"
+              title="Nenhum item encontrado no Vault"
+              description="Adicione livros, jurisprudências, artigos ou leis para enriquecer seu segundo cérebro."
+              action={<button type="button" onClick={() => setIsModalOpen(true)} className="vly-interactive rounded-[var(--vly-radius-md)] bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Plus size={13} className="mr-1 inline" />Adicionar ao Vault</button>}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item) => {
@@ -404,9 +410,10 @@ export default function VaultPage() {
                 const Icon = typeInfo.icon;
 
                 return (
-                  <div
+                  <Surface
                     key={item.id}
-                    className="group relative flex flex-col justify-between p-5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 hover:shadow-[0_0_20px_rgba(124,58,237,0.15)] transition-all clip-corner"
+                    tone="panel"
+                    className="group relative flex flex-col justify-between p-5 hover:border-[var(--vly-border-accent)] hover:shadow-[var(--vly-shadow-floating)] transition-all clip-corner"
                   >
                     <div className="space-y-3">
                       {/* Top Badges */}
@@ -418,24 +425,25 @@ export default function VaultPage() {
 
                         <div className="flex items-center gap-1.5">
                           <select
+                            aria-label={`Status de leitura de ${item.title}`}
                             value={item.readingStatus}
                             onChange={(e) =>
                               updateVaultItem(item.id, { readingStatus: e.target.value as ReadingStatus })
                             }
                             className={cn(
-                              "text-[10px] px-2 py-0.5 rounded border font-medium bg-transparent cursor-pointer focus:outline-none",
+                              "vly-field min-h-0 cursor-pointer rounded border bg-transparent px-2 py-0.5 text-[10px] font-medium",
                               statusInfo.color
                             )}
                           >
-                            <option value="para_ler" className="bg-[#0f0f1a]">Para Ler</option>
-                            <option value="lendo" className="bg-[#0f0f1a]">Lendo</option>
-                            <option value="concluido" className="bg-[#0f0f1a]">Concluído</option>
-                            <option value="arquivado" className="bg-[#0f0f1a]">Arquivado</option>
+                            <option value="para_ler">Para Ler</option>
+                            <option value="lendo">Lendo</option>
+                            <option value="concluido">Concluído</option>
+                            <option value="arquivado">Arquivado</option>
                           </select>
 
                           <button
                             onClick={() => setItemToDelete(item)}
-                            className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                            className="vly-interactive p-1.5 text-[var(--vly-text-muted)] opacity-70 hover:text-[var(--vly-danger)] sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
                             title="Mover para a Lixeira (10 dias)"
                           >
                             <Trash2 size={13} />
@@ -445,45 +453,45 @@ export default function VaultPage() {
 
                       {/* Title & Author */}
                       <div>
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-100 group-hover:text-violet-300 transition-colors line-clamp-2">
+                        <h3 className="line-clamp-2 text-xs font-bold text-[var(--vly-text-primary)] transition-colors group-hover:text-[var(--vly-accent)] sm:text-sm">
                           {item.title}
                         </h3>
                         {item.author && (
-                          <p className="text-[11px] text-slate-400 mt-1 font-medium">{item.author}</p>
+                          <p className="mt-1 text-[11px] font-medium text-[var(--vly-text-secondary)]">{item.author}</p>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-1.5 text-[9px] text-slate-300">
-                        {item.literaryCategory && <span className="rounded border border-slate-700 bg-slate-800/50 px-1.5 py-0.5">{item.literaryCategory}</span>}
-                        {item.workType && <span className="rounded border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-blue-300">{item.workType}</span>}
-                        {item.format && <span className="rounded border border-red-500/20 bg-red-500/10 px-1.5 py-0.5 text-red-300">{item.format}</span>}
-                        {item.primarySubject && <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-amber-300">{item.primarySubject}</span>}
+                      <div className="flex flex-wrap gap-1.5 text-[9px] text-[var(--vly-text-secondary)]">
+                        {item.literaryCategory && <span className="rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-1.5 py-0.5">{item.literaryCategory}</span>}
+                        {item.workType && <span className="rounded border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] px-1.5 py-0.5 text-[var(--vly-accent)]">{item.workType}</span>}
+                        {item.format && <span className="rounded border border-[var(--vly-border-danger)] bg-[var(--vly-danger-soft)] px-1.5 py-0.5 text-[var(--vly-danger)]">{item.format}</span>}
+                        {item.primarySubject && <span className="rounded border border-[var(--vly-border-warning)] bg-[var(--vly-warning-soft)] px-1.5 py-0.5 text-[var(--vly-warning)]">{item.primarySubject}</span>}
                       </div>
 
                       {/* Notes / Fichamento */}
                       {item.notes && (
-                        <p className="text-xs text-slate-400 leading-relaxed bg-[#0a0a0f]/80 p-3 rounded-lg border border-[#1e1e30] line-clamp-3">
+                        <p className="line-clamp-3 rounded-lg border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-3 text-xs leading-relaxed text-[var(--vly-text-secondary)]">
                           {item.notes}
                         </p>
                       )}
-                      {item.content && <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300"><CheckCircle2 size={11} /> {item.processingStatus === "ocr" ? "OCR concluído" : "Conteúdo indexado para busca"}{item.wordCount ? ` · ${item.wordCount.toLocaleString("pt-BR")} palavras` : ""}</span>}
-                      {["aguardando_processamento", "processando"].includes(item.processingStatus || "") && <span className={cn("inline-flex items-center gap-1 text-[10px]", item.storageUrl ? "text-cyan-300" : "text-amber-300")}><Clock size={11} /> {item.storageUrl ? (item.processingMessage || "Arquivo salvo; preparando índice.") : "O cadastro foi preservado, mas o PDF precisa ser reconectado."}</span>}
-                      {item.chapters && item.chapters.length > 0 && <p className="text-[10px] text-slate-500">{item.chapters.length} capítulos identificados</p>}
-                      {item.processingStatus === "requer_revisao" && <span className="text-[10px] text-amber-300">{item.processingMessage || "Este arquivo precisa de revisão manual."}</span>}
+                      {item.content && <span className="inline-flex items-center gap-1 text-[10px] text-[var(--vly-success)]"><CheckCircle2 size={11} /> {item.processingStatus === "ocr" ? "OCR concluído" : "Conteúdo indexado para busca"}{item.wordCount ? ` · ${item.wordCount.toLocaleString("pt-BR")} palavras` : ""}</span>}
+                      {["aguardando_processamento", "processando"].includes(item.processingStatus || "") && <span className={cn("inline-flex items-center gap-1 text-[10px]", item.storageUrl ? "text-[var(--vly-info)]" : "text-[var(--vly-warning)]")}><Clock size={11} /> {item.storageUrl ? (item.processingMessage || "Arquivo salvo; preparando índice.") : "O cadastro foi preservado, mas o PDF precisa ser reconectado."}</span>}
+                      {item.chapters && item.chapters.length > 0 && <p className="text-[10px] text-[var(--vly-text-muted)]">{item.chapters.length} capítulos identificados</p>}
+                      {item.processingStatus === "requer_revisao" && <span className="text-[10px] text-[var(--vly-warning)]">{item.processingMessage || "Este arquivo precisa de revisão manual."}</span>}
                     </div>
 
                     {/* Footer Info */}
-                    <div className="mt-4 pt-3 border-t border-[#1e1e30] space-y-2 text-[11px]">
+                      <div className="mt-4 space-y-2 border-t border-[var(--vly-border-default)] pt-3 text-[11px]">
                       {/* Related Projects */}
                       {item.relatedProjectIds && item.relatedProjectIds.length > 0 && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <FolderKanban size={11} className="text-cyan-400" />
+                          <FolderKanban size={11} className="text-[var(--vly-info)]" />
                           {item.relatedProjectIds.map((pId) => {
                             const p = projects.find((proj) => proj.id === pId);
                             return p ? (
                               <Link
                                 key={pId}
                                 href={`/projects/${pId}`}
-                                className="text-[10px] text-cyan-400 hover:underline"
+                                className="text-[10px] text-[var(--vly-info)] hover:underline"
                               >
                                 {p.title}
                               </Link>
@@ -493,10 +501,10 @@ export default function VaultPage() {
                       )}
 
                       {/* Tags & External Link */}
-                      <div className="flex items-center justify-between gap-2 text-slate-500">
+                      <div className="flex items-center justify-between gap-2 text-[var(--vly-text-muted)]">
                         <div className="flex items-center gap-1 flex-wrap">
                           {item.tags.map((t) => (
-                            <span key={t} className="text-[10px] px-1.5 py-0.2 rounded bg-[#14141f] text-slate-400 border border-[#1e1e30]">
+                            <span key={t} className="rounded border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-1.5 py-0.2 text-[10px] text-[var(--vly-text-secondary)]">
                               #{t}
                             </span>
                           ))}
@@ -507,14 +515,14 @@ export default function VaultPage() {
                             href={item.url || `/api/vault/file?url=${encodeURIComponent(item.storageUrl || "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-violet-400 hover:text-violet-300 font-semibold"
+                            className="flex items-center gap-1 font-semibold text-[var(--vly-accent)] hover:opacity-80"
                           >
                             <span>Abrir</span>
                             <ExternalLink size={11} />
                           </a>
                         )}
                         {!item.url && !item.storageUrl && item.source?.includes(" · ") && (
-                          <label className="flex cursor-pointer items-center gap-1 font-semibold text-amber-300 hover:text-amber-200">
+                          <label className="flex cursor-pointer items-center gap-1 font-semibold text-[var(--vly-warning)] hover:opacity-80">
                             <Upload size={11} />
                             <span>Reconectar PDF</span>
                             <input type="file" accept=".pdf,.epub,.mobi,.azw,.doc,.docx,.txt" className="hidden" onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void reconnectFile(item, selected); event.currentTarget.value = ""; }} />
@@ -522,7 +530,7 @@ export default function VaultPage() {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </Surface>
                 );
               })}
             </div>
@@ -532,25 +540,25 @@ export default function VaultPage() {
         {/* Modal: Novo Item no Vault */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-[#0f0f1a] border border-[#2d2d4a] rounded-xl shadow-2xl clip-corner p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#1e1e30] pb-3">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <BookOpen size={16} className="text-violet-400" />
+            <Surface tone="floating" className="w-full max-w-xl max-h-[90vh] overflow-y-auto clip-corner p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] pb-3">
+                <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
+                  <BookOpen size={16} className="text-[var(--vly-accent)]" />
                   <span>Adicionar Obra ao Vault</span>
                 </h2>
-                <button disabled={isUploading} onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                <button disabled={isUploading} onClick={() => setIsModalOpen(false)} aria-label="Fechar modal de adicionar obra" className="vly-interactive text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] disabled:opacity-40 disabled:cursor-not-allowed">
                   ✕
                 </button>
               </div>
 
               <form onSubmit={handleCreate} className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div><label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Categoria</label><select value={category} onChange={(e) => setCategory(e.target.value as VaultLiteraryCategory)} className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none">{LITERARY_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></div>
-                  <div><label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Formato</label><select value={format} onChange={(e) => setFormat(e.target.value as VaultFormat)} className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none">{VAULT_FORMATS.map((item) => <option key={item}>{item}</option>)}</select></div>
+                  <div><label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase block mb-1">Categoria</label><select aria-label="Categoria da obra" value={category} onChange={(e) => setCategory(e.target.value as VaultLiteraryCategory)} className="vly-field w-full px-2.5 py-2 rounded-lg text-xs">{LITERARY_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></div>
+                  <div><label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase block mb-1">Formato</label><select aria-label="Formato da obra" value={format} onChange={(e) => setFormat(e.target.value as VaultFormat)} className="vly-field w-full px-2.5 py-2 rounded-lg text-xs">{VAULT_FORMATS.map((item) => <option key={item}>{item}</option>)}</select></div>
                 </div>
 
                 {(title.trim() || fileName) && <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3">
-                  <div className="flex items-center justify-between gap-2"><div><p className="text-[11px] font-bold text-violet-300">Sugestões da Athena</p><p className="text-[10px] text-slate-500">Clique em uma sugestão para preencher somente aquele campo.</p></div><button type="button" onClick={applyAllSuggestions} className="rounded-md bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-violet-500">Aplicar todas</button></div>
+                  <div className="flex items-center justify-between gap-2"><div><p className="text-[11px] font-bold text-[var(--vly-accent)]">Sugestões da Athena</p><p className="text-[10px] text-[var(--vly-text-muted)]">Clique em uma sugestão para preencher somente aquele campo.</p></div><button type="button" onClick={applyAllSuggestions} className="vly-interactive rounded-md bg-[var(--vly-accent)] px-2.5 py-1 text-[10px] font-bold text-[var(--vly-text-on-accent)]">Aplicar todas</button></div>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
                     <button type="button" onClick={() => acceptSuggestion(() => setCategory(taxonomySuggestion.literaryCategory))} className="rounded-full border border-violet-500/30 px-2 py-1 text-violet-200">Categoria: {taxonomySuggestion.literaryCategory}</button>
                     <button type="button" onClick={() => acceptSuggestion(() => setWorkType(taxonomySuggestion.workType))} className="rounded-full border border-violet-500/30 px-2 py-1 text-violet-200">Tipo: {taxonomySuggestion.workType}</button>
@@ -559,7 +567,7 @@ export default function VaultPage() {
                     {taxonomySuggestion.tags.map((tag) => <button type="button" key={tag} onClick={() => acceptSuggestion(() => setTags((current) => Array.from(new Set([...current.split(",").map((value) => value.trim()).filter(Boolean), tag])).join(", ")))} className="rounded-full border border-cyan-500/30 px-2 py-1 text-cyan-200">+ {tag}</button>)}
                   </div><p className="mt-2 text-[9px] text-slate-500">Confiança {taxonomySuggestion.confidence >= 0.8 ? "alta" : taxonomySuggestion.confidence >= 0.65 ? "média" : "baixa"}. Você continua no controle.</p>
                 </div>}
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-violet-500/30 bg-violet-500/5 cursor-pointer hover:bg-violet-500/10"><Upload size={17} className="text-violet-300" /><span className="text-xs text-slate-300">{fileName || "Anexar PDF, EPUB, MOBI, DOCX, áudio ou imagem"}</span><input type="file" accept=".pdf,.epub,.mobi,.azw,.doc,.docx,.txt,.png,.jpg,.jpeg,.mp3,.m4a" className="hidden" onChange={(e) => { const selected = e.target.files?.[0] || null; setFile(selected); setFileName(selected?.name || ""); }} /></label>
+                 <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] p-3 hover:bg-[var(--vly-surface-hover)]"><Upload size={17} className="text-[var(--vly-accent)]" /><span className="text-xs text-[var(--vly-text-secondary)]">{fileName || "Anexar PDF, EPUB, MOBI, DOCX, áudio ou imagem"}</span><input type="file" accept=".pdf,.epub,.mobi,.azw,.doc,.docx,.txt,.png,.jpg,.jpeg,.mp3,.m4a" className="hidden" onChange={(e) => { const selected = e.target.files?.[0] || null; setFile(selected); setFileName(selected?.name || ""); }} /></label>
 
                 <div>
                   <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Título da Obra / Lei / Artigo *</label>
@@ -569,7 +577,7 @@ export default function VaultPage() {
                     placeholder="Ex: Teoria Pura do Direito ou Artigo 5º CF/88"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none focus:border-violet-500/60"
+                     className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                     autoFocus
                   />
                 </div>
@@ -578,9 +586,10 @@ export default function VaultPage() {
                   <div>
                     <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Tipo da obra</label>
                     <select
+                      aria-label="Tipo da obra"
                       value={workType}
                       onChange={(e) => setWorkType(e.target.value as VaultWorkType)}
-                      className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                       className="vly-field w-full rounded-lg px-2.5 py-2 text-xs"
                     >
                       {WORK_TYPES.map((item) => <option key={item}>{item}</option>)}
                     </select>
@@ -589,9 +598,10 @@ export default function VaultPage() {
                   <div>
                     <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Status de Leitura</label>
                     <select
+                      aria-label="Status de leitura"
                       value={readingStatus}
                       onChange={(e) => setReadingStatus(e.target.value as ReadingStatus)}
-                      className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                       className="vly-field w-full rounded-lg px-2.5 py-2 text-xs"
                     >
                       <option value="para_ler">Para Ler</option>
                       <option value="lendo">Lendo Agora</option>
@@ -601,7 +611,7 @@ export default function VaultPage() {
                   </div>
                 </div>
 
-                <div><label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Área / assunto principal</label><select value={primarySubject} onChange={(e) => setPrimarySubject(e.target.value)} className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none">{PRIMARY_SUBJECTS.map((item) => <option key={item}>{item}</option>)}</select></div>
+                <div><label className="mb-1 block text-[11px] font-semibold uppercase text-[var(--vly-text-secondary)]">Área / assunto principal</label><select aria-label="Área ou assunto principal" value={primarySubject} onChange={(e) => setPrimarySubject(e.target.value)} className="vly-field w-full rounded-lg px-2.5 py-2 text-xs">{PRIMARY_SUBJECTS.map((item) => <option key={item}>{item}</option>)}</select></div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -611,7 +621,7 @@ export default function VaultPage() {
                       placeholder="Ex: Hans Kelsen, STF, etc."
                       value={author}
                       onChange={(e) => setAuthor(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                     />
                   </div>
 
@@ -622,7 +632,7 @@ export default function VaultPage() {
                       placeholder="https://..."
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                     />
                   </div>
                 </div>
@@ -630,9 +640,10 @@ export default function VaultPage() {
                 <div>
                   <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Vincular a Projeto (Opcional)</label>
                   <select
+                    aria-label="Vincular a projeto"
                     value={relatedProject}
                     onChange={(e) => setRelatedProject(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                    className="vly-field w-full rounded-lg px-2.5 py-2 text-xs"
                   >
                     <option value="">Nenhum (Conhecimento Geral)</option>
                     {projects.map((p) => (
@@ -648,7 +659,7 @@ export default function VaultPage() {
                     placeholder="Principais teses, argumentos ou trechos importantes..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none font-sans"
+                    className="vly-field w-full resize-none rounded-lg px-3 py-2 text-xs font-sans"
                   />
                 </div>
 
@@ -659,11 +670,11 @@ export default function VaultPage() {
                     placeholder="direito, hermeneutica, artigo"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                    className="vly-field w-full rounded-lg px-3 py-2 text-xs"
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-[#1e1e30]">
+                <div className="flex justify-end gap-2 border-t border-[var(--vly-border-default)] pt-3">
                   <button
                     type="button"
                     disabled={isUploading}
@@ -681,7 +692,7 @@ export default function VaultPage() {
                   </button>
                 </div>
               </form>
-            </div>
+            </Surface>
           </div>
         )}
 

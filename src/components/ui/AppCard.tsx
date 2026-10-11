@@ -5,6 +5,7 @@ import { VarynthModule } from "@/lib/types";
 import { ExternalLink, Clock, Zap, Globe } from "lucide-react";
 import Link from "next/link";
 import { EXTERNAL_APP_REGISTRY } from "@/lib/external/external-app-registry";
+import { Surface } from "@/components/ui/Surface";
 
 interface AppCardProps {
   module: VarynthModule;
@@ -13,60 +14,60 @@ interface AppCardProps {
 
 const colorMap = {
   violet: {
-    glow: "hover:shadow-[0_0_24px_rgba(124,58,237,0.35)]",
-    border: "hover:border-violet-500/50",
-    badge: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-    icon: "bg-violet-500/10",
-    tag: "bg-violet-500/10 text-violet-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-accent)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-accent)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)] text-[var(--vly-accent)] border-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)] text-[var(--vly-accent)]",
   },
   cyan: {
-    glow: "hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]",
-    border: "hover:border-cyan-500/50",
-    badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-    icon: "bg-cyan-500/10",
-    tag: "bg-cyan-500/10 text-cyan-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-info)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-info)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)] text-[var(--vly-info)] border-[color-mix(in_srgb,var(--vly-info)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)] text-[var(--vly-info)]",
   },
   green: {
-    glow: "hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]",
-    border: "hover:border-emerald-500/50",
-    badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    icon: "bg-emerald-500/10",
-    tag: "bg-emerald-500/10 text-emerald-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-success)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-success)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] text-[var(--vly-success)] border-[color-mix(in_srgb,var(--vly-success)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] text-[var(--vly-success)]",
   },
   orange: {
-    glow: "hover:shadow-[0_0_24px_rgba(245,158,11,0.35)]",
-    border: "hover:border-amber-500/50",
-    badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    icon: "bg-amber-500/10",
-    tag: "bg-amber-500/10 text-amber-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-warning)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-warning)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] text-[var(--vly-warning)] border-[color-mix(in_srgb,var(--vly-warning)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] text-[var(--vly-warning)]",
   },
   amber: {
-    glow: "hover:shadow-[0_0_24px_rgba(245,158,11,0.35)]",
-    border: "hover:border-amber-500/50",
-    badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    icon: "bg-amber-500/10",
-    tag: "bg-amber-500/10 text-amber-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-warning)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-warning)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] text-[var(--vly-warning)] border-[color-mix(in_srgb,var(--vly-warning)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] text-[var(--vly-warning)]",
   },
   emerald: {
-    glow: "hover:shadow-[0_0_24px_rgba(16,185,129,0.35)]",
-    border: "hover:border-emerald-500/50",
-    badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    icon: "bg-emerald-500/10",
-    tag: "bg-emerald-500/10 text-emerald-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-success)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-success)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] text-[var(--vly-success)] border-[color-mix(in_srgb,var(--vly-success)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] text-[var(--vly-success)]",
   },
   red: {
-    glow: "hover:shadow-[0_0_24px_rgba(239,68,68,0.35)]",
-    border: "hover:border-red-500/50",
-    badge: "bg-red-500/10 text-red-400 border-red-500/20",
-    icon: "bg-red-500/10",
-    tag: "bg-red-500/10 text-red-300",
+    glow: "hover:shadow-[0_0_24px_color-mix(in_srgb,var(--vly-danger)_24%,transparent)]",
+    border: "hover:border-[color-mix(in_srgb,var(--vly-danger)_50%,transparent)]",
+    badge: "bg-[color-mix(in_srgb,var(--vly-danger)_10%,transparent)] text-[var(--vly-danger)] border-[color-mix(in_srgb,var(--vly-danger)_20%,transparent)]",
+    icon: "bg-[color-mix(in_srgb,var(--vly-danger)_10%,transparent)]",
+    tag: "bg-[color-mix(in_srgb,var(--vly-danger)_10%,transparent)] text-[var(--vly-danger)]",
   },
 };
 
 const statusConfig = {
-  active: { label: "Ativo", icon: Zap, className: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  wip: { label: "Em dev", icon: Clock, className: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  "coming-soon": { label: "Em breve", icon: Clock, className: "text-slate-400 bg-slate-500/10 border-slate-500/20" },
+  active: { label: "Ativo", icon: Zap, className: "text-[var(--vly-success)] bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] border-[color-mix(in_srgb,var(--vly-success)_20%,transparent)]" },
+  wip: { label: "Em dev", icon: Clock, className: "text-[var(--vly-warning)] bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] border-[color-mix(in_srgb,var(--vly-warning)_20%,transparent)]" },
+  "coming-soon": { label: "Em breve", icon: Clock, className: "text-[var(--vly-text-muted)] bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)]" },
 };
 
 export function AppCard({ module, className }: AppCardProps) {
@@ -79,12 +80,13 @@ export function AppCard({ module, className }: AppCardProps) {
   const externalDef = EXTERNAL_APP_REGISTRY[module.id];
 
   const cardContent = (
-    <div
+    <Surface
+      tone="raised"
+      role="article"
+      aria-label={`${module.name}: ${status.label}`}
       className={cn(
-        "group relative flex flex-col gap-4 p-5 rounded-lg",
-        "bg-[#0f0f1a] border border-[#1e1e30]",
-        "transition-all duration-300 cursor-pointer",
-        "clip-corner",
+        "group relative flex flex-col gap-4 p-5 rounded-[var(--vly-radius-lg)]",
+        "vly-interactive cursor-pointer",
         colors.glow,
         colors.border,
         isDisabled && "opacity-60 cursor-not-allowed",
@@ -98,7 +100,7 @@ export function AppCard({ module, className }: AppCardProps) {
         </div>
         <div className="flex items-center gap-1.5">
           {isExternal && (
-            <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-medium flex items-center gap-1">
+            <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)] text-[var(--vly-info)] border border-[color-mix(in_srgb,var(--vly-info)_20%,transparent)] text-[10px] font-medium flex items-center gap-1">
               <Globe size={10} /> {externalDef?.badge || "Serviço Local"}
             </span>
           )}
@@ -107,7 +109,7 @@ export function AppCard({ module, className }: AppCardProps) {
               {module.badge}
             </span>
           )}
-          <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium", status.className)}>
+          <div role="status" className={cn("flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium", status.className)}>
             <StatusIcon size={10} />
             {status.label}
           </div>
@@ -116,14 +118,14 @@ export function AppCard({ module, className }: AppCardProps) {
 
       {/* Name + description */}
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-slate-100 group-hover:text-white transition-colors flex items-center gap-1.5">
+        <h3 className="text-sm font-semibold text-[var(--vly-text-primary)] group-hover:text-[var(--vly-text-primary)] transition-colors flex items-center gap-1.5">
           {module.name}
           {module.version && (
-            <span className="text-xs text-slate-500 font-normal">v{module.version}</span>
+            <span className="text-xs text-[var(--vly-text-secondary)] font-normal">v{module.version}</span>
           )}
-          {isExternal && <ExternalLink size={12} className="text-slate-500" />}
+          {isExternal && <ExternalLink size={12} className="text-[var(--vly-text-muted)]" />}
         </h3>
-        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-[var(--vly-text-secondary)] line-clamp-2 leading-relaxed">
           {module.description}
         </p>
       </div>
@@ -139,9 +141,9 @@ export function AppCard({ module, className }: AppCardProps) {
 
       {/* Hover corner accent */}
       <div className="absolute bottom-0 right-0 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className={cn("w-full h-full border-b-2 border-r-2 rounded-br-lg", `border-${module.color}-500/50`)} />
+        <div className="w-full h-full border-b-2 border-r-2 border-[var(--vly-accent)] rounded-br-lg" />
       </div>
-    </div>
+    </Surface>
   );
 
   if (isDisabled) return cardContent;
@@ -152,6 +154,7 @@ export function AppCard({ module, className }: AppCardProps) {
         href={module.href}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`Abrir ${module.name} em nova aba`}
         title={externalDef?.instructions || "Abrir integração externa"}
       >
         {cardContent}
@@ -159,5 +162,5 @@ export function AppCard({ module, className }: AppCardProps) {
     );
   }
 
-  return <Link href={module.href}>{cardContent}</Link>;
+  return <Link href={module.href} aria-label={`Abrir ${module.name}`}>{cardContent}</Link>;
 }

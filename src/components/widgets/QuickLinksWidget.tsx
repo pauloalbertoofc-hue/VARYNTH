@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link2, Plus, ExternalLink, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Surface } from "@/components/ui/Surface";
 
 interface QuickLink {
   id: string;
@@ -13,10 +14,10 @@ interface QuickLink {
 }
 
 const DEFAULT_LINKS: QuickLink[] = [
-  { id: "github", title: "GitHub", url: "https://github.com", color: "text-slate-300 border-slate-700 bg-slate-800/30" },
-  { id: "vercel", title: "Vercel", url: "https://vercel.com", color: "text-white border-slate-700 bg-slate-900/40" },
-  { id: "chatgpt", title: "ChatGPT", url: "https://chatgpt.com", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-  { id: "nextjs", title: "Next.js Docs", url: "https://nextjs.org/docs", color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10" },
+  { id: "github", title: "GitHub", url: "https://github.com", color: "text-[var(--vly-text-secondary)] border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)]" },
+  { id: "vercel", title: "Vercel", url: "https://vercel.com", color: "text-[var(--vly-text-primary)] border-[var(--vly-border-default)] bg-[var(--vly-world)]" },
+  { id: "chatgpt", title: "ChatGPT", url: "https://chatgpt.com", color: "text-[var(--vly-success)] border-[var(--vly-border-success)] bg-[var(--vly-success)]/10" },
+  { id: "nextjs", title: "Next.js Docs", url: "https://nextjs.org/docs", color: "text-[var(--vly-info)] border-[var(--vly-border-info)] bg-[var(--vly-info)]/10" },
 ];
 
 export function QuickLinksWidget() {
@@ -59,7 +60,7 @@ export function QuickLinksWidget() {
       id: "custom-" + Date.now(),
       title: newTitle.trim(),
       url: formattedUrl,
-      color: "text-violet-400 border-violet-500/30 bg-violet-500/10",
+      color: "text-[var(--vly-accent)] border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/10",
       isCustom: true,
     };
 
@@ -78,16 +79,19 @@ export function QuickLinksWidget() {
   };
 
   return (
-    <div className="relative flex flex-col justify-between p-5 rounded-lg bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm group hover:border-violet-500/40 transition-all duration-300">
+    <Surface tone="panel" className="relative flex flex-col justify-between p-5 clip-corner-sm group vly-interactive">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 tracking-wider uppercase">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--vly-accent)] tracking-wider uppercase">
           <Link2 size={14} />
           <span>Atalhos Rápidos</span>
         </div>
         <button
+          type="button"
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#14141f] border border-[#1e1e30] text-slate-300 hover:text-violet-300 hover:border-violet-500/40 transition-all"
+          aria-expanded={isAdding}
+          aria-controls="quick-links-add-form"
+          className="vly-interactive flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[var(--vly-surface-raised)] border border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-accent)] hover:border-[var(--vly-border-accent)] transition-all"
         >
           {isAdding ? <X size={12} /> : <Plus size={12} />}
           <span>{isAdding ? "Cancelar" : "Novo Link"}</span>
@@ -96,27 +100,29 @@ export function QuickLinksWidget() {
 
       {/* Add Form */}
       {isAdding && (
-        <form onSubmit={handleAddLink} className="mb-3 p-3 bg-[#0a0a0f] rounded-lg border border-[#1e1e30] space-y-2">
+        <form id="quick-links-add-form" onSubmit={handleAddLink} className="mb-3 space-y-2 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3">
           <div className="flex gap-2">
             <input
               type="text"
+              aria-label="Nome do atalho"
               placeholder="Nome (Ex: GitHub, Docs)"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 rounded bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/60"
+              className="vly-field flex-1 px-2.5 py-1.5 rounded text-xs"
               autoFocus
             />
             <input
               type="text"
+              aria-label="URL do atalho"
               placeholder="URL (Ex: github.com)"
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
-              className="flex-1 px-2.5 py-1.5 rounded bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/60"
+              className="vly-field flex-1 px-2.5 py-1.5 rounded text-xs"
             />
           </div>
           <button
             type="submit"
-            className="w-full py-1.5 rounded text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+            className="vly-interactive w-full py-1.5 rounded text-xs font-medium bg-[var(--vly-accent)] hover:opacity-90 text-[var(--vly-accent-contrast)] transition-colors"
           >
             Adicionar Atalho
           </button>
@@ -126,39 +132,42 @@ export function QuickLinksWidget() {
       {/* Links Grid */}
       <div className="grid grid-cols-2 gap-2 my-1">
         {links.map((link) => (
-          <a
-            key={link.id}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "group/item relative flex items-center justify-between p-2.5 rounded-lg border text-xs font-medium transition-all duration-200",
-              link.color || "text-slate-300 border-[#1e1e30] bg-[#14141f]",
-              "hover:scale-[1.02] hover:shadow-sm"
-            )}
-          >
-            <span className="truncate mr-2">{link.title}</span>
-            <div className="flex items-center gap-1">
+          <div key={link.id} className="group/item relative">
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Abrir ${link.title} em nova aba`}
+              className={cn(
+                "flex items-center justify-between rounded-lg border p-2.5 pr-8 text-xs font-medium transition-all duration-200",
+                link.color || "text-[var(--vly-text-secondary)] border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)]",
+                "vly-interactive hover:scale-[1.02] hover:shadow-sm"
+              )}
+            >
+              <span className="truncate">{link.title}</span>
+              <ExternalLink size={11} className="opacity-60 group-hover/item:opacity-100" />
+            </a>
+            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
               {link.isCustom && (
                 <button
+                  type="button"
                   onClick={(e) => handleDeleteLink(link.id, e)}
-                  className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-red-400 transition-opacity"
+                  aria-label={`Remover ${link.title}`}
+                  className="vly-interactive opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-[var(--vly-danger)] transition-opacity"
                   title="Remover link"
                 >
                   <Trash2 size={11} />
                 </button>
               )}
-              <ExternalLink size={11} className="opacity-60 group-hover/item:opacity-100" />
             </div>
-          </a>
+          </div>
         ))}
       </div>
 
       {/* Footer */}
-      <div className="text-[11px] text-slate-500 pt-2 border-t border-[#1e1e30] mt-2">
+      <div aria-live="polite" className="mt-2 border-t border-[var(--vly-border-subtle)] pt-2 text-[11px] text-[var(--vly-text-muted)]">
         <span>{links.length} links configurados</span>
       </div>
-    </div>
+    </Surface>
   );
 }
-

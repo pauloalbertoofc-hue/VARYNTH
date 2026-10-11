@@ -74,6 +74,7 @@ export const CANONICAL_INTENT_TAXONOMY: Record<AthenaCanonicalIntent, IntentDefi
       { canonicalPhrase: "minha situacao no sistema", category: "formal", intent: "ECOSYSTEM_STATUS" },
       { canonicalPhrase: "saude do sistema", category: "short", intent: "ECOSYSTEM_STATUS" },
       { canonicalPhrase: "panorama geral", category: "short", intent: "ECOSYSTEM_STATUS" },
+      { canonicalPhrase: "diagnostico geral", category: "formal", intent: "ECOSYSTEM_STATUS" },
       { canonicalPhrase: "status do ecossistema", category: "formal", intent: "ECOSYSTEM_STATUS" },
     ],
   },
@@ -274,4 +275,3 @@ export const CANONICAL_INTENT_TAXONOMY: Record<AthenaCanonicalIntent, IntentDefi
 export const ALL_INTENT_EXAMPLES: IntentCorpusItem[] = Object.values(CANONICAL_INTENT_TAXONOMY).flatMap(
   (def) => def.examples
 );
-

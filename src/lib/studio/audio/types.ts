@@ -55,6 +55,8 @@ export interface AudioTrack {
   id: string;
   name: string;
   type: AudioTrackType | "DIALOGUE" | "INSTRUMENT" | "MIDI" | "FOLEY" | "AMBIENCE" | "REFERENCE" | "BUS_AUX";
+  /** Optional melodic sampler routed for this track's MIDI/music notes. */
+  samplerDefinitionId?: string;
   muted: boolean;
   solo: boolean;
   volume: number; // 0.0 to 1.5 (1.0 = 0dB)

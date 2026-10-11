@@ -3,6 +3,7 @@
 import React from "react";
 import { ImageLayer } from "@/lib/studio/image/types";
 import { Sliders, Type, Square, Move, RotateCw, Sun } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface ImagePropertiesPanelProps {
   layer?: ImageLayer;
@@ -15,9 +16,7 @@ export function ImagePropertiesPanel({
 }: ImagePropertiesPanelProps) {
   if (!layer) {
     return (
-      <div className="h-full flex items-center justify-center p-6 text-center text-slate-500 text-xs italic bg-[#0b0c16]">
-        Selecione uma camada no canvas para visualizar e editar suas propriedades.
-      </div>
+      <StatePanel tone="empty" title="Nenhuma camada selecionada" description="Selecione uma camada no canvas para visualizar e editar suas propriedades." className="h-full rounded-none border-0 bg-[var(--vly-surface)]" />
     );
   }
 
@@ -28,71 +27,71 @@ export function ImagePropertiesPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0b0c16] text-slate-300 text-xs overflow-y-auto p-4 space-y-5 select-none">
+    <div className="flex h-full select-none flex-col space-y-5 overflow-y-auto bg-[var(--vly-surface)] p-4 text-xs text-[var(--vly-text-primary)]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-[#1c1d32]">
-        <div className="font-semibold text-white truncate">{layer.name}</div>
-        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20">
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] pb-3">
+        <div className="truncate font-semibold text-[var(--vly-text-primary)]">{layer.name}</div>
+        <span className="rounded border border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/15 px-2 py-0.5 font-mono text-[10px] uppercase text-[var(--vly-accent)]">
           {layer.type}
         </span>
       </div>
 
       {/* Transform Section */}
       <div className="space-y-3">
-        <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1.5">
-          <Move size={13} className="text-blue-400" />
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-text-muted)]">
+          <Move size={13} className="text-[var(--vly-accent)]" />
           Posição & Dimensão
         </span>
 
         <div className="grid grid-cols-2 gap-2 font-mono">
-          <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-            <span className="text-slate-500 text-[10px]">X:</span>
+          <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+            <span className="text-[10px] text-[var(--vly-text-muted)]">X:</span>
             <input
               type="number"
               value={Math.round(layer.transform.x)}
               onChange={(e) => handleTransformChange("x", parseInt(e.target.value) || 0)}
-              className="w-16 bg-transparent text-right text-white text-xs outline-none"
+              className="vly-field w-16 border-0 bg-transparent text-right text-xs outline-none"
             />
           </div>
 
-          <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-            <span className="text-slate-500 text-[10px]">Y:</span>
+          <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+            <span className="text-[10px] text-[var(--vly-text-muted)]">Y:</span>
             <input
               type="number"
               value={Math.round(layer.transform.y)}
               onChange={(e) => handleTransformChange("y", parseInt(e.target.value) || 0)}
-              className="w-16 bg-transparent text-right text-white text-xs outline-none"
+              className="vly-field w-16 border-0 bg-transparent text-right text-xs outline-none"
             />
           </div>
 
-          <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-            <span className="text-slate-500 text-[10px]">L:</span>
+          <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+            <span className="text-[10px] text-[var(--vly-text-muted)]">L:</span>
             <input
               type="number"
               value={Math.round(layer.transform.width)}
               onChange={(e) => handleTransformChange("width", Math.max(10, parseInt(e.target.value) || 10))}
-              className="w-16 bg-transparent text-right text-white text-xs outline-none"
+              className="vly-field w-16 border-0 bg-transparent text-right text-xs outline-none"
             />
           </div>
 
-          <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-            <span className="text-slate-500 text-[10px]">A:</span>
+          <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+            <span className="text-[10px] text-[var(--vly-text-muted)]">A:</span>
             <input
               type="number"
               value={Math.round(layer.transform.height)}
               onChange={(e) => handleTransformChange("height", Math.max(10, parseInt(e.target.value) || 10))}
-              className="w-16 bg-transparent text-right text-white text-xs outline-none"
+              className="vly-field w-16 border-0 bg-transparent text-right text-xs outline-none"
             />
           </div>
         </div>
 
         {/* Rotation & Opacity */}
         <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center justify-between text-[11px] text-[var(--vly-text-muted)]">
             <span className="flex items-center gap-1">
               <RotateCw size={12} /> Rotação
             </span>
-            <span className="font-mono text-white">{Math.round(layer.transform.rotation || 0)}°</span>
+            <span className="font-mono text-[var(--vly-text-primary)]">{Math.round(layer.transform.rotation || 0)}°</span>
           </div>
           <input
             type="range"
@@ -100,12 +99,13 @@ export function ImagePropertiesPanel({
             max="360"
             value={layer.transform.rotation || 0}
             onChange={(e) => handleTransformChange("rotation", parseInt(e.target.value) || 0)}
-            className="w-full accent-blue-500 h-1.5 bg-[#1a1c32] rounded-lg cursor-pointer"
+            aria-label="Rotação da camada"
+            className="h-1.5 w-full cursor-pointer rounded-lg bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
           />
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2">
+          <div className="flex items-center justify-between pt-2 text-[11px] text-[var(--vly-text-muted)]">
             <span>Opacidade</span>
-            <span className="font-mono text-white">{Math.round((layer.opacity ?? 1) * 100)}%</span>
+            <span className="font-mono text-[var(--vly-text-primary)]">{Math.round((layer.opacity ?? 1) * 100)}%</span>
           </div>
           <input
             type="range"
@@ -113,15 +113,16 @@ export function ImagePropertiesPanel({
             max="100"
             value={Math.round((layer.opacity ?? 1) * 100)}
             onChange={(e) => onUpdateLayer(layer.id, { opacity: (parseInt(e.target.value) || 0) / 100 })}
-            className="w-full accent-blue-500 h-1.5 bg-[#1a1c32] rounded-lg cursor-pointer"
+            aria-label="Opacidade da camada"
+            className="h-1.5 w-full cursor-pointer rounded-lg bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
           />
         </div>
       </div>
 
       {/* TEXT Properties */}
       {layer.type === "TEXT" && (
-        <div className="space-y-3 pt-3 border-t border-[#1c1d32]">
-          <span className="text-[11px] font-semibold uppercase text-amber-400 flex items-center gap-1.5">
+        <div className="space-y-3 border-t border-[var(--vly-border-subtle)] pt-3">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-warning)]">
             <Type size={13} />
             Texto & Tipografia
           </span>
@@ -130,12 +131,12 @@ export function ImagePropertiesPanel({
             value={layer.textContent || ""}
             onChange={(e) => onUpdateLayer(layer.id, { textContent: e.target.value })}
             rows={2}
-            className="w-full p-2 bg-[#121324] border border-[#1f213a] rounded-lg text-xs text-white outline-none focus:border-blue-500"
+            className="vly-field w-full p-2 text-xs outline-none"
           />
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-              <span className="text-slate-500 text-[10px]">Tamanho:</span>
+            <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+              <span className="text-[10px] text-[var(--vly-text-muted)]">Tamanho:</span>
               <input
                 type="number"
                 value={layer.textStyle?.fontSize || 32}
@@ -144,12 +145,12 @@ export function ImagePropertiesPanel({
                     textStyle: { ...layer.textStyle!, fontSize: parseInt(e.target.value) || 16 },
                   })
                 }
-                className="w-12 bg-transparent text-right text-white text-xs outline-none"
+                className="vly-field w-12 border-0 bg-transparent text-right text-xs outline-none"
               />
             </div>
 
-            <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-              <span className="text-slate-500 text-[10px]">Cor:</span>
+            <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+              <span className="text-[10px] text-[var(--vly-text-muted)]">Cor:</span>
               <input
                 type="color"
                 value={layer.textStyle?.fill || "#ffffff"}
@@ -167,15 +168,15 @@ export function ImagePropertiesPanel({
 
       {/* SHAPE Properties */}
       {layer.type === "SHAPE" && (
-        <div className="space-y-3 pt-3 border-t border-[#1c1d32]">
-          <span className="text-[11px] font-semibold uppercase text-purple-400 flex items-center gap-1.5">
+        <div className="space-y-3 border-t border-[var(--vly-border-subtle)] pt-3">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-info)]">
             <Square size={13} />
             Estilo da Forma
           </span>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-              <span className="text-slate-500 text-[10px]">Preenchimento:</span>
+            <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+              <span className="text-[10px] text-[var(--vly-text-muted)]">Preenchimento:</span>
               <input
                 type="color"
                 value={layer.shapeStyle?.fill || "#2563eb"}
@@ -188,8 +189,8 @@ export function ImagePropertiesPanel({
               />
             </div>
 
-            <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-              <span className="text-slate-500 text-[10px]">Borda:</span>
+            <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+              <span className="text-[10px] text-[var(--vly-text-muted)]">Borda:</span>
               <input
                 type="color"
                 value={layer.shapeStyle?.stroke || "#3b82f6"}
@@ -206,14 +207,14 @@ export function ImagePropertiesPanel({
       )}
 
       {/* Non-Destructive Adjustments */}
-      <div className="space-y-3 pt-3 border-t border-[#1c1d32]">
-        <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1.5">
-          <Sun size={13} className="text-amber-400" />
+      <div className="space-y-3 border-t border-[var(--vly-border-subtle)] pt-3">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-text-muted)]">
+          <Sun size={13} className="text-[var(--vly-warning)]" />
           Ajustes Não-Destrutivos
         </span>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-[10px] text-slate-400">
+          <div className="flex items-center justify-between text-[10px] text-[var(--vly-text-muted)]">
             <span>Brilho</span>
             <span className="font-mono">{layer.adjustments?.brightness || 0}</span>
           </div>
@@ -227,10 +228,11 @@ export function ImagePropertiesPanel({
                 adjustments: { ...layer.adjustments, brightness: parseInt(e.target.value) || 0 },
               })
             }
-            className="w-full accent-blue-500 h-1.5 bg-[#1a1c32] rounded-lg cursor-pointer"
+            aria-label="Brilho da camada"
+            className="h-1.5 w-full cursor-pointer rounded-lg bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
           />
 
-          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+          <div className="flex items-center justify-between pt-1 text-[10px] text-[var(--vly-text-muted)]">
             <span>Contraste</span>
             <span className="font-mono">{layer.adjustments?.contrast || 0}</span>
           </div>
@@ -244,11 +246,11 @@ export function ImagePropertiesPanel({
                 adjustments: { ...layer.adjustments, contrast: parseInt(e.target.value) || 0 },
               })
             }
-            className="w-full accent-blue-500 h-1.5 bg-[#1a1c32] rounded-lg cursor-pointer"
+            aria-label="Contraste da camada"
+            className="h-1.5 w-full cursor-pointer rounded-lg bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
           />
         </div>
       </div>
     </div>
   );
 }
-

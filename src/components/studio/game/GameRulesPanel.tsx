@@ -56,23 +56,23 @@ export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
   const [newInputKeys, setNewInputKeys] = useState("");
 
   return (
-    <div className="h-full flex flex-col bg-[#0b0c16] text-slate-300 text-xs select-none">
+    <div className="h-full flex flex-col bg-[var(--vly-world)] text-[var(--vly-text-secondary)] text-xs select-none">
       {/* Header & Tabs */}
-      <div className="p-3 bg-[#0e0f1c] border-b border-[#1c1d30] flex items-center justify-between">
+      <div className="p-3 bg-[var(--vly-surface-raised)] border-b border-[var(--vly-border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 font-bold text-white uppercase text-[11px] tracking-wider">
-            <Cpu size={14} className="text-emerald-400" />
+          <div className="flex items-center gap-2 font-bold text-[var(--vly-text-primary)] uppercase text-[11px] tracking-wider">
+            <Cpu size={14} className="text-[var(--vly-success)]" />
             Lógica Declarativa & Estado
           </div>
 
           {/* Undo / Redo Buttons */}
           {(onUndo || onRedo) && (
-            <div className="flex items-center bg-[#151628] p-0.5 rounded-lg border border-white/5">
+            <div className="flex items-center bg-[var(--vly-surface-active)] p-0.5 rounded-lg border border-[var(--vly-border-subtle)]">
               {onUndo && (
                 <button
                   onClick={onUndo}
                   disabled={canUndo === false}
-                  className="p-1 text-slate-400 hover:text-white disabled:opacity-40 rounded transition"
+                  className="vly-interactive p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] disabled:opacity-40 rounded transition"
                   title="Desfazer (Ctrl+Z)"
                 >
                   <Undo2 size={12} />
@@ -82,7 +82,7 @@ export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
                 <button
                   onClick={onRedo}
                   disabled={canRedo === false}
-                  className="p-1 text-slate-400 hover:text-white disabled:opacity-40 rounded transition"
+                  className="vly-interactive p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] disabled:opacity-40 rounded transition"
                   title="Refazer (Ctrl+Y)"
                 >
                   <Redo2 size={12} />
@@ -92,17 +92,17 @@ export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
           )}
         </div>
 
-        <div className="flex items-center bg-[#151628] p-0.5 rounded-lg border border-white/5 text-[11px]">
+        <div role="tablist" aria-label="Painéis de regras" className="flex items-center bg-[var(--vly-surface-active)] p-0.5 rounded-lg border border-[var(--vly-border-subtle)] text-[11px]">
           <button
             onClick={() => setActiveTab("RULES")}
-            className={`px-3 py-1 rounded-md transition ${activeTab === "RULES" ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"}`}
+            role="tab" aria-selected={activeTab === "RULES"} className={`vly-interactive px-3 py-1 rounded-md transition ${activeTab === "RULES" ? "bg-[var(--vly-success)] text-[var(--vly-text-on-accent)] font-bold" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"}`}
           >
             Regras ({rules.length})
           </button>
-          <button onClick={() => setActiveTab("INPUTS")} className={`px-3 py-1 rounded-md transition ${activeTab === "INPUTS" ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"}`}>Inputs ({inputActions.length})</button>
+          <button role="tab" aria-selected={activeTab === "INPUTS"} onClick={() => setActiveTab("INPUTS")} className={`vly-interactive px-3 py-1 rounded-md transition ${activeTab === "INPUTS" ? "bg-[var(--vly-success)] text-[var(--vly-text-on-accent)] font-bold" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"}`}>Inputs ({inputActions.length})</button>
           <button
             onClick={() => setActiveTab("VARIABLES")}
-            className={`px-3 py-1 rounded-md transition ${activeTab === "VARIABLES" ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"}`}
+            role="tab" aria-selected={activeTab === "VARIABLES"} className={`vly-interactive px-3 py-1 rounded-md transition ${activeTab === "VARIABLES" ? "bg-[var(--vly-success)] text-[var(--vly-text-on-accent)] font-bold" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"}`}
           >
             Variáveis ({variables.length})
           </button>
@@ -193,7 +193,7 @@ export const GameRulesPanel: React.FC<GameRulesPanelProps> = ({
                     </select>
                   </label>
                   <label className="text-[10px] text-slate-500">Ação
-                    <select value={r.actions[0]?.type || "SHOW_TEXT"} onChange={(e) => onUpdateRule(r.id, { actions: [{ ...(r.actions[0] || {}), type: e.target.value as ActionType }] })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-slate-200">
+                    <select aria-label={`Ação da regra ${r.name}`} value={r.actions[0]?.type || "SHOW_TEXT"} onChange={(e) => onUpdateRule(r.id, { actions: [{ ...(r.actions[0] || {}), type: e.target.value as ActionType }] })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-slate-200">
                       {["SHOW_TEXT", "SET_VARIABLE", "ADD_VARIABLE", "MOVE_ENTITY", "SET_POSITION", "APPLY_FORCE", "SHOW_ENTITY", "HIDE_ENTITY", "PLAY_AUDIO", "CHANGE_SCENE", "EMIT_EVENT", "CREATE_ENTITY", "DESTROY_ENTITY", "WAIT", "END_GAME"].map(type => <option key={type} value={type}>{type}</option>)}
                     </select>
                   </label>

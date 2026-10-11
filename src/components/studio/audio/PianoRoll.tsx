@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { MusicProjectState, MusicalNote, constrainNotesToScale, humanizeNotes, isPitchInScale, midiToFrequency, midiToPitch, pitchToMidi, quantizeBeat, quantizeNotes, transposeNote } from "@/lib/studio/audio/music-domain";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MusicProjectState, MusicalNote, constrainNotesToKeyMap, humanizeNotes, isPitchInScale, midiToFrequency, midiToPitch, musicKeyAtBeat, pitchToMidi, quantizeBeat, quantizeNotes, transposeNote } from "@/lib/studio/audio/music-domain";
+import { TempoMapTrack } from "./TempoMapTrack";
+import { MusicArrangementTrack } from "./MusicArrangementTrack";
 
 function MusicalInspector({ note, onChange }: { note: MusicalNote; onChange: (updates: Partial<MusicalNote>) => void }) {
   const frequency = midiToFrequency(pitchToMidi(note.pitch, note.octave, note.accidental));
@@ -10,10 +12,9 @@ function MusicalInspector({ note, onChange }: { note: MusicalNote; onChange: (up
 
 function MusicalContextInspector({ music, onChange, onRevertHumanize, onRevertTiming }: { music: MusicProjectState; onChange: (music: MusicProjectState) => void; onRevertHumanize: () => void; onRevertTiming: () => void }) {
   const canRevert = music.notes.some((note) => note.originalStartBeat !== undefined || note.originalVelocity !== undefined);
-  const tonicMidi = pitchToMidi(music.key.tonic, 0, music.key.accidental);
-  const outsideScale = music.notes.filter((note) => !isPitchInScale(pitchToMidi(note.pitch, note.octave, note.accidental), tonicMidi, music.key.scale)).length;
+  const outsideScale = music.notes.filter((note) => { const key = musicKeyAtBeat(music.keyMap, music.key, note.startBeat); return !isPitchInScale(pitchToMidi(note.pitch, note.octave, note.accidental), pitchToMidi(key.tonic, 0, key.accidental), key.scale); }).length;
   const canRevertTiming = music.notes.some((note) => note.originalStartBeat !== undefined);
-  return <div className="flex flex-wrap items-center gap-2 border-b border-[#242943] bg-[#0c0f1d] px-3 py-2 text-[10px] text-slate-400"><strong className="text-slate-300">Contexto musical</strong><label>Tônica<select aria-label="Tônica musical" value={music.key.tonic} onChange={(event) => onChange({ ...music, key: { ...music.key, tonic: event.target.value as MusicProjectState["key"]["tonic"] } })} className="ml-1 rounded border border-[#303650] bg-[#111528] px-1 py-1 text-white">{["C", "D", "E", "F", "G", "A", "B"].map((pitch) => <option key={pitch}>{pitch}</option>)}</select></label><label>Escala<select aria-label="Escala musical" value={music.key.scale} onChange={(event) => onChange({ ...music, key: { ...music.key, scale: event.target.value as MusicProjectState["key"]["scale"] } })} className="ml-1 rounded border border-[#303650] bg-[#111528] px-1 py-1 text-white">{["major", "minor", "dorian", "phrygian", "lydian", "mixolydian", "aeolian", "locrian", "pentatonic", "chromatic"].map((scale) => <option key={scale}>{scale}</option>)}</select></label><span aria-label="Validação da escala" className={outsideScale ? "text-amber-300" : "text-emerald-300"}>{outsideScale ? `${outsideScale} nota(s) fora da escala` : "Notas na escala"}</span><button type="button" disabled={!outsideScale} onClick={() => onChange({ ...music, notes: constrainNotesToScale(music.notes, tonicMidi, music.key.scale) })} className="rounded bg-amber-900/40 px-2 py-1 text-amber-200 disabled:opacity-40">Corrigir escala</button><button type="button" disabled={!canRevertTiming} onClick={onRevertTiming} className="rounded bg-blue-900/40 px-2 py-1 text-blue-200 disabled:opacity-40">Reverter quantização</button><button type="button" disabled={!canRevert} onClick={onRevertHumanize} className="rounded bg-slate-800 px-2 py-1 text-slate-300 disabled:opacity-40">Reverter humanização</button></div>;
+  return <div className="flex flex-wrap items-center gap-2 border-b border-[#242943] bg-[#0c0f1d] px-3 py-2 text-[10px] text-slate-400"><strong className="text-slate-300">Contexto musical</strong><label>Tônica<select aria-label="Tônica musical" value={music.key.tonic} onChange={(event) => onChange({ ...music, key: { ...music.key, tonic: event.target.value as MusicProjectState["key"]["tonic"] } })} className="ml-1 rounded border border-[#303650] bg-[#111528] px-1 py-1 text-white">{["C", "D", "E", "F", "G", "A", "B"].map((pitch) => <option key={pitch}>{pitch}</option>)}</select></label><label>Escala<select aria-label="Escala musical" value={music.key.scale} onChange={(event) => onChange({ ...music, key: { ...music.key, scale: event.target.value as MusicProjectState["key"]["scale"] } })} className="ml-1 rounded border border-[#303650] bg-[#111528] px-1 py-1 text-white">{["major", "minor", "dorian", "phrygian", "lydian", "mixolydian", "aeolian", "locrian", "pentatonic", "chromatic"].map((scale) => <option key={scale}>{scale}</option>)}</select></label><span aria-label="Validação da escala" className={outsideScale ? "text-amber-300" : "text-emerald-300"}>{outsideScale ? `${outsideScale} nota(s) fora da escala` : "Notas na escala"}</span><button type="button" disabled={!outsideScale} onClick={() => onChange({ ...music, notes: constrainNotesToKeyMap(music.notes, music.keyMap, music.key) })} className="rounded bg-amber-900/40 px-2 py-1 text-amber-200 disabled:opacity-40">Corrigir conforme Key Track</button><button type="button" disabled={!canRevertTiming} onClick={onRevertTiming} className="rounded bg-blue-900/40 px-2 py-1 text-blue-200 disabled:opacity-40">Reverter quantização</button><button type="button" disabled={!canRevert} onClick={onRevertHumanize} className="rounded bg-slate-800 px-2 py-1 text-slate-300 disabled:opacity-40">Reverter humanização</button></div>;
 }
 
 const ROWS = Array.from({ length: 25 }, (_, index) => 72 - index);
@@ -26,6 +27,7 @@ export function PianoRoll({ music, onChange }: PianoRollProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [draftNotes, setDraftNotes] = useState<MusicalNote[] | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
+  const gestureCleanupRef = useRef<(() => void) | null>(null);
   const grid = music.quantizeGrid || 4;
   const step = 4 / grid;
   const maxBeat = Math.max(16, ...music.notes.map((note) => note.startBeat + note.durationBeats));
@@ -35,6 +37,18 @@ export function PianoRoll({ music, onChange }: PianoRollProps) {
   const operationIds = selected.length ? new Set(selectedIds) : new Set(music.notes.map((note) => note.id));
   const operationLabel = selected.length ? `selecionadas (${selected.length})` : "todas";
   const selectedVelocity = selected.length && selected.every((note) => note.velocity === selected[0].velocity) ? selected[0].velocity : 96;
+  const firstNote = music.notes[0];
+  const firstNoteKey = firstNote ? `${firstNote.id}:${firstNote.startBeat}:${firstNote.pitch}:${firstNote.octave}:${firstNote.accidental}` : "empty";
+  useEffect(() => {
+    const scroller = document.querySelector<HTMLElement>('[aria-label="Piano Roll"] > div.flex-1.overflow-auto');
+    if (!scroller || !firstNote) return;
+    const firstMidi = pitchToMidi(firstNote.pitch, firstNote.octave, firstNote.accidental);
+    const row = Math.max(0, 72 - firstMidi);
+    scroller.scrollTop = Math.max(0, (row - 4) * ROW_HEIGHT);
+    requestAnimationFrame(() => {
+      scroller.querySelector<HTMLElement>("[data-piano-note]")?.scrollIntoView({ block: "center", inline: "nearest" });
+    });
+  }, [firstNote, firstNoteKey]);
   const updateNote = (id: string, updates: Partial<MusicalNote>) => onChange({ ...music, notes: music.notes.map((note) => note.id === id ? { ...note, ...updates } : note) });
   const addNote = (midi: number, beat: number) => { const pitch = midiToPitch(midi); const note: MusicalNote = { id: `note-${Date.now()}-${midi}`, ...pitch, startBeat: quantizeBeat(beat, grid), durationBeats: 1, velocity: 96, articulation: "normal" }; onChange({ ...music, notes: [...music.notes, note] }); setSelectedIds([note.id]); };
   const removeSelected = () => { if (selectedIds.length) onChange({ ...music, notes: music.notes.filter((note) => !selectedIds.includes(note.id)) }); setSelectedIds([]); };
@@ -58,13 +72,24 @@ export function PianoRoll({ music, onChange }: PianoRollProps) {
     const gridElement = event.currentTarget.closest<HTMLElement>("[data-piano-roll-grid]");
     if (!gridElement) return;
     gestureRef.current = { pointerId: event.pointerId, mode, x: event.clientX, y: event.clientY, notes: music.notes.map((item) => ({ ...item })), ids };
-    gridElement.setPointerCapture(event.pointerId);
+    gestureCleanupRef.current?.();
+    const handleDocumentMove = (move: PointerEvent) => applyGesture(move.clientX, move.clientY, false, move.pointerId);
+    const handleDocumentUp = (up: PointerEvent) => applyGesture(up.clientX, up.clientY, true, up.pointerId);
+    const handleDocumentCancel = (cancel: PointerEvent) => cancelGestureById(cancel.pointerId);
+    document.addEventListener("pointermove", handleDocumentMove);
+    document.addEventListener("pointerup", handleDocumentUp);
+    document.addEventListener("pointercancel", handleDocumentCancel);
+    gestureCleanupRef.current = () => {
+      document.removeEventListener("pointermove", handleDocumentMove);
+      document.removeEventListener("pointerup", handleDocumentUp);
+      document.removeEventListener("pointercancel", handleDocumentCancel);
+    };
   };
-  const updateGesture = (event: React.PointerEvent<HTMLDivElement>, commit: boolean) => {
+  const applyGesture = (clientX: number, clientY: number, commit: boolean, pointerId: number) => {
     const gesture = gestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    const beatDelta = Math.round(((event.clientX - gesture.x) / BEAT_WIDTH) / step) * step;
-    const pitchDelta = Math.round((gesture.y - event.clientY) / ROW_HEIGHT);
+    if (!gesture || gesture.pointerId !== pointerId) return;
+    const beatDelta = Math.round(((clientX - gesture.x) / BEAT_WIDTH) / step) * step;
+    const pitchDelta = Math.round((gesture.y - clientY) / ROW_HEIGHT);
     const ids = new Set(gesture.ids);
     const notes = gesture.notes.map((note) => {
       if (!ids.has(note.id)) return note;
@@ -74,17 +99,21 @@ export function PianoRoll({ music, onChange }: PianoRollProps) {
     });
     if (commit) {
       gestureRef.current = null;
+      gestureCleanupRef.current?.();
+      gestureCleanupRef.current = null;
       setDraftNotes(null);
       if (beatDelta !== 0 || (gesture.mode === "move" && pitchDelta !== 0)) onChange({ ...music, notes });
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     } else setDraftNotes(notes);
   };
-  const cancelGesture = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (gestureRef.current?.pointerId !== event.pointerId) return;
+  const cancelGestureById = (pointerId: number) => {
+    if (gestureRef.current?.pointerId !== pointerId) return;
     gestureRef.current = null;
+    gestureCleanupRef.current?.();
+    gestureCleanupRef.current = null;
     setDraftNotes(null);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
+  const updateGesture = (event: React.PointerEvent<HTMLDivElement>, commit: boolean) => applyGesture(event.clientX, event.clientY, commit, event.pointerId);
+  const cancelGesture = (event: React.PointerEvent<HTMLDivElement>) => cancelGestureById(event.pointerId);
   const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target.isContentEditable) return;
@@ -93,16 +122,18 @@ export function PianoRoll({ music, onChange }: PianoRollProps) {
   };
   const revertTiming = () => onChange({ ...music, notes: music.notes.map((note) => ({ ...note, startBeat: note.originalStartBeat ?? note.startBeat, originalStartBeat: undefined })) });
   const revertHumanize = () => onChange({ ...music, notes: music.notes.map((note) => ({ ...note, startBeat: note.originalStartBeat ?? note.startBeat, velocity: note.originalVelocity ?? note.velocity, originalStartBeat: undefined, originalVelocity: undefined })) });
-  return <section tabIndex={0} onKeyDown={handleKeyDown} className="flex h-full min-h-0 flex-col bg-[#090b14] text-slate-200 outline-none" aria-label="Piano Roll">
+  return <section tabIndex={0} onKeyDown={handleKeyDown} onPointerMove={(event) => updateGesture(event as unknown as React.PointerEvent<HTMLDivElement>, false)} onPointerUp={(event) => updateGesture(event as unknown as React.PointerEvent<HTMLDivElement>, true)} onPointerCancel={(event) => cancelGesture(event as unknown as React.PointerEvent<HTMLDivElement>)} className="flex h-full min-h-0 flex-col bg-[var(--vly-surface)] text-[var(--vly-text-primary)] outline-none" aria-label="Piano Roll">
     <MusicalContextInspector music={music} onChange={onChange} onRevertHumanize={revertHumanize} onRevertTiming={revertTiming} />
+    <TempoMapTrack tempoMap={music.tempoMap} onChange={(tempoMap) => onChange({ ...music, tempoMap })} />
+    <MusicArrangementTrack music={music} onChange={onChange} />
     {selected.length === 1 && <MusicalInspector note={selected[0]} onChange={(updates) => updateNote(selected[0].id, updates)} />}
-    <header className="flex items-center justify-between border-b border-[#242943] px-3 py-2">
+    <header className="flex items-center justify-between border-b border-[var(--vly-border-default)] px-3 py-2">
       <div><h2 className="text-xs font-bold uppercase tracking-wider text-white">Piano Roll</h2><p className="text-[10px] text-slate-500">Modelo musical · {music.notes.length} notas · {selectedIds.length} selecionadas</p></div>
       <div className="flex items-center gap-1">
         <button type="button" aria-pressed={additiveSelection} onClick={() => setAdditiveSelection((active) => !active)} className={`rounded px-2 py-1 text-[10px] ${additiveSelection ? "bg-amber-600 text-white" : "bg-slate-800 text-slate-200"}`}>{additiveSelection ? "Seleção múltipla ativa" : "Adicionar seleção"}</button>
-        <label className="text-[10px] text-slate-500">BPM<input type="number" min="20" max="300" value={music.tempoMap[0]?.bpm || 120} onChange={(event) => onChange({ ...music, tempoMap: [{ beat: 0, bpm: Math.max(20, Math.min(300, Number(event.target.value) || 120)) }] })} className="ml-1 w-12 rounded border border-[#303650] bg-[#111528] px-1.5 py-1 text-[10px] text-white" /></label>
-        <label className="text-[10px] text-slate-500">Compasso<select value={`${music.timeSignature.numerator}/${music.timeSignature.denominator}`} onChange={(event) => { const [numerator, denominator] = event.target.value.split("/").map(Number); onChange({ ...music, timeSignature: { numerator, denominator: denominator as 2 | 4 | 8 | 16 } }); }} className="ml-1 rounded border border-[#303650] bg-[#111528] px-1.5 py-1 text-[10px]"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option></select></label>
-        <label className="text-[10px] text-slate-500">Quantização</label><select aria-label="Quantização" value={grid} onChange={(event) => onChange({ ...music, quantizeGrid: Number(event.target.value) as 1 | 2 | 4 | 8 | 16 | 32 })} className="rounded border border-[#303650] bg-[#111528] px-1.5 py-1 text-[10px]"><option value="1">1/4</option><option value="2">1/8</option><option value="4">1/16</option><option value="8">1/32</option></select>
+        <span aria-label="BPM inicial do projeto" className="text-[10px] text-slate-400">{music.tempoMap[0]?.bpm || 120} BPM</span>
+        <label className="text-[10px] text-[var(--vly-text-muted)]">Compasso<select value={`${music.timeSignature.numerator}/${music.timeSignature.denominator}`} onChange={(event) => { const [numerator, denominator] = event.target.value.split("/").map(Number); onChange({ ...music, timeSignature: { numerator, denominator: denominator as 2 | 4 | 8 | 16 } }); }} className="vly-field ml-1 px-1.5 py-1 text-[10px]"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option></select></label>
+        <label className="text-[10px] text-[var(--vly-text-muted)]">Quantização</label><select aria-label="Quantização" value={grid} onChange={(event) => onChange({ ...music, quantizeGrid: Number(event.target.value) as 1 | 2 | 4 | 8 | 16 | 32 })} className="vly-field px-1.5 py-1 text-[10px]"><option value="1">1/4</option><option value="2">1/8</option><option value="4">1/16</option><option value="8">1/32</option></select>
         <button type="button" onClick={() => onChange({ ...music, notes: quantizeNotes(music.notes.filter((note) => operationIds.has(note.id)), grid).reduce((all, note) => all.some((item) => item.id === note.id) ? all : [...all, note], music.notes.filter((note) => !operationIds.has(note.id))) })} className="rounded bg-blue-900/40 px-2 py-1 text-[10px] text-blue-200">Quantizar {operationLabel}</button><button type="button" onClick={() => onChange({ ...music, notes: humanizeNotes(music.notes.filter((note) => operationIds.has(note.id)), 0.04, 8, Date.now()).reduce((all, note) => all.some((item) => item.id === note.id) ? all : [...all, note], music.notes.filter((note) => !operationIds.has(note.id))) })} className="rounded bg-violet-900/40 px-2 py-1 text-[10px] text-violet-200">Humanizar {operationLabel}</button><button type="button" onClick={duplicateSelected} disabled={!selected.length} className="rounded bg-indigo-900/40 px-2 py-1 text-[10px] text-indigo-200 disabled:opacity-40">Duplicar</button><button type="button" onClick={removeSelected} disabled={!selected.length} className="rounded bg-rose-900/30 px-2 py-1 text-[10px] text-rose-300 disabled:opacity-40">Excluir</button>
       </div>
     </header>

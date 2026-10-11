@@ -262,7 +262,7 @@ export class ConversationManager {
       clean.includes("que novidade voce tem") ||
       clean.includes("o que me conta");
     const isAthenaSelfDiagnostic =
-      semantic.intent === "ATHENA_SELF_STATUS" ||
+      (semantic.intent === "ATHENA_SELF_STATUS" && !clean.includes("diagnostico geral")) ||
       clean.includes("seu kernel") ||
       clean.includes("seu sistema") ||
       clean.includes("seus modulos cognitivos") ||
@@ -743,6 +743,13 @@ export class ConversationManager {
     if (critiques && critiques.length > 0) {
       state.recentCritiques = critiques;
     }
+  }
+
+  getRecentTurns(sessionId: string, limit = 8): ConversationTurn[] {
+    const safeLimit = Math.max(0, Math.min(20, Math.floor(limit)));
+    return (this.sessionHistories.get(sessionId) || [])
+      .slice(-safeLimit)
+      .map((turn) => ({ ...turn }));
   }
 
   updateSessionWithHistory(sessionId: string, messages: AthenaMessage[]): void {

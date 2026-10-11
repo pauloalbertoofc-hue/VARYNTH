@@ -34,6 +34,7 @@ export class EuterpeAgent implements AthenaAgent {
     role: "Sub-IA musical Euterpe, subordinada à Athena",
     version: "1.0.0",
     description: "Sub-IA musical subordinada à Athena. Interlocutora do módulo Music; conversa, analisa contexto fornecido e prepara propostas revisáveis. Sem acesso direto a arquivos ou execução de ferramentas.",
+    // Domain identity is consistent with every registered Athena agent.
     skills: ["music", "music-dna", "curadoria-musical", "playlists"],
     priority: 70,
     enabled: true,

@@ -46,10 +46,6 @@ export class AgentRegistry {
 
   findCompetentAgents(task: AthenaTask, context: AthenaContext): AthenaAgent[] {
     const matched = this.listAgents().filter((agent) => agent.canHandle(task, context));
-    if (matched.length === 0) {
-      // Default fallback specialists
-      return [sophiaAgent, critiasAgent];
-    }
     return matched.sort((a, b) => b.manifest.priority - a.manifest.priority);
   }
 }

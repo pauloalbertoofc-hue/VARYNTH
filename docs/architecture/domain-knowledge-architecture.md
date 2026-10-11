@@ -7,6 +7,7 @@ The transversal knowledge layer extends the existing Vault and local persistence
 The implemented foundation provides:
 
 - `DomainRegistry` with hierarchical resolution, owners, specialists, capabilities, and related domains;
+- seeded Music/Audio and Legal subdomain trees, with additive migration over persisted registry snapshots and inherited owner/capability resolution;
 - `KnowledgeItem` with explicit kind, assertion, visibility, sensitivity, provenance, version, and freshness;
 - browser-local Knowledge persistence plus authenticated, account-scoped server snapshots for remote routes (Redis on Vercel; fail-closed when unavailable);
 - fail-closed access decisions for private agent, project, and public-agent scopes;

@@ -1,4 +1,4 @@
-import { GameDocumentState, GameType } from "./types";
+import { GameDocumentState, GameEntity, GameRule, GameType } from "./types";
 
 export interface GameTemplate {
   id: string;
@@ -8,6 +8,76 @@ export interface GameTemplate {
   iconName: string;
   createDocumentState: (artifactId: string) => GameDocumentState;
 }
+
+const createActionAdventureV1State = (artifactId: string): GameDocumentState => {
+  const coinPositions = [[160, 120], [260, 120], [360, 120], [460, 120], [560, 120], [160, 220], [260, 220], [360, 220], [460, 220], [560, 220]];
+  const coins: GameEntity[] = coinPositions.map(([x, y], index) => ({
+    id: `entity-coin-${index + 1}`,
+    sceneId: "scene-game",
+    name: `Moeda ${index + 1}`,
+    active: true,
+    tags: ["coin", "collectible"],
+    components: [
+      { type: "TRANSFORM", x, y, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 2 },
+      { type: "COLLIDER", shape: "CIRCLE", width: 28, height: 28, isTrigger: true },
+    ],
+  }));
+  const coinRules: GameRule[] = coins.map((coin, index) => ({
+    id: `rule-collect-coin-${index + 1}`,
+    name: `Coletar moeda ${index + 1}`,
+    enabled: true,
+    trigger: { type: "ON_COLLISION", entityId: "entity-player", targetEntityId: coin.id },
+    conditions: [],
+    actions: [
+      { type: "ADD_VARIABLE", variableId: "var-score", value: 1 },
+      { type: "HIDE_ENTITY", entityId: coin.id },
+      { type: "SHOW_TEXT", text: `Moeda ${index + 1}/10 coletada` },
+    ],
+  }));
+  return {
+    artifactId,
+    entrySceneId: "scene-menu",
+    scenes: [
+      { id: "scene-menu", name: "Menu", description: "Início da aventura", backgroundColor: "#101827", nextSceneIds: ["scene-game"], entityIds: ["entity-menu-title", "entity-start"], ruleIds: ["rule-start-game"] },
+      { id: "scene-game", name: "Aventura", description: "Colete dez moedas e alcance a porta", backgroundColor: "#172554", nextSceneIds: ["scene-victory", "scene-game-over"], entityIds: ["entity-player", "entity-enemy", "entity-door", "entity-health-hud", "entity-score", ...coins.map((coin) => coin.id)], ruleIds: ["rule-move-left", "rule-move-right", "rule-move-up", "rule-move-down", "rule-enemy-damage", "rule-game-over", "rule-open-door", ...coinRules.map((rule) => rule.id)] },
+      { id: "scene-victory", name: "Vitória", description: "Todas as moedas foram encontradas", backgroundColor: "#064e3b", nextSceneIds: ["scene-menu"], entityIds: ["entity-victory-text", "entity-victory-restart"], ruleIds: ["rule-victory-restart"] },
+      { id: "scene-game-over", name: "Game Over", description: "Recomece a aventura", backgroundColor: "#450a0a", nextSceneIds: ["scene-menu"], entityIds: ["entity-game-over-text", "entity-game-over-restart"], ruleIds: ["rule-game-over-restart"] },
+    ],
+    entities: [
+      { id: "entity-menu-title", sceneId: "scene-menu", name: "Título", active: true, tags: ["ui"], components: [{ type: "TRANSFORM", x: 210, y: 150, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 10 }, { type: "TEXT", text: "Aventura das Dez Moedas", fontSize: 30, color: "#f8fafc" }] },
+      { id: "entity-start", sceneId: "scene-menu", name: "Começar", active: true, tags: ["ui"], components: [{ type: "TRANSFORM", x: 310, y: 260, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 11 }, { type: "UI", elementType: "BUTTON", text: "Começar aventura" }] },
+      { id: "entity-player", sceneId: "scene-game", name: "Player", active: true, tags: ["player"], components: [{ type: "TRANSFORM", x: 60, y: 390, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 3 }, { type: "COLLIDER", shape: "RECTANGLE", width: 40, height: 40 }, { type: "CAMERA", followEntityId: "entity-player", offsetX: 0, offsetY: 0, smoothing: 0.15, zoom: 1 }, { type: "HEALTH", variableId: "var-health", max: 100 }] },
+      { id: "entity-enemy", sceneId: "scene-game", name: "Inimigo", active: true, tags: ["enemy"], components: [{ type: "TRANSFORM", x: 410, y: 380, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 2 }, { type: "COLLIDER", shape: "RECTANGLE", width: 42, height: 42, isTrigger: true }, { type: "BEHAVIOR", behaviorId: "contact-damage", enabled: true }] },
+      { id: "entity-door", sceneId: "scene-game", name: "Porta", active: true, tags: ["door"], components: [{ type: "TRANSFORM", x: 700, y: 350, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 2 }, { type: "COLLIDER", shape: "RECTANGLE", width: 48, height: 80, isTrigger: true }] },
+      { id: "entity-health-hud", sceneId: "scene-game", name: "HUD de Vida", active: true, tags: ["ui", "hud"], components: [{ type: "TRANSFORM", x: 24, y: 24, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 100 }, { type: "UI", elementType: "PROGRESS_BAR", text: "Vida", variableId: "var-health", min: 0, max: 100 }] },
+      { id: "entity-score", sceneId: "scene-game", name: "Placar", active: true, tags: ["hud"], components: [{ type: "TRANSFORM", x: 24, y: 70, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 100 }, { type: "TEXT", text: "Colete 10 moedas para abrir a porta", fontSize: 14, color: "#f8fafc" }] },
+      ...coins,
+      { id: "entity-victory-text", sceneId: "scene-victory", name: "Vitória", active: true, tags: ["ui"], components: [{ type: "TRANSFORM", x: 260, y: 180, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 10 }, { type: "TEXT", text: "Vitória! Porta liberada.", fontSize: 28, color: "#fef3c7" }] },
+      { id: "entity-victory-restart", sceneId: "scene-victory", name: "Voltar ao menu", active: true, tags: ["ui"], components: [{ type: "TRANSFORM", x: 300, y: 280, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 11 }, { type: "UI", elementType: "BUTTON", text: "Jogar novamente" }] },
+      { id: "entity-game-over-text", sceneId: "scene-game-over", name: "Game Over", active: true, tags: ["ui"], components: [{ type: "TRANSFORM", x: 280, y: 180, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 10 }, { type: "TEXT", text: "Game Over", fontSize: 34, color: "#fecaca" }] },
+      { id: "entity-game-over-restart", sceneId: "scene-game-over", name: "Reiniciar", active: true, tags: ["ui"], components: [{ type: "TRANSFORM", x: 300, y: 280, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 11 }, { type: "UI", elementType: "BUTTON", text: "Recomeçar" }] },
+    ],
+    variables: [{ id: "var-health", name: "health", type: "NUMBER", initialValue: 100 }, { id: "var-score", name: "score", type: "NUMBER", initialValue: 0 }],
+    rules: [
+      { id: "rule-start-game", name: "Começar", enabled: true, trigger: { type: "ON_CLICK", entityId: "entity-start" }, conditions: [], actions: [{ type: "CHANGE_SCENE", targetSceneId: "scene-game" }] },
+      { id: "rule-move-left", name: "Mover esquerda", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_LEFT" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: -18, deltaY: 0 }] },
+      { id: "rule-move-right", name: "Mover direita", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_RIGHT" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: 18, deltaY: 0 }] },
+      { id: "rule-move-up", name: "Mover cima", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_UP" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: 0, deltaY: -18 }] },
+      { id: "rule-move-down", name: "Mover baixo", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_DOWN" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: 0, deltaY: 18 }] },
+      { id: "rule-enemy-damage", name: "Dano do inimigo", enabled: true, trigger: { type: "ON_COLLISION", entityId: "entity-player", targetEntityId: "entity-enemy" }, conditions: [], actions: [{ type: "ADD_VARIABLE", variableId: "var-health", value: -25 }, { type: "SHOW_TEXT", text: "Você sofreu dano" }] },
+      { id: "rule-game-over", name: "Vida esgotada", enabled: true, trigger: { type: "ON_VARIABLE_CHANGED", variableId: "var-health" }, conditions: [{ variableId: "var-health", operator: "LESS_OR_EQUALS", value: 0 }], actions: [{ type: "CHANGE_SCENE", targetSceneId: "scene-game-over" }] },
+      { id: "rule-open-door", name: "Abrir porta com dez moedas", enabled: true, trigger: { type: "ON_COLLISION", entityId: "entity-player", targetEntityId: "entity-door" }, conditions: [{ variableId: "var-score", operator: "GREATER_OR_EQUALS", value: 10 }], actions: [{ type: "CHANGE_SCENE", targetSceneId: "scene-victory" }] },
+      { id: "rule-victory-restart", name: "Recomeçar após vitória", enabled: true, trigger: { type: "ON_CLICK", entityId: "entity-victory-restart" }, conditions: [], actions: [{ type: "RESTART_GAME" }] },
+      { id: "rule-game-over-restart", name: "Recomeçar após derrota", enabled: true, trigger: { type: "ON_CLICK", entityId: "entity-game-over-restart" }, conditions: [], actions: [{ type: "RESTART_GAME" }] },
+      ...coinRules,
+    ],
+    scripts: [],
+    inputActions: [{ action: "MOVE_LEFT", keys: ["ArrowLeft", "KeyA"] }, { action: "MOVE_RIGHT", keys: ["ArrowRight", "KeyD"] }, { action: "MOVE_UP", keys: ["ArrowUp", "KeyW"] }, { action: "MOVE_DOWN", keys: ["ArrowDown", "KeyS"] }],
+    selectedSceneId: "scene-menu",
+    selectedEntityIds: ["entity-start"],
+    updatedAt: new Date().toISOString(),
+  };
+};
 
 export const GAME_TEMPLATES: GameTemplate[] = [
   {
@@ -25,8 +95,8 @@ export const GAME_TEMPLATES: GameTemplate[] = [
           name: "Cena Principal",
           description: "Cena base do projeto 2D",
           backgroundColor: "#0d0f18",
-          entityIds: ["entity-player"],
-          ruleIds: ["rule-start"],
+          entityIds: ["entity-player", "entity-health-hud"],
+          ruleIds: ["rule-start", "rule-move-left", "rule-move-right", "rule-move-up", "rule-move-down"],
         },
       ],
       entities: [
@@ -38,9 +108,21 @@ export const GAME_TEMPLATES: GameTemplate[] = [
           tags: ["player"],
           components: [
             { type: "TRANSFORM", x: 400, y: 300, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 1 },
-            { type: "SPRITE", assetId: "default-player-sprite", width: 64, height: 64 },
+            { type: "SPRITE", assetId: "", width: 64, height: 64 },
             { type: "COLLIDER", shape: "RECTANGLE", width: 64, height: 64 },
             { type: "INPUT", actions: { MOVE_LEFT: ["ArrowLeft", "KeyA"], MOVE_RIGHT: ["ArrowRight", "KeyD"], MOVE_UP: ["ArrowUp", "KeyW"], MOVE_DOWN: ["ArrowDown", "KeyS"] } },
+            { type: "CAMERA", followEntityId: "entity-player", offsetX: 0, offsetY: 0, smoothing: 0.18, zoom: 1 },
+          ],
+        },
+        {
+          id: "entity-health-hud",
+          sceneId: "scene-main",
+          name: "Indicador de Vida",
+          active: true,
+          tags: ["ui", "hud"],
+          components: [
+            { type: "TRANSFORM", x: 110, y: 48, scaleX: 1, scaleY: 1, rotation: 0, zIndex: 100 },
+            { type: "UI", elementType: "PROGRESS_BAR", text: "Vida", variableId: "var-health", min: 0, max: 100 },
           ],
         },
       ],
@@ -57,11 +139,17 @@ export const GAME_TEMPLATES: GameTemplate[] = [
           conditions: [],
           actions: [{ type: "SHOW_TEXT", text: "Bem-vindo ao VARYNTH Game Studio!" }],
         },
+        { id: "rule-move-left", name: "Mover Player: esquerda", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_LEFT" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: -12, deltaY: 0 }] },
+        { id: "rule-move-right", name: "Mover Player: direita", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_RIGHT" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: 12, deltaY: 0 }] },
+        { id: "rule-move-up", name: "Mover Player: cima", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_UP" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: 0, deltaY: -12 }] },
+        { id: "rule-move-down", name: "Mover Player: baixo", enabled: true, trigger: { type: "ON_ACTION", actionName: "MOVE_DOWN" }, conditions: [], actions: [{ type: "MOVE_ENTITY", entityId: "entity-player", deltaX: 0, deltaY: 12 }] },
       ],
       scripts: [],
       inputActions: [
         { action: "MOVE_LEFT", keys: ["ArrowLeft", "KeyA"], description: "Mover para a esquerda" },
         { action: "MOVE_RIGHT", keys: ["ArrowRight", "KeyD"], description: "Mover para a direita" },
+        { action: "MOVE_UP", keys: ["ArrowUp", "KeyW"], description: "Mover para cima" },
+        { action: "MOVE_DOWN", keys: ["ArrowDown", "KeyS"], description: "Mover para baixo" },
         { action: "INTERACT", keys: ["KeyE", "Space"], description: "Interagir" },
       ],
       selectedSceneId: "scene-main",
@@ -334,6 +422,14 @@ export const GAME_TEMPLATES: GameTemplate[] = [
       selectedEntityIds: ["entity-dialogue-box"],
       updatedAt: new Date().toISOString(),
     }),
+  },
+  {
+    id: "action-adventure-v1",
+    name: "Aventura 2D V1 — Dez Moedas",
+    description: "Fluxo jogável: menu, movimento, inimigo, vida, 10 moedas, porta condicionada, vitória e reinício.",
+    gameType: "WEB_2D",
+    iconName: "Gamepad2",
+    createDocumentState: createActionAdventureV1State,
   },
   {
     id: "top-down-prototype",

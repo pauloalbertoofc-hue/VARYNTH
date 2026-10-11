@@ -59,7 +59,7 @@ assert(
   "Sidebar collapses into overlay drawer on mobile viewports with backdrop",
   "COMPONENT_DOM",
   sidebarContent.includes("isMobileOpen") &&
-    sidebarContent.includes("fixed inset-0 bg-black/70") &&
+    (sidebarContent.includes("fixed inset-0 bg-black/70") || sidebarContent.includes("fixed inset-0 bg-[var(--vly-overlay)]")) &&
     sidebarContent.includes("-translate-x-full lg:translate-x-0"),
   "Sidebar implements mobile drawer with backdrop and transform transitions"
 );
@@ -148,8 +148,11 @@ assert(
     downloadPageContent.includes("iPhone e iPad") &&
     downloadPageContent.includes("Computador") &&
     downloadPageContent.includes("beforeinstallprompt") &&
-    downloadPageContent.includes("Não há arquivo APK"),
-  "The install guide covers available device families, native browser prompt, and current package availability"
+    downloadPageContent.includes("Baixar APK Android de teste") &&
+    downloadPageContent.includes("Baixar instalador Windows de teste") &&
+    fs.existsSync(path.join(PUBLIC_DIR, "downloads/varynth-android-0.1.0-debug.apk")) &&
+    fs.existsSync(path.join(PUBLIC_DIR, "downloads/varynth-desktop-0.1.0-x64-setup.exe")),
+  "The install guide covers available device families, native browser prompt, and current test-package availability"
 );
 
 // MOBILE-REG-034: PWA manifest references a first-party app icon
@@ -221,7 +224,7 @@ assert(
   "MOBILE-REG-011",
   "Audio Studio provides compact track headers on small screens",
   "COMPONENT_DOM",
-  audioTimelineContent.includes("w-28 sm:w-60") && audioTrackHeaderContent.includes("w-28 sm:w-60"),
+  /w-28[\s\S]{0,120}sm:w-60/.test(audioTimelineContent) && /w-28[\s\S]{0,120}sm:w-60/.test(audioTrackHeaderContent),
   "AudioTimeline and AudioTrackHeader collapse track headers to w-28 on mobile screens"
 );
 
@@ -385,7 +388,7 @@ assert(
   "MOBILE-REG-027",
   "Touch-only mode exposes every essential action previously hidden by hover",
   "STATIC_CONTRACT",
-  vaultContent.includes("opacity-70 sm:opacity-0") && oppsContent.includes("opacity-70 sm:opacity-0"),
+  /opacity-70[\s\S]{0,120}sm:opacity-0/.test(vaultContent) && /opacity-70[\s\S]{0,120}sm:opacity-0/.test(oppsContent),
   "Essential card and table actions use progressive opacity visible in touch mode"
 );
 

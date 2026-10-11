@@ -11,6 +11,7 @@ interface ImageExportModalProps {
   artifactId: string;
   imageTitle: string;
   onClose: () => void;
+  onImported?: () => void;
 }
 
 export function ImageExportModal({
@@ -18,6 +19,7 @@ export function ImageExportModal({
   artifactId,
   imageTitle,
   onClose,
+  onImported,
 }: ImageExportModalProps) {
   const [format, setFormat] = useState<ImageExportFormat>("PNG");
   const [quality, setQuality] = useState(0.92);
@@ -58,17 +60,49 @@ export function ImageExportModal({
     }
   };
 
+  const handleExportUniversalDocument = () => {
+    const visualDocument = imageService.exportVisualDocument(artifactId);
+    if (!visualDocument) {
+      alert("Não foi possível ler o documento visual.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(visualDocument, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${imageTitle.toLowerCase().replace(/\s+/g, "-")}.varynth-visual.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportUniversalDocument = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text());
+      const result = imageService.importVisualDocument(parsed, "USER");
+      if (!result.success) {
+        alert(`Falha ao importar documento visual: ${result.error}`);
+        return;
+      }
+      onImported?.();
+      onClose();
+    } catch {
+      alert("Arquivo de documento visual inválido.");
+    }
+  };
+
   const formats: ImageExportFormat[] = ["PNG", "JPEG", "WEBP"];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#121324] border border-[#222442] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-[#1e2038] flex items-center justify-between bg-[#15162a]">
-          <h3 className="font-bold text-base text-white flex items-center gap-2">
-            <Download size={16} className="text-blue-400" />
+    <div className="fixed inset-0 z-50 bg-[var(--vly-world)]/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+        <div className="px-6 py-4 border-b border-[var(--vly-border-subtle)] flex items-center justify-between bg-[var(--vly-surface-raised)]">
+          <h3 className="font-bold text-base text-[var(--vly-text-primary)] flex items-center gap-2">
+            <Download size={16} className="text-[var(--vly-info)]" />
             Exportar Composição Visual
           </h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded">
+          <button onClick={onClose} className="p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] rounded">
             <X size={16} />
           </button>
         </div>
@@ -76,7 +110,7 @@ export function ImageExportModal({
         <div className="p-6 space-y-4 text-xs">
           {/* Format Selector */}
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+            <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider block mb-2">
               Formato de Saída
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -92,8 +126,8 @@ export function ImageExportModal({
                     onClick={() => setFormat(fmt)}
                     className={`p-2.5 rounded-xl border text-center font-semibold transition ${
                       isSelected
-                        ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20"
-                        : "bg-[#0b0c16] border-[#1d1f36] text-slate-300 hover:border-slate-500"
+                        ? "bg-[var(--vly-info)] border-[var(--vly-info)] text-[var(--vly-text-primary)]"
+                        : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-strong)]"
                     } ${!isSupported ? "opacity-30 cursor-not-allowed" : ""}`}
                   >
                     {fmt}
@@ -105,7 +139,7 @@ export function ImageExportModal({
 
           {/* Scale Resolution */}
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+            <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider block mb-2">
               Escala de Resolução
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -116,8 +150,8 @@ export function ImageExportModal({
                   onClick={() => setScale(s)}
                   className={`p-2 rounded-lg border font-mono text-xs ${
                     scale === s
-                      ? "bg-blue-600/20 border-blue-500 text-blue-300 font-bold"
-                      : "bg-[#0b0c16] border-[#1d1f36] text-slate-400 hover:text-white"
+                      ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-info)] font-bold"
+                      : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                   }`}
                 >
                   {s}x ({s === 1 ? "Padrão" : s === 2 ? "2K/HD" : "4K Ultra"})
@@ -129,9 +163,9 @@ export function ImageExportModal({
           {/* Quality Slider (JPEG & WEBP) */}
           {(format === "JPEG" || format === "WEBP") && (
             <div className="space-y-1 pt-1">
-              <div className="flex items-center justify-between text-slate-400">
+              <div className="flex items-center justify-between text-[var(--vly-text-secondary)]">
                 <span>Qualidade da Compressão</span>
-                <span className="font-mono text-white">{Math.round(quality * 100)}%</span>
+                <span className="font-mono text-[var(--vly-text-primary)]">{Math.round(quality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -139,40 +173,60 @@ export function ImageExportModal({
                 max="100"
                 value={Math.round(quality * 100)}
                 onChange={(e) => setQuality(parseInt(e.target.value) / 100)}
-                className="w-full accent-blue-500 h-1.5 bg-[#1a1c32] rounded-lg cursor-pointer"
+                className="w-full accent-[var(--vly-accent)] h-1.5 bg-[var(--vly-surface-raised)] rounded-lg cursor-pointer"
               />
             </div>
           )}
 
           {/* Transparent Background (PNG / WEBP) */}
           {(format === "PNG" || format === "WEBP") && (
-            <label className="flex items-center gap-2 pt-2 cursor-pointer text-slate-300">
+            <label className="flex items-center gap-2 pt-2 cursor-pointer text-[var(--vly-text-secondary)]">
               <input
                 type="checkbox"
                 checked={transparent}
                 onChange={(e) => setTransparent(e.target.checked)}
-                className="rounded accent-blue-500"
+                className="rounded accent-[var(--vly-accent)]"
               />
               <span>Fundo Transparente (remover cor do canvas)</span>
             </label>
           )}
 
           {/* Actions */}
-          <div className="pt-4 border-t border-[#1e2038] flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-[var(--vly-border-subtle)] flex items-center justify-end gap-2">
+            <button
+              onClick={handleExportUniversalDocument}
+              className="mr-auto px-3 py-2 border border-[var(--vly-border-strong)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] rounded-lg text-xs font-medium transition"
+              title="Exporta o documento editável no contrato Visual Core"
+            >
+              Documento Visual
+            </button>
+            <label className="px-3 py-2 border border-[var(--vly-border-strong)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] rounded-lg text-xs font-medium transition cursor-pointer">
+              Importar Documento
+              <input
+                type="file"
+                accept="application/json,.json,.varynth-visual.json"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleImportUniversalDocument(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#1a1b2e] hover:bg-[#252740] text-slate-300 rounded-lg text-xs font-medium transition"
+              className="px-4 py-2 bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] rounded-lg text-xs font-medium transition"
             >
               Cancelar
             </button>
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/20 transition flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2 bg-[var(--vly-accent)] hover:opacity-90 text-[var(--vly-accent-contrast)] rounded-lg text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
             >
               {exported ? (
                 <>
-                  <Check size={14} className="text-emerald-300" />
+                  <Check size={14} className="text-[var(--vly-success)]" />
                   Baixado com Sucesso!
                 </>
               ) : isExporting ? (

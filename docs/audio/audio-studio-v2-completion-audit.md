@@ -1,14 +1,16 @@
 # VARYNTH Audio Studio — auditoria de conclusão da próxima versão
 
-Data da auditoria: 21/09/2026  
-Escopo-fonte: pedido integral anexado, seções 0–73 (74 seções), conferido contra o checkout local.  
-Situação do release: **em andamento; alterações locais, não publicadas**.
+Data da auditoria: 23/09/2026
+Escopo-fonte: pedido integral anexado, seções 0–110 e marcos A–Q, conferido contra o checkout local.
+Situação do release: **em andamento; alterações locais, não publicadas**. Esta auditoria substitui resultados históricos incompatíveis abaixo pela rodada verificada em 23/09/2026.
 
 ## Resumo executivo
 
-A base já possui edição não destrutiva, Music Domain, MIDI, Piano Roll e Score sincronizados, síntese local, loop musical, geração via contrato de provider, perfil editorial da Euterpe, Voice/Analysis acessíveis, export WAV/stems e pacote de Game Audio. Game Audio pode ser importado e reproduzido localmente no Play Mode. Crossfade equal-power source-relative aplica-se em playback e render do Audio Studio e no runtime Web Audio do Game Studio, com pause/resume do contexto. O browser de grupos/eventos, tags de variação por projeto e edição em lote estão disponíveis. A Asset Library ganhou medição recuperável para assets legados; o autosave agora faz flush local em `pagehide`/aba oculta/desmontagem, usa timer isolado e falha explicitamente quando o armazenamento local rejeita a gravação. Permanecem lacunas: preview/detecção de seam, export autônomo de jogo com bytes/runtime, operações avançadas de grupos/eventos, seleção/sequenciamento aleatório de ambience, Piano interno, provider real e validação de tuner em hardware.
+O checkout contém uma base local-first ampla de edição não destrutiva, Music Domain, MIDI, Piano Roll e Score sincronizados, synth local, loop musical, provider contract sem provider configurado, perfil editorial da Euterpe, Voice/Analysis, WAV/stems, sampler e Game Audio. O sampler melódico por faixa está ligado às notas musicais no playback e render offline, incluindo pitch-rate, ADSR, filtro, ganho, validação de bounds e crossfade de loop não destrutivo. A cobertura E2E confirma C3/C4/C5 no WAV PCM renderizado por sampler real associado a uma faixa INSTRUMENT e asset 440 Hz, com as três frequências verificadas dentro de 8 Hz; a sequência C4–E4–G4–C5 continua validada separadamente no Score/Piano Roll, Undo/Redo, reload, playback e export. Também foi corrigida a seleção no inspector para que clips previamente selecionados não ocultem controles da faixa, e o nome da faixa ganhou botão acessível por teclado para seleção. Nesta rodada, os dois E2Es de Drum Sequencer e sampler passaram em execução conjunta (2/2), `npx tsc --noEmit` e ESLint focal passaram, e `npm run test:audio-studio` terminou em 39 aprovados/0 falhas/4 skips ambientais. `npm run build` também passou: compilação, typecheck e 62 páginas estáticas; pré-gates documentais 43 rotas/36 ferramentas/12 agentes/18 módulos e certificação Athena 15/15. `git diff --check` passou. Permanecem lacunas: aceite manual/hardware, provider real, instrumento de piano sampleado/licenciado, multi-sampling, preview/detecção de seam, operações avançadas de arranjo/variações, áudio adaptativo/standalone completo e execução integral dos checklists manuais.
 
 As fases anteriores ligaram os buses ao mixer real, corrigiram medição duplicada/rotas de áudio, implementaram bus-solo, pan e sends, geração por provider autorizado, proveniência, Voice/Analysis, transpose de Music Clips e `concertPitchHz`. Nesta continuação, migração/persistência foram exercitadas por reload de navegador incluindo WAV/MIDI/Voice; o armazenamento binário agora usa structured clone em `asset_blobs`, ArrayBuffer é normalizado para Blob, WAV PCM lê duração do cabeçalho, e clips curtos mantêm área de seleção sem alças de trim sobrepostas. Os gates relevantes passaram. Isso reduz lacunas, mas não equivale a disponibilizar um provider nem a concluir as capacidades abaixo.
+
+Nesta rodada, a Tempo Track foi adicionada em Piano Roll e Score; editar seu mapa durante playback atualiza o agendamento de notas e metrônomo sem reiniciar fontes de clips de áudio. O E2E cobriu nota futura, edição de BPM com transporte ativo e persistência após reload. A suíte Audio manteve 39 aprovações/0 falhas/4 skips ambientais; TypeScript, ESLint focal, regressão documental, Athena 15/15 e build de produção com 62 páginas passaram após as alterações.
 
 ## Legenda
 
@@ -20,7 +22,7 @@ As fases anteriores ligaram os buses ao mixer real, corrigiram medição duplica
 
 | Nº | Requisito do pedido | Estado | Evidência e lacuna restante |
 |---:|---|---|---|
-| 0 | Auditoria prévia, reuso, compatibilidade, migrações | Parcial forte | Modelos, serviço, engines, UI e testes foram inspecionados; migrations de schema 1→4 existem. Este arquivo mantém o inventário de 74 requisitos e o checklist manual relacionado registra 49 cenários; aceite integral e compatibilidade auditiva/hardware ainda pendentes. |
+| 0 | Auditoria prévia, reuso, compatibilidade, migrações | Parcial forte | Modelos, serviços, engines, UI, persistência, migrations e testes foram inspecionados; migrations de schema 1→4 existem. Este arquivo acompanha os 110 itens. Checklist manual registra 49 cenários e permanece não executado integralmente; aceite auditivo/hardware também pendente. |
 | 1 | Editar + Compor + Criar convergindo em timeline/mixer/export | Parcial | Os modos compartilham o projeto e a timeline; provider gerativo e algumas ferramentas de criação ainda não produzem/ligam material real. |
 | 2 | Audio, Voice, Dialogue, Music, Instrument, MIDI, SFX, Foley, Ambience, Reference, Bus/Aux | Feito no modelo/UI | Tipos são criáveis e Bus/Aux é criado no Mixer como canal dedicado. Ainda falta validar cada tipo em uma sessão real e eventual tratamento contextual por tipo. |
 | 3 | Modelo musical serializável: notas, pitch, duração, tempo, meter, key, escala, acorde, pausa, compasso, articulação, dinâmica, expressão | Parcial forte | `music-domain.ts` e `types.ts` modelam notas, voz polifônica opcional, pitch, duração, tempo, meter, key, escala, acorde, pausa, articulação e expressão; dinâmica formal e semântica completa de notação ainda não estão completas. Expressão, articulação e voz permanecem serializáveis, e expressão/articulação afetam playback/render. |
@@ -88,7 +90,7 @@ As fases anteriores ligaram os buses ao mixer real, corrigiram medição duplica
 | 65 | Performance para milhares de notas/assets/analyzers | Parcial | Medidores têm atualização limitada e caches existem; virtualização/benchmark/memória em projeto grande e Score/Piano Roll não verificados. |
 | 66 | Testes unitários listados no requisito | Parcial forte | Suites cobrem pitch/tempo/duração/quantize/transpose/chords/MIDI/clips/voice/provider/migration/variations; falta referência completa de instrumento, loop seam, serialization avançada e propriedades. |
 | 67 | Fluxos de integração Piano→som, Score↔Piano, save/reload, ambience/voice→export | Parcial forte | E2E prova Score↔Piano, MIDI audível/stems, WAV→Game Audio JSON→importação no Game Studio→regra→Play Mode com reprodução do asset e criação de camadas AMBIENCE→asset local→automação→stem WAV. Provider→asset→effects→export e Voice→export seguem sem provider real configurado. |
-| 68 | Referência A4/MIDI e sequência C4-E4-G4-C5 completa | Parcial | A4=440/C4 MIDI são cobertos por domínio; sequência inteira não tem teste de playback/serialização de referência. |
+| 68 | Referência A4/MIDI e sequência C4-E4-G4-C5 completa | FEITO no fluxo 12-TET coberto | Domínio comprova A4=440/C4=MIDI60; E2E confirma C4–E4–G4–C5 sincronizadas entre Score/Piano, persistidas após reload e no WAV por medição de frequência. Microtonalidade/temperamentos alternativos não fazem parte desta referência inicial. |
 | 69 | Checklist manual de 49 cenários com passos/esperados/erros/limites | Parcial | O roteiro executável de 49 cenários está em `docs/audio/audio-studio-manual-acceptance-checklist.md`, com passos, resultados esperados, estados, evidência, dependências e bloqueios explícitos. AS-46 cobre camadas AMBIENCE, AS-47 Asset Library/metadata, AS-48 análise de áudio e AS-49 exportação de clip individual; a execução humana integral em browsers/hardware/provider continua pendente. |
 | 70 | Aceite Composition/Score/Sound Design/Game Audio/Euterpe real | Parcial forte | MIDI render audível, Score compartilhado, camadas de ambience a partir de assets locais e Game Audio integrado ao Play Mode existem; geração de ambience/voice ainda depende de provider e Game Studio ainda não exporta um jogo autônomo com binaries e runtime completo. |
 | 71 | Não criar UI falsa/áudio fake/secret/hardcode/quebrar legado | Parcialmente atendido | Providers falham fechados; alterações mantêm campos opcionais e migrations. Ainda é preciso ampliar revisão manual para cada controle e caminho de falha. |
@@ -162,3 +164,183 @@ As fases anteriores ligaram os buses ao mixer real, corrigiram medição duplica
 - Lote de confiabilidade/autosave e concorrência: `saveDocumentState` só confirma depois da persistência local; `pagehide`, aba oculta e desmontagem fazem flush do snapshot pendente; timer do áudio separado dos outros Studios; UI publica snapshots válidos em memória sem forçar I/O síncrona a cada gesto; inserção recupera estado atual após aguardar bytes/medição e revalida faixa/asset; blobs WAV legados têm duração lida do container antes do fallback decoder. Testes cobrem flush síncrono, falha explícita de quota, concorrência AUDST-REG-039 e E2E 26/26 após integração UI. Audio Studio 39 aprovados/0 falhas/4 skips ambientais; TypeScript passou; lint focal 0 erros/0 avisos; regressão documental 28/36/12/17; build passou com Athena 15/15 e 49 páginas, prerender 2,5 s. Tudo local, não publicado.
 - Lote atual de análise e transporte Game Audio: loudness integrado por clipe selecionado usa decodificação real do asset local e intervalo-fonte do clipe, com ITU-R BS.1770 K-weighting, janelas 400ms/75%, gates absoluto/relativo; informa peak de amostra, RMS, pico inter-sample aproximado 4×, duração/canais e estado sem LUFS para trecho curto/silêncio. O mesmo fluxo estima BPM e lista tempos de transientes a partir do mono, com confiança e estados `INSUFFICIENT_DURATION`/`NO_PULSES`, e estima pitch na janela inicial quando há confiança. Escopo limitado a mono/estéreo para loudness, oito clipes por lote e teto do AudioRenderEngine; não inclui processamento de timeline, true peak certificado ou beat tracking avançado. Testes numéricos passam com tom 1kHz de referência (-3,01 LUFS), alteração de amplitude, soma estéreo, gates, click-track 120 BPM/transientes, pico interpolado e entradas inválidas. O fluxo Game Audio exporta JSON v1 e Bundle ZIP local com `game-audio.json`, `manifest.json`, bytes e SHA-256, e importa o Bundle verificando integridade, recriando assets locais e remapeando IDs para eventos/variações; falha fechado para asset ausente/corrompido. A suíte E2E completa passou 26/26, incluindo análise, reload MIDI, Piano Roll, loops, stems, exportação individual de clip com WAV RIFF, presets versionados, edição/persistência de espacialização e importação real do Bundle ZIP no Game Studio. TypeScript, suite Audio Studio (39 aprovados/0 falhas/4 skips ambientais), documentação (28 rotas/36 ferramentas/12 agentes/17 módulos), Athena (15/15), build (49 páginas; prerender 2,5 s) e lint focal passaram sem avisos. Local, não publicado.
 - Ainda faltam teste físico do tuner, smoke manual multi-dispositivo, provider real, execução manual dos 49 cenários, aceite auditivo do clip exportado e execução completa da semântica de regras/entidades/transições. O Web Build já gera ZIP com runtime de navegador, arquivos embutidos e reprodução básica de eventos Game Audio; sensores `isTrigger` agora não resolvem fisicamente no pacote exportado. O standalone completo de Game Audio ainda não está concluído. Nenhum deploy público ocorreu.
+
+## Atualização de evidências — 22/09/2026
+
+Escopo da solicitação: seções 1–110 e milestones A–Q. A matriz antiga acima agrega os requisitos em 74 linhas; ela não é uma correspondência direta com a numeração do anexo. Use a matriz rastreável abaixo para o status por seção. Esta atualização mantém o release em andamento e local.
+
+- `npm run build` após integração do metrônomo: o bundle Next compilou, mas o typecheck falhou em mudanças concorrentes de Knowledge em `src/lib/knowledge/vault-adapter.ts:26,33` (predicate `string` incompatível com união de categorias e array opcionalidade). O build que gerou 61 páginas aprovado foi executado antes desta alteração concorrente; não declarar build final verde até corrigir/revalidar o outro domínio.
+- `npx tsc --noEmit` executado imediatamente após as mudanças do Audio/metrônomo, antes de a alteração concorrente atual de Knowledge aparecer, terminou sem erro; o typecheck atual é vermelho pelo motivo descrito acima.
+- Todas as suítes `src/lib/studio/audio/*.test.ts`: aprovadas; regressão Audio informa 39 PASS, 0 FAIL, 4 SKIP ambientais (runtime Web Audio ausente no unitário).
+- `npx playwright test tests/e2e/audio-studio.smoke.spec.ts --workers=1`: 30/30 aprovado em 3,2 min. Dois timeouts na rodada anterior passaram 2/2 isoladamente e 30/30 na repetição serial; não se aumentou timeout global.
+- `npx playwright test tests/e2e/audio-drum-sequencer.spec.ts`: 1/1 aprovado, incluindo asset real, edição/persistência após reload e playback.
+- `metronome-domain.test.ts` e E2E focado `configures a synchronized metronome count-in`: aprovados após o scheduler passar a usar a subdivisão do compasso e tempo map.
+- `npm run test:audio-studio` foi atualizado para incluir `metronome-domain.test.ts` e executou até o fim: 39 aprovados/0 falhas/4 skips ambientais, além de todas as suítes de domínio encadeadas.
+- `music-domain.test.ts`, ESLint focal e `git diff --check`: aprovados após validar C4=MIDI60, compassos e mapa de tempo inválidos e herança de BPM antes do primeiro tempo explícito.
+- E2E independente `music-visual-persistence.spec.ts`: falhou ao não encontrar capa GIF após reload. A tela Music está sendo modificada concorrentemente, então essa mudança não foi alterada nem contabilizada como aprovada.
+- Nenhuma publicação/deploy foi executada. Não assumir estado READY.
+
+## Atualização de evidências — 23/09/2026
+
+- Sampler melódico real: Playwright importa um WAV mono A4=440 Hz, cria e persiste um sampler, atribui-o a uma faixa INSTRUMENT, cria C3/C4/C5 no Piano Roll, exporta PCM16 WAV e mede os cruzamentos de frequência dos três trechos; cada resultado fica dentro de 8 Hz da frequência 12-TET esperada. A atribuição é confirmada após reload. E2E passou.
+- `npx playwright test tests/e2e/audio-drum-sequencer.spec.ts`: 2/2 aprovados, incluindo sequência do Drum Sequencer e teste real de root mapping C3/C4/C5.
+- `npm run test:audio-studio`: 39 aprovados, 0 falhas e 4 skips que requerem runtime Web Audio; todas as suítes encadeadas terminaram.
+- `npx tsc --noEmit`, ESLint focal de `tests/e2e/audio-drum-sequencer.spec.ts` e `git diff --check`: aprovados.
+- `npm run build`: passou, incluindo os pre-gates; compilação e typecheck concluídos; 62 páginas estáticas geradas, em 6,0 s.
+- Regressão documental: 43 rotas, 36 ferramentas, 12 agentes e 18 módulos. Certificação Athena: 15/15. Não foram executados checklist humano nem validação de hardware, e não houve publicação/deploy nesta rodada. O release continua local e em andamento.
+
+### Continuação — Tempo Track e reagendamento de playback
+
+- Tempo Track compartilhada em Piano Roll e Score edita múltiplos pontos sem descartar os existentes; BPM limitado a 20–300 e beat zero protegido. Mudanças persistem no Music Domain e passam por Undo.
+- AudioEngine reagenda eventos musicais/metrônomo durante playback usando buses já criados, sem reiniciar clips de áudio; duração das notas integra corretamente os segmentos BPM atravessados.
+- E2E de tempo ao vivo passou: cria nota numa faixa INSTRUMENT, muda BPM durante playback, confirma transporte ativo/sem erro, pausa, recarrega e confirma mapa/nota persistidos. Teste de domínio cobre atraso futuro e duração em BPM variável.
+
+## Matriz literal de requisitos 1–110
+
+Estados: FEITO = evidência funcional no escopo indicado; PARCIAL = há implementação, mas falta parte do critério; PENDENTE = não implementado ou requer dependência/aceite ainda indisponível.
+
+| Nº | Requisito | Estado | Evidência / trabalho que falta |
+|---:|---|---|---|
+| 1 | Auditoria prévia, arquitetura existente e migrações | PARCIAL | Models/services/engine/UI e migrations 1→4 revisados/testados; falta matriz de compatibilidade extensa e aceite manual. |
+| 2 | Domínios Audio/Music/Sound Design/Voice convergentes | PARCIAL | Estado único conflui em Timeline/Mixer/Bus/Master/Render; provider e alguns resultados continuam indisponíveis. |
+| 3 | Workspaces contextuais | PARCIAL | Modos contextuais existem; validação de tarefa/consistência de seleção em uso longo pendente. |
+| 4 | Music Domain semântico | PARCIAL | Notes/pitch/duração/tempo/meter/key/scale/chords/rests/articulation/expression; dinâmica formal e time-signature map faltam. |
+| 5 | Pitch MIDI/frequência/afinação | FEITO (12-TET) | Teste A4=69=440 Hz, C4=60, acidentes/conversões; temperamento alternativo/microtonal não existe. |
+| 6 | Durações, pausas, dotted, ties, tuplets | PARCIAL FORTE | Domain/PianoRoll/playback/MusicXML/PDF cobrem base; notação convencional completa pendente. |
+| 7 | BPM, tempo map e transport | PARCIAL FORTE | Conversões e duração através de mudanças de BPM cobertas no domínio; mudança durante playback reagenda notas e metrônomo sem reiniciar clips de áudio, validada por E2E com persistência. E2E de arranjo longo com várias mudanças e deriva prolongada ainda falta. |
+| 8 | Compassos 2/4, 3/4, 4/4, 6/8 e válidos | PARCIAL | Contagem/denominadores validados; mudanças de compasso dentro da peça não são suportadas. |
+| 9 | Key/Scale/Mode e notas externas permitidas | PARCIAL FORTE | Escalas/modos e correção explícita; integração em todos os gestos não concluída. |
+| 10 | Chord System | PARCIAL FORTE | Qualidades, extensões, inversões e voicings; track dedicado e edição independente das vozes incompletos. |
+| 11 | Piano Roll funcional | PARCIAL FORTE | Edit/create/select/duplicate/delete/velocity e E2E MIDI; performance para milhares de notas pendente. |
+| 12 | Score funcional compartilhado com Piano Roll | PARCIAL FORTE | Estado compartilhado, seleção/edição e exports MusicXML/PDF; gravura convencional avançada incompleta. |
+| 13 | Music Inspector de clips/notas | PARCIAL | Campos musicais distribuídos em Piano Roll/controles; inspector unificado e instrumento/quantize por clip incompletos. |
+| 14 | Instrument Provider/Engine genérico | PARCIAL FORTE | Lifecycle noteOn/noteOff/parameters/preset/dispose e testes; catálogo de instrumentos/providers limitado. |
+| 15 | Synth oscillator/filter/LFO/polyphony | PARCIAL FORTE | Síntese Web Audio real, envelope e controles; testes/performance por cada parâmetro e modulações adicionais faltam. |
+| 16 | ADSR visual audível | FEITO no synth atual | Editor ligado ao preset; browser E2E edita/persiste ADSR. |
+| 17 | Filtros low/high e LFO | PARCIAL | Filtro/LFO funcionais no caminho atual; destinos/modulações extensíveis não completos. |
+| 18 | Piano inicial licenciado ou síntese apropriada | PENDENTE | Timbre não deve ser chamado de piano acústico; instrumento sampled/licença ou sintetizador de piano convincente não aprovado. |
+| 19 | Sampler root/range/loop/ADSR/filter/gain/velocity | PARCIAL FORTE | Inspector de faixa seleciona definição persistida; playback e render offline usam asset real, root/range e playback-rate (C3/C4/C5 = 0.5/1/2), envelope, filtro, ganho/velocity e loop com crossfade em buffer copiado. E2E browser cria sample A4=440 Hz e sampler atribuído à faixa, persiste a atribuição, cria C3/C4/C5 e mede as três frequências do WAV renderizado dentro de 8 Hz. Multi-sampling e aceite auditivo manual continuam pendentes. |
+| 20 | MIDI SMF/Web MIDI/hardware/CC | PARCIAL FORTE | Import/export, runtime, gravação e CC limitados testados; hardware real, permissões e gravação avançada faltam. |
+| 21 | Metrônomo/count-in | PARCIAL FORTE | Scheduler subdivide pelo denominador (inclui seis colcheias em 6/8), agenda count-in antes do beat zero e respeita tempo map/seek; unit test dedicado e E2E de configuração passam. Deriva de longo prazo e latência real ainda não medidas. |
+| 22 | Quantize reversível/undo | PARCIAL FORTE | Original timing e reversão no editor; todos os grids/reload não têm E2E abrangente. |
+| 23 | Humanize opcional | PARCIAL FORTE | Seedado, acionamento explícito e reversão; persistência em clips longos não coberta. |
+| 24 | Transpose por semitons/oitavas | PARCIAL FORTE | Domain/clip/playback/render; Undo/reload em todos contextos pendentes. |
+| 25 | Velocity lane | FEITO no fluxo musical atual | Lane editável e velocity aplicada ao synth/render. |
+| 26 | Drum machine/sequencer | FEITO no fluxo coberto | Domain test e E2E 1/1: steps, parâmetros, reload, sampler real e envio à composição. |
+| 19 | Sampler melódico ligado a faixa e export | FEITO no fluxo coberto | E2E cria sampler/faixa INSTRUMENT/notas C3-C4-C5, confirma atribuição após reload, exporta WAV e mede a frequência de cada nota no PCM com tolerância de 8 Hz. Multi-sampling e aceite auditivo manual ficam fora do critério desta linha. |
+| 27 | Arrangement sections configuráveis | PARCIAL FORTE | Lane compartilhada oferece presets Intro/Verso/Pré-refrão/Refrão/Ponte/Break/Build/Drop/Outro/custom, intervalos não sobrepostos em beats, exclusão e marcador de seção vinculado; E2E cobre criação e reload. Redimensionamento visual/arrastar ainda não existe. |
+| 28 | Chord Track | PARCIAL FORTE | Faixa visual compartilhada cria/remove acordes no modelo e materializa/remove notas ligadas por chordId; E2E cobre persistência e leitura em Score. Edição visual por arrasto e manipulação harmônica avançada ficam pendentes. |
+| 29 | Tempo Track visual | PARCIAL FORTE | Lane compartilhada Piano Roll/Score permite inserir, editar e remover pontos BPM, protege o ponto base, valida beats únicos e persistência/Undo via Music Domain; playback reagenda notas futuras. Mapa visual com edição direta por arrasto ainda não existe. |
+| 30 | Key/Scale Track e modulação | PARCIAL FORTE | Mapa tonal por compasso com tonic/acidente/escala, mudança/substituição/remoção e base legacy protegida; Score exibe tonalidade vigente e divisórias por compasso; validação/correção respeita o trecho; MusicXML exporta armaduras e PDF resume até oito mudanças com aviso. Símbolos de armadura convencionais, gravura completa e testes de projetos longos ainda pendentes. |
+| 31 | Sound Design Workspace | PARCIAL FORTE | Sampler, ambience/noise reais e layers; grafo/SFX completo ausentes. |
+| 32 | Procedural Sound Engine modular | PARCIAL FORTE | WAV de ruído/chuva/vento/floresta; composição livre de sources/modifiers/LFO/delay/reverb falta. |
+| 33 | Sound Graph foundation | PENDENTE | Grafo persistente Source→Modifier→Effect→Output não localizado. |
+| 34 | Ambience layers Designer | PARCIAL FORTE | Faixas independentes, mix, automation e stems; random events/estado adaptativo faltam. |
+| 35 | Rain Designer com parâmetros ambientais | PARCIAL | Chuva procedural real; superfícies, interior/exterior, thunder, width e perfect loop incompletos. |
+| 36 | Perfect Loop preview/seam inspection | PARCIAL | Crossfade equal-power usado em playback/render; preview repetido e análise/assistência seam não existe. |
+| 37 | SFX Creator/categorias/variações | PENDENTE | Formulário genérico sem provider não constitui workflow SFX funcional completo. |
+| 38 | Variation Groups | PARCIAL FORTE | Pesos/seed/tags/browser/integração Game; gestão/rebalanceamento avançado falta. |
+| 39 | Foley workflow | PARCIAL | Tipo de track disponível; metadados organizados character/surface/action/scene/take incompletos. |
+| 40 | AudioGenerationProvider desacoplado | PARCIAL | Contrato/capabilities e falha honesta; provider real ausente. |
+| 41 | Generation Request estruturado | FEITO no contrato | Request validado/capabilities; caminho provider→asset real não verificado por indisponibilidade do provider. |
+| 42 | Generated assets/provenance | PARCIAL FORTE | Procedural assets têm WAV/provenance; lineage completo em edição/mastering parcial. |
+| 43 | Voice Workspace | PARCIAL | Takes/perfis/process local; provider real e preview vocal ausentes. |
+| 44 | Character Voice Profile | PARCIAL FORTE | Profile Euterpe estruturado/persistido/migrado; integração com provider não existe. |
+| 45 | Identidade acústica Euterpe | PARCIAL EDITORIAL | Voice Bible é editorial; nenhuma voz real aprovada/provider disponível. |
+| 46 | Performance directions | PARCIAL | Estados guardados; provider não conectado para validar realização sonora. |
+| 47 | Voice Takes comparáveis | PARCIAL FORTE | Takes editáveis/persistidos; A/B audível com takes reais falta. |
+| 48 | Voice Lab | PENDENTE | Laboratório de preview/A-B operacional não completo. |
+| 49 | Pronunciation Dictionary | PARCIAL | Editor existe; nenhum adapter envia entradas a provider real. |
+| 50 | Voice postprocessing | PARCIAL FORTE | Cadeia local determinística em WAV PCM cria derived asset; codecs e presets profissionais mais amplos faltam. |
+| 51 | Voice timeline/script link | PARCIAL | Takes podem entrar como áudio; sincronização estruturada de roteiro/dialogue/takes incompleta. |
+| 52 | Audio Analysis | PARCIAL FORTE | LUFS/peak/RMS/pitch/tempo/transientes locais; escopo mono-estéreo/janelas declarados, validação manual pendente. |
+| 53 | Spectrum Analyzer real | PARCIAL FORTE | Analyser do engine; aceite manual/resolução e métricas mais amplas pendentes. |
+| 54 | Tuner | PARCIAL FORTE | YIN nota/frequency/cents/confidence; hardware real ainda não testado. |
+| 55 | Pitch Detection | PARCIAL FORTE | YIN com confiança; não detecta acordes/polifonia. |
+| 56 | Tempo Detection | PARCIAL | Estimativa pulsos aproximada; não substitui beat tracker complexo. |
+| 57 | Loudness | PARCIAL FORTE | LUFS com gates e E2E; true-peak certificado, >2 canais e efeitos timeline não cobertos. |
+| 58 | Mastering workspace | PARCIAL | Master bus/effects/meters existem; targets de loudness/assistente mastering faltam. |
+| 59 | Reference track | PARCIAL | Tipo/reference existe; comparação analisador/mix integrada não demonstrada. |
+| 60 | A/B | PARCIAL | Slots/presets e metadata de takes; A/B sincronizado de áudio/voice lab incompleto. |
+| 61 | Freeze/Bounce | PENDENTE | Render/export não prova freeze reversível de track. |
+| 62 | Stem export | FEITO no escopo atual | E2E exporta stems WAV de tracks selecionadas; stems adaptativos faltam. |
+| 63 | Game Audio metadata | PARCIAL FORTE | Evento/variation/loop/ranges/bundle; taxonomy/licensing completa ainda falta. |
+| 64 | Audio Event Model | PARCIAL FORTE | Eventos/conditions e execução Play Mode; semântica e ferramenta standalone incompletas. |
+| 65 | Adaptive Music foundation | PARCIAL | Events/conditions/variations base existem; transições adaptativas não executam. |
+| 66 | Stem-based music | PARCIAL | Export de stems existe; sincronização/transição adaptativa sem gaps não provada. |
+| 67 | Beat/Bar/Section/Transition sync points | PARCIAL FORTE | Marcadores Beat/Compasso/Seção/Transição persistidos no domínio; compasso rejeita posição desalinhada, seção gera marker vinculado e E2E verifica transição após reload. Execução sincronizada em runtime adaptativo ainda falta. |
+| 68 | Euterpe modular | PARCIAL | Separação conceitual/contratos; especialista áudio de ponta a ponta falta. |
+| 69 | Euterpe Audio Capabilities | PARCIAL | Athena Audio Actions base; catálogo seguro completo com approval não existe. |
+| 70 | Euterpe sound director NL→plan→preview→apply | PENDENTE | Pipeline não implementado para cenários musicais descritos. |
+| 71 | Euterpe não é chatbot do Studio | PARCIAL | Separação arquitetural documentada; agente/capabilities multi-módulo faltam. |
+| 72 | Hierarquia Athena/Euterpe/Studio/Engine | PARCIAL FORTE | Bases separadas; integração especializada está incompleta. |
+| 73 | Analyze→Propose→Preview→Apply→Undo | PARCIAL | ChangeSet/Undo em algumas ações; preview universal ausente. |
+| 74 | Asset Library taxonomy | PARCIAL FORTE | Asset browser e anotação project-scoped; coleção/reuso abrangente pendentes. |
+| 75 | Search/filter por metadata | FEITO no subconjunto persistido | Busca e facetas técnicas/categoria/tag; linguagem natural semântica não existe. |
+| 76 | Favorites/collections/recents | PARCIAL | Favoritos em alguns takes; collections/recent/used cross-project incompletos. |
+| 77 | Provenance e lineage | PARCIAL FORTE | Import/record/procedural/render metadados; lineage end-to-end parcial. |
+| 78 | Licensing metadata | PARCIAL | Claim/attribution separado e não verificado; formulário consistente e revisão legal faltam. |
+| 79 | Provider secrets security | FEITO no estado sem provider | Nenhuma chave embutida; backend/provider remoto seguro ainda inexistente. |
+| 80 | Provider capability discovery | PARCIAL FORTE | Capabilities declaradas/renderizadas; adapter real não verifica o contrato na prática. |
+| 81 | Generation job system | PARCIAL/PENDENTE | Jobs gerais existem; áudio generation não usa fila/status/cancel lifecycle completo. |
+| 82 | Generation cache | PARCIAL | Cache de request existe; uso de asset/cache/cancel/cost completo não provado. |
+| 83 | Offline-first | PARCIAL FORTE | edição, MIDI, synth, sampler, procedural, analysis, WAV local; provider fora fica explicitamente indisponível. |
+| 84 | Latency diagnostics | PENDENTE | Sem medição integrada de recording/monitor/MIDI. |
+| 85 | Large-project performance | PARCIAL | Guardas de duração/memória; benchmarks de mil notas/tracks/assets pendentes. |
+| 86 | AudioWorklet decision | PENDENTE | Nenhuma avaliação comparativa Worklet registrada. |
+| 87 | Worker decision | PENDENTE | Nenhum benchmark waveform/analysis/encoding registrado. |
+| 88 | Undo/Redo de todos novos edits | PARCIAL FORTE | History em paths cobertos; checklist por classe de edição incompleto. |
+| 89 | Autosave seguro e sem sync destrutivo | FEITO no fluxo browser coberto | pagehide/reload testados; concorrência/dispositivos cross-profile segue fora do aceite. |
+| 90 | Versioning por domínio | PARCIAL | Snapshots gerais/presets; version labels/diff/recovery por domínio incompletos. |
+| 91 | Project migrations e roundtrip | FEITO nas versões/casos cobertos; global PARCIAL | Migração 1→4 testada; projeto integrado full payload ainda não feito. |
+| 92 | Erros estruturados para runtime | PARCIAL FORTE | Códigos para asset/codec/provider/storage; permissões e dispositivos exigem teste físico. |
+| 93 | Testes musicais fundamentais | FEITO | A4/C4/tempo/conversões, maps inválidos e BPM herdado; test em 22/09. |
+| 94 | Piano Roll C4-E4-G4-C5 playback/save/reload/undo | FEITO no cenário E2E | A sequência canônica é importada como MIDI, editada no Score com Undo/Redo confirmado no Piano Roll, sobrevive à migração/reload e é renderizada; medição PCM valida as quatro frequências-alvo. Benchmarks de escala e aceite auditivo continuam em outras seções. |
+| 95 | Score mesmo modelo/alteração sincronizada | FEITO no fluxo compartilhado coberto | E2E edita duração no Score e observa a mesma alteração no Piano Roll; leitura convencional/gravura avançada permanece pendente no requisito 12. |
+| 96 | Synth oscillator/ADSR/filter/velocity/polyphony | PARCIAL FORTE | Synth e ADSR E2E, MIDI WAV audível; matriz de cada parâmetro/polyphony falta. |
+| 97 | Sampler C3/C4/C5 | PARCIAL | Domínio valida taxas C3/C4/C5 em relação a C4; E2E confirma C4 sampleado não silencioso após reload. Render tonal comparativo das três oitavas continua pendente. |
+| 98 | Procedural SFX→asset→timeline→export | PARCIAL | Procedural ambience/noise asset e WAV export; SFX notification dedicada ausente. |
+| 99 | Chuva→layers→loop→mix→export seamless | PARCIAL FORTE | Chuva/layers/DSP/stem; preview de emenda e avaliação auditiva ausentes. |
+| 100 | Euterpe voice generation A/B/export | PENDENTE | Sem provider real, nenhum take sintético falso contado como resultado. |
+| 101 | 5 footsteps variation group | PARCIAL | Variation/Game Audio existe; cenário de cinco variações não coberto pelo smoke atual. |
+| 102 | Persistence aggregate all content | PARCIAL | MIDI/audio/voice reload em cenários; full project combinado com automation/markers/effects falta. |
+| 103 | Regressão version anterior | PARCIAL FORTE | Audio regressions 39/0/4skip e smoke 30/30; gravação hardware/manual permanece. |
+| 104 | E2E crítico | PARCIAL FORTE | Smoke Audio 30/30 + Drum 1/1; provider, hardware e failure-paths restantes. |
+| 105 | Manual de testes detalhado por domínio | PARCIAL | Checklist 49 casos existente, porém não executado; manual version atual precisa atualização consolidada. |
+| 106 | Definition of Done | PARCIAL | Gating funcional aplicado; não há release global até resolver pendências e aceitações. |
+| 107 | Implementar milestones A–Q | PARCIAL | Estado detalhado na tabela seguinte; nenhuma presença de UI vale aceite por si só. |
+| 108 | Não sacrificar qualidade; registrar parada/limites | FEITO COMO PROCESSO | Este audit conserva gaps explícitos e não sinaliza falso completion. |
+| 109 | Changelog/architecture/test report/limits/manual | PARCIAL | Audit/architecture/manual/checklist existem; changelog e manual harmonizado de release faltam. |
+| 110 | Fluxos integrais Music/Sound/Ambience/Voice/Game | PARCIAL | Music/MIDI/render, procedural/layers e Game Audio têm caminhos comprovados; Voice provider, loop inspection, standalone/adaptive permanecem incompletos. |
+
+## Milestones A–Q
+
+| Marco | Estado | Próximo critério que fecha o marco |
+|---|---|---|
+| A Audit + baseline | PARCIAL | Checklist manual integral e compatibilidade de projetos legados/browser. |
+| B Music domain | PARCIAL FORTE | Domain, Tempo Track persistida e scheduler do metrônomo cobrem mapa variável; edição ao vivo reagenda eventos futuros. Arranjo longo com várias mudanças/compassos e transport ainda carece de E2E de duração/deriva. |
+| C Clips/instrument tracks | PARCIAL | operações move/duplicate/transpose/undo/reload em múltiplos tracks. |
+| D Synth/instrument engine | PARCIAL FORTE | Piano/timbre aprovado, polyphony/filter/velocity suite. |
+| E Piano Roll | PARCIAL FORTE | sequência musical completa e benchmark de milhares de notas. |
+| F Score | PARCIAL | Gravura legível convencional e validação externa MusicXML/PDF. |
+| G MIDI | PARCIAL FORTE | Hardware físico, permissões e gravação multi-track. |
+| H Sampler/Drums | PARCIAL FORTE | Root mapping e render C3/C4/C5 E2E; faltam multi-sampling, banco por zona e aceite auditivo. |
+| I Sound Design | PARCIAL FORTE | grafo/procedural composable e criação SFX persistida. |
+| J Ambience/loop/variations | PARCIAL | preview/detecção seam, Foley/SFX e eventos aleatórios. |
+| K Generation providers | PARCIAL | provider aprovado, server-side secret, jobs/cancel/cost/provenance. |
+| L Voice/Euterpe | PARCIAL | Voice A/B/provider/playback/timeline/export. |
+| M Analysis/Mastering | PARCIAL FORTE | validação hardware, mastering/true-peak escopo explícito. |
+| N Game/adaptive | PARCIAL FORTE | standalone runtime e transições/stems adaptativos. |
+| O Euterpe capabilities | PARCIAL | catalog completo de actions com preview/approval/undo seguro. |
+| P Performance/persistence | PARCIAL FORTE | benchmarks, full-state roundtrip e teste concorrência/cross-profile. |
+| Q Tests/docs/release | PARCIAL FORTE | manual aceite, changelog, limitações, E2E restante e deploy READY. |
+
+## Próximos lotes para fechar o release
+
+1. **Music/Sampler P0:** validar tempo-map alterado durante playback, continuidade de notas em transições de tempo e edição musical após reload em arranjo longo; ampliar sampler para zonas/multi-sampling somente se necessário ao escopo, sem duplicar estado.
+2. **Sound Design/Game P1:** sound graph real composable, SFX/Foley com assets reais, preview repetido e medição de seam, ambience aleatório por evento; completar semantics de runtime adaptativo.
+3. **Voice/Providers P1:** provider real somente após escolha/configuração autorizada e segredo seguro server-side; sem provider, aprimorar texto de indisponibilidade e testes fail-closed. Voice A/B e delivery de pronunciation só aceitos contra áudio real.
+4. **Performance/Persistence P1:** projetos de milhares de notas/tracks, memória/caches/latência, full save→reload integrado e todas operações com undo/versioning.
+5. **Entrega Q:** executar checklist manual de 49 cenários em browser/device suportado; atualizar manual/changelog/architecture notes, gates de release e verificar publicação/alias READY separadamente.
+
+Não publicado. Dependências que exigem autoridade/contexto externo: provider e credenciais aprovados, decisão/licença do timbre de piano, hardware MIDI/microfone e execução manual multi-device. O trabalho local continua adiante sem fabricar esses resultados.

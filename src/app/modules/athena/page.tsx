@@ -43,12 +43,13 @@ import { athenaConversationStore, ATHENA_CONVERSATIONS_EVENT, type AthenaConvers
 import { athenaConversationManager } from "@/lib/athena/conversation/conversation-manager";
 import { capabilityPlanStore } from "@/lib/athena/runtime/capability-plan-store";
 import { useAthenaConversationSync } from "@/lib/athena/conversation/use-athena-conversation-sync";
+import { Surface } from "@/components/ui/Surface";
 
 const SCOPES: { id: AthenaScope; label: string; icon: React.ElementType; color: string }[] = [
-  { id: "geral", label: "Visão Geral (OS)", icon: Layers, color: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
-  { id: "juridico", label: "Modo Jurídico (Codex)", icon: Scale, color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10" },
-  { id: "pesquisa", label: "Pesquisa Acadêmica", icon: GraduationCap, color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-  { id: "produtividade", label: "Gestão & Prazos", icon: Zap, color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
+  { id: "geral", label: "Visão Geral (OS)", icon: Layers, color: "text-[var(--vly-accent)] border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)]" },
+  { id: "juridico", label: "Modo Jurídico (Codex)", icon: Scale, color: "text-[var(--vly-info)] border-[color-mix(in_srgb,var(--vly-info)_30%,transparent)] bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)]" },
+  { id: "pesquisa", label: "Pesquisa Acadêmica", icon: GraduationCap, color: "text-[var(--vly-success)] border-[color-mix(in_srgb,var(--vly-success)_30%,transparent)] bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)]" },
+  { id: "produtividade", label: "Gestão & Prazos", icon: Zap, color: "text-[var(--vly-warning)] border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)]" },
 ];
 
 const PROMPT_CHIPS: Record<AthenaScope, string[]> = {
@@ -88,7 +89,7 @@ const INITIAL_MESSAGES: AthenaMessage[] = [
 export default function AthenaHubPage() {
   const conversationSync = useAthenaConversationSync();
   const store = useVarynthStore();
-  const proactive = useMemo(() => analyzeAthenaState(store), [store.projects, store.tasks]);
+  const proactive = useMemo(() => analyzeAthenaState(store), [store]);
   const engineStatus = useAthenaEngineStatus();
   const [messages, setMessages] = useState<AthenaMessage[]>(INITIAL_MESSAGES);
   const [conversations, setConversations] = useState<AthenaConversation[]>([]);
@@ -98,10 +99,11 @@ export default function AthenaHubPage() {
   const [scope, setScope] = useState<AthenaScope>("geral");
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const initialScopeRef = useRef(scope);
 
   useEffect(() => {
     const refresh = () => {
-      const active = athenaConversationStore.getActive() || athenaConversationStore.create(scope);
+      const active = athenaConversationStore.getActive() || athenaConversationStore.create(initialScopeRef.current);
       setConversations(athenaConversationStore.list(true));
       setActiveConversationId(active.id);
       setMessages(active.messages.length ? active.messages : INITIAL_MESSAGES);
@@ -202,20 +204,20 @@ export default function AthenaHubPage() {
 
   return (
     <PageLayout title="Athena AI" subtitle={`Inteligência artificial transversal e command center${conversationSync === "synced" ? " · conversas sincronizadas" : conversationSync === "login_required" || conversationSync === "unavailable" ? " · histórico neste aparelho" : ""}`}>
-      <div className="w-full min-w-0 max-w-5xl mx-auto space-y-6 overflow-x-hidden animate-fade-in">
+      <div className="vly-enter w-full min-w-0 max-w-5xl mx-auto space-y-6 overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 glow-accent">
+              <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--vly-accent)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] flex items-center justify-center text-[var(--vly-accent)] glow-accent">
                 <Bot size={18} />
               </div>
               <h1 className="min-w-0 text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
                 Athena Command Center
-                <Sparkles size={16} className="text-violet-400" />
+                <Sparkles size={16} className="text-[var(--vly-accent)]" />
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--vly-text-secondary)] mt-1">
               Copilot inteligente com leitura transversal do seu ecossistema digital e execução de comandos NLP.
             </p>
           </div>
@@ -224,10 +226,10 @@ export default function AthenaHubPage() {
           <div className="flex max-w-full min-w-0 items-center gap-2 flex-wrap">
             <div
               className={cn(
-                "flex max-w-full min-w-0 items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border transition-all",
+                "vly-interactive flex max-w-full min-w-0 items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border",
                 engineStatus.isLocalNeuralActive
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                  : "bg-slate-800/80 border-slate-700 text-slate-300"
+                  ? "bg-[color-mix(in_srgb,var(--vly-success)_10%,transparent)] border-[color-mix(in_srgb,var(--vly-success)_30%,transparent)] text-[var(--vly-success)]"
+                  : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-default)] text-[var(--vly-text-secondary)]"
               )}
               title={engineStatus.engineDescription}
             >
@@ -235,8 +237,8 @@ export default function AthenaHubPage() {
                 className={cn(
                   "w-2 h-2 rounded-full",
                   engineStatus.isLocalNeuralActive
-                    ? "bg-emerald-400 animate-pulse"
-                    : "bg-amber-400"
+                    ? "bg-[var(--vly-success)] animate-pulse"
+                    : "bg-[var(--vly-warning)]"
                 )}
               />
               <Cpu size={13} className="opacity-70" />
@@ -249,19 +251,19 @@ export default function AthenaHubPage() {
               <button
                 onClick={() => engineStatus.checkStatus()}
                 disabled={engineStatus.isChecking}
-                className="hover:text-white transition-colors ml-1"
+                className="vly-interactive ml-1"
                 title="Escanear porta local (127.0.0.1:11434)"
               >
                 <RefreshCw
                   size={12}
-                  className={cn(engineStatus.isChecking && "animate-spin text-violet-400")}
+                    className={cn(engineStatus.isChecking && "animate-spin text-[var(--vly-accent)]")}
                 />
               </button>
             </div>
 
             <button
               onClick={handleClearHistory}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors p-1.5"
+              className="vly-interactive flex items-center gap-1 text-xs text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] p-1.5"
               title="Limpar histórico de conversa"
             >
               <Trash2 size={13} />
@@ -280,10 +282,10 @@ export default function AthenaHubPage() {
                 key={sc.id}
                 onClick={() => setScope(sc.id)}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap border",
+                  "vly-interactive flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border",
                   isSelected
                     ? sc.color
-                    : "bg-[#0f0f1a] border-[#1e1e30] text-slate-400 hover:text-slate-200"
+                    : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 )}
               >
                 <Icon size={14} />
@@ -293,33 +295,33 @@ export default function AthenaHubPage() {
           })}
         </div>
 
-        <section className="rounded-2xl border border-[#1e1e30] bg-[#0f0f1a] p-3 sm:p-4" aria-label="Sugestões proativas da Athena">
+        <Surface tone="panel" className="p-3 sm:p-4" aria-label="Sugestões proativas da Athena">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-bold text-slate-100">
-                <Sparkles size={14} className="text-violet-400" /> Percepção proativa
+              <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
+                <Sparkles size={14} className="text-[var(--vly-accent)]" /> Percepção proativa
               </h2>
-              <p className="mt-0.5 text-[11px] text-slate-500">Leitura local dos seus dados, sem alterações automáticas.</p>
+              <p className="mt-0.5 text-[11px] text-[var(--vly-text-muted)]">Leitura local dos seus dados, sem alterações automáticas.</p>
             </div>
-            <button onClick={() => handleSend("Faça um diagnóstico geral do meu sistema")} className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1.5 text-[11px] font-bold text-violet-300 hover:bg-violet-500/20">
+            <button onClick={() => handleSend("Faça um diagnóstico geral do meu sistema")} className="vly-interactive rounded-lg border border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)] px-2.5 py-1.5 text-[11px] font-bold text-[var(--vly-accent)] hover:bg-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)]">
               Ver diagnóstico
             </button>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
-            <button onClick={() => handleSend("Quais tarefas estão atrasadas? Faça um diagnóstico")} className="flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-left hover:bg-rose-500/10">
-              <AlertTriangle size={16} className="text-rose-400" />
-              <span><strong className="block text-sm text-slate-100">{proactive.overdueTasks.length + proactive.overdueProjects.length}</strong><span className="text-[11px] text-slate-400">prazos vencidos</span></span>
+            <button onClick={() => handleSend("Quais tarefas estão atrasadas? Faça um diagnóstico")} className="vly-interactive flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--vly-danger)_20%,transparent)] bg-[color-mix(in_srgb,var(--vly-danger)_5%,transparent)] p-3 text-left hover:bg-[color-mix(in_srgb,var(--vly-danger)_10%,transparent)]">
+              <AlertTriangle size={16} className="text-[var(--vly-danger)]" />
+              <span><strong className="block text-sm text-[var(--vly-text-primary)]">{proactive.overdueTasks.length + proactive.overdueProjects.length}</strong><span className="text-[11px] text-[var(--vly-text-secondary)]">prazos vencidos</span></span>
             </button>
-            <button onClick={() => handleSend("O que preciso cuidar hoje?")} className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left hover:bg-amber-500/10">
-              <ListChecks size={16} className="text-amber-400" />
-              <span><strong className="block text-sm text-slate-100">{proactive.dueSoonTasks.length}</strong><span className="text-[11px] text-slate-400">prazos em 7 dias</span></span>
+            <button onClick={() => handleSend("O que preciso cuidar hoje?")} className="vly-interactive flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--vly-warning)_20%,transparent)] bg-[color-mix(in_srgb,var(--vly-warning)_5%,transparent)] p-3 text-left hover:bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)]">
+              <ListChecks size={16} className="text-[var(--vly-warning)]" />
+              <span><strong className="block text-sm text-[var(--vly-text-primary)]">{proactive.dueSoonTasks.length}</strong><span className="text-[11px] text-[var(--vly-text-secondary)]">prazos em 7 dias</span></span>
             </button>
-            <button onClick={() => setInput("Encontre ")} className="flex items-center gap-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-left hover:bg-cyan-500/10">
-              <Search size={16} className="text-cyan-400" />
-              <span><strong className="block text-sm text-slate-100">Busca global</strong><span className="text-[11px] text-slate-400">projetos, tarefas e notas</span></span>
+            <button onClick={() => setInput("Encontre ")} className="vly-interactive flex items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--vly-info)_20%,transparent)] bg-[color-mix(in_srgb,var(--vly-info)_5%,transparent)] p-3 text-left hover:bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)]">
+              <Search size={16} className="text-[var(--vly-info)]" />
+              <span><strong className="block text-sm text-[var(--vly-text-primary)]">Busca global</strong><span className="text-[11px] text-[var(--vly-text-secondary)]">projetos, tarefas e notas</span></span>
             </button>
           </div>
-        </section>
+        </Surface>
 
         <AthenaGovernanceCenter store={store} onPrompt={(prompt) => handleSend(prompt)} />
 
@@ -329,7 +331,7 @@ export default function AthenaHubPage() {
 
         <AthenaObservabilityPanel />
 
-        <section className="h-64 overflow-hidden rounded-2xl border border-[#1e1e30] bg-[#0f0f1a]" aria-label="Gerenciar conversas">
+        <Surface tone="panel" className="h-64 overflow-hidden" aria-label="Gerenciar conversas">
           <AthenaConversationList
             conversations={athenaConversationStore.search(conversationQuery).filter((conversation) => conversation.status === "ACTIVE")}
             activeConversationId={activeConversationId}
@@ -340,18 +342,18 @@ export default function AthenaHubPage() {
             onArchive={(conversationId) => { athenaConversationStore.archive(conversationId); setConversations(athenaConversationStore.list(true)); if (conversationId === activeConversationId) createConversation(); }}
             onTrash={trashConversation}
           />
-        </section>
+        </Surface>
 
         {conversations.some((conversation) => conversation.status === "TRASHED") && (
-          <details className="rounded-xl border border-[#30243a] bg-[#130f19] p-3">
-            <summary className="cursor-pointer text-xs font-bold text-slate-300">Lixeira de conversas ({conversations.filter((conversation) => conversation.status === "TRASHED").length})</summary>
+          <details className="rounded-xl border border-[color-mix(in_srgb,var(--vly-danger)_25%,transparent)] bg-[color-mix(in_srgb,var(--vly-danger)_6%,var(--vly-surface))] p-3">
+            <summary className="cursor-pointer text-xs font-bold text-[var(--vly-text-secondary)]">Lixeira de conversas ({conversations.filter((conversation) => conversation.status === "TRASHED").length})</summary>
             <div className="mt-3 space-y-2">
               {conversations.filter((conversation) => conversation.status === "TRASHED").map((conversation) => (
-                <div key={conversation.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#30243a] p-2">
-                  <span className="min-w-0 truncate text-xs text-slate-300">{conversation.title}</span>
+                <div key={conversation.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] p-2">
+                  <span className="min-w-0 truncate text-xs text-[var(--vly-text-secondary)]">{conversation.title}</span>
                   <span className="flex gap-2">
-                    <button onClick={() => { athenaConversationStore.restore(conversation.id); selectConversation(conversation.id); }} className="text-[11px] font-bold text-violet-300 hover:text-violet-200">Restaurar</button>
-                    <button onClick={() => { if (window.confirm(`Excluir permanentemente a conversa “${conversation.title}”?`)) { athenaConversationStore.permanentlyDelete(conversation.id); athenaConversationManager.clearSession(conversation.id); setConversations(athenaConversationStore.list(true)); } }} className="text-[11px] font-bold text-rose-300 hover:text-rose-200">Excluir definitivamente</button>
+                    <button onClick={() => { athenaConversationStore.restore(conversation.id); selectConversation(conversation.id); }} className="text-[11px] font-bold text-[var(--vly-accent)] hover:brightness-110">Restaurar</button>
+                    <button onClick={() => { if (window.confirm(`Excluir permanentemente a conversa “${conversation.title}”?`)) { athenaConversationStore.permanentlyDelete(conversation.id); athenaConversationManager.clearSession(conversation.id); setConversations(athenaConversationStore.list(true)); } }} className="text-[11px] font-bold text-[var(--vly-danger)] hover:brightness-110">Excluir definitivamente</button>
                   </span>
                 </div>
               ))}
@@ -360,27 +362,27 @@ export default function AthenaHubPage() {
         )}
 
         {conversations.some((conversation) => conversation.status === "ARCHIVED") && (
-          <details className="rounded-xl border border-[#25253a] bg-[#0f0f1a] p-3">
-            <summary className="cursor-pointer text-xs font-bold text-slate-400">Conversas arquivadas ({conversations.filter((conversation) => conversation.status === "ARCHIVED").length})</summary>
+          <details className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3">
+            <summary className="cursor-pointer text-xs font-bold text-[var(--vly-text-secondary)]">Conversas arquivadas ({conversations.filter((conversation) => conversation.status === "ARCHIVED").length})</summary>
             <div className="mt-3 space-y-2">
               {conversations.filter((conversation) => conversation.status === "ARCHIVED").map((conversation) => (
-                <div key={conversation.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#25253a] p-2"><span className="truncate text-xs text-slate-300">{conversation.title}</span><button onClick={() => { athenaConversationStore.restore(conversation.id); selectConversation(conversation.id); }} className="text-[11px] font-bold text-violet-300">Reativar</button></div>
+                <div key={conversation.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] p-2"><span className="truncate text-xs text-[var(--vly-text-secondary)]">{conversation.title}</span><button onClick={() => { athenaConversationStore.restore(conversation.id); selectConversation(conversation.id); }} className="text-[11px] font-bold text-[var(--vly-accent)]">Reativar</button></div>
               ))}
             </div>
           </details>
         )}
 
         {/* Main Terminal Window */}
-        <div className="flex w-full min-w-0 flex-col h-[560px] rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner shadow-2xl">
+        <Surface tone="panel" className="flex w-full min-w-0 flex-col h-[560px] overflow-hidden clip-corner shadow-2xl p-0">
           {/* Terminal Titlebar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#0a0a0f] border-b border-[#1e1e30] text-xs text-slate-400">
+          <div className="flex items-center justify-between px-4 py-3 bg-[var(--vly-world)] border-b border-[var(--vly-border-subtle)] text-xs text-[var(--vly-text-secondary)]">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
-              <span className="font-mono text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+              <div className="w-2.5 h-2.5 rounded-full bg-[var(--vly-accent)] animate-pulse" />
+              <span className="font-mono text-[11px] font-bold text-[var(--vly-text-secondary)] uppercase tracking-wider">
                 ATHENA CORE v4.0 · MODO: {scope.toUpperCase()}
               </span>
             </div>
-            <div className="hidden sm:flex items-center gap-3 text-[10px] text-slate-500 font-mono">
+            <div className="hidden sm:flex items-center gap-3 text-[10px] text-[var(--vly-text-muted)] font-mono">
               <span>PROJETOS: {store.projects.length}</span>
               <span>VAULT: {store.vaultItems.length}</span>
               <span>ARENA: {store.theses.length}</span>
@@ -405,8 +407,8 @@ export default function AthenaHubPage() {
                     className={cn(
                       "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5",
                       isAthena
-                        ? "bg-violet-600/20 border border-violet-500/40 text-violet-300 glow-accent"
-                        : "bg-cyan-600/20 border border-cyan-500/40 text-cyan-300"
+                        ? "bg-[color-mix(in_srgb,var(--vly-accent)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-accent)_40%,transparent)] text-[var(--vly-accent)] glow-accent"
+                        : "bg-[color-mix(in_srgb,var(--vly-info)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-info)_40%,transparent)] text-[var(--vly-info)]"
                     )}
                   >
                     {isAthena ? <Bot size={15} /> : "P"}
@@ -418,8 +420,8 @@ export default function AthenaHubPage() {
                       className={cn(
                         "max-w-full overflow-hidden p-3 sm:p-4 rounded-2xl text-xs leading-relaxed space-y-2",
                         isAthena
-                          ? "bg-[#14141f] border border-[#2d2d4a] text-slate-200"
-                          : "bg-violet-600 text-white rounded-tr-sm shadow-md"
+                          ? "bg-[var(--vly-surface-raised)] border border-[var(--vly-border-strong)] text-[var(--vly-text-primary)]"
+                          : "bg-[var(--vly-accent)] text-[var(--vly-accent-contrast)] rounded-tr-sm shadow-md"
                       )}
                     >
                       <AthenaMessageText text={msg.text} />
@@ -434,15 +436,15 @@ export default function AthenaHubPage() {
 
                       {/* Action Card executed by Athena */}
                       {msg.actionCard && (
-                        <div className="mt-3 p-3 rounded-xl bg-[#0a0a0f] border border-violet-500/30 flex items-center justify-between gap-3 text-xs">
+                        <div className="mt-3 p-3 rounded-xl bg-[var(--vly-world)] border border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] flex items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-violet-600/20 text-violet-400 flex items-center justify-center flex-shrink-0">
+                            <div className="w-7 h-7 rounded-lg bg-[color-mix(in_srgb,var(--vly-accent)_16%,transparent)] text-[var(--vly-accent)] flex items-center justify-center flex-shrink-0">
                               <CheckCircle2 size={14} />
                             </div>
                             <div className="min-w-0">
-                              <h5 className="font-bold text-slate-100 truncate">{msg.actionCard.title}</h5>
+                              <h5 className="font-bold text-[var(--vly-text-primary)] truncate">{msg.actionCard.title}</h5>
                               {msg.actionCard.subtitle && (
-                                <p className="text-[11px] text-slate-400 truncate">{msg.actionCard.subtitle}</p>
+                                <p className="text-[11px] text-[var(--vly-text-secondary)] truncate">{msg.actionCard.subtitle}</p>
                               )}
                             </div>
                           </div>
@@ -450,7 +452,7 @@ export default function AthenaHubPage() {
                           {msg.actionCard.link && (
                             <Link
                               href={msg.actionCard.link}
-                              className="flex items-center gap-1 text-[11px] font-bold text-violet-400 hover:text-violet-300 whitespace-nowrap bg-violet-600/10 px-2.5 py-1 rounded-lg border border-violet-500/20"
+                              className="vly-interactive flex items-center gap-1 text-[11px] font-bold text-[var(--vly-accent)] hover:brightness-110 whitespace-nowrap bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)] px-2.5 py-1 rounded-lg border border-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)]"
                             >
                               <span>{msg.actionCard.linkLabel || "Abrir"}</span>
                               <ArrowRight size={12} />
@@ -462,7 +464,7 @@ export default function AthenaHubPage() {
 
                     <span
                       className={cn(
-                        "text-[10px] text-slate-500 block px-1 font-mono",
+                        "text-[10px] text-[var(--vly-text-muted)] block px-1 font-mono",
                         isAthena ? "text-left" : "text-right"
                       )}
                     >
@@ -474,7 +476,7 @@ export default function AthenaHubPage() {
             })}
 
             {isTyping && (
-              <div className="flex items-center gap-2 text-xs text-violet-400 font-mono pl-11 animate-pulse">
+              <div className="flex items-center gap-2 text-xs text-[var(--vly-accent)] font-mono pl-11 animate-pulse">
                 <Bot size={13} />
                 <span>Athena processando diretivas do VARYNTH OS...</span>
               </div>
@@ -484,12 +486,12 @@ export default function AthenaHubPage() {
           </div>
 
           {/* Quick Prompt Chips */}
-          <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain border-t border-[#1e1e30] bg-[#0a0a0f]/60 px-3 sm:px-4 py-2">
+          <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain border-t border-[var(--vly-border-subtle)] bg-[color-mix(in_srgb,var(--vly-world)_60%,transparent)] px-3 sm:px-4 py-2">
             {PROMPT_CHIPS[scope].map((chip, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSend(chip)}
-                className="px-2.5 py-1 rounded-lg bg-[#14141f] hover:bg-violet-600/20 text-slate-400 hover:text-violet-300 border border-[#1e1e30] hover:border-violet-500/30 text-[11px] whitespace-nowrap transition-all"
+                className="vly-interactive px-2.5 py-1 rounded-lg bg-[var(--vly-surface-raised)] hover:bg-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-accent)] border border-[var(--vly-border-subtle)] hover:border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] text-[11px] whitespace-nowrap"
               >
                 {chip}
               </button>
@@ -497,7 +499,7 @@ export default function AthenaHubPage() {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 bg-[#0a0a0f] border-t border-[#1e1e30]">
+          <div className="p-3 bg-[var(--vly-world)] border-t border-[var(--vly-border-subtle)]">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -511,7 +513,8 @@ export default function AthenaHubPage() {
                   placeholder="Pergunte algo ou dê uma ordem (ex: 'Crie uma tarefa para...', 'Quais meus prazos?')..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                  aria-label="Mensagem para a Athena"
+                  className="vly-field w-full pl-4 pr-10 py-2.5 rounded-xl text-xs"
                 />
               </div>
 
@@ -519,13 +522,13 @@ export default function AthenaHubPage() {
                 type="submit"
                 disabled={!input.trim()}
                 aria-label="Enviar mensagem para a Athena"
-                className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white glow-accent transition-all"
+                className="vly-interactive p-2.5 rounded-xl bg-[var(--vly-accent)] hover:brightness-110 disabled:opacity-50 text-[var(--vly-accent-contrast)] glow-accent"
               >
                 <Send size={15} />
               </button>
             </form>
           </div>
-        </div>
+        </Surface>
       </div>
     </PageLayout>
   );

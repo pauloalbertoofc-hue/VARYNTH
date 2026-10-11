@@ -1,9 +1,99 @@
 @import "tailwindcss";
 
 /* ========================================
-   VARYNTH — Global Design System
-   Dark gaming / cyberpunk aesthetic
+   VARYNTH — Global Design Language
+   Semantic foundations. Legacy aliases remain
+   below while surfaces migrate incrementally.
    ======================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Material / elevation */
+  --vly-world: #0b0d11;
+  --vly-surface: #10141a;
+  --vly-surface-raised: #151a21;
+  --vly-surface-floating: #1b222b;
+  --vly-surface-glass: rgb(21 26 33 / 78%);
+  --vly-surface-hover: #202832;
+  --vly-surface-active: #27313d;
+  --vly-border-subtle: rgb(190 204 220 / 10%);
+  --vly-border-default: rgb(190 204 220 / 17%);
+  --vly-border-strong: rgb(190 204 220 / 28%);
+  --vly-border-accent: color-mix(in srgb, var(--vly-accent) 48%, transparent);
+  --vly-border-warning: color-mix(in srgb, var(--vly-warning) 42%, transparent);
+  --vly-border-danger: color-mix(in srgb, var(--vly-danger) 42%, transparent);
+  --vly-border-success: color-mix(in srgb, var(--vly-success) 42%, transparent);
+  --vly-border-info: color-mix(in srgb, var(--vly-info) 42%, transparent);
+
+  /* Content */
+  --vly-text-primary: #edf2f7;
+  --vly-text-secondary: #b2bdc9;
+  --vly-text-muted: #7d8997;
+  --vly-text-disabled: #7d8997;
+
+  /* Accent is intentionally replaceable by customization later. */
+  --vly-accent: #9aaec4;
+  --vly-accent-hover: #c2d0df;
+  --vly-accent-contrast: #10141a;
+  --vly-success: #72c49a;
+  --vly-warning: #d8b875;
+  --vly-danger: #dc8585;
+  --vly-info: #82b8d4;
+  --vly-surface-warning: color-mix(in srgb, var(--vly-warning) 12%, var(--vly-surface));
+
+  /* Geometry and rhythm */
+  --vly-radius-sm: 6px;
+  --vly-radius-md: 10px;
+  --vly-radius-lg: 14px;
+  --vly-radius-xl: 20px;
+  --vly-space-1: 4px;
+  --vly-space-2: 8px;
+  --vly-space-3: 12px;
+  --vly-space-4: 16px;
+  --vly-space-5: 20px;
+  --vly-space-6: 24px;
+  --vly-control-height: 36px;
+  --vly-control-height-sm: 30px;
+
+  /* Type scale: named roles keep hierarchy portable across modules. */
+  --vly-type-display: 1.75rem;
+  --vly-type-page-title: 1.25rem;
+  --vly-type-section-title: 0.95rem;
+  --vly-type-panel-title: 0.8rem;
+  --vly-type-body: 0.875rem;
+  --vly-type-secondary: 0.75rem;
+  --vly-type-caption: 0.6875rem;
+  --vly-type-metadata: 0.625rem;
+  --vly-type-code: 0.75rem;
+  --vly-type-data: 1.125rem;
+
+  /* Icon and target rhythm. */
+  --vly-icon-sm: 14px;
+  --vly-icon-md: 18px;
+  --vly-icon-lg: 22px;
+  --vly-target-min: 44px;
+
+  /* Layer order: world -> surface -> panel -> raised -> floating -> overlay -> drawer -> modal -> system */
+  --vly-z-surface: 10;
+  --vly-z-panel: 20;
+  --vly-z-raised: 30;
+  --vly-z-floating: 40;
+  --vly-z-overlay: 50;
+  --vly-z-system: 60;
+  --vly-z-drawer: 70;
+  --vly-z-modal: 80;
+
+  /* Elevation */
+  --vly-shadow-floating: 0 18px 48px rgb(0 0 0 / 32%);
+
+  /* Motion */
+  --vly-motion-fast: 120ms;
+  --vly-motion-standard: 180ms;
+  --vly-motion-emphasis: 260ms;
+  --vly-ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --vly-ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 @theme {
   /* Brand Colors */
@@ -38,10 +128,24 @@
 
 /* Base */
 html, body {
-  background-color: var(--color-varynth-bg);
-  color: var(--color-varynth-text);
+  background-color: var(--vly-world);
+  color: var(--vly-text-primary);
   font-family: var(--font-display);
   min-height: 100vh;
+}
+
+*, *::before, *::after {
+  border-color: var(--vly-border-subtle);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--vly-accent) 28%, transparent);
+  color: var(--vly-text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--vly-accent);
+  outline-offset: 2px;
 }
 
 /* Scrollbar */
@@ -149,4 +253,177 @@ html, body {
 
 .touch-manipulation {
   touch-action: manipulation;
+}
+
+/* VARYNTH motion language: movement communicates hierarchy and state. */
+@keyframes vly-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vly-focus {
+  from { box-shadow: 0 0 0 0 rgb(154 174 196 / 0%); }
+  to { box-shadow: 0 0 0 4px rgb(154 174 196 / 12%); }
+}
+
+@keyframes vly-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
+}
+
+@keyframes vly-success {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--vly-success) 0%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--vly-success) 16%, transparent); }
+  to { box-shadow: 0 0 0 0 color-mix(in srgb, var(--vly-success) 0%, transparent); }
+}
+
+@keyframes vly-error {
+  0%, 100% { transform: translateX(0); }
+  35% { transform: translateX(-2px); }
+  70% { transform: translateX(2px); }
+}
+
+@keyframes vly-loading {
+  to { transform: rotate(360deg); }
+}
+
+.vly-enter {
+  animation: vly-reveal var(--vly-motion-emphasis) var(--vly-ease-emphasis) both;
+}
+
+.vly-motion-enter { animation: vly-reveal var(--vly-motion-emphasis) var(--vly-ease-emphasis) both; }
+.vly-motion-exit { animation: vly-exit var(--vly-motion-standard) var(--vly-ease-standard) both; }
+.vly-motion-focus:focus-visible { animation: vly-focus var(--vly-motion-standard) var(--vly-ease-standard) both; }
+.vly-motion-success { animation: vly-success var(--vly-motion-emphasis) var(--vly-ease-standard) both; }
+.vly-motion-error { animation: vly-error var(--vly-motion-fast) var(--vly-ease-standard) both; }
+.vly-motion-loading { animation: vly-loading 900ms linear infinite; }
+.vly-motion-drag { cursor: grabbing; transform: scale(1.01); }
+.vly-motion-drop { animation: vly-success var(--vly-motion-standard) var(--vly-ease-standard) both; }
+
+.vly-interactive {
+  transition:
+    transform var(--vly-motion-fast) var(--vly-ease-standard),
+    background-color var(--vly-motion-standard) var(--vly-ease-standard),
+    border-color var(--vly-motion-standard) var(--vly-ease-standard),
+    box-shadow var(--vly-motion-standard) var(--vly-ease-standard);
+}
+
+.vly-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.vly-interactive:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.vly-field {
+  min-height: var(--vly-control-height);
+  border: 1px solid var(--vly-border-default);
+  border-radius: var(--vly-radius-md);
+  background: var(--vly-surface-raised);
+  color: var(--vly-text-primary);
+  transition:
+    background-color var(--vly-motion-standard) var(--vly-ease-standard),
+    border-color var(--vly-motion-standard) var(--vly-ease-standard),
+    box-shadow var(--vly-motion-standard) var(--vly-ease-standard);
+}
+
+/* Scroll containers inside dense Studio editors must be allowed to shrink. */
+[aria-label="Piano Roll"] > .flex-1.overflow-auto {
+  min-height: 240px !important;
+}
+
+.vly-field::placeholder {
+  color: var(--vly-text-muted);
+}
+
+/* Compatibilidade visual para superfícies legadas durante a migração semântica. */
+.text-slate-500,
+.text-slate-600 {
+  color: var(--vly-text-muted) !important;
+}
+
+.text-slate-400 {
+  color: var(--vly-text-secondary) !important;
+}
+
+/* CTAs legados com acento configurável mantêm contraste AA durante a migração. */
+.bg-violet-500.text-white,
+.bg-violet-600.text-white,
+.bg-yellow-600.text-white,
+.bg-orange-600.text-white {
+  background: var(--vly-surface-raised) !important;
+  color: var(--vly-text-primary) !important;
+  border: 1px solid var(--vly-border-accent);
+}
+
+.vly-field:hover {
+  background: var(--vly-surface-hover);
+  border-color: var(--vly-border-strong);
+}
+
+.vly-field:focus {
+  outline: none;
+  border-color: var(--vly-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vly-accent) 16%, transparent);
+}
+
+.vly-label {
+  display: block;
+  margin-bottom: var(--vly-space-1);
+  color: var(--vly-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Form controls inside the universal capture surface share one material language. */
+.vly-quick-create input:not([type="checkbox"]):not([type="radio"]),
+.vly-quick-create select,
+.vly-quick-create textarea {
+  min-height: var(--vly-control-height);
+  border-color: var(--vly-border-default);
+  border-radius: var(--vly-radius-md);
+  background: var(--vly-surface-raised);
+  color: var(--vly-text-primary);
+}
+
+.vly-quick-create input:not([type="checkbox"]):not([type="radio"]):hover,
+.vly-quick-create select:hover,
+.vly-quick-create textarea:hover {
+  border-color: var(--vly-border-strong);
+  background: var(--vly-surface-hover);
+}
+
+.vly-quick-create input:not([type="checkbox"]):not([type="radio"]):focus,
+.vly-quick-create select:focus,
+.vly-quick-create textarea:focus {
+  outline: none;
+  border-color: var(--vly-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vly-accent) 16%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .vly-enter,
+  .vly-motion-enter,
+  .vly-motion-exit,
+  .vly-motion-focus,
+  .vly-motion-success,
+  .vly-motion-error,
+  .vly-motion-loading,
+  .vly-motion-drag,
+  .vly-motion-drop,
+  .vly-interactive,
+  .vly-interactive:hover,
+  .vly-interactive:active {
+    animation: none !important;
+    transform: none !important;
+  }
 }

@@ -76,7 +76,8 @@ async function run(): Promise<void> {
   }
 
   const panel = fs.readFileSync(path.resolve(process.cwd(), "src/components/athena/AthenaCapabilityPlanPanel.tsx"), "utf8");
-  check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
+  const normalizedPanel = panel.replace(/\s+/g, " ");
+  check(normalizedPanel.includes("Confirmar {step.name}") && normalizedPanel.includes("Reverter alterações") && normalizedPanel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
   console.log("\n✓ Fase 8: 15 evidências ponta a ponta aprovadas");

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { DocumentExportOptions } from "@/lib/studio/document/types";
 import { X, Download, Printer, Shield, FileText, Code, Globe } from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 interface DocumentExportModalProps {
   isOpen: boolean;
@@ -23,53 +24,59 @@ export function DocumentExportModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-[#10101c] border border-[#222238] rounded-xl max-w-md w-full p-5 shadow-2xl flex flex-col gap-4 text-slate-200">
-        <div className="flex items-center justify-between pb-2 border-b border-[#1e1e32]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 p-4 backdrop-blur-sm animate-fade-in" role="presentation">
+      <Surface tone="floating" role="dialog" aria-modal="true" aria-labelledby="document-export-title" className="flex w-full max-w-md flex-col gap-4 rounded-xl p-5 text-[var(--vly-text-primary)]">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-2">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400">
+            <div className="rounded-lg bg-[var(--vly-info)]/10 p-1.5 text-[var(--vly-info)]">
               <Download size={16} />
             </div>
-            <h3 className="font-semibold text-sm text-white">Exportar Documento</h3>
+            <h3 id="document-export-title" className="text-sm font-semibold text-[var(--vly-text-primary)]">Exportar Documento</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition">
+          <button type="button" aria-label="Fechar exportação" onClick={onClose} className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]">
             <X size={16} />
           </button>
         </div>
 
-        <p className="text-xs text-slate-400">
-          Selecione o formato e o perfil de sanitização para exportar <strong className="text-white">&quot;{documentTitle}&quot;</strong>.
+        <p className="text-xs text-[var(--vly-text-secondary)]">
+          Selecione o formato e o perfil de sanitização para exportar <strong className="text-[var(--vly-text-primary)]">&quot;{documentTitle}&quot;</strong>.
         </p>
 
         {/* Format Selector */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300">Formato:</label>
+          <label className="text-xs font-semibold text-[var(--vly-text-secondary)]">Formato:</label>
           <div className="grid grid-cols-3 gap-2">
             <button
+              type="button"
+              aria-pressed={format === "MARKDOWN"}
               onClick={() => setFormat("MARKDOWN")}
-              className={`p-2.5 rounded-lg border text-xs flex flex-col items-center gap-1.5 transition ${
-                format === "MARKDOWN" ? "bg-blue-600/20 border-blue-500 text-white" : "bg-[#141424] border-[#22223a] text-slate-400 hover:text-slate-200"
+              className={`vly-interactive flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-xs ${
+                format === "MARKDOWN" ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-text-primary)]" : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-secondary)]"
               }`}
             >
-              <Code size={16} className="text-blue-400" />
+              <Code size={16} className="text-[var(--vly-info)]" />
               <span>Markdown (.md)</span>
             </button>
             <button
+              type="button"
+              aria-pressed={format === "HTML"}
               onClick={() => setFormat("HTML")}
-              className={`p-2.5 rounded-lg border text-xs flex flex-col items-center gap-1.5 transition ${
-                format === "HTML" ? "bg-blue-600/20 border-blue-500 text-white" : "bg-[#141424] border-[#22223a] text-slate-400 hover:text-slate-200"
+              className={`vly-interactive flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-xs ${
+                format === "HTML" ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-text-primary)]" : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-secondary)]"
               }`}
             >
-              <Globe size={16} className="text-emerald-400" />
+              <Globe size={16} className="text-[var(--vly-success)]" />
               <span>HTML (.html)</span>
             </button>
             <button
+              type="button"
+              aria-pressed={format === "PDF"}
               onClick={() => setFormat("PDF")}
-              className={`p-2.5 rounded-lg border text-xs flex flex-col items-center gap-1.5 transition ${
-                format === "PDF" ? "bg-blue-600/20 border-blue-500 text-white" : "bg-[#141424] border-[#22223a] text-slate-400 hover:text-slate-200"
+              className={`vly-interactive flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-xs ${
+                format === "PDF" ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-text-primary)]" : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-secondary)]"
               }`}
             >
-              <Printer size={16} className="text-rose-400" />
+              <Printer size={16} className="text-[var(--vly-danger)]" />
               <span>PDF / Impressão</span>
             </button>
           </div>
@@ -77,33 +84,38 @@ export function DocumentExportModal({
 
         {/* Profile Selector */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300">Perfil de Sanitização:</label>
+          <label className="text-xs font-semibold text-[var(--vly-text-secondary)]">Perfil de Sanitização:</label>
           <div className="grid grid-cols-2 gap-2">
             <button
+              type="button"
+              aria-pressed={profile === "STANDARD"}
               onClick={() => setProfile("STANDARD")}
-              className={`p-2 rounded-lg border text-xs flex items-center gap-2 transition ${
-                profile === "STANDARD" ? "bg-blue-600/20 border-blue-500 text-white" : "bg-[#141424] border-[#22223a] text-slate-400"
+              className={`vly-interactive flex items-center gap-2 rounded-lg border p-2 text-xs ${
+                profile === "STANDARD" ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-text-primary)]" : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)]"
               }`}
             >
               <FileText size={14} />
               <span>Padrão Completo</span>
             </button>
             <button
+              type="button"
+              aria-pressed={profile === "PUBLIC_SAFE"}
               onClick={() => setProfile("PUBLIC_SAFE")}
-              className={`p-2 rounded-lg border text-xs flex items-center gap-2 transition ${
-                profile === "PUBLIC_SAFE" ? "bg-blue-600/20 border-blue-500 text-white" : "bg-[#141424] border-[#22223a] text-slate-400"
+              className={`vly-interactive flex items-center gap-2 rounded-lg border p-2 text-xs ${
+                profile === "PUBLIC_SAFE" ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-text-primary)]" : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)]"
               }`}
             >
-              <Shield size={14} className="text-amber-400" />
+              <Shield size={14} className="text-[var(--vly-warning)]" />
               <span>Public Safe (Oculta Paths)</span>
             </button>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e32]">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--vly-border-subtle)] pt-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-slate-400 hover:text-white bg-[#161626] rounded-lg transition"
+            type="button"
+            className="vly-interactive rounded-lg bg-[var(--vly-surface-raised)] px-3 py-1.5 text-xs text-[var(--vly-text-muted)]"
           >
             Cancelar
           </button>
@@ -112,13 +124,14 @@ export function DocumentExportModal({
               onConfirmExport({ format, profile });
               onClose();
             }}
-            className="px-4 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            type="button"
+            className="vly-interactive flex items-center gap-1.5 rounded-lg bg-[var(--vly-info)] px-4 py-1.5 text-xs font-medium text-white shadow-sm"
           >
             <Download size={14} />
             Gerar Arquivo
           </button>
         </div>
-      </div>
+      </Surface>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { WebFileItem } from "@/lib/studio/web/types";
 import { File, FileCode, FileText, FolderPlus, FilePlus, Trash2, Edit2, Check, X } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface WebFileExplorerProps {
   files: WebFileItem[];
@@ -51,27 +52,27 @@ export function WebFileExplorer({
   const getFileIcon = (lang: string) => {
     switch (lang) {
       case "html":
-        return <FileCode size={14} className="text-orange-400" />;
+        return <FileCode size={14} className="text-[var(--vly-accent)]" />;
       case "css":
-        return <FileCode size={14} className="text-blue-400" />;
+        return <FileCode size={14} className="text-[var(--vly-info)]" />;
       case "javascript":
       case "typescript":
-        return <FileCode size={14} className="text-amber-400" />;
+        return <FileCode size={14} className="text-[var(--vly-warning)]" />;
       case "json":
-        return <FileText size={14} className="text-yellow-400" />;
+        return <FileText size={14} className="text-[var(--vly-warning)]" />;
       default:
-        return <File size={14} className="text-slate-400" />;
+        return <File size={14} className="text-[var(--vly-text-muted)]" />;
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0e0f1a] text-slate-300 text-xs">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1c1d30]">
-        <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-400">Arquivos</span>
+    <div className="flex h-full flex-col bg-[var(--vly-surface)] text-xs text-[var(--vly-text-primary)]">
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)]">Arquivos</span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsCreating(true)}
-            className="p-1 hover:bg-[#1a1b2e] rounded text-slate-400 hover:text-white transition"
+            className="vly-interactive rounded p-1 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
             title="Novo Arquivo"
           >
             <FilePlus size={14} />
@@ -80,7 +81,7 @@ export function WebFileExplorer({
       </div>
 
       {isCreating && (
-        <div className="p-2 border-b border-[#1c1d30] flex items-center gap-1 bg-[#131424]">
+        <div className="flex items-center gap-1 border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-2">
           <input
             type="text"
             placeholder="nome-do-arquivo.html"
@@ -91,18 +92,19 @@ export function WebFileExplorer({
               if (e.key === "Escape") setIsCreating(false);
             }}
             autoFocus
-            className="flex-1 px-2 py-1 bg-[#0b0c16] border border-[#2a2c48] rounded text-xs text-white outline-none focus:border-blue-500"
+            className="vly-field flex-1 rounded px-2 py-1 text-xs"
           />
-          <button onClick={handleCreate} className="p-1 hover:bg-blue-600 text-slate-300 hover:text-white rounded">
+          <button onClick={handleCreate} className="vly-interactive rounded p-1 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-info)] hover:text-[var(--vly-text-on-accent)]">
             <Check size={13} />
           </button>
-          <button onClick={() => setIsCreating(false)} className="p-1 hover:bg-slate-700 text-slate-400 rounded">
+                  <button onClick={() => setIsCreating(false)} className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] hover:bg-[var(--vly-surface-raised)]">
             <X size={13} />
           </button>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
+      <div className="flex-1 space-y-0.5 overflow-y-auto p-1">
+        {files.length === 0 && <StatePanel tone="empty" title="Nenhum arquivo" description="Crie o primeiro arquivo do website para começar." action={<button type="button" onClick={() => setIsCreating(true)} className="vly-interactive rounded border border-[var(--vly-border-accent)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--vly-accent)]">Novo arquivo</button>} />}
         {files.map((file) => {
           const isActive = file.path === activeFilePath;
           const isEditing = editingPath === file.path;
@@ -111,8 +113,17 @@ export function WebFileExplorer({
             <div
               key={file.id || file.path}
               onClick={() => onSelectFile(file)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectFile(file);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-current={isActive ? "page" : undefined}
               className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md cursor-pointer transition ${
-                isActive ? "bg-blue-600/20 text-blue-300 font-medium" : "hover:bg-[#151628] text-slate-300"
+                isActive ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent)] font-medium" : "hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)]"
               }`}
             >
               <div className="flex items-center gap-2 overflow-hidden flex-1">
@@ -128,7 +139,7 @@ export function WebFileExplorer({
                       if (e.key === "Escape") setEditingPath(null);
                     }}
                     autoFocus
-                    className="px-1 py-0.5 bg-[#0b0c16] border border-blue-500 rounded text-xs text-white outline-none flex-1"
+                    className="vly-field flex-1 rounded px-1 py-0.5 text-xs outline-none"
                   />
                 ) : (
                   <span className="truncate">{file.path}</span>
@@ -137,14 +148,14 @@ export function WebFileExplorer({
 
               <div className="hidden group-hover:flex items-center gap-1 opacity-80">
                 {isEditing ? (
-                  <button onClick={(e) => handleConfirmRename(file.path, e)} className="p-0.5 hover:text-white">
+                  <button onClick={(e) => handleConfirmRename(file.path, e)} className="vly-interactive p-0.5 hover:text-[var(--vly-text-primary)]">
                     <Check size={12} />
                   </button>
                 ) : (
                   <>
                     <button
                       onClick={(e) => handleStartRename(file, e)}
-                      className="p-0.5 hover:text-blue-400 text-slate-400"
+                      className="vly-interactive p-0.5 text-[var(--vly-text-muted)] hover:text-[var(--vly-info)]"
                       title="Renomear"
                     >
                       <Edit2 size={12} />
@@ -155,7 +166,7 @@ export function WebFileExplorer({
                           e.stopPropagation();
                           if (confirm(`Excluir arquivo ${file.path}?`)) onDeleteFile(file.path);
                         }}
-                        className="p-0.5 hover:text-red-400 text-slate-400"
+                        className="vly-interactive p-0.5 text-[var(--vly-text-muted)] hover:text-[var(--vly-danger)]"
                         title="Excluir"
                       >
                         <Trash2 size={12} />
@@ -171,4 +182,3 @@ export function WebFileExplorer({
     </div>
   );
 }
-

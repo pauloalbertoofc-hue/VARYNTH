@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Lock,
 } from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 interface DocumentReviewViewerProps {
   item: DocumentationReviewItem | null;
@@ -87,25 +88,25 @@ export function DocumentReviewViewer({
     switch (changeType) {
       case "NEW_DOCUMENT":
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] text-[var(--vly-success)] border border-[var(--vly-border-success)]">
             NOVO DOCUMENTO
           </span>
         );
       case "DOCUMENT_UPDATE":
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)]">
             ATUALIZAÇÃO DE DOCUMENTO
           </span>
         );
       case "HISTORICAL_CORRECTION":
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[var(--vly-surface-warning)] text-[var(--vly-warning)] border border-[var(--vly-border-warning)]">
             CORREÇÃO HISTÓRICA
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-800 text-slate-300">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)] border border-[var(--vly-border-default)]">
             {changeType}
           </span>
         );
@@ -113,52 +114,57 @@ export function DocumentReviewViewer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in text-slate-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 p-4 backdrop-blur-md vly-motion-enter text-[var(--vly-text-secondary)]">
+      <Surface tone="floating" role="dialog" aria-modal="true" aria-labelledby="document-review-title" className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl">
         {/* HEADER */}
-        <div className="p-6 border-b border-slate-800 bg-slate-950/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col justify-between gap-4 border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-6 md:flex-row md:items-center">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-mono font-bold text-cyan-400">{item.id}</span>
+              <span className="text-xs font-mono font-bold text-[var(--vly-info)]">{item.id}</span>
               {getChangeBadge(item.changeType)}
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+              <span className="rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-2 py-0.5 font-mono text-[10px] text-[var(--vly-text-secondary)]">
                 Tipo: {item.type}
               </span>
               {item.status === "APPROVED" && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold flex items-center gap-1">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] text-[var(--vly-success)] border border-[var(--vly-border-success)] font-bold flex items-center gap-1">
                   <Check className="w-3 h-3" /> APROVADO
                 </span>
               )}
               {item.status === "REJECTED" && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 font-bold flex items-center gap-1">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-danger)_12%,var(--vly-surface))] text-[var(--vly-danger)] border border-[var(--vly-border-danger)] font-bold flex items-center gap-1">
                   <X className="w-3 h-3" /> REJEITADO
                 </span>
               )}
             </div>
-            <h2 className="text-base font-bold text-white leading-tight">{item.title}</h2>
-            <div className="text-xs text-slate-400 font-mono flex items-center gap-2">
-              <span>Alvo: <code className="text-cyan-300">{item.targetDocument}</code></span>
+            <h2 id="document-review-title" className="text-base font-bold text-[var(--vly-text-primary)] leading-tight">{item.title}</h2>
+            <div className="text-xs text-[var(--vly-text-muted)] font-mono flex items-center gap-2">
+              <span>Alvo: <code className="text-[var(--vly-info)]">{item.targetDocument}</code></span>
               <span>•</span>
               <span>Fonte: {item.sourceEvidence}</span>
             </div>
           </div>
 
           <button
+            type="button"
+            aria-label="Fechar revisão do documento"
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors self-start md:self-auto"
+            className="vly-interactive self-start rounded-lg p-2 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] md:self-auto"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* NAVIGATION TABS */}
-        <div className="flex flex-wrap items-center gap-2 px-6 pt-3 border-b border-slate-800/80 bg-slate-950/40 text-xs">
+        <div role="tablist" aria-label="Seções da revisão" className="flex flex-wrap items-center gap-2 border-b border-[var(--vly-border-subtle)] bg-[var(--vly-world)]/40 px-6 pt-3 text-xs">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "doc"}
             onClick={() => setActiveTab("doc")}
             className={`px-3.5 py-2 rounded-t-xl font-semibold flex items-center gap-1.5 transition-all border-t border-x ${
               activeTab === "doc"
-                ? "bg-slate-900 text-cyan-300 border-slate-700 border-b-transparent font-bold"
-                : "text-slate-400 border-transparent hover:text-white"
+                ? "border-[var(--vly-border-info)] border-b-transparent bg-[var(--vly-surface-raised)] font-bold text-[var(--vly-info)]"
+                : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -167,11 +173,14 @@ export function DocumentReviewViewer({
 
           {item.currentVersionContent && (
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "diff"}
               onClick={() => setActiveTab("diff")}
               className={`px-3.5 py-2 rounded-t-xl font-semibold flex items-center gap-1.5 transition-all border-t border-x ${
                 activeTab === "diff"
-                  ? "bg-slate-900 text-cyan-300 border-slate-700 border-b-transparent font-bold"
-                  : "text-slate-400 border-transparent hover:text-white"
+                  ? "border-[var(--vly-border-info)] border-b-transparent bg-[var(--vly-surface-raised)] font-bold text-[var(--vly-info)]"
+                  : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               }`}
             >
               <GitCompare className="w-3.5 h-3.5" />
@@ -180,11 +189,14 @@ export function DocumentReviewViewer({
           )}
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "evidences"}
             onClick={() => setActiveTab("evidences")}
             className={`px-3.5 py-2 rounded-t-xl font-semibold flex items-center gap-1.5 transition-all border-t border-x ${
               activeTab === "evidences"
-                ? "bg-slate-900 text-cyan-300 border-slate-700 border-b-transparent font-bold"
-                : "text-slate-400 border-transparent hover:text-white"
+                ? "border-[var(--vly-border-info)] border-b-transparent bg-[var(--vly-surface-raised)] font-bold text-[var(--vly-info)]"
+                : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -192,11 +204,14 @@ export function DocumentReviewViewer({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "edit"}
             onClick={() => setActiveTab("edit")}
             className={`px-3.5 py-2 rounded-t-xl font-semibold flex items-center gap-1.5 transition-all border-t border-x ${
               activeTab === "edit"
-                ? "bg-slate-900 text-cyan-300 border-slate-700 border-b-transparent font-bold"
-                : "text-slate-400 border-transparent hover:text-white"
+                ? "border-[var(--vly-border-info)] border-b-transparent bg-[var(--vly-surface-raised)] font-bold text-[var(--vly-info)]"
+                : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -204,11 +219,14 @@ export function DocumentReviewViewer({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "preview"}
             onClick={() => setActiveTab("preview")}
             className={`px-3.5 py-2 rounded-t-xl font-semibold flex items-center gap-1.5 transition-all border-t border-x ${
               activeTab === "preview"
-                ? "bg-slate-900 text-cyan-300 border-slate-700 border-b-transparent font-bold"
-                : "text-slate-400 border-transparent hover:text-white"
+                ? "border-[var(--vly-border-info)] border-b-transparent bg-[var(--vly-surface-raised)] font-bold text-[var(--vly-info)]"
+                : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -216,11 +234,14 @@ export function DocumentReviewViewer({
           </button>
 
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "audit"}
             onClick={() => setActiveTab("audit")}
             className={`px-3.5 py-2 rounded-t-xl font-semibold flex items-center gap-1.5 transition-all border-t border-x ${
               activeTab === "audit"
-                ? "bg-slate-900 text-cyan-300 border-slate-700 border-b-transparent font-bold"
-                : "text-slate-400 border-transparent hover:text-white"
+                ? "border-[var(--vly-border-info)] border-b-transparent bg-[var(--vly-surface-raised)] font-bold text-[var(--vly-info)]"
+                : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <History className="w-3.5 h-3.5" />
@@ -233,13 +254,13 @@ export function DocumentReviewViewer({
           {/* TAB 1: FULL DOCUMENT VIEWER */}
           {activeTab === "doc" && (
             <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300 space-y-1">
-                <strong className="text-cyan-400 font-mono uppercase tracking-wider text-[10px]">
+              <div className="space-y-1 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-world)]/60 p-4 text-xs text-[var(--vly-text-secondary)]">
+                <strong className="text-[10px] font-mono uppercase tracking-wider text-[var(--vly-info)]">
                   Resumo da Proposta de Engenharia:
                 </strong>
                 <p>{item.summary}</p>
-                <div className="pt-2 text-[11px] text-slate-400">
-                  <strong className="text-slate-300">Rationale Arquitetural:</strong> {item.rationale}
+                <div className="pt-2 text-[11px] text-[var(--vly-text-secondary)]">
+                  <strong className="text-[var(--vly-text-primary)]">Rationale Arquitetural:</strong> {item.rationale}
                 </div>
               </div>
 
@@ -252,26 +273,26 @@ export function DocumentReviewViewer({
           {/* TAB 2: DIFF VIEWER */}
           {activeTab === "diff" && item.currentVersionContent && (
             <div className="space-y-4">
-              <div className="text-xs text-slate-400 font-mono">
-                Comparação entre a <strong className="text-red-400">Versão Atual Oficial</strong> e a{" "}
-                <strong className="text-emerald-400">Versão Proposta pelo Guardian</strong>:
+              <div className="text-xs font-mono text-[var(--vly-text-secondary)]">
+                Comparação entre a <strong className="text-[var(--vly-danger)]">Versão Atual Oficial</strong> e a{" "}
+                <strong className="text-[var(--vly-success)]">Versão Proposta pelo Guardian</strong>:
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-red-950/10 border border-red-900/30 space-y-2">
-                  <div className="text-[11px] font-mono font-bold text-red-400 uppercase border-b border-red-900/40 pb-2">
+                <div className="space-y-2 rounded-xl border border-[var(--vly-danger)]/30 bg-[var(--vly-danger)]/10 p-4">
+                  <div className="border-b border-[var(--vly-danger)]/40 pb-2 text-[11px] font-mono font-bold uppercase text-[var(--vly-danger)]">
                     Versão Atual em /docs
                   </div>
-                  <pre className="text-xs font-mono text-red-300/80 whitespace-pre-wrap leading-relaxed max-h-[450px] overflow-y-auto">
+                  <pre className="max-h-[450px] overflow-y-auto whitespace-pre-wrap text-xs font-mono leading-relaxed text-[var(--vly-danger)]/80">
                     {item.currentVersionContent}
                   </pre>
                 </div>
 
-                <div className="p-4 rounded-xl bg-emerald-950/10 border border-emerald-900/30 space-y-2">
-                  <div className="text-[11px] font-mono font-bold text-emerald-400 uppercase border-b border-emerald-900/40 pb-2">
+                <div className="space-y-2 rounded-xl border border-[var(--vly-success)]/30 bg-[var(--vly-success)]/10 p-4">
+                  <div className="border-b border-[var(--vly-success)]/40 pb-2 text-[11px] font-mono font-bold uppercase text-[var(--vly-success)]">
                     Versão Proposta (Com a Lição / ADR Integrada)
                   </div>
-                  <pre className="text-xs font-mono text-emerald-300 whitespace-pre-wrap leading-relaxed max-h-[450px] overflow-y-auto">
+                  <pre className="max-h-[450px] overflow-y-auto whitespace-pre-wrap text-xs font-mono leading-relaxed text-[var(--vly-success)]">
                     {draftContent}
                   </pre>
                 </div>
@@ -411,7 +432,7 @@ export function DocumentReviewViewer({
         </div>
 
         {/* FOOTER ACTIONS BAR */}
-        <div className="p-5 border-t border-slate-800 bg-slate-950/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col justify-between gap-4 border-t border-[var(--vly-border-default)] bg-[var(--vly-surface)]/80 p-5 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Documento completo inspecionado e verificado para decisão humana.</span>
@@ -448,17 +469,17 @@ export function DocumentReviewViewer({
             )}
           </div>
         </div>
-      </div>
+      </Surface>
 
       {/* REJECTION REASON MODAL DIALOG */}
       {showRejectModal && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
+          <Surface tone="floating" className="w-full max-w-md space-y-4 rounded-2xl p-6">
+            <div className="flex items-center gap-2 text-sm font-bold text-[var(--vly-danger)]">
               <AlertTriangle className="w-5 h-5" />
               Registrar Motivo da Rejeição
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--vly-text-secondary)]">
               O motivo da rejeição será gravado na memória técnica do Guardian para que a Athena não repita a mesma premissa incorreta no futuro.
             </p>
 
@@ -467,28 +488,27 @@ export function DocumentReviewViewer({
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Ex: A premissa histórica está incorreta; a indexação vetorial ainda não foi validada em produção..."
               rows={4}
-              className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30"
+              className="vly-field min-h-28 w-full resize-y rounded-xl border-[var(--vly-border-default)] bg-[var(--vly-surface)] p-3 text-xs text-[var(--vly-text-primary)] placeholder:text-[var(--vly-text-muted)] focus:border-[var(--vly-border-danger)] focus:ring-[var(--vly-danger-soft)]"
             />
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                className="vly-interactive rounded-lg bg-[var(--vly-surface-raised)] px-3 py-1.5 text-xs font-semibold text-[var(--vly-text-secondary)]"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleConfirmReject}
                 disabled={!rejectionReason.trim()}
-                className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold disabled:opacity-50"
+                className="vly-interactive rounded-lg border border-[var(--vly-border-danger)] bg-[var(--vly-danger)] px-4 py-1.5 text-xs font-bold text-[var(--vly-text-on-accent)] disabled:opacity-50"
               >
                 Confirmar Rejeição
               </button>
             </div>
-          </div>
+          </Surface>
         </div>
       )}
     </div>
   );
 }
-

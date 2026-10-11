@@ -3,6 +3,7 @@
 import React from "react";
 import { GameScene, GameEntity } from "@/lib/studio/game/types";
 import { Layers, Plus, Trash2, Eye, EyeOff, Box, Copy, Pencil } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface GameEntityHierarchyProps {
   scenes: GameScene[];
@@ -43,16 +44,16 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
   const sceneEntities = entities.filter((e) => e.sceneId === currentScene?.id);
 
   return (
-    <div className="h-full flex flex-col bg-[#0b0c16] text-slate-300 text-xs select-none">
+    <div className="flex h-full select-none flex-col bg-[var(--vly-surface)] text-xs text-[var(--vly-text-primary)]">
       {/* Scenes Header */}
-      <div className="p-3 border-b border-[#1c1d30] flex items-center justify-between bg-[#0e0f1c]">
-        <div className="flex items-center gap-2 font-bold text-white uppercase text-[11px] tracking-wider">
-          <Layers size={14} className="text-emerald-400" />
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-3">
+        <div className="flex items-center gap-2 font-bold text-[var(--vly-text-primary)] uppercase text-[11px] tracking-wider">
+          <Layers size={14} className="text-[var(--vly-success)]" />
           Cenas do Jogo ({scenes.length})
         </div>
         <button
           onClick={onAddScene}
-          className="p-1 hover:bg-[#1a1b2e] rounded text-emerald-400 hover:text-emerald-300 transition"
+          className="vly-interactive p-1 hover:bg-[var(--vly-surface-hover)] rounded text-[var(--vly-success)] hover:opacity-90 transition"
           title="Adicionar Nova Cena"
         >
           <Plus size={15} />
@@ -60,15 +61,19 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
       </div>
 
       {/* Scenes List */}
-      <div className="p-2 border-b border-[#1c1d30] max-h-36 overflow-y-auto space-y-1">
+      <div className="max-h-36 space-y-1 overflow-y-auto border-b border-[var(--vly-border-default)] p-2">
         {scenes.map((sc) => {
           const isSelected = sc.id === currentScene?.id;
           return (
             <div
               key={sc.id}
               onClick={() => onSelectScene(sc.id)}
+              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectScene(sc.id); } }}
+              role="button"
+              tabIndex={0}
+              aria-current={isSelected ? "page" : undefined}
               className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition ${
-                isSelected ? "bg-emerald-500/20 text-white border border-emerald-500/30" : "hover:bg-[#151628] text-slate-400"
+                isSelected ? "bg-[var(--vly-success)]/20 text-[var(--vly-text-primary)] border border-[var(--vly-border-success)]" : "hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)]"
               }`}
             >
               <span className="font-semibold line-clamp-1">{sc.name}{sc.id === entrySceneId ? " • Startup" : ""}</span>
@@ -79,15 +84,15 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
       </div>
 
       {/* Entity Tree Header */}
-      <div className="p-3 border-b border-[#1c1d30] flex items-center justify-between bg-[#0e0f1c]">
-        <div className="flex items-center gap-2 font-bold text-white uppercase text-[11px] tracking-wider">
-          <Box size={14} className="text-emerald-400" />
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-3">
+        <div className="flex items-center gap-2 font-bold text-[var(--vly-text-primary)] uppercase text-[11px] tracking-wider">
+          <Box size={14} className="text-[var(--vly-success)]" />
           Hierarquia de Entidades
         </div>
         {currentScene && (
           <button
             onClick={() => onAddEntity(currentScene.id)}
-            className="p-1 hover:bg-[#1a1b2e] rounded text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1 text-[11px]"
+            className="vly-interactive p-1 hover:bg-[var(--vly-surface-hover)] rounded text-[var(--vly-success)] hover:opacity-90 transition flex items-center gap-1 text-[11px]"
             title="Adicionar Entidade na Cena"
           >
             <Plus size={14} /> Nova Entidade
@@ -96,11 +101,9 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
       </div>
 
       {/* Entities List */}
-      <div className="flex-1 p-2 overflow-y-auto space-y-1">
+      <div className="flex-1 space-y-1 overflow-y-auto p-2">
         {sceneEntities.length === 0 ? (
-          <div className="p-6 text-center text-slate-500 text-xs italic">
-            Nenhuma entidade nesta cena. Clique em &quot;Nova Entidade&quot; para adicionar.
-          </div>
+          <StatePanel tone="empty" title="Cena sem entidades" description="Clique em Nova Entidade para adicionar o primeiro objeto." action={currentScene ? <button type="button" onClick={() => onAddEntity(currentScene.id)} className="vly-interactive rounded border border-[var(--vly-border-accent)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--vly-accent)]">Nova entidade</button> : undefined} />
         ) : (
           sceneEntities.map((ent) => {
             const isSelected = ent.id === selectedEntityId;
@@ -108,12 +111,16 @@ export const GameEntityHierarchy: React.FC<GameEntityHierarchyProps> = ({
               <div
                 key={ent.id}
                 onClick={() => onSelectEntity(ent.id)}
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectEntity(ent.id); } }}
+                role="button"
+                tabIndex={0}
+                aria-current={isSelected ? "page" : undefined}
                 className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition group ${
-                  isSelected ? "bg-emerald-500/20 text-white border border-emerald-500/30 font-medium" : "hover:bg-[#151628] text-slate-300"
+                  isSelected ? "border border-[var(--vly-border-accent)] bg-[var(--vly-surface-active)] font-medium text-[var(--vly-text-primary)]" : "text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)]"
                 } ${!ent.active ? "opacity-40" : ""}`}
               >
                 <div className="flex items-center gap-2">
-                  <Box size={13} className={isSelected ? "text-emerald-400" : "text-slate-500"} />
+                  <Box size={13} className={isSelected ? "text-[var(--vly-success)]" : "text-[var(--vly-text-muted)]"} />
                   <span className="line-clamp-1">{ent.name}</span>
                 </div>
                 <div className="flex items-center gap-1 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition">

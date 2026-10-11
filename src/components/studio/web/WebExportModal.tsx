@@ -56,34 +56,34 @@ export function WebExportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#121324] border border-[#222442] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-[#1e2038] flex items-center justify-between bg-[#15162a]">
-          <h3 className="font-bold text-base text-white flex items-center gap-2">
-            <Download size={16} className="text-blue-400" />
+    <div className="fixed inset-0 z-50 bg-[var(--vly-world)]/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+        <div className="px-6 py-4 border-b border-[var(--vly-border-subtle)] flex items-center justify-between bg-[var(--vly-surface-raised)]">
+          <h3 className="font-bold text-base text-[var(--vly-text-primary)] flex items-center gap-2">
+            <Download size={16} className="text-[var(--vly-info)]" />
             Exportar Website
           </h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded">
+          <button onClick={onClose} className="p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] rounded">
             <X size={16} />
           </button>
         </div>
 
         <div className="p-6 space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Formato de Exportação</label>
+            <label className="text-xs font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider">Formato de Exportação</label>
 
             <div
               onClick={() => setSelectedFormat("STANDALONE_HTML")}
               className={`p-3.5 rounded-xl border cursor-pointer transition flex items-center gap-3 ${
                 selectedFormat === "STANDALONE_HTML"
-                  ? "bg-blue-600/15 border-blue-500/50 text-white"
-                  : "bg-[#0c0d18] border-[#1d1f36] text-slate-400 hover:border-slate-600"
+                  ? "bg-[var(--vly-info)]/15 border-[var(--vly-border-info)] text-[var(--vly-text-primary)]"
+                  : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-strong)]"
               }`}
             >
-              <FileCode size={20} className={selectedFormat === "STANDALONE_HTML" ? "text-blue-400" : ""} />
+              <FileCode size={20} className={selectedFormat === "STANDALONE_HTML" ? "text-[var(--vly-info)]" : "text-[var(--vly-text-muted)]"} />
               <div className="flex-1 text-xs">
-                <div className="font-semibold text-slate-200">HTML Autossuficiente (.html)</div>
-                <div className="text-[11px] text-slate-500">Documento único com CSS/JS incorporados pronto para abrir offline.</div>
+                <div className="font-semibold text-[var(--vly-text-primary)]">HTML Autossuficiente (.html)</div>
+                <div className="text-[11px] text-[var(--vly-text-muted)]">Documento único com CSS/JS incorporados pronto para abrir offline.</div>
               </div>
             </div>
 
@@ -91,14 +91,14 @@ export function WebExportModal({
               onClick={() => setSelectedFormat("DIST_BUNDLE")}
               className={`p-3.5 rounded-xl border cursor-pointer transition flex items-center gap-3 ${
                 selectedFormat === "DIST_BUNDLE"
-                  ? "bg-blue-600/15 border-blue-500/50 text-white"
-                  : "bg-[#0c0d18] border-[#1d1f36] text-slate-400 hover:border-slate-600"
+                  ? "bg-[var(--vly-info)]/15 border-[var(--vly-border-info)] text-[var(--vly-text-primary)]"
+                  : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-strong)]"
               }`}
             >
-              <Package size={20} className={selectedFormat === "DIST_BUNDLE" ? "text-blue-400" : ""} />
+              <Package size={20} className={selectedFormat === "DIST_BUNDLE" ? "text-[var(--vly-info)]" : "text-[var(--vly-text-muted)]"} />
               <div className="flex-1 text-xs">
-                <div className="font-semibold text-slate-200">Pacote Dist (.json / manifesto)</div>
-                <div className="text-[11px] text-slate-500">Estrutura compilada de produção higienizada (PUBLIC-SAFE).</div>
+                <div className="font-semibold text-[var(--vly-text-primary)]">Pacote Dist (.json / manifesto)</div>
+                <div className="text-[11px] text-[var(--vly-text-muted)]">Estrutura compilada de produção higienizada (PUBLIC-SAFE).</div>
               </div>
             </div>
 
@@ -106,32 +106,32 @@ export function WebExportModal({
               onClick={() => setSelectedFormat("SOURCE_ZIP")}
               className={`p-3.5 rounded-xl border cursor-pointer transition flex items-center gap-3 ${
                 selectedFormat === "SOURCE_ZIP"
-                  ? "bg-blue-600/15 border-blue-500/50 text-white"
-                  : "bg-[#0c0d18] border-[#1d1f36] text-slate-400 hover:border-slate-600"
+                  ? "bg-[var(--vly-info)]/15 border-[var(--vly-border-info)] text-[var(--vly-text-primary)]"
+                  : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-strong)]"
               }`}
             >
-              <FileArchive size={20} className={selectedFormat === "SOURCE_ZIP" ? "text-blue-400" : ""} />
+              <FileArchive size={20} className={selectedFormat === "SOURCE_ZIP" ? "text-[var(--vly-info)]" : "text-[var(--vly-text-muted)]"} />
               <div className="flex-1 text-xs">
-                <div className="font-semibold text-slate-200">Pacote de Fontes (.json / workspace)</div>
-                <div className="text-[11px] text-slate-500">Todos os arquivos fonte brutos para reimportação no VARYNTH.</div>
+                <div className="font-semibold text-[var(--vly-text-primary)]">Pacote de Fontes (.json / workspace)</div>
+                <div className="text-[11px] text-[var(--vly-text-muted)]">Todos os arquivos fonte brutos para reimportação no VARYNTH.</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#1e2038] flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-[var(--vly-border-subtle)] flex items-center justify-end gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#1a1b2e] hover:bg-[#252740] text-slate-300 rounded-lg text-xs font-medium transition"
+              className="px-4 py-2 bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] rounded-lg text-xs font-medium transition"
             >
               Cancelar
             </button>
             <button
               onClick={handleDownload}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/20 transition flex items-center gap-1.5"
+              className="px-5 py-2 bg-[var(--vly-accent)] hover:opacity-90 text-[var(--vly-accent-contrast)] rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
             >
               {exported ? (
                 <>
-                  <Check size={14} className="text-emerald-300" />
+                  <Check size={14} className="text-[var(--vly-success)]" />
                   Baixado com Sucesso!
                 </>
               ) : (

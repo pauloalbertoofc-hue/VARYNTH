@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { knowledgeRepository } from "../persistence/repositories";
-import { revokeVaultKnowledgeItem, syncVaultKnowledgeItem } from "./vault-projection";
+import { revokeVaultKnowledgeItem, syncVaultKnowledgeItem, syncVaultKnowledgeItems } from "./vault-projection";
 
 async function main() {
   await knowledgeRepository.clear();
@@ -28,6 +28,10 @@ async function main() {
   assert.deepEqual(corrected.categories, ["Composition"]);
   assert.deepEqual(corrected.tags, ["reviewed"]);
   assert.equal(correctedAgain.version, corrected.version);
+
+  const batch = await syncVaultKnowledgeItems([source, correctedSource]);
+  assert.equal(batch.length, 2);
+  assert.equal(batch[0].id, "vault:projection-vault-1");
 
   const [revoked, duplicateRevocation] = await Promise.all([
     revokeVaultKnowledgeItem(source.id),

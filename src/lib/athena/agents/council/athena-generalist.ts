@@ -2,6 +2,7 @@ import type { AthenaAgent, AgentManifest } from "../base-agent";
 import type { AthenaTask } from "../../domain/task";
 import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
+import { agentRegistry } from "../registry";
 
 /** Explicit low-priority owner for cognitive requests outside specialist domains. */
 export class AthenaGeneralistAgent implements AthenaAgent {
@@ -16,8 +17,13 @@ export class AthenaGeneralistAgent implements AthenaAgent {
     enabled: true,
   };
 
-  canHandle(task: AthenaTask): boolean {
-    return task.type === "GENERAL_DELIBERATION";
+  canHandle(task: AthenaTask, context: AthenaContext): boolean {
+    const prompt = task.rawPrompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const isReadOnlyDiagnostic = task.type === "ACTION_FAST" && /\bdiagnostico\b/.test(prompt);
+    if (task.type !== "GENERAL_DELIBERATION" && !isReadOnlyDiagnostic) return false;
+    // The generalist is eligible only when no domain agent declares competence.
+    const isGeneralQuestion = /\b(o que|quem|quando|onde|por que|como|quantos|quantas|projetos ativos|tarefas pendentes|diagnostico|explique|defina|significa|conceito|conhecimento geral|compare|comparando|diferen[cç]a|vs|versus|qual a melhor|ideia|ideias|recomende|recomenda|planeje|planejar|critique|revise|analise|resuma|sintetize|decida|decidir|priorize|continue|explore)\b/.test(prompt);
+    return (isGeneralQuestion || isReadOnlyDiagnostic) && !agentRegistry.listAgents().some((agent) => agent.manifest.id !== this.manifest.id && agent.manifest.id !== "euterpe" && agent.canHandle(task, context));
   }
 
   async execute(task: AthenaTask, _context: AthenaContext): Promise<AgentResult> {
@@ -25,12 +31,13 @@ export class AthenaGeneralistAgent implements AthenaAgent {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
       role: this.manifest.role,
-      success: true,
-      content: `Análise cognitiva geral preparada para: ${task.title}`,
-      confidence: 0.75,
+      success: false,
+      content: `Não há uma análise substantiva para “${task.title}” neste executor. Encaminhe a pergunta à Athena para uma resposta contextual ou esclareça o domínio necessário.`,
+      confidence: 0.1,
+      sources: [],
+      metadata: { reason: "NO_SUBSTANTIVE_GENERAL_EXECUTOR", generatedAnalysis: false },
     };
   }
 }
 
 export const athenaGeneralistAgent = new AthenaGeneralistAgent();
-

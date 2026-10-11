@@ -29,6 +29,7 @@ import { athenaObservabilityJournal } from "@/lib/athena/observability/local-obs
 import { athenaConversationStore, ATHENA_CONVERSATIONS_EVENT, type AthenaConversation } from "@/lib/athena/conversation/conversation-store";
 import { athenaConversationManager } from "@/lib/athena/conversation/conversation-manager";
 import { useAthenaConversationSync } from "@/lib/athena/conversation/use-athena-conversation-sync";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 export function AthenaSidecar() {
   useAthenaConversationSync();
@@ -166,8 +167,10 @@ export function AthenaSidecar() {
       {/* Floating Action Button */}
       {!isOpen && !isProjectWorkspace && (
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-2xl border border-violet-400/40 glow-accent transition-all duration-300 group hover:scale-105"
+          aria-label="Abrir Athena"
+          className="fixed bottom-5 right-5 z-[var(--vly-z-drawer)] flex items-center gap-2 rounded-full border border-[var(--vly-border-strong)] bg-[var(--vly-accent)] px-3.5 py-2.5 text-[var(--vly-accent-contrast)] shadow-[var(--vly-shadow-floating)] vly-interactive group"
           title="Abrir Athena AI (Alt + A)"
         >
           <div className="relative">
@@ -176,7 +179,7 @@ export function AthenaSidecar() {
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full" />
           </div>
           <span className="text-xs font-bold tracking-tight hidden sm:inline">Athena</span>
-          <kbd className="hidden md:inline text-[9px] bg-black/30 px-1 py-0.2 rounded font-mono text-violet-200">
+          <kbd className="hidden md:inline rounded border border-[var(--vly-border-subtle)] bg-[var(--vly-world)] px-1 py-0.5 text-[9px] font-mono text-[var(--vly-text-primary)]">
             Alt+A
           </kbd>
         </button>
@@ -187,19 +190,19 @@ export function AthenaSidecar() {
         <>
           <div
             onClick={() => setIsOpen(false)}
-            className="sm:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
+            className="sm:hidden fixed inset-0 bg-[var(--vly-overlay)] backdrop-blur-sm z-40 animate-fade-in"
             aria-hidden="true"
           />
-          <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-5 sm:right-5 z-50 w-full sm:max-w-md h-[85dvh] sm:h-[520px] bg-[#0f0f1a] border-t sm:border border-[#2d2d4a] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden clip-corner glow-accent animate-slide-up sm:animate-fade-in">
+          <div role="dialog" aria-modal="true" aria-labelledby="athena-sidecar-title" className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-5 sm:right-5 z-[var(--vly-z-modal)] flex h-[85dvh] w-full max-w-full flex-col overflow-hidden rounded-t-[var(--vly-radius-xl)] border border-[var(--vly-border-strong)] bg-[var(--vly-surface-floating)] shadow-[var(--vly-shadow-floating)] vly-enter sm:h-[520px] sm:max-w-md sm:rounded-[var(--vly-radius-xl)]">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#0a0a0f] border-b border-[#1e1e30]">
+          <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-4 py-3">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
                 <Bot size={15} />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                  <h3 id="athena-sidecar-title" className="text-xs font-bold text-[var(--vly-text-primary)] flex items-center gap-1.5">
                     Athena Sidecar
                     <Sparkles size={12} className="text-violet-400" />
                   </h3>
@@ -225,7 +228,7 @@ export function AthenaSidecar() {
                       const conversation = athenaConversationStore.activate(event.target.value);
                       if (conversation) { setActiveConversationId(conversation.id); setMessages(conversation.messages.length ? conversation.messages : []); athenaConversationManager.updateSessionWithHistory(conversation.id, conversation.messages); setConversations(athenaConversationStore.list()); }
                     }}
-                    className="max-w-36 rounded border border-[#25253a] bg-[#11111b] px-1 py-0.5 text-[9px] text-slate-300"
+                    className="vly-field max-w-36 rounded px-1 py-0.5 text-[9px]"
                   >
                     {conversations.filter((conversation) => conversation.status === "ACTIVE").map((conversation) => <option key={conversation.id} value={conversation.id}>{conversation.title}</option>)}
                   </select>
@@ -233,7 +236,7 @@ export function AthenaSidecar() {
                     type="button"
                     aria-label="Nova conversa"
                     onClick={() => { const conversation = athenaConversationStore.create(currentScope, routeProjectId); setActiveConversationId(conversation.id); setMessages([]); setConversations(athenaConversationStore.list()); }}
-                    className="rounded border border-violet-500/30 p-1 text-violet-300 hover:bg-violet-500/10"
+                    className="vly-interactive rounded border border-[var(--vly-border-accent)] p-1 text-[var(--vly-accent)] hover:bg-[var(--vly-surface-hover)]"
                   ><Plus size={11} /></button>
                 </div>
               </div>
@@ -242,15 +245,17 @@ export function AthenaSidecar() {
             <div className="flex items-center gap-1">
               <Link
                 href="/modules/athena"
-                className="p-1 text-slate-400 hover:text-violet-300"
+                aria-label="Abrir Athena no hub completo"
+                className="vly-interactive rounded p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-accent)]"
                 title="Expandir para o Hub Completo"
               >
                 <Maximize2 size={13} />
               </Link>
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 aria-label="Fechar Athena Sidecar"
-                className="p-1 text-slate-400 hover:text-slate-200"
+                className="vly-interactive rounded p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               >
                 <X size={15} />
               </button>
@@ -261,7 +266,8 @@ export function AthenaSidecar() {
           <AthenaObservabilityPanel compact />
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div role="log" aria-live="polite" aria-label="Mensagens da Athena" className="flex-1 space-y-3 overflow-y-auto bg-[var(--vly-world)] p-4">
+            {!messages.length && <StatePanel tone="empty" title="Conversa pronta" description="Envie uma pergunta ou escolha um atalho para começar." />}
             {messages.map((msg, index) => {
               const isAthena = msg.sender === "athena";
 
@@ -289,8 +295,8 @@ export function AthenaSidecar() {
                       className={cn(
                         "p-3 rounded-xl text-xs leading-relaxed",
                         isAthena
-                          ? "bg-[#14141f] border border-[#1e1e30] text-slate-200"
-                          : "bg-violet-600 text-white shadow-sm"
+                          ? "border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] text-[var(--vly-text-primary)]"
+                          : "bg-[var(--vly-accent)] text-[var(--vly-accent-contrast)] shadow-sm"
                       )}
                     >
                       <AthenaMessageText text={msg.text} />
@@ -304,7 +310,7 @@ export function AthenaSidecar() {
                       )}
 
                       {msg.actionCard && (
-                        <div className="mt-2 p-2 rounded-lg bg-[#0a0a0f] border border-violet-500/30 flex items-center justify-between gap-2 text-[11px]">
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-surface)] p-2 text-[11px]">
                           <span className="font-semibold text-slate-200 truncate">
                             {msg.actionCard.title}
                           </span>
@@ -336,29 +342,32 @@ export function AthenaSidecar() {
           </div>
 
           {/* Quick Context Chips */}
-          <div className="px-3 py-1.5 bg-[#0a0a0f]/60 border-t border-[#1e1e30] flex items-center gap-1.5 overflow-x-auto">
+          <div className="flex items-center gap-1.5 overflow-x-auto border-t border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-3 py-1.5">
             <button
+              type="button"
               onClick={() => handleSend("Diagnóstico rápido do sistema")}
-              className="px-2 py-0.5 rounded bg-[#14141f] text-[10px] text-slate-400 hover:text-violet-300 border border-[#1e1e30] whitespace-nowrap"
+              className="vly-interactive whitespace-nowrap rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface)] px-2 py-0.5 text-[10px] text-[var(--vly-text-secondary)] hover:text-[var(--vly-accent)]"
             >
               Diagnóstico
             </button>
             <button
+              type="button"
               onClick={() => handleSend("Quais são meus prazos mais urgentes?")}
-              className="px-2 py-0.5 rounded bg-[#14141f] text-[10px] text-slate-400 hover:text-violet-300 border border-[#1e1e30] whitespace-nowrap"
+              className="vly-interactive whitespace-nowrap rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface)] px-2 py-0.5 text-[10px] text-[var(--vly-text-secondary)] hover:text-[var(--vly-accent)]"
             >
               Prazos
             </button>
             <button
+              type="button"
               onClick={() => handleSend("Crie uma tarefa: ")}
-              className="px-2 py-0.5 rounded bg-[#14141f] text-[10px] text-slate-400 hover:text-violet-300 border border-[#1e1e30] whitespace-nowrap"
+              className="vly-interactive whitespace-nowrap rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface)] px-2 py-0.5 text-[10px] text-[var(--vly-text-secondary)] hover:text-[var(--vly-accent)]"
             >
               + Tarefa
             </button>
           </div>
 
           {/* Input */}
-          <div className="p-2.5 bg-[#0a0a0f] border-t border-[#1e1e30]">
+          <div className="border-t border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] p-2.5">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -368,16 +377,17 @@ export function AthenaSidecar() {
             >
               <input
                 type="text"
+                aria-label="Mensagem para a Athena"
                 placeholder="Pergunte ou dê uma ordem..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+                className="vly-field flex-1 rounded-lg px-3 py-1.5 text-xs"
               />
               <button
                 type="submit"
                 disabled={!input.trim()}
                 aria-label="Enviar mensagem para a Athena"
-                className="p-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50"
+                className="vly-interactive rounded-lg bg-[var(--vly-accent)] p-1.5 text-[var(--vly-accent-contrast)] disabled:opacity-50"
               >
                 <Send size={13} />
               </button>

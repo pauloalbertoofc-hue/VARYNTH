@@ -19,6 +19,7 @@ import {
   Edit2,
   Check,
 } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface ImageLayerPanelProps {
   layers: ImageLayer[];
@@ -49,15 +50,15 @@ export function ImageLayerPanel({
   const getLayerIcon = (type: ImageLayerType) => {
     switch (type) {
       case "TEXT":
-        return <Type size={14} className="text-amber-400" />;
+        return <Type size={14} className="text-[var(--vly-warning)]" />;
       case "SHAPE":
-        return <Square size={14} className="text-purple-400" />;
+        return <Square size={14} className="text-[var(--vly-info)]" />;
       case "IMAGE":
-        return <ImageIcon size={14} className="text-blue-400" />;
+        return <ImageIcon size={14} className="text-[var(--vly-accent)]" />;
       case "GROUP":
-        return <Folder size={14} className="text-emerald-400" />;
+        return <Folder size={14} className="text-[var(--vly-success)]" />;
       default:
-        return <Layers size={14} className="text-slate-400" />;
+        return <Layers size={14} className="text-[var(--vly-text-muted)]" />;
     }
   };
 
@@ -79,17 +80,17 @@ export function ImageLayerPanel({
   const displayLayers = [...layers].reverse();
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0e1a] text-slate-300 text-xs select-none">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1c1d30]">
-        <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-400 flex items-center gap-1.5">
-          <Layers size={13} className="text-blue-400" />
+    <div className="flex h-full select-none flex-col bg-[var(--vly-surface)] text-xs text-[var(--vly-text-primary)]">
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] px-3 py-2">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)]">
+          <Layers size={13} className="text-[var(--vly-accent)]" />
           Camadas ({layers.length})
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
+      <div className="flex-1 space-y-1 overflow-y-auto p-1.5">
         {displayLayers.length === 0 ? (
-          <div className="p-6 text-center text-slate-600 italic">Nenhuma camada no canvas.</div>
+          <StatePanel tone="empty" title="Canvas sem camadas" description="Adicione uma camada para começar a composição." />
         ) : (
           displayLayers.map((layer, index) => {
             const isSelected = layer.id === selectedLayerId;
@@ -99,10 +100,20 @@ export function ImageLayerPanel({
               <div
                 key={layer.id}
                 onClick={() => onSelectLayer(layer.id)}
+                role="button"
+                tabIndex={0}
+                aria-current={isSelected ? "true" : undefined}
+                aria-label={`Selecionar camada ${layer.name}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectLayer(layer.id);
+                  }
+                }}
                 className={`group flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition ${
                   isSelected
-                    ? "bg-blue-600/20 border border-blue-500/40 text-white font-medium shadow-sm"
-                    : "hover:bg-[#141628] border border-transparent text-slate-300"
+                    ? "border border-[var(--vly-border-accent)] bg-[var(--vly-surface-active)] font-medium text-[var(--vly-text-primary)] shadow-sm"
+                    : "border border-transparent text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)]"
                 }`}
               >
                 {/* Left: Icon & Title */}
@@ -120,7 +131,7 @@ export function ImageLayerPanel({
                         if (e.key === "Escape") setEditingId(null);
                       }}
                       autoFocus
-                      className="px-1.5 py-0.5 bg-[#090a14] border border-blue-500 rounded text-xs text-white outline-none flex-1"
+                      className="vly-field flex-1 px-1.5 py-0.5 text-xs outline-none"
                     />
                   ) : (
                     <span className="truncate text-xs">{layer.name}</span>
@@ -132,7 +143,8 @@ export function ImageLayerPanel({
                   {isEditing ? (
                     <button
                       onClick={(e) => handleConfirmRename(layer.id, e)}
-                      className="p-1 hover:text-white text-slate-400"
+                      aria-label={`Confirmar nome de ${layer.name}`}
+                      className="vly-interactive p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
                     >
                       <Check size={13} />
                     </button>
@@ -145,7 +157,7 @@ export function ImageLayerPanel({
                           onReorderLayer(layer.id, "UP");
                         }}
                         disabled={index === 0}
-                        className="p-1 text-slate-500 hover:text-white disabled:opacity-20"
+                        className="vly-interactive p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] disabled:opacity-20"
                         title="Mover para cima"
                       >
                         <ChevronUp size={13} />
@@ -156,7 +168,7 @@ export function ImageLayerPanel({
                           onReorderLayer(layer.id, "DOWN");
                         }}
                         disabled={index === displayLayers.length - 1}
-                        className="p-1 text-slate-500 hover:text-white disabled:opacity-20"
+                        className="vly-interactive p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] disabled:opacity-20"
                         title="Mover para baixo"
                       >
                         <ChevronDown size={13} />
@@ -169,7 +181,7 @@ export function ImageLayerPanel({
                           onToggleVisibility(layer.id);
                         }}
                         className={`p-1 transition ${
-                          layer.visible ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-400"
+                          layer.visible ? "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]" : "text-[var(--vly-text-disabled)] hover:text-[var(--vly-text-muted)]"
                         }`}
                         title={layer.visible ? "Ocultar camada" : "Mostrar camada"}
                       >
@@ -183,7 +195,7 @@ export function ImageLayerPanel({
                           onToggleLock(layer.id);
                         }}
                         className={`p-1 transition ${
-                          layer.locked ? "text-amber-400" : "text-slate-500 hover:text-slate-300"
+                          layer.locked ? "text-[var(--vly-warning)]" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-secondary)]"
                         }`}
                         title={layer.locked ? "Desbloquear camada" : "Bloquear camada"}
                       >
@@ -196,7 +208,7 @@ export function ImageLayerPanel({
                           e.stopPropagation();
                           onDuplicateLayer(layer.id);
                         }}
-                        className="p-1 text-slate-500 hover:text-blue-400 hidden group-hover:block"
+                        className="vly-interactive hidden p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-accent)] group-hover:block"
                         title="Duplicar camada"
                       >
                         <Copy size={13} />
@@ -206,7 +218,7 @@ export function ImageLayerPanel({
                           e.stopPropagation();
                           onDeleteLayer(layer.id);
                         }}
-                        className="p-1 text-slate-500 hover:text-red-400 hidden group-hover:block"
+                        className="vly-interactive hidden p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-danger)] group-hover:block"
                         title="Excluir camada"
                       >
                         <Trash2 size={13} />
@@ -222,4 +234,3 @@ export function ImageLayerPanel({
     </div>
   );
 }
-

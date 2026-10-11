@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 test.describe("Audio Studio browser runtime", () => {
   const wav = () => { const sampleRate = 44100; const samples = sampleRate / 10; const buffer = Buffer.alloc(44 + samples * 2); buffer.write("RIFF", 0); buffer.writeUInt32LE(36 + samples * 2, 4); buffer.write("WAVEfmt ", 8); buffer.writeUInt32LE(16, 16); buffer.writeUInt16LE(1, 20); buffer.writeUInt16LE(1, 22); buffer.writeUInt32LE(sampleRate, 24); buffer.writeUInt32LE(sampleRate * 2, 28); buffer.writeUInt16LE(2, 32); buffer.writeUInt16LE(16, 34); buffer.write("data", 36); buffer.writeUInt32LE(samples * 2, 40); for (let i = 0; i < samples; i++) buffer.writeInt16LE(Math.round(Math.sin(i / 8) * 12000), 44 + i * 2); return buffer; };
   const longWav = () => { const sampleRate = 44100; const samples = sampleRate * 4; const buffer = Buffer.alloc(44 + samples * 2); buffer.write("RIFF", 0); buffer.writeUInt32LE(36 + samples * 2, 4); buffer.write("WAVEfmt ", 8); buffer.writeUInt32LE(16, 16); buffer.writeUInt16LE(1, 20); buffer.writeUInt16LE(1, 22); buffer.writeUInt32LE(sampleRate, 24); buffer.writeUInt32LE(sampleRate * 2, 28); buffer.writeUInt16LE(2, 32); buffer.writeUInt16LE(16, 34); buffer.write("data", 36); buffer.writeUInt32LE(samples * 2, 40); for (let i = 0; i < samples; i++) { const distance = i % (sampleRate / 2); const click = distance < 900 ? 0.8 * Math.exp(-distance / 180) : 0; buffer.writeInt16LE(Math.round(click * 32767), 44 + i * 2); } return buffer; };
+  const canonicalMelodyMidi = () => Buffer.from([0x4d,0x54,0x68,0x64,0,0,0,6,0,0,0,1,1,0xe0,0x4d,0x54,0x72,0x6b,0,0,0,0x2e,0,0xff,0x51,3,0x07,0xa1,0x20,0,0x90,60,100,0x83,0x60,0x80,60,0,0,0x90,64,96,0x83,0x60,0x80,64,0,0,0x90,67,92,0x83,0x60,0x80,67,0,0,0x90,72,100,0x83,0x60,0x80,72,0,0,0xff,0x2f,0]);
   test("opens the Studio route", async ({ page }) => {
     await page.goto("/modules/studio");
     await expect(page).toHaveURL(/modules\/studio/);
@@ -61,6 +62,78 @@ test.describe("Audio Studio browser runtime", () => {
     await expect(countIn).toContainText("Count-in 2 comp.");
     await countIn.click();
     await expect(countIn).toHaveText("Count-in");
+  });
+
+  test("edits Tempo Track while playing and keeps future notes synchronized", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto("/modules/studio");
+    await page.getByRole("button", { name: /Audio Studio \(Studio 4\)/i }).click();
+    await page.getByRole("button", { name: /Novo Projeto de Áudio/i }).click();
+    await page.getByPlaceholder(/Trilha de Abertura/i).fill("E2E Tempo Track Playback");
+    await page.getByRole("button", { name: /Criar Projeto/i }).click();
+
+    page.once("dialog", (dialog) => void dialog.accept("INSTRUMENT"));
+    await page.getByTitle("Adicionar Nova Faixa de Áudio").click();
+    await page.getByRole("button", { name: "Piano Roll" }).click();
+    const c4 = page.locator("[data-piano-roll-grid] > div.absolute.left-0").nth(12).locator(":scope > div.relative.flex-1");
+    await c4.dblclick({ position: { x: 4 * 56 + 12, y: 10 } });
+    await expect(page.getByRole("button", { name: /Nota C4, início 4, duração 1/ })).toBeVisible();
+
+    await page.getByLabel("Beat do novo ponto de tempo").fill("2");
+    await page.getByLabel("BPM do novo ponto de tempo").fill("90");
+    await page.getByRole("button", { name: "Adicionar mudança" }).click();
+    await page.getByRole("button", { name: "Aplicar mapa de tempo" }).click();
+    await expect(page.getByLabel("BPM do ponto 2")).toHaveValue("90");
+
+    await page.getByTitle("Reproduzir (Espaço)").click();
+    await expect(page.getByTitle("Pausar (Espaço)")).toBeVisible({ timeout: 10_000 });
+    await page.getByLabel("BPM do ponto 2").fill("60");
+    await page.getByRole("button", { name: "Aplicar mapa de tempo" }).click();
+    await expect(page.getByTitle("Pausar (Espaço)")).toBeVisible();
+    await expect(page.locator("p[role='alert']")).toHaveCount(0);
+    await page.getByTitle("Pausar (Espaço)").click();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Score" }).click();
+    await expect(page.getByLabel("BPM do ponto 2")).toHaveValue("60");
+    await page.getByRole("button", { name: "Piano Roll" }).click();
+    await expect(page.getByLabel("BPM do ponto 2")).toHaveValue("60");
+    await expect(page.getByRole("button", { name: /Nota C4, início 4, duração 1/ })).toBeVisible();
+  });
+
+  test("persists arrangement sections, chord lane and semantic sync markers", async ({ page }) => {
+    await page.goto("/modules/studio");
+    await page.getByRole("button", { name: /Audio Studio \(Studio 4\)/i }).click();
+    await page.getByRole("button", { name: /Novo Projeto de Áudio/i }).click();
+    await page.getByPlaceholder(/Trilha de Abertura/i).fill("E2E Music Arrangement");
+    await page.getByRole("button", { name: /Criar Projeto/i }).click();
+    await page.getByRole("button", { name: "Piano Roll" }).click();
+    await page.getByRole("button", { name: "Adicionar seção" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Verso · 0–8" })).toBeVisible();
+    await page.getByLabel("Raiz do acorde na Chord Track").selectOption("G");
+    await page.getByLabel("Qualidade do acorde na Chord Track").selectOption("minor");
+    await page.getByLabel("Beat inicial do acorde").fill("8");
+    await page.getByRole("region", { name: "Faixas de arranjo musical" }).getByRole("button", { name: "Adicionar acorde na Chord Track" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "G minor · beat 8" })).toBeVisible();
+    await page.getByLabel("Tipo de marcador musical").selectOption("transition");
+    await page.getByLabel("Beat do marcador musical").fill("12");
+    await page.getByLabel("Rótulo do marcador musical").fill("Virada");
+    await page.getByRole("button", { name: "Adicionar marcador" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "transition · Virada · 12" })).toBeVisible();
+    await page.getByLabel("Beat da mudança tonal").fill("16");
+    await page.getByLabel("Tônica da mudança tonal").selectOption("G");
+    await page.getByLabel("Escala da mudança tonal").selectOption("minor");
+    await page.getByRole("button", { name: "Definir tonalidade" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "G minor · beat 16" })).toBeVisible();
+    await page.reload();
+    await page.getByRole("button", { name: "Piano Roll" }).click();
+    await expect(page.locator("[data-music-arrangement-track]")).toContainText("Verso · 0–8");
+    await expect(page.locator("[data-music-arrangement-track]")).toContainText("G minor · beat 8");
+    await expect(page.locator("[data-music-arrangement-track]")).toContainText("transition · Virada · 12");
+    await expect(page.locator("[data-music-arrangement-track]")).toContainText("G minor · beat 16");
+    await page.getByRole("button", { name: "Score" }).click();
+    await expect(page.locator("[data-music-arrangement-track]")).toContainText("G minor · beat 8");
+    await expect(page.getByRole("img", { name: "Armadura no compasso 5" })).toHaveText("G minor");
   });
 
   test("versions synth presets and restores them after reload", async ({ page }) => {
@@ -388,7 +461,7 @@ test.describe("Audio Studio browser runtime", () => {
     await page.getByRole("button", { name: "Importar Bundle" }).click();
     await (await packageChooser).setFiles((await bundleFile.path())!);
     await expect(page.getByText(/Game Audio ativo: 1 assets · 1 eventos · 1 grupos/i)).toBeVisible();
-    await page.getByLabel("Ação").selectOption("PLAY_AUDIO");
+    await page.getByLabel("Ação da regra Iniciar Jogo").selectOption("PLAY_AUDIO");
     const eventPicker = page.getByLabel("Evento de áudio da regra Iniciar Jogo");
     await eventPicker.selectOption(exportedPackage.events[0].id);
     await page.getByRole("button", { name: "Play Mode (Sandbox)" }).click();
@@ -608,7 +681,7 @@ test.describe("Audio Studio browser runtime", () => {
     await page.getByRole("button", { name: /Novo Projeto de Áudio/i }).click();
     await page.getByPlaceholder(/Trilha de Abertura/i).fill("E2E MIDI Project");
     await page.getByRole("button", { name: /Criar Projeto/i }).click();
-    const midi = Buffer.from([0x4d,0x54,0x68,0x64,0,0,0,6,0,0,0,1,1,0xe0,0x4d,0x54,0x72,0x6b,0,0,0,19,0,0xff,0x51,3,0x07,0xa1,0x20,0,0x90,60,100,0x83,0x60,0x80,60,0,0,0xff,0x2f,0]);
+    const midi = canonicalMelodyMidi();
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Import MIDI" }).click();
     await (await chooser).setFiles({ name: "melody.mid", mimeType: "audio/midi", buffer: midi });
@@ -620,14 +693,24 @@ test.describe("Audio Studio browser runtime", () => {
     await expect(page.getByText(/Score View|Partitura/i).first()).toBeVisible();
     const scoreNote = page.getByRole("button", { name: /Nota C4, início 0, duração 1/ }).first();
     await expect(scoreNote).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota E4, início 1, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota G4, início 2, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota C5, início 3, duração 1/ })).toBeVisible();
     await scoreNote.click();
-    await page.getByRole("button", { name: "Adicionar acorde" }).click();
+    await page.locator("footer").getByRole("button", { name: "Adicionar acorde" }).click();
     await expect(page.getByRole("button", { name: /Nota E4, início 0, duração 1/ })).toBeVisible();
     await page.getByRole("spinbutton", { name: "Duração da nota na partitura" }).fill("2");
     await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 2/ }).first()).toBeVisible();
     await page.getByRole("button", { name: "Timeline" }).click();
     await page.getByRole("button", { name: "Piano Roll" }).click();
     await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 2/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota E4, início 1, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota G4, início 2, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota C5, início 3, duração 1/ })).toBeVisible();
+    await page.getByTitle("Desfazer (Ctrl+Z)").click();
+    await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 1/ }).first()).toBeVisible();
+    await page.getByTitle("Refazer (Ctrl+Y)").click();
+    await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 2/ }).first()).toBeVisible();
   });
 
   test("persists a composed MIDI project through a full browser reload", async ({ page }) => {
@@ -641,13 +724,16 @@ test.describe("Audio Studio browser runtime", () => {
     await page.getByTitle("Importar Arquivo de Áudio").click();
     await (await wavChooser).setFiles({ name: "persistent-source.wav", mimeType: "audio/wav", buffer: wav() });
     await expect(page.getByTestId("audio-clip-block").filter({ hasText: "persistent-source.wav" })).toBeVisible({ timeout: 10_000 });
-    const midi = Buffer.from([0x4d,0x54,0x68,0x64,0,0,0,6,0,0,0,1,1,0xe0,0x4d,0x54,0x72,0x6b,0,0,0,19,0,0xff,0x51,3,0x07,0xa1,0x20,0,0x90,60,100,0x83,0x60,0x80,60,0,0,0xff,0x2f,0]);
+    const midi = canonicalMelodyMidi();
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Import MIDI" }).click();
     await (await chooser).setFiles({ name: "persistent.mid", mimeType: "audio/midi", buffer: midi });
     await expect(page.getByRole("main").getByText("MIDI 1", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
     await page.getByRole("button", { name: "Piano Roll" }).click();
     await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota E4, início 1, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota G4, início 2, duração 1/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota C5, início 3, duração 1/ })).toBeVisible();
     await page.getByRole("button", { name: "Voice" }).click();
     await page.getByPlaceholder(/Digite a fala da Euterpe/i).fill("Take local que deve sobreviver ao reload.");
     await page.getByRole("button", { name: "Registrar rascunho" }).click();
@@ -674,23 +760,50 @@ test.describe("Audio Studio browser runtime", () => {
     await expect(page.getByRole("main").getByText("MIDI 1", { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Piano Roll" }).click();
     await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 1/ })).toBeVisible();
-    await page.getByRole("button", { name: /Nota C4, início 0, duração 1/ }).click();
+    await page.getByRole("button", { name: /Nota C5, início 3, duração 1/ }).click();
     await page.getByRole("spinbutton", { name: "Duração da nota" }).fill("2");
-    await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 2/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota C5, início 3, duração 2/ })).toBeVisible();
     await expect.poll(() => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("varynth_audio_state_")).some((key) => {
-      try { const state = JSON.parse(localStorage.getItem(key) || "null"); return state?.projectSchemaVersion === 4 && state?.music?.clips?.some((clip: { notes?: Array<{ durationBeats?: number }> }) => clip.notes?.some((note) => note.durationBeats === 2)); } catch { return false; }
+      try { const state = JSON.parse(localStorage.getItem(key) || "null"); return state?.projectSchemaVersion === 4 && state?.music?.clips?.some((clip: { notes?: Array<{ pitch?: string; octave?: number; durationBeats?: number }> }) => clip.notes?.some((note) => note.pitch === "C" && note.octave === 5 && note.durationBeats === 2)); } catch { return false; }
     })), { timeout: 10_000 }).toBeTruthy();
     await page.reload();
     await expect(page.getByRole("heading", { name: "E2E Audio Persistence Roundtrip" })).toBeAttached({ timeout: 10_000 });
     await page.getByRole("button", { name: "Piano Roll" }).click();
-    await expect(page.getByRole("button", { name: /Nota C4, início 0, duração 2/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nota C5, início 3, duração 2/ })).toBeVisible();
     await page.getByTitle("Reproduzir (Espaço)").click();
     await expect(page.getByTitle("Pausar (Espaço)")).toBeVisible();
     await page.getByTitle("Pausar (Espaço)").click();
     await page.getByTitle("Exportar projeto").click();
     await expect(page.getByRole("heading", { name: "Exportar Mixagem de Áudio" })).toBeVisible();
-    await page.getByRole("button", { name: "Renderizar & Baixar" }).click();
+    const [renderDownload] = await Promise.all([
+      page.waitForEvent("download", { timeout: 30_000 }),
+      page.getByRole("button", { name: "Renderizar & Baixar" }).click(),
+    ]);
     await expect(page.getByText("Mixagem Baixada!")).toBeVisible({ timeout: 30_000 });
+    const renderedWav = await readFile((await renderDownload.path())!);
+    expect(renderedWav.toString("ascii", 0, 4)).toBe("RIFF");
+    const channels = renderedWav.readUInt16LE(22);
+    const sampleRate = renderedWav.readUInt32LE(24);
+    expect(renderedWav.readUInt16LE(34)).toBe(16);
+    const pcm = (frame: number) => {
+      let mixed = 0;
+      for (let channel = 0; channel < channels; channel++) mixed += renderedWav.readInt16LE(44 + (frame * channels + channel) * 2);
+      return mixed / channels;
+    };
+    const melody = [{ start: 0, hz: 261.63 }, { start: 0.5, hz: 329.63 }, { start: 1, hz: 392 }, { start: 1.5, hz: 523.25 }];
+    for (const note of melody) {
+      const firstFrame = Math.round((note.start + 0.12) * sampleRate);
+      const frameCount = Math.round(0.25 * sampleRate);
+      let positiveCrossings = 0;
+      let previous = pcm(firstFrame);
+      for (let frame = firstFrame + 1; frame < firstFrame + frameCount; frame++) {
+        const current = pcm(frame);
+        if (previous <= 0 && current > 0) positiveCrossings++;
+        previous = current;
+      }
+      const measuredHz = positiveCrossings * sampleRate / frameCount;
+      expect(Math.abs(measuredHz - note.hz), `Pitch MIDI esperado ${note.hz} Hz, medido ${measuredHz.toFixed(1)} Hz`).toBeLessThan(8);
+    }
     await page.getByRole("button", { name: "Voice" }).click();
     await expect(page.getByText("Take local que deve sobreviver ao reload.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Assets Físicos e Anexos" }).click();

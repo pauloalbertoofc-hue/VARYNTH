@@ -26,7 +26,7 @@ export function WebPreviewFrame({
   // 1. Generate authenticated preview session credentials
   const session = useMemo(() => {
     return webPreviewBridge.createPreviewSession(websiteId);
-  }, [websiteId, key]);
+  }, [websiteId]);
 
   // 2. Build the self-contained sandboxed HTML document
   const previewHtml = useMemo(() => {
@@ -105,33 +105,36 @@ export function WebPreviewFrame({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#080811] overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-[var(--vly-world)]">
       {/* Viewport & Controls Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#101120] border-b border-[#1c1d32] text-xs">
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-4 py-2 text-xs">
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-[#18192e] rounded-lg p-0.5 border border-[#252744]">
+          <div role="group" aria-label="Viewport do preview" className="flex items-center rounded-lg border border-[var(--vly-border-default)] bg-[var(--vly-surface)] p-0.5">
             <button
+              aria-pressed={viewport === "desktop"}
               onClick={() => setViewport("desktop")}
               className={`p-1.5 rounded transition ${
-                viewport === "desktop" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
+                viewport === "desktop" ? "bg-[var(--vly-info)] text-[var(--vly-text-on-accent)]" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
               }`}
               title="Desktop (100%)"
             >
               <Monitor size={14} />
             </button>
             <button
+              aria-pressed={viewport === "tablet"}
               onClick={() => setViewport("tablet")}
               className={`p-1.5 rounded transition ${
-                viewport === "tablet" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
+                viewport === "tablet" ? "bg-[var(--vly-info)] text-[var(--vly-text-on-accent)]" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
               }`}
               title="Tablet (768px)"
             >
               <Tablet size={14} />
             </button>
             <button
+              aria-pressed={viewport === "mobile"}
               onClick={() => setViewport("mobile")}
               className={`p-1.5 rounded transition ${
-                viewport === "mobile" ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white"
+                viewport === "mobile" ? "bg-[var(--vly-info)] text-[var(--vly-text-on-accent)]" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
               }`}
               title="Mobile (375px)"
             >
@@ -139,19 +142,19 @@ export function WebPreviewFrame({
             </button>
           </div>
 
-          <span className="font-mono text-[11px] text-slate-500 bg-[#16172b] px-2 py-0.5 rounded">
+          <span className="rounded bg-[var(--vly-surface)] px-2 py-0.5 font-mono text-[11px] text-[var(--vly-text-muted)]">
             {viewport === "desktop" ? "100% (Fluido)" : viewport === "tablet" ? "768px (Tablet)" : "375px (Mobile)"}
           </span>
         </div>
 
         <div className="flex items-center gap-3">
           {isAbuseDetected ? (
-            <div className="flex items-center gap-1.5 text-red-400 font-semibold text-[11px] bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+            <div role="status" className="flex items-center gap-1.5 rounded border border-[var(--vly-border-danger)] bg-[var(--vly-danger)]/10 px-2 py-0.5 text-[11px] font-semibold text-[var(--vly-danger)]">
               <ShieldAlert size={13} />
               <span>Abuso de Protocolo (Bloqueado)</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            <div role="status" className="flex items-center gap-1.5 rounded border border-[var(--vly-border-success)] bg-[var(--vly-success)]/10 px-2 py-0.5 text-[11px] text-[var(--vly-success)]">
               <ShieldCheck size={13} />
               <span>Sandbox: Isolamento Estrito</span>
             </div>
@@ -159,7 +162,7 @@ export function WebPreviewFrame({
 
           <button
             onClick={handleReload}
-            className="p-1.5 hover:bg-[#1f2038] text-slate-400 hover:text-white rounded transition"
+            className="vly-interactive rounded p-1.5 text-[var(--vly-text-muted)] transition hover:bg-[var(--vly-surface-raised)] hover:text-[var(--vly-text-primary)]"
             title="Recarregar Preview"
           >
             <RotateCw size={13} />
@@ -168,17 +171,17 @@ export function WebPreviewFrame({
       </div>
 
       {/* Frame Container */}
-      <div className="flex-1 flex justify-center items-center bg-[#07070e] p-4 overflow-hidden">
+      <div className="flex flex-1 items-center justify-center overflow-hidden bg-[var(--vly-world)] p-4">
         {isAbuseDetected ? (
-          <div className="p-8 text-center bg-[#131424] border border-red-500/30 rounded-xl max-w-md">
-            <ShieldAlert size={36} className="text-red-400 mx-auto mb-3" />
-            <h3 className="font-bold text-white text-sm mb-1">Preview Suspenso por Violação</h3>
-            <p className="text-xs text-slate-400 mb-4">
+          <div className="vly-enter max-w-md rounded-xl border border-[var(--vly-border-danger)] bg-[var(--vly-surface-raised)] p-8 text-center">
+            <ShieldAlert size={36} className="mx-auto mb-3 text-[var(--vly-danger)]" />
+            <h3 className="mb-1 text-sm font-bold text-[var(--vly-text-primary)]">Preview Suspenso por Violação</h3>
+            <p className="mb-4 text-xs text-[var(--vly-text-muted)]">
               O preview tentou emitir uma taxa anormal de mensagens (flood protection). A sessão foi finalizada por segurança.
             </p>
             <button
               onClick={handleReload}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold"
+              className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-4 py-1.5 text-xs font-semibold text-[var(--vly-accent-contrast)]"
             >
               Reiniciar Sessão de Preview
             </button>
@@ -186,7 +189,7 @@ export function WebPreviewFrame({
         ) : (
           <div
             style={{ width: getViewportWidth() }}
-            className="h-full bg-white rounded-lg shadow-2xl overflow-hidden transition-all duration-300 border border-[#22243e]"
+            className="vly-enter h-full overflow-hidden rounded-lg border border-[var(--vly-border-strong)] bg-white shadow-[var(--vly-shadow-floating)]"
           >
             <iframe
               key={key}
@@ -202,4 +205,3 @@ export function WebPreviewFrame({
     </div>
   );
 }
-

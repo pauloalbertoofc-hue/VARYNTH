@@ -3,6 +3,7 @@
 import React from "react";
 import { VideoClip, VideoScene, SubtitleCue, VideoTrack } from "@/lib/studio/video/types";
 import { Sliders, Scissors, Move, RotateCw, Eye, Clock, Type, Film, Trash2 } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface VideoPropertiesPanelProps {
   selectedClip?: VideoClip;
@@ -27,47 +28,45 @@ export function VideoPropertiesPanel({
 }: VideoPropertiesPanelProps) {
   if (!selectedClip && !selectedScene && !selectedTrack) {
     return (
-      <div className="h-full flex items-center justify-center p-6 text-center text-slate-500 text-xs italic bg-[#0b0c16]">
-        Selecione um clip, cena ou faixa para visualizar e editar parâmetros de vídeo.
-      </div>
+      <StatePanel tone="empty" title="Nenhum elemento selecionado" description="Selecione um clip, cena ou faixa para visualizar e editar parâmetros de vídeo." className="h-full rounded-none border-0 bg-[var(--vly-surface)]" />
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#0b0c16] text-slate-300 text-xs overflow-y-auto p-4 space-y-5 select-none">
+    <div className="flex h-full select-none flex-col space-y-5 overflow-y-auto bg-[var(--vly-surface)] p-4 text-xs text-[var(--vly-text-primary)]">
       {/* Clip Properties */}
       {selectedClip && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#1c1d32]">
-            <div className="font-semibold text-white truncate max-w-[160px]">
+          <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-2">
+            <div className="max-w-[160px] truncate font-semibold text-[var(--vly-text-primary)]">
               {selectedClip.name || selectedClip.textContent || "Clip Selecionado"}
             </div>
-            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20">
+            <span className="rounded border border-[var(--vly-border-info)] bg-[var(--vly-info)]/10 px-2 py-0.5 font-mono text-[10px] uppercase text-[var(--vly-info)]">
               {selectedClip.type}
             </span>
           </div>
 
           {/* Temporal Boundaries */}
           <div className="space-y-2">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1.5">
-              <Clock size={13} className="text-blue-400" />
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-text-muted)]">
+              <Clock size={13} className="text-[var(--vly-info)]" />
               Posição Temporal (Timeline)
             </span>
             <div className="grid grid-cols-2 gap-2 font-mono">
-              <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-                <span className="text-slate-500 text-[10px]">Início:</span>
+              <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+                <span className="text-[10px] text-[var(--vly-text-muted)]">Início:</span>
                 <input
                   type="number"
                   value={Math.round(selectedClip.timelineStartMs)}
                   onChange={(e) =>
                     onUpdateClip(selectedClip.id, { timelineStartMs: Math.max(0, parseInt(e.target.value) || 0) })
                   }
-                  className="w-16 bg-transparent text-right text-white text-xs outline-none"
+                  className="vly-field w-16 bg-transparent text-right text-xs outline-none"
                 />
               </div>
-              <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-                <span className="text-slate-500 text-[10px]">Duração:</span>
-                <span className="text-right text-white text-xs">
+              <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+                <span className="text-[10px] text-[var(--vly-text-muted)]">Duração:</span>
+                <span className="text-right text-xs text-[var(--vly-text-primary)]">
                   {Math.round((selectedClip.sourceEndMs - selectedClip.sourceStartMs) / 1000)}s
                 </span>
               </div>
@@ -76,17 +75,17 @@ export function VideoPropertiesPanel({
 
           {/* Visual Transform */}
           {selectedClip.transform && (
-            <div className="space-y-3 pt-2 border-t border-[#1c1d32]">
-              <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1.5">
-                <Move size={13} className="text-purple-400" />
+            <div className="space-y-3 border-t border-[var(--vly-border-subtle)] pt-2">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-text-muted)]">
+                <Move size={13} className="text-[var(--vly-accent)]" />
                 Transformação Visual
               </span>
 
               {/* Opacity */}
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-[11px] text-[var(--vly-text-muted)]">
                   <span className="flex items-center gap-1"><Eye size={11} /> Opacidade</span>
-                  <span className="font-mono text-white">{Math.round((selectedClip.transform.opacity ?? 1) * 100)}%</span>
+                  <span className="font-mono text-[var(--vly-text-primary)]">{Math.round((selectedClip.transform.opacity ?? 1) * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -98,64 +97,64 @@ export function VideoPropertiesPanel({
                       transform: { ...selectedClip.transform, opacity: parseInt(e.target.value) / 100 },
                     })
                   }
-                  className="w-full accent-purple-500 h-1.5 bg-[#1a1c32] rounded cursor-pointer"
+                  className="h-1.5 w-full cursor-pointer rounded bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
                 />
               </div>
 
               {/* Scale & Rotation */}
               <div className="grid grid-cols-2 gap-2 font-mono">
-                <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-                  <span className="text-slate-500 text-[10px]">Escala:</span>
-                  <span className="text-white text-xs">{selectedClip.transform.scaleX || 1}x</span>
+                <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+                  <span className="text-[10px] text-[var(--vly-text-muted)]">Escala:</span>
+                  <span className="text-xs text-[var(--vly-text-primary)]">{selectedClip.transform.scaleX || 1}x</span>
                 </div>
-                <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-                  <span className="text-slate-500 text-[10px]">Rotação:</span>
-                  <span className="text-white text-xs">{selectedClip.transform.rotation || 0}°</span>
+                <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+                  <span className="text-[10px] text-[var(--vly-text-muted)]">Rotação:</span>
+                  <span className="text-xs text-[var(--vly-text-primary)]">{selectedClip.transform.rotation || 0}°</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* Non-destructive Trim bounds */}
-          <div className="space-y-2 pt-2 border-t border-[#1c1d32]">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1.5">
-              <Scissors size={13} className="text-amber-400" />
+          <div className="space-y-2 border-t border-[var(--vly-border-subtle)] pt-2">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase text-[var(--vly-text-muted)]">
+              <Scissors size={13} className="text-[var(--vly-warning)]" />
               Recorte Não-Destrutivo (Trim)
             </span>
 
             <div className="grid grid-cols-2 gap-2 font-mono">
-              <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-                <span className="text-slate-500 text-[10px]">Trim In:</span>
+              <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+                <span className="text-[10px] text-[var(--vly-text-muted)]">Trim In:</span>
                 <input
                   type="number"
                   value={Math.round(selectedClip.sourceStartMs)}
                   onChange={(e) =>
                     onUpdateClip(selectedClip.id, { sourceStartMs: Math.max(0, parseInt(e.target.value) || 0) })
                   }
-                  className="w-16 bg-transparent text-right text-white text-xs outline-none"
+                  className="vly-field w-16 bg-transparent text-right text-xs outline-none"
                 />
               </div>
 
-              <div className="bg-[#121324] border border-[#1f213a] rounded-lg p-2 flex items-center justify-between">
-                <span className="text-slate-500 text-[10px]">Trim Out:</span>
+              <div className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2">
+                <span className="text-[10px] text-[var(--vly-text-muted)]">Trim Out:</span>
                 <input
                   type="number"
                   value={Math.round(selectedClip.sourceEndMs)}
                   onChange={(e) =>
                     onUpdateClip(selectedClip.id, { sourceEndMs: Math.max(selectedClip.sourceStartMs + 100, parseInt(e.target.value) || 0) })
                   }
-                  className="w-16 bg-transparent text-right text-white text-xs outline-none"
+                  className="vly-field w-16 bg-transparent text-right text-xs outline-none"
                 />
               </div>
             </div>
           </div>
 
           {/* Clip Actions */}
-          <div className="pt-3 border-t border-[#1c1d32] flex items-center gap-2">
+          <div className="flex items-center gap-2 border-t border-[var(--vly-border-subtle)] pt-3">
             {onSplitClipAtPlayhead && (
               <button
                 onClick={() => onSplitClipAtPlayhead(selectedClip.id)}
-                className="flex-1 py-1.5 bg-[#141528] hover:bg-[#1f213a] text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 border border-[#232544] transition"
+                className="vly-interactive flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] py-1.5 text-xs font-semibold text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)]"
               >
                 <Scissors size={12} />
                 Dividir na Agulha
@@ -165,7 +164,7 @@ export function VideoPropertiesPanel({
             {onDeleteClip && (
               <button
                 onClick={() => onDeleteClip(selectedClip.id)}
-                className="p-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 rounded-lg transition"
+                className="vly-interactive rounded-lg border border-[var(--vly-border-danger)] bg-[var(--vly-danger)]/10 p-1.5 text-[var(--vly-danger)] transition hover:bg-[var(--vly-danger)]/20"
                 title="Remover Clip"
               >
                 <Trash2 size={13} />
@@ -178,31 +177,31 @@ export function VideoPropertiesPanel({
       {/* Scene Properties */}
       {selectedScene && !selectedClip && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#1c1d32]">
-            <div className="font-semibold text-white truncate max-w-[160px]">{selectedScene.name}</div>
-            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">
+          <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-2">
+            <div className="max-w-[160px] truncate font-semibold text-[var(--vly-text-primary)]">{selectedScene.name}</div>
+            <span className="rounded border border-[var(--vly-border-warning)] bg-[var(--vly-warning)]/10 px-2 py-0.5 font-mono text-[10px] uppercase text-[var(--vly-warning)]">
               CENA
             </span>
           </div>
 
           <div className="space-y-3">
             <div>
-              <span className="text-slate-400 text-[10px] block mb-1">Título da Cena</span>
+              <span className="mb-1 block text-[10px] text-[var(--vly-text-muted)]">Título da Cena</span>
               <input
                 type="text"
                 value={selectedScene.name}
                 onChange={(e) => onUpdateScene && onUpdateScene(selectedScene.id, { name: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-[#121324] border border-[#1f213a] rounded-lg text-white text-xs outline-none focus:border-amber-500"
+                className="vly-field w-full px-2.5 py-1.5 text-xs outline-none focus:border-[var(--vly-border-warning)]"
               />
             </div>
 
             <div>
-              <span className="text-slate-400 text-[10px] block mb-1">Descrição / Contexto Narrativo</span>
+              <span className="mb-1 block text-[10px] text-[var(--vly-text-muted)]">Descrição / Contexto Narrativo</span>
               <textarea
                 rows={3}
                 value={selectedScene.description || ""}
                 onChange={(e) => onUpdateScene && onUpdateScene(selectedScene.id, { description: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-[#121324] border border-[#1f213a] rounded-lg text-white text-xs outline-none focus:border-amber-500 resize-none"
+                className="vly-field w-full resize-none px-2.5 py-1.5 text-xs outline-none focus:border-[var(--vly-border-warning)]"
               />
             </div>
           </div>
@@ -211,4 +210,3 @@ export function VideoPropertiesPanel({
     </div>
   );
 }
-

@@ -40,23 +40,23 @@ export function ImageTemplatesModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#121324] border border-[#222442] rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/75 p-4 backdrop-blur-sm">
+      <div role="dialog" aria-modal="true" aria-labelledby="image-template-title" className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-floating)] shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#1e2038] flex items-center justify-between bg-[#15162a]">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] px-6 py-4">
           <div className="flex items-center gap-2">
-            <ImageIcon size={18} className="text-blue-400" />
-            <h3 className="font-bold text-base text-white">Criar Nova Imagem no Image Studio</h3>
+            <ImageIcon size={18} className="text-[var(--vly-accent)]" />
+            <h3 id="image-template-title" className="text-base font-bold text-[var(--vly-text-primary)]">Criar Nova Imagem no Image Studio</h3>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded">
+          <button onClick={onClose} aria-label="Fechar criação de imagem" className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]">
             <X size={16} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+        <div className="flex-1 space-y-6 overflow-y-auto p-6 text-xs text-[var(--vly-text-secondary)]">
           <div>
-            <label className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider block mb-2">
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)]">
               Nome da Composição
             </label>
             <input
@@ -64,18 +64,18 @@ export function ImageTemplatesModal({
               placeholder="Ex: Capa do Tratado de Arquitetura"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#0b0c16] border border-[#232544] rounded-xl text-sm text-white placeholder:text-slate-600 outline-none focus:border-blue-500 transition"
+              className="vly-field w-full px-4 py-2.5 text-sm"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)]">
                 Selecione o Modelo ou Formato
               </label>
               <button
                 onClick={() => setIsCustom(!isCustom)}
-                className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1"
+                className="vly-interactive flex items-center gap-1 text-xs font-semibold text-[var(--vly-accent)] hover:opacity-80"
               >
                 <Sliders size={13} />
                 {isCustom ? "Usar Modelos Prontos" : "Dimensão Personalizada"}
@@ -83,36 +83,36 @@ export function ImageTemplatesModal({
             </div>
 
             {isCustom ? (
-              <div className="p-5 bg-[#0c0d18] border border-[#1f213a] rounded-xl space-y-4">
+              <div className="space-y-4 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-slate-400 block mb-1">Largura (px):</span>
+                    <span className="mb-1 block text-[var(--vly-text-muted)]">Largura (px):</span>
                     <input
                       type="number"
                       value={customWidth}
                       onChange={(e) => setCustomWidth(parseInt(e.target.value) || 100)}
-                      className="w-full px-3 py-2 bg-[#121324] border border-[#232544] rounded-lg text-white font-mono"
+                      className="vly-field w-full px-3 py-2 font-mono"
                     />
                   </div>
                   <div>
-                    <span className="text-slate-400 block mb-1">Altura (px):</span>
+                    <span className="mb-1 block text-[var(--vly-text-muted)]">Altura (px):</span>
                     <input
                       type="number"
                       value={customHeight}
                       onChange={(e) => setCustomHeight(parseInt(e.target.value) || 100)}
-                      className="w-full px-3 py-2 bg-[#121324] border border-[#232544] rounded-lg text-white font-mono"
+                      className="vly-field w-full px-3 py-2 font-mono"
                     />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-slate-400">Cor de Fundo:</span>
+                  <span className="text-[var(--vly-text-muted)]">Cor de Fundo:</span>
                   <input
                     type="color"
                     value={customBg}
                     onChange={(e) => setCustomBg(e.target.value)}
                     className="w-8 h-8 rounded border-none bg-transparent cursor-pointer"
                   />
-                  <span className="font-mono text-slate-400">{customBg}</span>
+                  <span className="font-mono text-[var(--vly-text-muted)]">{customBg}</span>
                 </div>
               </div>
             ) : (
@@ -125,18 +125,18 @@ export function ImageTemplatesModal({
                       onClick={() => setSelectedTemplate(tmpl)}
                       className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 ${
                         isSelected
-                          ? "bg-blue-600/15 border-blue-500 text-white shadow-lg shadow-blue-500/10"
-                          : "bg-[#0d0e1a] border-[#1e2038] text-slate-300 hover:border-slate-600"
+                          ? "bg-[var(--vly-accent)]/15 border-[var(--vly-border-accent)] text-[var(--vly-text-primary)] shadow-lg"
+                          : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-accent)]"
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-sm text-white">{tmpl.name}</span>
-                          <span className="text-[10px] bg-[#1a1c32] px-2 py-0.5 rounded text-blue-300 font-mono">
+                          <span className="text-sm font-bold text-[var(--vly-text-primary)]">{tmpl.name}</span>
+                          <span className="rounded bg-[var(--vly-surface)] px-2 py-0.5 font-mono text-[10px] text-[var(--vly-accent)]">
                             {tmpl.canvas.width} × {tmpl.canvas.height}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-2 line-clamp-2">{tmpl.description}</p>
+                        <p className="mt-2 line-clamp-2 text-xs text-[var(--vly-text-muted)]">{tmpl.description}</p>
                       </div>
                     </div>
                   );
@@ -147,16 +147,16 @@ export function ImageTemplatesModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#1e2038] flex items-center justify-end gap-2 bg-[#15162a]">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] px-6 py-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-[#1a1b2e] hover:bg-[#252740] text-slate-300 rounded-lg text-xs font-medium transition"
+            className="vly-interactive rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-4 py-2 text-xs font-medium text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)]"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/20 transition flex items-center gap-1.5"
+            className="vly-interactive flex items-center gap-1.5 rounded-lg bg-[var(--vly-accent)] px-5 py-2 text-xs font-semibold text-[var(--vly-text-on-accent)] shadow-lg transition hover:opacity-90"
           >
             <Plus size={14} />
             Criar Imagem

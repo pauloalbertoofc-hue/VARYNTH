@@ -36,6 +36,7 @@ import {
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { modules } from "@/lib/modules";
 import { cn } from "@/lib/utils";
+import { StatePanel } from "@/components/ui/StatePanel";
 import { STUDIO_DEFINITIONS, getStudioByArtifactType } from "@/lib/studio/studio-registry";
 import { artifactStore } from "@/lib/artifacts/artifact-store";
 
@@ -466,17 +467,22 @@ export function CommandPalette() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div role="presentation" className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-[var(--vly-overlay)] backdrop-blur-md animate-fade-in">
       <div
-        className="w-full max-w-2xl bg-[#0f0f1a] border border-[#2d2d4a] rounded-xl shadow-2xl overflow-hidden clip-corner glow-accent"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Paleta de comandos do VARYNTH"
+        className="w-full max-w-2xl bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] rounded-[var(--vly-radius-lg)] shadow-[0_24px_70px_rgb(0_0_0_/_38%)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#1e1e30] bg-[#0a0a0f]/70">
-          <Search size={18} className="text-violet-400 flex-shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--vly-border-default)] bg-[var(--vly-world)]/70">
+          <Search size={18} aria-hidden="true" className="text-[var(--vly-accent)] flex-shrink-0" />
           <input
+            id="command-palette-title"
             ref={inputRef}
             type="text"
+            aria-label="Buscar no VARYNTH"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -484,25 +490,28 @@ export function CommandPalette() {
             }}
             onKeyDown={handleListKeyDown}
             placeholder="Buscar Studios, Artefatos, Projetos, Código, Teses, Tarefas... (Ctrl+K)"
-            className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+            className="w-full bg-transparent text-sm text-[var(--vly-text-primary)] placeholder-[var(--vly-text-disabled)] focus:outline-none"
           />
           {query ? (
-            <button onClick={() => setQuery("")} className="text-slate-500 hover:text-slate-300">
+            <button type="button" aria-label="Limpar busca" onClick={() => setQuery("")} className="vly-interactive text-[var(--vly-text-disabled)] hover:text-[var(--vly-text-secondary)]">
               <X size={16} />
             </button>
           ) : (
-            <kbd className="text-[10px] bg-[#14141f] border border-[#1e1e30] text-slate-400 px-1.5 py-0.5 rounded font-mono">
+            <kbd className="text-[10px] bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] text-[var(--vly-text-muted)] px-1.5 py-0.5 rounded font-mono">
               ESC
             </kbd>
           )}
         </div>
 
         {/* Results List */}
-        <div className="max-h-96 overflow-y-auto p-2 space-y-1">
+        <div role="listbox" aria-label="Resultados da busca" className="max-h-96 overflow-y-auto p-2 space-y-1">
           {filteredCommands.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 text-xs">
-              Nenhum comando, estúdio ou artefato encontrado para &ldquo;{query}&rdquo;.
-            </div>
+            <StatePanel
+              tone="empty"
+              className="border-0 bg-transparent"
+              title="Nenhum resultado encontrado"
+              description={`Nenhum comando, estúdio ou artefato corresponde a “${query}”.`}
+            />
           ) : (
             filteredCommands.map((cmd, idx) => {
               const Icon = typeof cmd.icon === "string" ? Sparkles : cmd.icon;
@@ -510,16 +519,20 @@ export function CommandPalette() {
               return (
                 <div
                   key={cmd.id}
+                  id={`command-option-${cmd.id}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={-1}
                   onClick={() => {
                     setIsOpen(false);
                     cmd.action();
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(
-                    "flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all",
+                    "vly-interactive flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all",
                     isSelected
-                      ? "bg-violet-600/25 border border-violet-500/40 text-slate-100"
-                      : "hover:bg-[#151524] text-slate-300 border border-transparent"
+                      ? "bg-[var(--vly-surface-active)] border border-[var(--vly-border-accent)] text-[var(--vly-text-primary)]"
+                      : "hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] border border-transparent"
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -527,21 +540,21 @@ export function CommandPalette() {
                       className={cn(
                         "w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0",
                         cmd.category === "Studios Criativos"
-                          ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                          ? "bg-[color-mix(in_srgb,var(--vly-accent)_16%,var(--vly-surface))] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)]"
                           : cmd.category === "Ações Criativas"
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          ? "bg-[color-mix(in_srgb,var(--vly-success)_16%,var(--vly-surface))] text-[var(--vly-success)] border border-[var(--vly-border-success)]"
                           : cmd.category === "Artefatos Criativos"
-                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
+                          ? "bg-[color-mix(in_srgb,var(--vly-info)_16%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)]"
                           : isSelected
-                          ? "bg-violet-600/30 text-violet-300"
-                          : "bg-[#161626] text-slate-400"
+                          ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)]"
+                          : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-muted)]"
                       )}
                     >
                       <Icon size={14} />
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-medium truncate text-slate-100">{cmd.title}</span>
-                      <span className="text-[10px] text-slate-400 truncate">{cmd.description}</span>
+                      <span className="text-xs font-medium truncate text-[var(--vly-text-primary)]">{cmd.title}</span>
+                      <span className="text-[10px] text-[var(--vly-text-secondary)] truncate">{cmd.description}</span>
                     </div>
                   </div>
 
@@ -550,17 +563,17 @@ export function CommandPalette() {
                       className={cn(
                         "text-[9px] px-1.5 py-0.5 rounded font-medium",
                         cmd.category === "Studios Criativos"
-                          ? "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                          ? "bg-[color-mix(in_srgb,var(--vly-accent)_10%,var(--vly-surface))] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]"
                           : cmd.category === "Ações Criativas"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          ? "bg-[color-mix(in_srgb,var(--vly-success)_10%,var(--vly-surface))] text-[var(--vly-success)] border border-[var(--vly-border-success)]"
                           : cmd.category === "Artefatos Criativos"
-                          ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                          : "bg-[#18182a] text-slate-500"
+                          ? "bg-[color-mix(in_srgb,var(--vly-info)_10%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)]"
+                          : "bg-[var(--vly-surface-active)] text-[var(--vly-text-muted)]"
                       )}
                     >
                       {cmd.category}
                     </span>
-                    {isSelected && <ArrowRight size={12} className="text-violet-400" />}
+                    {isSelected && <ArrowRight size={12} className="text-[var(--vly-accent)]" />}
                   </div>
                 </div>
               );
@@ -569,9 +582,9 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[#1e1e30] bg-[#0a0a0f]/50 text-[10px] text-slate-500">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--vly-border-default)] bg-[var(--vly-world)]/50 text-[10px] text-[var(--vly-text-muted)]">
           <span>
-            Pressione <kbd className="bg-[#14141f] border border-[#222236] px-1 rounded">↑</kbd> <kbd className="bg-[#14141f] border border-[#222236] px-1 rounded">↓</kbd> para navegar, <kbd className="bg-[#14141f] border border-[#222236] px-1 rounded">↵</kbd> para selecionar
+            Pressione <kbd className="bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] px-1 rounded">↑</kbd> <kbd className="bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] px-1 rounded">↓</kbd> para navegar, <kbd className="bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] px-1 rounded">↵</kbd> para selecionar
           </span>
           <span>{filteredCommands.length} resultados</span>
         </div>

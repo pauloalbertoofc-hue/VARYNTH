@@ -38,11 +38,13 @@ export function ImageToolbar({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-[#0e0f1c] border-b border-[#1c1d32] text-xs text-slate-300">
+    <div role="toolbar" aria-label="Ferramentas do Image Studio" className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] px-4 py-2 text-xs text-[var(--vly-text-secondary)]">
       {/* Creation Tools */}
       <div className="flex items-center gap-1.5">
         <button
-          className="p-1.5 bg-blue-600/20 text-blue-300 border border-blue-500/30 rounded-lg hover:bg-blue-600/30 transition"
+          aria-label="Ferramenta de seleção e movimento"
+          aria-pressed="true"
+          className="vly-interactive rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/20 p-1.5 text-[var(--vly-accent)] transition hover:bg-[var(--vly-accent)]/30"
           title="Ferramenta de Seleção / Mover"
         >
           <MousePointer size={14} />
@@ -50,37 +52,37 @@ export function ImageToolbar({
 
         <button
           onClick={onAddText}
-          className="px-2.5 py-1.5 bg-[#141528] hover:bg-[#1f213a] text-slate-300 hover:text-white rounded-lg flex items-center gap-1.5 transition border border-[#232544]"
+          className="vly-interactive flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-2.5 py-1.5 text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)]"
           title="Adicionar Camada de Texto"
         >
-          <Type size={13} className="text-amber-400" />
+          <Type size={13} className="text-[var(--vly-warning)]" />
           Texto
         </button>
 
         <button
           onClick={onAddRectangle}
-          className="px-2.5 py-1.5 bg-[#141528] hover:bg-[#1f213a] text-slate-300 hover:text-white rounded-lg flex items-center gap-1.5 transition border border-[#232544]"
+          className="vly-interactive flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-2.5 py-1.5 text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)]"
           title="Adicionar Retângulo"
         >
-          <Square size={13} className="text-purple-400" />
+          <Square size={13} className="text-[var(--vly-info)]" />
           Retângulo
         </button>
 
         <button
           onClick={onAddEllipse}
-          className="px-2.5 py-1.5 bg-[#141528] hover:bg-[#1f213a] text-slate-300 hover:text-white rounded-lg flex items-center gap-1.5 transition border border-[#232544]"
+          className="vly-interactive flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-2.5 py-1.5 text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)]"
           title="Adicionar Elipse"
         >
-          <Circle size={13} className="text-purple-400" />
+          <Circle size={13} className="text-[var(--vly-info)]" />
           Elipse
         </button>
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="px-2.5 py-1.5 bg-[#141528] hover:bg-[#1f213a] text-slate-300 hover:text-white rounded-lg flex items-center gap-1.5 transition border border-[#232544]"
+          className="vly-interactive flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-2.5 py-1.5 text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)]"
           title="Importar Imagem como Camada"
         >
-          <ImagePlus size={13} className="text-blue-400" />
+          <ImagePlus size={13} className="text-[var(--vly-accent)]" />
           Importar Imagem
         </button>
         <input
@@ -100,11 +102,12 @@ export function ImageToolbar({
 
       {/* Undo / Redo & Athena Assistant */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center bg-[#141528] p-0.5 rounded-lg border border-[#232544]">
+        <div className="flex items-center rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-0.5">
           <button
             onClick={onUndo}
             disabled={!canUndo}
-            className="p-1.5 text-slate-400 hover:text-white disabled:opacity-25 transition"
+            aria-label="Desfazer"
+            className="vly-interactive p-1.5 text-[var(--vly-text-muted)] transition hover:text-[var(--vly-text-primary)] disabled:opacity-25"
             title="Desfazer (Ctrl+Z)"
           >
             <Undo2 size={13} />
@@ -112,7 +115,8 @@ export function ImageToolbar({
           <button
             onClick={onRedo}
             disabled={!canRedo}
-            className="p-1.5 text-slate-400 hover:text-white disabled:opacity-25 transition"
+            aria-label="Refazer"
+            className="vly-interactive p-1.5 text-[var(--vly-text-muted)] transition hover:text-[var(--vly-text-primary)] disabled:opacity-25"
             title="Refazer (Ctrl+Y)"
           >
             <Redo2 size={13} />
@@ -121,7 +125,7 @@ export function ImageToolbar({
 
         <button
           onClick={onAskAthena}
-          className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs flex items-center gap-1.5 transition"
+          className="vly-interactive flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-warning)] bg-[var(--vly-warning)]/10 px-2.5 py-1.5 text-xs text-[var(--vly-warning)] transition hover:bg-[var(--vly-warning)]/20"
           title="Pedir assistência visual à Athena"
         >
           <Sparkles size={12} />

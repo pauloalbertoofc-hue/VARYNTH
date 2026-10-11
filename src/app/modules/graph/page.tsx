@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DependencyInspectorModal } from "@/components/studio/common/DependencyInspectorModal";
 import { Artifact } from "@/lib/artifacts/types";
+import { Surface } from "@/components/ui/Surface";
 
 const TYPE_CONFIG: Record<GraphNodeType, { label: string; color: string; bg: string }> = {
   project: { label: "Projetos", color: "#38bdf8", bg: "bg-sky-500/20 text-sky-300 border-sky-500/40" },
@@ -519,27 +520,27 @@ export default function GraphPage() {
 
   return (
     <PageLayout title="Graph Epistêmico" subtitle="Visualizador de rede de conexões do VARYNTH OS">
-      <div className="space-y-4 max-w-7xl mx-auto animate-fade-in">
+      <div className="vly-enter space-y-4 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 glow-accent">
+              <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--vly-info)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-info)_30%,transparent)] flex items-center justify-center text-[var(--vly-info)] glow-accent">
                 <Share2 size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-[var(--vly-text-primary)] tracking-tight flex items-center gap-2">
                 Rede Epistêmica do VARYNTH
-                <Sparkles size={16} className="text-cyan-400" />
+                <Sparkles size={16} className="text-[var(--vly-info)]" />
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--vly-text-secondary)] mt-1">
               Mapa visual de todas as relações entre Projetos, Teses da Argument Arena, Obras do Vault, Evidências e Editais.
             </p>
           </div>
 
           <button
             onClick={handleResetLayout}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-200 bg-[#0f0f1a] hover:bg-[#14141f] border border-[#1e1e30] transition-all"
+            className="vly-interactive flex items-center gap-1.5 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] px-3.5 py-1.5 text-xs font-bold text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             title="Repor física dos nós"
           >
             <RotateCcw size={13} />
@@ -548,15 +549,16 @@ export default function GraphPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 bg-[#0f0f1a] rounded-xl border border-[#1e1e30]">
+        <Surface tone="panel" className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vly-text-muted)]" />
             <input
               type="text"
               placeholder="Buscar nós na rede..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/60"
+              aria-label="Buscar nós na rede"
+              className="vly-field w-full pl-9 pr-3 py-1.5 rounded-lg text-xs"
             />
           </div>
 
@@ -564,8 +566,8 @@ export default function GraphPage() {
             <button
               onClick={() => setFilterType("todos")}
               className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap",
-                filterType === "todos" ? "bg-cyan-600/30 text-cyan-300 border border-cyan-500/40" : "text-slate-400 hover:text-white"
+                "vly-interactive px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap",
+                filterType === "todos" ? "bg-[color-mix(in_srgb,var(--vly-info)_20%,transparent)] text-[var(--vly-info)] border border-[color-mix(in_srgb,var(--vly-info)_40%,transparent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               )}
             >
               Todos ({initialNodes.length})
@@ -575,18 +577,18 @@ export default function GraphPage() {
                 key={key}
                 onClick={() => setFilterType(key)}
                 className={cn(
-                  "px-2 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap border",
-                  filterType === key ? val.bg : "bg-transparent border-transparent text-slate-400 hover:text-white"
+                  "vly-interactive px-2 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap border",
+                  filterType === key ? val.bg : "bg-transparent border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 )}
               >
                 {val.label}
               </button>
             ))}
           </div>
-        </div>
+        </Surface>
 
         {/* Canvas Visualizer Area */}
-        <div className="relative h-[600px] rounded-2xl bg-[#08080d] border border-[#1e1e30] overflow-hidden clip-corner shadow-2xl">
+        <div className="relative h-[600px] rounded-2xl bg-[var(--vly-surface-world)] border border-[var(--vly-border-subtle)] overflow-hidden clip-corner shadow-2xl">
           <canvas
             ref={canvasRef}
             width={1200}
@@ -601,7 +603,7 @@ export default function GraphPage() {
 
           {/* Node Inspector Drawer */}
           {selectedNode && (
-            <div className="absolute top-4 right-4 z-20 w-80 p-5 rounded-xl bg-[#0f0f1a]/95 backdrop-blur-md border border-[#2d2d4a] shadow-2xl space-y-3 clip-corner animate-fade-in">
+            <Surface tone="floating" className="vly-motion-enter absolute top-4 right-4 z-20 w-80 max-w-[calc(100%-2rem)] p-5 space-y-3 clip-corner">
               <div className="flex items-start justify-between gap-2">
                 <span
                   className="text-[10px] px-2 py-0.5 rounded border font-bold uppercase tracking-wider"
@@ -612,21 +614,21 @@ export default function GraphPage() {
 
                 <button
                   onClick={() => setSelectedNode(null)}
-                  className="text-slate-500 hover:text-slate-300"
+                  className="vly-interactive text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
                 >
                   <X size={14} />
                 </button>
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-white">{selectedNode.label}</h3>
+                <h3 className="text-sm font-bold text-[var(--vly-text-primary)]">{selectedNode.label}</h3>
                 {selectedNode.subtitle && (
-                  <p className="text-[11px] text-slate-400 mt-0.5">{selectedNode.subtitle}</p>
+                  <p className="text-[11px] text-[var(--vly-text-secondary)] mt-0.5">{selectedNode.subtitle}</p>
                 )}
               </div>
 
               {selectedNode.description && (
-                <p className="text-xs text-slate-300 bg-[#0a0a0f] p-3 rounded-lg border border-[#1e1e30] leading-relaxed">
+                <p className="text-xs text-[var(--vly-text-secondary)] bg-[var(--vly-surface)] p-3 rounded-lg border border-[var(--vly-border-subtle)] leading-relaxed">
                   {selectedNode.description}
                 </p>
               )}
@@ -634,7 +636,7 @@ export default function GraphPage() {
               {selectedNode.tags && selectedNode.tags.length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap">
                   {selectedNode.tags.map((t) => (
-                    <span key={t} className="text-[9px] px-1.5 py-0.2 rounded bg-[#14141f] text-slate-400">
+                    <span key={t} className="text-[9px] px-1.5 py-0.2 rounded bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)]">
                       #{t}
                     </span>
                   ))}
@@ -647,7 +649,7 @@ export default function GraphPage() {
                     const art = artifactStore.getById(selectedNode.entityId);
                     if (art) setInspectingArtifact(art);
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-indigo-300 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 transition-all"
+                  className="vly-interactive w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-[var(--vly-accent)] bg-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] border border-[color-mix(in_srgb,var(--vly-accent)_40%,transparent)]"
                 >
                   <Sparkles size={13} />
                   <span>Inspecionar Dependências & Grafo</span>
@@ -657,13 +659,13 @@ export default function GraphPage() {
               {selectedNode.link && (
                 <Link
                   href={selectedNode.link}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 transition-all glow-accent"
+                  className="vly-interactive w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-[var(--vly-accent-contrast)] bg-[var(--vly-info)] hover:brightness-110 glow-accent"
                 >
                   <span>Abrir no VARYNTH</span>
                   <ArrowRight size={13} />
                 </Link>
               )}
-            </div>
+            </Surface>
           )}
 
           {inspectingArtifact && (
@@ -678,7 +680,7 @@ export default function GraphPage() {
           )}
 
           {/* Quick Helper Legend */}
-          <div className="absolute bottom-3 left-3 z-10 px-3 py-1.5 rounded-lg bg-[#0a0a0f]/80 border border-[#1e1e30] text-[10px] text-slate-500 flex items-center gap-3">
+          <div className="absolute bottom-3 left-3 z-10 px-3 py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--vly-surface)_80%,transparent)] border border-[var(--vly-border-subtle)] text-[10px] text-[var(--vly-text-muted)] flex items-center gap-3">
             <span>🖱️ Arraste nós para reorganizar</span>
             <span>🎯 Clique no nó para inspecionar</span>
           </div>
@@ -687,4 +689,3 @@ export default function GraphPage() {
     </PageLayout>
   );
 }
-

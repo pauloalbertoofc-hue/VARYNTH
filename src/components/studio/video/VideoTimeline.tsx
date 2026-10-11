@@ -47,23 +47,23 @@ export function VideoTimeline({
   const getTrackIcon = (type: string) => {
     switch (type) {
       case "VIDEO":
-        return <Video size={12} className="text-blue-400" />;
+        return <Video size={12} className="text-[var(--vly-accent)]" />;
       case "IMAGE":
-        return <ImageIcon size={12} className="text-purple-400" />;
+        return <ImageIcon size={12} className="text-[var(--vly-info)]" />;
       case "TEXT":
-        return <Type size={12} className="text-pink-400" />;
+        return <Type size={12} className="text-[var(--vly-accent)]" />;
       case "SUBTITLE":
-        return <Captions size={12} className="text-yellow-400" />;
+        return <Captions size={12} className="text-[var(--vly-warning)]" />;
       default:
-        return <Volume2 size={12} className="text-emerald-400" />;
+        return <Volume2 size={12} className="text-[var(--vly-success)]" />;
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#080912] overflow-hidden select-none">
+    <div role="region" aria-label="Timeline do Video Studio" className="flex h-full flex-1 select-none flex-col overflow-hidden bg-[var(--vly-world)]">
       {/* Top Ruler & Scenes/Markers */}
-      <div className="flex border-b border-[#1e2038] bg-[#0c0d1a] h-7 shrink-0">
-        <div className="w-56 shrink-0 border-r border-[#1e2038] px-3 flex items-center text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
+      <div className="flex h-7 shrink-0 border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)]">
+        <div className="flex w-56 shrink-0 items-center border-r border-[var(--vly-border-subtle)] px-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)]">
           Faixas ({documentState.tracks.length})
         </div>
 
@@ -77,7 +77,7 @@ export function VideoTimeline({
               <div
                 key={sec}
                 style={{ left: `${sec * zoom}px` }}
-                className="absolute top-0 bottom-0 border-l border-[#222442] flex items-center pl-1 font-mono text-[9px] text-slate-500 pointer-events-none"
+                className="pointer-events-none absolute bottom-0 top-0 flex items-center border-l border-[var(--vly-border-subtle)] pl-1 font-mono text-[9px] text-[var(--vly-text-muted)]"
               >
                 {Math.floor(sec / 60)}:{(sec % 60).toString().padStart(2, "0")}
               </div>
@@ -88,7 +88,7 @@ export function VideoTimeline({
               <div
                 key={marker.id}
                 style={{ left: `${(marker.timeMs / 1000) * zoom}px` }}
-                className="absolute top-0 bottom-0 z-30 flex items-center gap-0.5 text-[9px] font-semibold text-amber-400 bg-amber-500/20 px-1 border-l-2 border-amber-500 rounded-r"
+                className="absolute bottom-0 top-0 z-30 flex items-center gap-0.5 rounded-r border-l-2 border-[var(--vly-border-warning)] bg-[var(--vly-warning)]/20 px-1 text-[9px] font-semibold text-[var(--vly-warning)]"
               >
                 <Flag size={9} />
                 {marker.label}
@@ -106,14 +106,24 @@ export function VideoTimeline({
             <div
               key={track.id}
               onClick={() => onSelectTrack(track.id)}
-              style={{ borderLeftColor: track.color || "#3b82f6" }}
-              className={`h-16 border-l-4 border-b border-r border-[#1e2038] px-3 py-2 flex items-center justify-between cursor-pointer transition ${
-                track.id === selectedTrackId ? "bg-[#141628]" : "bg-[#0c0d18] hover:bg-[#101120]"
+              role="button"
+              tabIndex={0}
+              aria-current={track.id === selectedTrackId ? "true" : undefined}
+              aria-label={`Selecionar faixa ${track.name}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectTrack(track.id);
+                }
+              }}
+              style={{ borderLeftColor: track.color || "var(--vly-accent)" }}
+              className={`flex h-16 cursor-pointer items-center justify-between border-b border-r border-[var(--vly-border-subtle)] border-l-4 px-3 py-2 transition ${
+                track.id === selectedTrackId ? "bg-[var(--vly-surface-raised)]" : "bg-[var(--vly-surface)] hover:bg-[var(--vly-surface-raised)]"
               }`}
             >
               <div className="flex items-center gap-2 overflow-hidden">
                 {getTrackIcon(track.type)}
-                <span className="font-semibold text-xs text-white truncate max-w-[110px]">
+                <span className="max-w-[110px] truncate text-xs font-semibold text-[var(--vly-text-primary)]">
                   {track.name}
                 </span>
               </div>
@@ -123,9 +133,10 @@ export function VideoTimeline({
                   e.stopPropagation();
                   onToggleTrackVisibility(track.id);
                 }}
-                className="text-slate-400 hover:text-white p-1 rounded"
+                aria-label={`${track.visible ? "Ocultar" : "Mostrar"} faixa ${track.name}`}
+                className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
               >
-                {track.visible ? <Eye size={13} /> : <EyeOff size={13} className="text-red-400" />}
+                {track.visible ? <Eye size={13} /> : <EyeOff size={13} className="text-[var(--vly-danger)]" />}
               </button>
             </div>
           ))}
@@ -134,14 +145,14 @@ export function VideoTimeline({
         {/* Right Interactive Clip Lanes */}
         <div
           onClick={handleRulerClick}
-          className="flex-1 overflow-x-auto overflow-y-hidden relative bg-[#090a16]"
+          className="relative flex-1 overflow-x-auto overflow-y-hidden bg-[var(--vly-world)]"
         >
           <div style={{ width: `${totalTimelineWidthPx}px` }} className="relative h-full">
             {ticks.map((sec) => (
               <div
                 key={sec}
                 style={{ left: `${sec * zoom}px` }}
-                className="absolute top-0 bottom-0 border-l border-[#141628] pointer-events-none"
+                className="pointer-events-none absolute bottom-0 top-0 border-l border-[var(--vly-border-subtle)]"
               />
             ))}
 
@@ -150,8 +161,10 @@ export function VideoTimeline({
               <div
                 key={track.id}
                 onClick={() => onSelectTrack(track.id)}
-                className={`h-16 border-b border-[#181a2e] relative transition-colors ${
-                  track.id === selectedTrackId ? "bg-blue-950/10" : ""
+                role="group"
+                aria-label={`Clips da faixa ${track.name}`}
+                className={`relative h-16 border-b border-[var(--vly-border-subtle)] transition-colors ${
+                  track.id === selectedTrackId ? "bg-[var(--vly-accent)]/10" : ""
                 }`}
               >
                 {/* Visual / Audio Clips */}
@@ -168,18 +181,28 @@ export function VideoTimeline({
                         e.stopPropagation();
                         onSelectClip(clip.id);
                       }}
+                      role="button"
+                      tabIndex={0}
+                      aria-current={isSelected ? "true" : undefined}
+                      aria-label={`Selecionar clip ${clip.name || clip.textContent || "Clip"}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectClip(clip.id);
+                        }
+                      }}
                       style={{
                         left: `${leftPx}px`,
                         width: `${widthPx}px`,
-                        borderColor: isSelected ? "#60a5fa" : track.color || "#3b82f6",
+                        borderColor: isSelected ? "var(--vly-accent)" : track.color || "var(--vly-accent)",
                       }}
-                      className={`absolute top-1 bottom-1 rounded-lg border flex flex-col justify-between overflow-hidden cursor-pointer select-none transition-shadow ${
+                      className={`absolute bottom-1 top-1 flex cursor-pointer select-none flex-col justify-between overflow-hidden rounded-lg border transition-shadow ${
                         isSelected
-                          ? "bg-blue-950/70 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400 z-20"
-                          : "bg-[#121426]/90 hover:bg-[#181a32] z-10"
+                          ? "z-20 bg-[var(--vly-accent)]/25 shadow-lg ring-2 ring-[var(--vly-accent)]"
+                          : "z-10 bg-[var(--vly-surface-raised)]/90 hover:bg-[var(--vly-surface)]"
                       }`}
                     >
-                      <div className="px-2 py-0.5 text-[10px] font-medium bg-black/40 text-slate-300 truncate">
+                      <div className="truncate bg-[var(--vly-world)]/40 px-2 py-0.5 text-[10px] font-medium text-[var(--vly-text-secondary)]">
                         {clip.name || clip.textContent || "Clip"}
                       </div>
                     </div>
@@ -197,7 +220,7 @@ export function VideoTimeline({
                       <div
                         key={cue.id}
                         style={{ left: `${leftPx}px`, width: `${widthPx}px` }}
-                        className="absolute top-1.5 bottom-1.5 rounded bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-[10px] px-2 flex items-center truncate z-10"
+                        className="absolute bottom-1.5 top-1.5 z-10 flex items-center truncate rounded border border-[var(--vly-border-warning)] bg-[var(--vly-warning)]/20 px-2 text-[10px] text-[var(--vly-warning)]"
                       >
                         {cue.text}
                       </div>
@@ -209,9 +232,9 @@ export function VideoTimeline({
             {/* Playhead Scrubber */}
             <div
               style={{ left: `${playheadLeftPx}px` }}
-              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-40 pointer-events-none shadow-lg shadow-red-500/50"
+              className="pointer-events-none absolute bottom-0 top-0 z-40 w-0.5 bg-[var(--vly-danger)] shadow-lg"
             >
-              <div className="w-3 h-3 bg-red-500 -ml-[5px] -mt-1 rotate-45 rounded-sm" />
+              <div className="-ml-[5px] -mt-1 h-3 w-3 rotate-45 rounded-sm bg-[var(--vly-danger)]" />
             </div>
           </div>
         </div>

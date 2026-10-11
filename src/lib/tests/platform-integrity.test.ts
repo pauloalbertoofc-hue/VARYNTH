@@ -60,6 +60,8 @@ export async function runPlatformIntegritySuite(): Promise<boolean> {
       "/modules/opportunities",
       "/modules/forge",
       "/modules/studio",
+      "/modules/music",
+      "/modules/knowledge",
     ];
 
     const internalModules = modules.filter((m) => !m.href.startsWith("http"));
@@ -109,6 +111,8 @@ export async function runPlatformIntegritySuite(): Promise<boolean> {
       "/modules/opportunities",
       "/modules/forge",
       "/modules/studio",
+      "/modules/music",
+      "/modules/knowledge",
       "http://localhost:8000",
     ];
 

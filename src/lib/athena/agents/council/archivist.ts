@@ -32,7 +32,7 @@ export class ArchivistAgent implements AthenaAgent {
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const health = documentationGuardian.assessHealth();
-    const content = `🏛️ **Síntese Técnica da Arquitetura (Archivist & Documentation Guardian):**\n\n• **Fonte da Verdade:** A documentação oficial do VARYNTH OS está 100% versionada em \`/docs\` e sincronizada com o **Technical Archive** (\`/modules/technical-archive\`).\n• **Saúde Documental Atual:** **${health.score}% (${health.status})** cobrindo 21 rotas Next.js 16, 14 ferramentas determinísticas, 7 agentes e 6 ADRs.\n• **Princípio de Soberania:** O VARYNTH e a Athena operam exclusivamente em modo Local-First (ADR-001) com baseline determinístico de 0 ms e proteção estrita contra exclusões acidentais via Lixeira de 10 dias (ADR-002).`;
+    const content = `🏛️ **Síntese Técnica da Arquitetura (Archivist & Documentation Guardian):**\n\n• **Saúde documental:** ${health.score}% (${health.status}), conforme avaliação local atual do Documentation Guardian.\n• **Inventário observado:** ${health.runtimeAudits.totalRoutes} rotas, ${health.runtimeAudits.totalTools} ferramentas registradas, ${health.runtimeAudits.totalAgents} agentes, ${health.runtimeAudits.totalModules} módulos, ${health.runtimeAudits.totalADRs} ADRs e ${health.runtimeAudits.totalRegressionTests} casos de regressão.\n• **Limite desta resposta:** a avaliação verifica consistência do catálogo registrado; não prova, por si só, que cada documento foi sincronizado externamente ou que cada funcionalidade está operacional.`;
 
     return {
       agentId: this.manifest.id,
@@ -50,4 +50,3 @@ export class ArchivistAgent implements AthenaAgent {
 }
 
 export const archivistAgent = new ArchivistAgent();
-

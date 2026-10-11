@@ -28,6 +28,8 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--color-varynth-accent-light", values[0]);
     const rgb = accent.slice(1).match(/[\da-f]{2}/gi)?.map((part) => parseInt(part, 16)) || [124, 58, 237];
     root.style.setProperty("--color-varynth-accent-glow", `rgba(${rgb.join(", ")}, 0.3)`);
+    root.style.setProperty("--vly-accent", accent);
+    root.style.setProperty("--vly-accent-hover", values[0]);
     document.title = document.title.replace(/^.*?(?= \| )/, preferences.appName);
   }, [preferences]);
   return <PreferencesContext.Provider value={preferences}>{children}</PreferencesContext.Provider>;

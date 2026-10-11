@@ -24,56 +24,56 @@ export function AudioChangeSetModal({
   const getOpIcon = (type: string) => {
     switch (type) {
       case "TRIM_CLIP":
-        return <Scissors size={13} className="text-amber-400" />;
+        return <Scissors size={13} className="text-[var(--vly-warning)]" />;
       case "MOVE_CLIP":
-        return <Move size={13} className="text-blue-400" />;
+        return <Move size={13} className="text-[var(--vly-accent)]" />;
       case "SET_CLIP_GAIN":
       case "UPDATE_TRACK":
-        return <Volume2 size={13} className="text-emerald-400" />;
+        return <Volume2 size={13} className="text-[var(--vly-success)]" />;
       default:
-        return <Plus size={13} className="text-purple-400" />;
+        return <Plus size={13} className="text-[var(--vly-info)]" />;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#121324] border border-[#222442] rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/75 p-4 backdrop-blur-sm">
+      <div role="dialog" aria-modal="true" aria-labelledby="audio-change-set-title" className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-floating)] shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#1e2038] flex items-center justify-between bg-[#15162a]">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] px-6 py-4">
           <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-amber-400" />
-            <h3 className="font-bold text-base text-white">Proposta de Áudio da Athena</h3>
+            <Sparkles size={18} className="text-[var(--vly-warning)]" />
+            <h3 id="audio-change-set-title" className="text-base font-bold text-[var(--vly-text-primary)]">Proposta de Áudio da Athena</h3>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded">
+          <button onClick={onClose} aria-label="Fechar proposta de áudio" className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]">
             <X size={16} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+        <div className="flex-1 space-y-6 overflow-y-auto p-6 text-xs text-[var(--vly-text-secondary)]">
           {changeSets.map((cs) => (
-            <div key={cs.id} className="bg-[#0b0c16] border border-[#1e203a] rounded-xl p-5 space-y-4">
+            <div key={cs.id} className="space-y-4 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-world)] p-5">
               <div>
-                <h4 className="font-bold text-sm text-amber-300">{cs.title}</h4>
-                <p className="text-xs text-slate-400 mt-1">{cs.summary}</p>
+                <h4 className="text-sm font-bold text-[var(--vly-warning)]">{cs.title}</h4>
+                <p className="mt-1 text-xs text-[var(--vly-text-muted)]">{cs.summary}</p>
               </div>
 
               {/* Operations List */}
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold uppercase text-slate-500 tracking-wider">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)]">
                   Operações Temporais ({cs.operations.length})
                 </span>
 
                 {cs.operations.map((op, idx) => (
                   <div
                     key={idx}
-                    className="bg-[#131428] border border-[#202240] rounded-lg p-2.5 flex items-center justify-between"
+                    className="flex items-center justify-between rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-2.5"
                   >
                     <div className="flex items-center gap-2">
                       {getOpIcon(op.type)}
-                      <span className="font-mono text-blue-300 font-semibold">{op.type}</span>
+                      <span className="font-mono font-semibold text-[var(--vly-accent)]">{op.type}</span>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono">
+                    <span className="font-mono text-[10px] text-[var(--vly-text-muted)]">
                       {"clipId" in op ? `Clip: ${op.clipId}` : "trackId" in op ? `Faixa: ${op.trackId}` : "Timeline Global"}
                     </span>
                   </div>
@@ -81,17 +81,17 @@ export function AudioChangeSetModal({
               </div>
 
               {/* Actions */}
-              <div className="pt-3 border-t border-[#1c1d34] flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 border-t border-[var(--vly-border-subtle)] pt-3">
                 <button
                   onClick={() => onReject(cs.id)}
-                  className="px-4 py-1.5 bg-[#1a1b30] hover:bg-red-500/20 text-slate-300 hover:text-red-300 border border-slate-700 hover:border-red-500/40 rounded-lg text-xs font-medium transition flex items-center gap-1.5"
+                  className="vly-interactive flex items-center gap-1.5 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-4 py-1.5 text-xs font-medium text-[var(--vly-text-secondary)] transition hover:border-[var(--vly-border-danger)] hover:bg-[var(--vly-danger)]/10 hover:text-[var(--vly-danger)]"
                 >
                   <X size={13} />
                   Rejeitar Proposta
                 </button>
                 <button
                   onClick={() => onAccept(cs.id)}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5"
+                  className="vly-interactive flex items-center gap-1.5 rounded-lg bg-[var(--vly-success)] px-4 py-1.5 text-xs font-semibold text-[var(--vly-text-on-accent)] shadow-lg transition hover:opacity-90"
                 >
                   <Check size={13} />
                   Aceitar Proposta

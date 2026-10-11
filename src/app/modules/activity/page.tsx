@@ -31,23 +31,25 @@ import {
   Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatePanel } from "@/components/ui/StatePanel";
+import { Surface } from "@/components/ui/Surface";
 
 const ACTOR_CONFIG: Record<ActorType, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  user: { label: "Paulo (Usuário)", icon: User, color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/30 text-cyan-300" },
-  athena: { label: "Athena AI", icon: Bot, color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/30 text-violet-300" },
-  system: { label: "Sistema", icon: Cpu, color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30 text-orange-300" },
+  user: { label: "Paulo (Usuário)", icon: User, color: "text-[var(--vly-info)]", bg: "bg-[color-mix(in_srgb,var(--vly-info)_10%,transparent)] border-[color-mix(in_srgb,var(--vly-info)_30%,transparent)] text-[var(--vly-info)]" },
+  athena: { label: "Athena AI", icon: Bot, color: "text-[var(--vly-accent)]", bg: "bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)] border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] text-[var(--vly-accent)]" },
+  system: { label: "Sistema", icon: Cpu, color: "text-[var(--vly-warning)]", bg: "bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] text-[var(--vly-warning)]" },
 };
 
 const ACTION_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  criou: { label: "Criou", icon: Plus, color: "text-emerald-400" },
-  atualizou: { label: "Atualizou", icon: Edit, color: "text-blue-400" },
-  concluiu: { label: "Concluiu", icon: CheckCircle2, color: "text-green-400" },
-  moveu_lixeira: { label: "Moveu para a Lixeira", icon: Trash2, color: "text-amber-400" },
-  restaurou: { label: "Restaurou da Lixeira", icon: RotateCcw, color: "text-cyan-400" },
-  destruiu_permanentemente: { label: "Destruiu Permanentemente", icon: Flame, color: "text-red-400" },
-  esvaziou_lixeira: { label: "Esvaziou a Lixeira", icon: Trash2, color: "text-red-500" },
-  promoveu: { label: "Promoveu Ideia", icon: Sparkles, color: "text-purple-400" },
-  arquivou: { label: "Arquivou", icon: Clock, color: "text-slate-400" },
+  criou: { label: "Criou", icon: Plus, color: "text-[var(--vly-success)]" },
+  atualizou: { label: "Atualizou", icon: Edit, color: "text-[var(--vly-info)]" },
+  concluiu: { label: "Concluiu", icon: CheckCircle2, color: "text-[var(--vly-success)]" },
+  moveu_lixeira: { label: "Moveu para a Lixeira", icon: Trash2, color: "text-[var(--vly-warning)]" },
+  restaurou: { label: "Restaurou da Lixeira", icon: RotateCcw, color: "text-[var(--vly-info)]" },
+  destruiu_permanentemente: { label: "Destruiu Permanentemente", icon: Flame, color: "text-[var(--vly-danger)]" },
+  esvaziou_lixeira: { label: "Esvaziou a Lixeira", icon: Trash2, color: "text-[var(--vly-danger)]" },
+  promoveu: { label: "Promoveu Ideia", icon: Sparkles, color: "text-[var(--vly-accent)]" },
+  arquivou: { label: "Arquivou", icon: Clock, color: "text-[var(--vly-text-secondary)]" },
 };
 
 export default function ActivityPage() {
@@ -75,23 +77,32 @@ export default function ActivityPage() {
     });
   }, [activities, search, selectedActor, selectedAction, selectedEntity]);
 
+  const availableActions = useMemo(
+    () => Array.from(new Set(activities.map((activity) => activity.action))).sort(),
+    [activities]
+  );
+  const availableEntities = useMemo(
+    () => Array.from(new Set(activities.map((activity) => activity.entityType).filter((entity): entity is string => Boolean(entity)))).sort(),
+    [activities]
+  );
+
   return (
     <PageLayout title="Histórico & Auditoria" subtitle="Registro cronológico de todas as ações no VARYNTH OS">
-      <div className="space-y-6 max-w-5xl mx-auto animate-fade-in pb-12">
+      <div className="vly-enter mx-auto max-w-5xl space-y-6 pb-12">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-[#0f0f1a] border border-violet-500/30 clip-corner">
+        <div className="rounded-[var(--vly-radius-xl)] border border-[var(--vly-border-accent)] bg-[var(--vly-surface)] p-6">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 glow-accent flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--vly-accent)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] flex items-center justify-center text-[var(--vly-accent)] glow-accent flex-shrink-0">
               <Activity size={24} />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-black text-[var(--vly-text-primary)] flex items-center gap-2">
                 Audit Trail / Linha do Tempo
-                <span className="text-xs px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold font-mono">
+                <span className="text-xs px-2 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)] text-[var(--vly-accent)] border border-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] font-bold font-mono">
                   {activities.length} eventos
                 </span>
               </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-[var(--vly-text-secondary)] mt-0.5">
                 Rastreamento centralizado de mutações executadas pelo Usuário, Athena AI e rotinas do Sistema.
               </p>
             </div>
@@ -99,92 +110,124 @@ export default function ActivityPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="space-y-3 p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]">
+        <div className="space-y-3 rounded-[var(--vly-radius-lg)] border border-[var(--vly-border-default)] bg-[var(--vly-surface)] p-4" role="region" aria-label="Filtros do histórico">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vly-text-muted)]" />
               <input
+                aria-label="Pesquisar no histórico"
                 type="text"
                 placeholder="Pesquisar por título do item, ação ou entidade..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                className="vly-field w-full pl-9 pr-3 py-2 text-xs"
               />
             </div>
 
             {/* Actor Filter Chips */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
               <button
+                type="button"
+                aria-pressed={selectedActor === "todos"}
                 onClick={() => setSelectedActor("todos")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                  "vly-interactive whitespace-nowrap rounded-[var(--vly-radius-md)] px-3 py-1.5 text-xs font-bold",
                   selectedActor === "todos"
-                    ? "bg-violet-600 text-white shadow-sm glow-accent"
-                    : "bg-[#0a0a0f] text-slate-400 hover:text-white border border-[#1e1e30]"
+                    ? "bg-[var(--vly-accent)] text-[var(--vly-accent-contrast)] shadow-sm glow-accent"
+                    : "bg-[var(--vly-surface)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] border border-[var(--vly-border-subtle)]"
                 )}
               >
                 Todos Atores
               </button>
 
               <button
+                type="button"
+                aria-pressed={selectedActor === "user"}
                 onClick={() => setSelectedActor("user")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
+                  "vly-interactive flex items-center gap-1.5 whitespace-nowrap rounded-[var(--vly-radius-md)] border px-3 py-1.5 text-xs font-semibold",
                   selectedActor === "user"
-                    ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50"
-                    : "bg-[#0a0a0f] text-slate-400 border-[#1e1e30]"
+                    ? "bg-[color-mix(in_srgb,var(--vly-info)_20%,transparent)] text-[var(--vly-info)] border-[color-mix(in_srgb,var(--vly-info)_50%,transparent)]"
+                    : "bg-[var(--vly-surface)] text-[var(--vly-text-secondary)] border-[var(--vly-border-subtle)]"
                 )}
               >
-                <User size={12} className="text-cyan-400" />
+                <User size={12} className="text-[var(--vly-info)]" />
                 <span>Paulo</span>
               </button>
 
               <button
+                type="button"
+                aria-pressed={selectedActor === "athena"}
                 onClick={() => setSelectedActor("athena")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
+                  "vly-interactive flex items-center gap-1.5 whitespace-nowrap rounded-[var(--vly-radius-md)] border px-3 py-1.5 text-xs font-semibold",
                   selectedActor === "athena"
-                    ? "bg-violet-500/20 text-violet-300 border-violet-500/50"
-                    : "bg-[#0a0a0f] text-slate-400 border-[#1e1e30]"
+                    ? "bg-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] text-[var(--vly-accent)] border-[color-mix(in_srgb,var(--vly-accent)_50%,transparent)]"
+                    : "bg-[var(--vly-surface)] text-[var(--vly-text-secondary)] border-[var(--vly-border-subtle)]"
                 )}
               >
-                <Bot size={12} className="text-violet-400" />
+                <Bot size={12} className="text-[var(--vly-accent)]" />
                 <span>Athena AI</span>
               </button>
 
               <button
+                type="button"
+                aria-pressed={selectedActor === "system"}
                 onClick={() => setSelectedActor("system")}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap flex items-center gap-1.5",
+                  "vly-interactive flex items-center gap-1.5 whitespace-nowrap rounded-[var(--vly-radius-md)] border px-3 py-1.5 text-xs font-semibold",
                   selectedActor === "system"
-                    ? "bg-orange-500/20 text-orange-300 border-orange-500/50"
-                    : "bg-[#0a0a0f] text-slate-400 border-[#1e1e30]"
+                    ? "bg-[color-mix(in_srgb,var(--vly-warning)_20%,transparent)] text-[var(--vly-warning)] border-[color-mix(in_srgb,var(--vly-warning)_50%,transparent)]"
+                    : "bg-[var(--vly-surface)] text-[var(--vly-text-secondary)] border-[var(--vly-border-subtle)]"
                 )}
               >
-                <Cpu size={12} className="text-orange-400" />
+                <Cpu size={12} className="text-[var(--vly-warning)]" />
                 <span>Sistema</span>
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 border-t border-[var(--vly-border-subtle)] pt-3">
+            <label className="flex min-w-0 flex-1 items-center gap-2 text-[11px] font-semibold text-[var(--vly-text-secondary)]">
+              <Filter size={13} aria-hidden="true" />
+              <span className="sr-only">Filtrar por ação</span>
+              <select
+                aria-label="Filtrar por ação"
+                value={selectedAction}
+                onChange={(event) => setSelectedAction(event.target.value)}
+                className="vly-field min-h-0 w-full py-2 text-xs"
+              >
+                <option value="todas">Todas as ações</option>
+                {availableActions.map((action) => (
+                  <option key={action} value={action}>{ACTION_CONFIG[action]?.label || action}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="min-w-0 flex-1 text-[11px] font-semibold text-[var(--vly-text-secondary)]">
+              <span className="sr-only">Filtrar por entidade</span>
+              <select
+                aria-label="Filtrar por entidade"
+                value={selectedEntity}
+                onChange={(event) => setSelectedEntity(event.target.value)}
+                className="vly-field min-h-0 w-full py-2 text-xs"
+              >
+                <option value="todas">Todas as entidades</option>
+                {availableEntities.map((entity) => <option key={entity} value={entity}>{entity}</option>)}
+              </select>
+            </label>
           </div>
         </div>
 
         {/* Timeline Stream */}
         {filteredActivities.length === 0 ? (
-          <div className="py-20 text-center rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3 clip-corner">
-            <div className="w-12 h-12 rounded-xl bg-slate-800/30 border border-[#1e1e30] flex items-center justify-center mx-auto text-slate-600">
-              <Activity size={24} />
-            </div>
-            <h3 className="text-sm font-bold text-slate-300">Nenhuma atividade registrada</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              As ações que você realizar no VARYNTH OS (criar tarefas, gerenciar workspaces, comandos da Athena ou mover itens para a Lixeira) serão auditadas aqui em tempo real.
-            </p>
-          </div>
+          <StatePanel tone="empty" title="Nenhuma atividade registrada" description="As ações realizadas no VARYNTH OS serão auditadas aqui em tempo real." />
         ) : (
-          <div className="relative pl-6 sm:pl-8 space-y-4 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-[#1e1e30]">
+          <div className="relative pl-6 sm:pl-8 space-y-4 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-[var(--vly-border-subtle)]" role="list" aria-label="Eventos auditados">
             {filteredActivities.map((act) => {
               const actor = ACTOR_CONFIG[act.actorType] || ACTOR_CONFIG.user;
               const ActorIcon = actor.icon;
-              const actionConf = ACTION_CONFIG[act.action] || { label: act.action, icon: Sparkles, color: "text-slate-300" };
+              const actionConf = ACTION_CONFIG[act.action] || { label: act.action, icon: Sparkles, color: "text-[var(--vly-text-secondary)]" };
               const ActionIcon = actionConf.icon;
 
               const date = new Date(act.createdAt);
@@ -192,21 +235,21 @@ export default function ActivityPage() {
               const dateStr = date.toLocaleDateString("pt-BR");
 
               return (
-                <div key={act.id} className="relative group">
+                <div key={act.id} className="relative group" role="listitem">
                   {/* Timeline Dot */}
                   <div
                     className={cn(
-                      "absolute -left-[27px] sm:-left-[31px] top-3.5 w-3.5 h-3.5 rounded-full border-2 border-[#0a0a0f] ring-2 flex items-center justify-center transition-transform group-hover:scale-125",
+                      "absolute -left-[27px] sm:-left-[31px] top-3.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--vly-world)] ring-2 flex items-center justify-center transition-transform group-hover:scale-125",
                       act.actorType === "athena"
-                        ? "bg-violet-500 ring-violet-500/30"
+                        ? "bg-[var(--vly-accent)] ring-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)]"
                         : act.actorType === "system"
-                        ? "bg-orange-500 ring-orange-500/30"
-                        : "bg-cyan-500 ring-cyan-500/30"
+                        ? "bg-[var(--vly-warning)] ring-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)]"
+                        : "bg-[var(--vly-info)] ring-[color-mix(in_srgb,var(--vly-info)_30%,transparent)]"
                     )}
                   />
 
                   {/* Activity Card */}
-                  <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 clip-corner-sm">
+                  <Surface tone="panel" className="p-4 hover:border-[color-mix(in_srgb,var(--vly-accent)_40%,transparent)] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 clip-corner-sm">
                     <div className="space-y-1.5 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Actor Badge */}
@@ -223,31 +266,31 @@ export default function ActivityPage() {
 
                         {/* Entity Type Badge */}
                         {act.entityType && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#14141f] text-slate-400 border border-[#1e1e30] uppercase font-mono">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)] border border-[var(--vly-border-subtle)] uppercase font-mono">
                             {act.entityType}
                           </span>
                         )}
                       </div>
 
                       {/* Main Title */}
-                      <p className="text-xs sm:text-sm font-semibold text-slate-100 truncate">
+                      <p className="text-xs sm:text-sm font-semibold text-[var(--vly-text-primary)] truncate">
                         {act.entityTitle || "Operação sem título"}
                       </p>
 
                       {/* Metadata if any */}
                       {Boolean(act.metadata?.hasConflict) && (
-                        <p className="text-[11px] text-amber-300 font-mono">
+                        <p className="text-[11px] text-[var(--vly-warning)] font-mono">
                           ⚠️ Conflito de ID detectado: novo identificador gerado automaticamente.
                         </p>
                       )}
                     </div>
 
                     {/* Timestamp */}
-                    <div className="text-right font-mono text-[11px] text-slate-500 flex-shrink-0 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-[#1e1e30]">
-                      <span className="text-slate-300 font-bold">{timeStr}</span>
+                    <div className="text-right font-mono text-[11px] text-[var(--vly-text-muted)] flex-shrink-0 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-[var(--vly-border-subtle)]">
+                      <span className="text-[var(--vly-text-secondary)] font-bold">{timeStr}</span>
                       <span className="text-[10px]">{dateStr}</span>
                     </div>
-                  </div>
+                  </Surface>
                 </div>
               );
             })}

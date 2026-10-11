@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChordQuality, MusicProjectState, chordToNotes, midiToPitch, pitchToMidi, transposeNote } from "@/lib/studio/audio/music-domain";
+import { ChordQuality, MusicProjectState, beatsPerMeasure, chordToNotes, midiToPitch, musicKeyAtBeat, pitchToMidi, transposeNote } from "@/lib/studio/audio/music-domain";
+import { TempoMapTrack } from "./TempoMapTrack";
+import { MusicArrangementTrack } from "./MusicArrangementTrack";
 
 export function ScoreView({ music, onChange }: { music: MusicProjectState; onChange?: (music: MusicProjectState) => void }) {
   const [selectedId, setSelectedId] = useState<string>();
@@ -14,6 +16,10 @@ export function ScoreView({ music, onChange }: { music: MusicProjectState; onCha
   const notes = [...music.notes].sort((a, b) => a.startBeat - b.startBeat);
   const selected = notes.find((note) => note.id === selectedId);
   const lines = [0, 1, 2, 3, 4];
+  const measureBeats = beatsPerMeasure(music.timeSignature);
+  const scoreEndBeat = Math.max(measureBeats * 4, ...notes.map((note) => note.startBeat + note.durationBeats), ...(music.keyMap || []).map((point) => point.beat));
+  const lastKeyMeasure = Math.max(1, ...(music.keyMap || [{ beat: 0, ...music.key }]).map((point) => Math.floor(point.beat / measureBeats) + 1));
+  const measureCount = Math.max(4, Math.ceil(scoreEndBeat / measureBeats), lastKeyMeasure);
   const updateSelected = (updates: Partial<NonNullable<typeof selected>>) => {
     if (!selected || !onChange) return;
     onChange({ ...music, notes: music.notes.map((note) => note.id === selected.id ? { ...note, ...updates } : note) });
@@ -32,12 +38,14 @@ export function ScoreView({ music, onChange }: { music: MusicProjectState; onCha
     const prefix = `${current.id}-note-`;
     onChange({ ...music, chords: (music.chords || []).map((item) => item.id === current.id ? chord : item), notes: [...music.notes.filter((note) => note.chordId !== current.id && !note.id.startsWith(prefix)), ...chordToNotes(chord)] });
   };
-  return <section className="flex h-full flex-col overflow-auto bg-[#faf8f0] text-slate-900" aria-label="Score View">
-    <header className="flex items-center justify-between border-b border-slate-300 bg-white px-4 py-3">
+  return <section className="flex h-full flex-col overflow-auto bg-[var(--vly-surface)] text-[var(--vly-text-primary)]" aria-label="Score View">
+    <header className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-4 py-3">
       <div><h2 className="text-sm font-bold">Score View</h2><p className="text-[10px] text-slate-500">Partitura editável · mesmo modelo musical do Piano Roll</p></div>
       <span className="text-[10px] text-slate-500">{music.timeSignature.numerator}/{music.timeSignature.denominator} · {music.tempoMap[0]?.bpm || 120} BPM</span>
     </header>
-    <div className="px-4 pt-2 text-xs">Voicing <select aria-label="Voicing do acorde" value={chordVoicing} onChange={(event) => setChordVoicing(event.target.value as NonNullable<import("@/lib/studio/audio/music-domain").MusicalChord["voicing"]>)} className="ml-1 rounded border px-1"><option value="close">close</option><option value="drop2">drop2</option><option value="spread">spread</option></select></div>
+    {onChange && <TempoMapTrack tempoMap={music.tempoMap} onChange={(tempoMap) => onChange({ ...music, tempoMap })} />}
+    {onChange && <MusicArrangementTrack music={music} onChange={onChange} />}
+    <div className="px-4 pt-2 text-xs">Voicing <select aria-label="Voicing do acorde" value={chordVoicing} onChange={(event) => setChordVoicing(event.target.value as NonNullable<import("@/lib/studio/audio/music-domain").MusicalChord["voicing"]>)} className="vly-field ml-1 px-1"><option value="close">close</option><option value="drop2">drop2</option><option value="spread">spread</option></select></div>
     <div className="min-w-[900px] p-8">
       <div className="relative h-44 border-y-2 border-slate-700" onDoubleClick={(event) => {
         if (!onChange || (event.target as HTMLElement).closest("button")) return;
@@ -49,6 +57,7 @@ export function ScoreView({ music, onChange }: { music: MusicProjectState; onCha
       }}>
         <span className="absolute right-2 top-2 text-[9px] text-slate-500">duplo clique para inserir · clique numa nota para editar · cores indicam vozes</span>
         {lines.map((line) => <div key={line} className="absolute left-0 right-0 border-t border-slate-400" style={{ top: 28 + line * 18 }} />)}
+        {Array.from({ length: measureCount - 1 }, (_, index) => <div key={`bar-${index + 1}`} aria-label={`Barra do compasso ${index + 2}`} data-score-barline className="absolute top-7 h-[76px] border-l border-slate-500/70" style={{ left: 92 + (index + 1) * measureBeats * 56 }} />)}
         <div className="absolute left-3 top-4 text-5xl leading-none">𝄞</div>
         {notes.map((note) => {
           const midi = pitchToMidi(note.pitch, note.octave, note.accidental);
@@ -57,9 +66,9 @@ export function ScoreView({ music, onChange }: { music: MusicProjectState; onCha
           return <button key={note.id} type="button" aria-label={`Nota ${note.pitch}${note.accidental === "sharp" ? "#" : note.accidental === "flat" ? "b" : ""}${note.octave}, início ${note.startBeat}, duração ${note.durationBeats}, voz ${note.voice ?? 1}`} aria-pressed={selectedId === note.id} onClick={() => setSelectedId(note.id)} title={`${note.pitch}${note.octave} · ${note.durationBeats} beats · velocity ${note.velocity} · voz ${note.voice ?? 1}`} className={`absolute h-3 w-5 rounded-[50%] border-2 ${selectedId === note.id ? "border-amber-700 bg-amber-400" : `border-slate-800 ${voiceClass}`}`} style={{ left: 92 + note.startBeat * 56, top: y, transform: "rotate(-18deg)" }}><span className="absolute -left-1 -top-5 text-[9px]">{midiToPitch(midi).pitch}{midiToPitch(midi).octave}</span></button>;
         })}
       </div>
-      <div className="mt-3 flex gap-14 text-[10px] text-slate-500">{Array.from({ length: Math.max(4, Math.ceil((notes.at(-1)?.startBeat || 0) / 4)) }, (_, index) => <span key={index}>compasso {index + 1}</span>)}</div>
+      <div aria-label="Tonalidade por compasso no Score" className="mt-3 flex text-[10px] text-slate-500">{Array.from({ length: measureCount }, (_, index) => { const beat = index * measureBeats; const key = musicKeyAtBeat(music.keyMap, music.key, beat); const accidental = key.accidental === "sharp" ? "#" : key.accidental === "flat" ? "b" : ""; return <div key={index} data-score-measure={index + 1} className="shrink-0 border-l border-slate-300 px-2" style={{ width: measureBeats * 56 }}><span>compasso {index + 1}</span><span role="img" aria-label={`Armadura no compasso ${index + 1}`} className="ml-2 rounded bg-cyan-100 px-1 text-cyan-900">{key.tonic}{accidental} {key.scale}</span></div>; })}</div>
     </div>
-    <footer className="flex flex-wrap items-center gap-3 border-t border-slate-300 bg-white px-4 py-3 text-xs">
+    <footer className="flex flex-wrap items-center gap-3 border-t border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-4 py-3 text-xs">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-300 px-4 py-2 text-xs"><strong>Acorde</strong><select aria-label="Raiz do acorde" value={chordRoot} onChange={(event) => setChordRoot(event.target.value as MusicProjectState["key"]["tonic"])} className="rounded border px-1"><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>A</option><option>B</option></select><select aria-label="Qualidade do acorde" value={chordQuality} onChange={(event) => setChordQuality(event.target.value as ChordQuality)} className="rounded border px-1"><option value="major">maior</option><option value="minor">menor</option><option value="diminished">diminuto</option><option value="augmented">aumentado</option><option value="sus2">sus2</option><option value="sus4">sus4</option><option value="7">7</option><option value="maj7">maj7</option><option value="min7">min7</option></select><select aria-label="Inversão do acorde" value={chordInversion} onChange={(event) => setChordInversion(Number(event.target.value))} className="rounded border px-1"><option value="0">posição fundamental</option><option value="1">1ª inversão</option><option value="2">2ª inversão</option><option value="3">3ª inversão</option></select><select aria-label="Extensão do acorde" value={chordExtension ?? "none"} onChange={(event) => setChordExtension(event.target.value === "none" ? undefined : Number(event.target.value))} className="rounded border px-1"><option value="none">sem extensão</option><option value="9">9ª</option><option value="11">11ª</option><option value="13">13ª</option></select><button type="button" onClick={addChord} className="rounded bg-indigo-100 px-2 py-1 text-indigo-900">Adicionar acorde</button>{selectedChordId && <button type="button" onClick={updateChord} className="rounded bg-amber-100 px-2 py-1 text-amber-900">Atualizar acorde selecionado</button>}</div>
       {(music.chords || []).length > 0 && <div className="flex flex-wrap gap-2 border-b border-slate-300 px-4 py-2 text-xs"><strong>Acordes do projeto</strong>{(music.chords || []).map((chord) => <button key={chord.id} type="button" onClick={() => { setSelectedChordId(chord.id); setChordRoot(chord.root); setChordQuality(chord.quality); setChordInversion(chord.inversion || 0); setChordExtension(chord.extensions?.[0]); setChordVoicing(chord.voicing || "close"); }} className={`rounded px-2 py-1 ${selectedChordId === chord.id ? "bg-amber-200" : "bg-slate-100"}`}>{chord.root} {chord.quality}{chord.extensions?.length ? ` add${chord.extensions.join("/")}` : ""} · {chord.voicing || "close"} · beat {chord.startBeat}</button>)}</div>}
       {selected ? <>

@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { forgeSandboxBridge } from "@/lib/forge/forge-sandbox-bridge";
 import { ForgeExecutionSession } from "@/lib/forge/types";
+import { Surface } from "@/components/ui/Surface";
 
 const FORGE_TEMPLATES: ForgeTemplate[] = [
   {
@@ -216,11 +217,12 @@ export default function ForgeStudioPage() {
 
   // Sync content when switching file
   useEffect(() => {
-    if (activeFile) {
-      setEditorContent(activeFile.content);
+    const currentFile = forgeFiles.find((file) => file.id === activeFileId) || forgeFiles[0];
+    if (currentFile) {
+      setEditorContent(currentFile.content);
       setIsSaved(true);
     }
-  }, [activeFile?.id]);
+  }, [activeFileId, forgeFiles]);
 
   // Handle Ctrl+S and Ctrl+Enter shortcuts
   useEffect(() => {
@@ -387,20 +389,20 @@ export default function ForgeStudioPage() {
 
   return (
     <PageLayout title="Forge Studio" subtitle="Ambiente de desenvolvimento e code sandbox">
-      <div className="space-y-4 max-w-7xl mx-auto animate-fade-in">
+      <div className="vly-enter mx-auto max-w-7xl space-y-4">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400 glow-accent">
+              <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--vly-warning)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] flex items-center justify-center text-[var(--vly-warning)] glow-accent">
                 <Code2 size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-[var(--vly-text-primary)] tracking-tight flex items-center gap-2">
                 Forge Studio IDE
-                <Sparkles size={16} className="text-orange-400" />
+                <Sparkles size={16} className="text-[var(--vly-warning)]" />
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--vly-text-secondary)] mt-1">
               Ambiente de desenvolvimento web: edite, execute scripts e vincule trechos de código aos seus projetos.
             </p>
           </div>
@@ -408,7 +410,7 @@ export default function ForgeStudioPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsNewFileModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-200 bg-[#0f0f1a] hover:bg-[#14141f] border border-[#1e1e30] transition-all"
+              className="vly-interactive flex items-center gap-1.5 rounded-[var(--vly-radius-md)] border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-3.5 py-1.5 text-xs font-bold text-[var(--vly-text-secondary)]"
             >
               <Plus size={15} />
               <span>Novo Arquivo</span>
@@ -416,7 +418,7 @@ export default function ForgeStudioPage() {
 
             <button
               onClick={handleRun}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 glow-accent shadow-md transition-all duration-200"
+              className="vly-interactive flex items-center gap-1.5 rounded-[var(--vly-radius-md)] bg-[var(--vly-warning)] px-4 py-2 text-xs font-bold text-[var(--vly-accent-contrast)] shadow-md"
               title="Executar Código (Ctrl + Enter)"
             >
               <Play size={14} className="fill-white" />
@@ -428,14 +430,14 @@ export default function ForgeStudioPage() {
         {/* Main IDE 3-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[640px]">
           {/* LEFT: File Explorer & Starter Templates (3 cols) */}
-          <div className="lg:col-span-3 flex flex-col rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner">
+          <div className="lg:col-span-3 flex flex-col overflow-hidden rounded-[var(--vly-radius-xl)] border border-[var(--vly-border-default)] bg-[var(--vly-surface)]">
             {/* File Explorer Header */}
-            <div className="flex items-center justify-between px-3.5 py-3 bg-[#0a0a0f] border-b border-[#1e1e30] text-xs font-bold text-slate-300">
-              <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px] text-slate-400">
-                <FileCode size={13} className="text-orange-400" />
+            <div className="flex items-center justify-between px-3.5 py-3 bg-[var(--vly-surface)] border-b border-[var(--vly-border-subtle)] text-xs font-bold text-[var(--vly-text-secondary)]">
+              <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px] text-[var(--vly-text-secondary)]">
+                <FileCode size={13} className="text-[var(--vly-warning)]" />
                 <span>Explorador de Arquivos</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-mono">{forgeFiles.length} arquivos</span>
+              <span className="text-[10px] text-[var(--vly-text-muted)] font-mono">{forgeFiles.length} arquivos</span>
             </div>
 
             {/* Files List */}
@@ -452,8 +454,8 @@ export default function ForgeStudioPage() {
                     className={cn(
                       "group flex items-center justify-between p-2.5 rounded-xl text-xs cursor-pointer transition-all",
                       isSelected
-                        ? "bg-orange-950/30 text-orange-200 border border-orange-500/40 font-semibold"
-                        : "text-slate-300 hover:bg-white/5 border border-transparent"
+                        ? "bg-[color-mix(in_srgb,var(--vly-warning)_12%,transparent)] text-[var(--vly-warning)] border border-[color-mix(in_srgb,var(--vly-warning)_40%,transparent)] font-semibold"
+                        : "text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] border border-transparent"
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -466,7 +468,7 @@ export default function ForgeStudioPage() {
                         e.stopPropagation();
                         setFileToDelete(file);
                       }}
-                      className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                      className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-[var(--vly-text-muted)] hover:text-[var(--vly-danger)] transition-opacity touch-manipulation"
                       title="Mover para a Lixeira (10 dias)"
                     >
                       <Trash2 size={12} />
@@ -477,8 +479,8 @@ export default function ForgeStudioPage() {
             </div>
 
             {/* Templates Quick List */}
-            <div className="p-3 bg-[#0a0a0f] border-t border-[#1e1e30] space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+            <div className="p-3 bg-[var(--vly-surface)] border-t border-[var(--vly-border-subtle)] space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--vly-text-secondary)] block">
                 Templates de Código
               </span>
               <div className="space-y-1.5">
@@ -486,10 +488,10 @@ export default function ForgeStudioPage() {
                   <button
                     key={tpl.id}
                     onClick={() => handleUseTemplate(tpl)}
-                    className="w-full text-left p-2 rounded-lg bg-[#14141f] hover:bg-orange-600/10 border border-[#1e1e30] hover:border-orange-500/30 text-[11px] text-slate-300 transition-all flex items-center justify-between"
+                    className="w-full text-left p-2 rounded-lg bg-[var(--vly-surface-raised)] hover:bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)] border border-[var(--vly-border-subtle)] hover:border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] text-[11px] text-[var(--vly-text-secondary)] transition-all flex items-center justify-between"
                   >
                     <span className="truncate">{tpl.title}</span>
-                    <Plus size={11} className="text-orange-400 flex-shrink-0" />
+                    <Plus size={11} className="text-[var(--vly-warning)] flex-shrink-0" />
                   </button>
                 ))}
               </div>
@@ -497,12 +499,12 @@ export default function ForgeStudioPage() {
           </div>
 
           {/* CENTER & RIGHT: Code Editor & Terminal (9 cols) */}
-          <div className="lg:col-span-9 flex flex-col rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden clip-corner">
+          <div className="lg:col-span-9 flex flex-col overflow-hidden rounded-[var(--vly-radius-xl)] border border-[var(--vly-border-default)] bg-[var(--vly-surface)]">
             {/* Tab Bar & Action Buttons */}
-            <div className="flex items-center justify-between px-3 py-2 bg-[#0a0a0f] border-b border-[#1e1e30] overflow-x-auto">
+            <div className="flex items-center justify-between px-3 py-2 bg-[var(--vly-surface)] border-b border-[var(--vly-border-subtle)] overflow-x-auto">
               <div className="flex items-center gap-1.5">
                 {activeFile && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#14141f] border border-orange-500/30 text-xs text-orange-300 font-mono font-medium">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--vly-surface-raised)] border border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] text-xs text-[var(--vly-warning)] font-mono font-medium">
                     <span>{activeFile.name}</span>
                     {!isSaved && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Alterações não salvas" />}
                   </div>
@@ -512,7 +514,7 @@ export default function ForgeStudioPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleSave}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#14141f] hover:bg-white/5 text-slate-300 hover:text-white border border-[#1e1e30] text-xs transition-all"
+                  className="vly-interactive flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] border border-[var(--vly-border-subtle)] text-xs transition-all"
                   title="Salvar arquivo (Ctrl+S)"
                 >
                   <Save size={12} />
@@ -521,7 +523,7 @@ export default function ForgeStudioPage() {
 
                 <button
                   onClick={handleDownload}
-                  className="p-1 text-slate-400 hover:text-slate-200"
+                  className="vly-interactive p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                   title="Baixar arquivo"
                 >
                   <Download size={14} />
@@ -532,9 +534,9 @@ export default function ForgeStudioPage() {
             {/* Split Editor and Terminal */}
             <div className="flex-1 grid grid-rows-2 h-full overflow-hidden">
               {/* Top: Code Editor with Line Numbers */}
-              <div className="relative flex h-full overflow-hidden bg-[#07070b]">
+              <div className="relative flex h-full overflow-hidden bg-[var(--vly-world)]">
                 {/* Line Numbers */}
-                <div className="w-11 py-3 bg-[#050508] border-r border-[#1e1e30] text-[11px] font-mono text-slate-600 text-right pr-2 select-none overflow-hidden leading-relaxed">
+                <div className="w-11 py-3 bg-[var(--vly-surface)] border-r border-[var(--vly-border-subtle)] text-[11px] font-mono text-[var(--vly-text-muted)] text-right pr-2 select-none overflow-hidden leading-relaxed">
                   {Array.from({ length: Math.max(lineCount, 15) }).map((_, i) => (
                     <div key={i}>{i + 1}</div>
                   ))}
@@ -542,27 +544,28 @@ export default function ForgeStudioPage() {
 
                 {/* Editor Textarea */}
                 <textarea
+                  aria-label="Editor de código Forge"
                   value={editorContent}
                   onChange={(e) => {
                     setEditorContent(e.target.value);
                     setIsSaved(false);
                   }}
                   placeholder="Escreva seu código aqui..."
-                  className="flex-1 p-3 bg-transparent font-mono text-xs text-slate-100 placeholder-slate-600 focus:outline-none resize-none leading-relaxed overflow-auto selection:bg-orange-500/30"
+                  className="flex-1 p-3 bg-transparent font-mono text-xs text-[var(--vly-text-primary)] placeholder:text-[var(--vly-text-muted)] focus:outline-none resize-none leading-relaxed overflow-auto selection:bg-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)]"
                   spellCheck={false}
                 />
               </div>
 
               {/* Bottom: Interactive Output Terminal */}
-              <div className="flex flex-col bg-[#0a0a0f] border-t border-[#1e1e30] overflow-hidden">
+              <div className="flex flex-col bg-[var(--vly-surface)] border-t border-[var(--vly-border-subtle)] overflow-hidden">
                 {/* Console Bar */}
-                <div className="flex items-center justify-between px-3 py-1.5 bg-[#07070b] border-b border-[#1e1e30] text-xs">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--vly-world)] border-b border-[var(--vly-border-subtle)] text-xs">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setActiveTab("terminal")}
                       className={cn(
                         "flex items-center gap-1.5 text-xs font-bold font-mono px-2 py-0.5 rounded",
-                        activeTab === "terminal" ? "text-orange-400 bg-orange-500/10" : "text-slate-400 hover:text-slate-200"
+                          activeTab === "terminal" ? "text-[var(--vly-warning)] bg-[color-mix(in_srgb,var(--vly-warning)_10%,transparent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                       )}
                     >
                       <Terminal size={12} />
@@ -574,7 +577,7 @@ export default function ForgeStudioPage() {
                         onClick={() => setActiveTab("preview")}
                         className={cn(
                           "flex items-center gap-1.5 text-xs font-bold font-mono px-2 py-0.5 rounded",
-                          activeTab === "preview" ? "text-purple-400 bg-purple-500/10" : "text-slate-400 hover:text-slate-200"
+                          activeTab === "preview" ? "text-[var(--vly-accent)] bg-[color-mix(in_srgb,var(--vly-accent)_10%,transparent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                         )}
                       >
                         <Eye size={12} />
@@ -583,7 +586,7 @@ export default function ForgeStudioPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--vly-text-muted)]">
                     {execResult.executionTimeMs > 0 && (
                       <span>Tempo: {execResult.executionTimeMs}ms</span>
                     )}
@@ -591,7 +594,7 @@ export default function ForgeStudioPage() {
                       onClick={() =>
                         setExecResult({ status: "idle", logs: ["Console limpo."], executionTimeMs: 0 })
                       }
-                      className="hover:text-slate-300"
+                      className="vly-interactive hover:text-[var(--vly-text-primary)]"
                       title="Limpar console"
                     >
                       Limpar
@@ -600,7 +603,7 @@ export default function ForgeStudioPage() {
                 </div>
 
                 {/* Output Logs Stream */}
-                <div className="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-1 bg-[#050508]">
+                <div className="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-1 bg-[var(--vly-world)]">
                   {activeTab === "terminal" ? (
                     execResult.logs.map((log, idx) => (
                       <div
@@ -608,21 +611,21 @@ export default function ForgeStudioPage() {
                         className={cn(
                           "leading-relaxed",
                           log.startsWith("[ERROR]") || log.startsWith("[RUNTIME ERROR]")
-                            ? "text-red-400 font-bold"
+                            ? "text-[var(--vly-danger)] font-bold"
                             : log.startsWith("[WARN]")
-                            ? "text-amber-400"
+                            ? "text-[var(--vly-warning)]"
                             : log.startsWith("[RETURN]")
-                            ? "text-cyan-300 font-bold"
+                            ? "text-[var(--vly-info)] font-bold"
                             : log.startsWith("[INFO]")
-                            ? "text-slate-400"
-                            : "text-emerald-300"
+                            ? "text-[var(--vly-text-secondary)]"
+                            : "text-[var(--vly-success)]"
                         )}
                       >
                         {log}
                       </div>
                     ))
                   ) : (
-                    <div className="prose prose-invert max-w-none text-xs text-slate-200 p-2 whitespace-pre-wrap font-sans">
+                    <div className="prose prose-invert max-w-none text-xs text-[var(--vly-text-primary)] p-2 whitespace-pre-wrap font-sans">
                       {editorContent}
                     </div>
                   )}
@@ -635,37 +638,37 @@ export default function ForgeStudioPage() {
         {/* Modal: Novo Arquivo */}
         {isNewFileModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-md bg-[#0f0f1a] border border-[#2d2d4a] rounded-xl shadow-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#1e1e30] pb-3">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <FileCode size={16} className="text-orange-400" />
+            <Surface tone="floating" className="w-full max-w-md p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-3">
+                <h2 className="text-sm font-bold text-[var(--vly-text-primary)] flex items-center gap-2">
+                  <FileCode size={16} className="text-[var(--vly-warning)]" />
                   <span>Novo Arquivo de Código</span>
                 </h2>
-                <button onClick={() => setIsNewFileModalOpen(false)} className="text-slate-400 hover:text-slate-200">
+                <button onClick={() => setIsNewFileModalOpen(false)} className="text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]">
                   ✕
                 </button>
               </div>
 
               <form onSubmit={handleCreateFile} className="space-y-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Nome do Arquivo *</label>
+                  <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase block mb-1">Nome do Arquivo *</label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: process_data.py ou api_client.ts"
                     value={newFileName}
                     onChange={(e) => setNewFileName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                    className="vly-field w-full text-xs"
                     autoFocus
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Linguagem</label>
+                  <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase block mb-1">Linguagem</label>
                   <select
                     value={newFileLang}
                     onChange={(e) => setNewFileLang(e.target.value as ForgeLanguage)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                    className="vly-field w-full text-xs"
                   >
                     <option value="typescript">TypeScript (.ts)</option>
                     <option value="javascript">JavaScript (.js)</option>
@@ -679,11 +682,11 @@ export default function ForgeStudioPage() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Vincular a Projeto (Opcional)</label>
+                  <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase block mb-1">Vincular a Projeto (Opcional)</label>
                   <select
                     value={newFileProject}
                     onChange={(e) => setNewFileProject(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                    className="vly-field w-full text-xs"
                   >
                     <option value="">Geral / Sem Projeto</option>
                     {projects.map((p) => (
@@ -692,23 +695,23 @@ export default function ForgeStudioPage() {
                   </select>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-[#1e1e30]">
+                <div className="flex justify-end gap-2 pt-3 border-t border-[var(--vly-border-subtle)]">
                   <button
                     type="button"
                     onClick={() => setIsNewFileModalOpen(false)}
-                    className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                    className="px-4 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 glow-accent"
+                    className="vly-interactive px-5 py-1.5 rounded-lg text-xs font-bold text-[var(--vly-accent-contrast)] bg-[var(--vly-warning)] hover:brightness-110 glow-accent"
                   >
                     Criar Arquivo
                   </button>
                 </div>
               </form>
-            </div>
+            </Surface>
           </div>
         )}
 

@@ -22,11 +22,12 @@ export function EuterpePresence({ state, audio, quality, onClick, onHide, onBack
   const [tapPulse, setTapPulse] = useState(false);
   const [idleElapsed, setIdleElapsed] = useState(0);
   const node = useRef<HTMLDivElement>(null);
+  const positionRef = useRef<NormalizedPosition>({ x: .88, y: .78 });
   const pointer = useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const longPressTimer = useRef<number | null>(null); const longPressed = useRef(false);
   const activityAt = useRef(Date.now());
-  const setFromNormalized = useCallback((p: NormalizedPosition) => { const bounded = clampPosition(p); setPosition(bounded); setLeft(bounded.x * Math.max(0, window.innerWidth - avatarSize.width)); setTop(bounded.y * Math.max(0, window.innerHeight - avatarSize.height)); }, []);
-  useEffect(() => { setFromNormalized(readEuterpePosition(window.localStorage) ?? { x: .88, y: .78 }); const resize = () => setFromNormalized(position); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); // normalized coordinates adapt to viewport changes
+  const setFromNormalized = useCallback((p: NormalizedPosition) => { const bounded = clampPosition(p); positionRef.current = bounded; setPosition(bounded); setLeft(bounded.x * Math.max(0, window.innerWidth - avatarSize.width)); setTop(bounded.y * Math.max(0, window.innerHeight - avatarSize.height)); }, []);
+  useEffect(() => { setFromNormalized(readEuterpePosition(window.localStorage) ?? { x: .88, y: .78 }); const resize = () => setFromNormalized(positionRef.current); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); // normalized coordinates adapt to viewport changes
   }, [setFromNormalized]);
   useEffect(() => setSmooth((old) => ({ bass: old.bass*.78+audio.bass*.22, mids:old.mids*.82+audio.mids*.18, treble:old.treble*.8+audio.treble*.2, energy:old.energy*.84+audio.energy*.16, calmness:old.calmness*.9+audio.calmness*.1 })), [audio.bass,audio.mids,audio.treble,audio.energy,audio.calmness]);
   useEffect(() => { const timer = window.setInterval(() => setIdleElapsed(Date.now() - activityAt.current), 1000); return () => window.clearInterval(timer); }, []);
@@ -48,12 +49,12 @@ export function EuterpePresence({ state, audio, quality, onClick, onHide, onBack
     const start=pointer.current; if(!start||start.id!==event.pointerId)return;
     const dx=event.clientX-start.x,dy=event.clientY-start.y;
     if(!start.moved&&Math.hypot(dx,dy)>=EUTERPE_DRAG_THRESHOLD){start.moved=true;setDragging(true);setMenuOpen(false);if(longPressTimer.current!==null)window.clearTimeout(longPressTimer.current);}
-    if(start.moved){const nextLeft=Math.max(0,Math.min(window.innerWidth-avatarSize.width,start.left+dx));const nextTop=Math.max(0,Math.min(window.innerHeight-avatarSize.height,start.top+dy));setLeft(nextLeft);setTop(nextTop);const next={x:nextLeft/Math.max(1,window.innerWidth-avatarSize.width),y:nextTop/Math.max(1,window.innerHeight-avatarSize.height)};setPosition(next);}
+    if(start.moved){const nextLeft=Math.max(0,Math.min(window.innerWidth-avatarSize.width,start.left+dx));const nextTop=Math.max(0,Math.min(window.innerHeight-avatarSize.height,start.top+dy));setLeft(nextLeft);setTop(nextTop);const next={x:nextLeft/Math.max(1,window.innerWidth-avatarSize.width),y:nextTop/Math.max(1,window.innerHeight-avatarSize.height)};positionRef.current=next;setPosition(next);}
   };
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const start=pointer.current;if(!start||start.id!==event.pointerId)return;
     if(longPressTimer.current!==null)window.clearTimeout(longPressTimer.current);
-    if(start.moved){saveEuterpePosition(window.localStorage,position,EUTERPE_POSITION_KEY);setDragging(false);}
+    if(start.moved){saveEuterpePosition(window.localStorage,positionRef.current,EUTERPE_POSITION_KEY);setDragging(false);}
     else if(classifyEuterpeGesture(start.moved,longPressed.current)==="TAP"){ activityAt.current=Date.now(); setIdleElapsed(0); setTapPulse(true); window.setTimeout(()=>setTapPulse(false),700); setMenuOpen((open)=>!open); }
     pointer.current=null;
   };

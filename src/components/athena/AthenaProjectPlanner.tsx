@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronRight, History, Pencil, Play, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { athenaProjectPlanManager, type ProjectExecutionPlan, type ProjectPlanStep } from "@/lib/athena/planning/project-plan-manager";
 import { cn } from "@/lib/utils";
+import { Surface } from "@/components/ui/Surface";
 
 interface Props { store: ReturnType<typeof useVarynthStore>; }
 
 export function AthenaProjectPlanner({ store }: Props) {
   const [revision, setRevision] = useState(0);
-  const plans = useMemo(() => athenaProjectPlanManager.list(), [revision]);
+  const plans = athenaProjectPlanManager.list();
   const [selectedId, setSelectedId] = useState<string>();
   const selected = plans.find((plan) => plan.id === selectedId) || plans[0];
   const [editing, setEditing] = useState(false);
@@ -28,18 +29,18 @@ export function AthenaProjectPlanner({ store }: Props) {
   const beginEdit = (plan: ProjectExecutionPlan) => { setObjective(plan.objective); setExpectedResult(plan.expectedResult); setSteps(plan.steps); setEditing(true); };
   const refresh = (message: string) => { setFeedback(message); setRevision((value) => value + 1); };
 
-  if (!plans.length) return <div className="p-6 text-center"><ShieldCheck className="mx-auto mb-2 text-slate-600" size={22} /><p className="text-xs text-slate-400">Nenhum plano de projeto criado.</p><p className="mt-1 text-[11px] text-slate-600">Peça à Athena: “Organize o projeto [nome] para entrega em 10/09/2026”.</p></div>;
+  if (!plans.length) return <Surface tone="raised" className="p-6 text-center"><ShieldCheck className="mx-auto mb-2 text-[var(--vly-text-muted)]" size={22} /><p className="text-xs text-[var(--vly-text-secondary)]">Nenhum plano de projeto criado.</p><p className="mt-1 text-[11px] text-[var(--vly-text-muted)]">Peça à Athena: “Organize o projeto [nome] para entrega em 10/09/2026”.</p></Surface>;
 
   return (
     <div className="grid min-h-[360px] md:grid-cols-[230px_1fr]">
-      <aside className="border-b border-[#25253a] p-3 md:border-b-0 md:border-r">
+      <aside className="border-b border-[var(--vly-border-subtle)] p-3 md:border-b-0 md:border-r">
         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">Planos recentes</p>
-        <div className="space-y-1.5">{plans.map((plan) => <button key={plan.id} onClick={() => { setSelectedId(plan.id); setEditing(false); }} className={cn("w-full rounded-xl border p-2.5 text-left", selected?.id === plan.id ? "border-violet-500/30 bg-violet-500/10" : "border-[#25253a] bg-[#11111b] hover:bg-white/[0.03]")}><span className="block truncate text-[11px] font-bold text-slate-200">{plan.objective}</span><span className="mt-1 flex items-center justify-between text-[9px] text-slate-500"><span>{store.projects.find((project) => project.id === plan.projectId)?.title || "Projeto removido"}</span><span>{plan.status}</span></span></button>)}</div>
+        <div className="space-y-1.5">{plans.map((plan) => <button key={plan.id} onClick={() => { setSelectedId(plan.id); setEditing(false); }} className={cn("vly-interactive w-full rounded-xl border p-2.5 text-left", selected?.id === plan.id ? "border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/10" : "border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)]")}><span className="block truncate text-[11px] font-bold text-[var(--vly-text-secondary)]">{plan.objective}</span><span className="mt-1 flex items-center justify-between text-[9px] text-[var(--vly-text-muted)]"><span>{store.projects.find((project) => project.id === plan.projectId)?.title || "Projeto removido"}</span><span>{plan.status}</span></span></button>)}</div>
       </aside>
       {selected && <div className="p-4">
         {feedback && <div className="mb-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-300">{feedback}</div>}
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">{editing ? <div className="space-y-2"><input aria-label="Objetivo do plano" value={objective} onChange={(event) => setObjective(event.target.value)} className="w-full rounded-lg border border-violet-500/30 bg-[#09090f] px-3 py-2 text-xs text-white" /><textarea aria-label="Resultado esperado" value={expectedResult} onChange={(event) => setExpectedResult(event.target.value)} rows={2} className="w-full rounded-lg border border-violet-500/30 bg-[#09090f] px-3 py-2 text-xs text-white" /></div> : <><h3 className="text-sm font-bold text-white">{selected.objective}</h3><p className="mt-1 text-[11px] text-slate-400">Resultado esperado: {selected.expectedResult}</p></>}</div>
+          <div className="min-w-0 flex-1">{editing ? <div className="space-y-2"><input aria-label="Objetivo do plano" value={objective} onChange={(event) => setObjective(event.target.value)} className="vly-field w-full rounded-lg px-3 py-2 text-xs" /><textarea aria-label="Resultado esperado" value={expectedResult} onChange={(event) => setExpectedResult(event.target.value)} rows={2} className="vly-field w-full rounded-lg px-3 py-2 text-xs" /></div> : <><h3 className="text-sm font-bold text-[var(--vly-text-primary)]">{selected.objective}</h3><p className="mt-1 text-[11px] text-[var(--vly-text-secondary)]">Resultado esperado: {selected.expectedResult}</p></>}</div>
           <span className={cn("rounded-md px-2 py-1 text-[9px] font-bold", selected.status === "CONCLUIDO" ? "bg-emerald-500/10 text-emerald-300" : selected.status === "FALHOU" ? "bg-rose-500/10 text-rose-300" : "bg-violet-500/10 text-violet-300")}>{selected.status} · revisão {selected.revision}</span>
         </div>
         {(selected.risks.length > 0 || selected.missingData.length > 0) && <div className="mt-3 grid gap-2 sm:grid-cols-2">{selected.risks.length > 0 && <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5"><strong className="text-[10px] text-amber-300">Riscos</strong>{selected.risks.map((risk) => <p key={risk} className="mt-1 text-[10px] text-slate-400">• {risk}</p>)}</div>}{selected.missingData.length > 0 && <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-2.5"><strong className="text-[10px] text-cyan-300">Dados ausentes</strong>{selected.missingData.map((item) => <p key={item} className="mt-1 text-[10px] text-slate-400">• {item}</p>)}</div>}</div>}

@@ -5,6 +5,7 @@ import { GameDocumentState, GameBuildResult } from "@/lib/studio/game/types";
 import { gameRuntimeEngine } from "@/lib/studio/game/game-runtime-engine";
 import { assetManager } from "@/lib/artifacts/asset-manager";
 import { Package, Download, X, CheckCircle2, AlertTriangle, Globe, Smartphone, Monitor } from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 interface GameBuildModalProps {
   isOpen: boolean;
@@ -50,23 +51,23 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-      <div className="w-full max-w-lg bg-[#0e0f1d] border border-[#262846] rounded-2xl flex flex-col shadow-2xl overflow-hidden select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 p-6 backdrop-blur-md">
+      <Surface tone="floating" className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl shadow-2xl select-none">
         {/* Header */}
-        <div className="p-4 bg-[#121426] border-b border-[#20223c] flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] p-4">
           <div className="flex items-center gap-2">
-            <Package size={18} className="text-emerald-400" />
-            <h3 className="font-bold text-sm text-white">Compilar & Exportar Jogo</h3>
+            <Package size={18} className="text-[var(--vly-success)]" />
+            <h3 className="text-sm font-bold text-[var(--vly-text-primary)]">Compilar & Exportar Jogo</h3>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg text-slate-400">
+          <button onClick={onClose} className="vly-interactive rounded-lg p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]">
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 text-xs text-slate-300">
+        <div className="space-y-4 p-5 text-xs text-[var(--vly-text-secondary)]">
           <div>
-            <label className="text-[11px] text-slate-400 uppercase font-semibold block mb-2">
+            <label className="mb-2 block text-[11px] font-semibold uppercase text-[var(--vly-text-muted)]">
               Plataforma de Destino
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -74,70 +75,70 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
                 onClick={() => setSelectedTarget("WEB")}
                 className={`p-3 rounded-xl border flex flex-col items-center text-center gap-1.5 transition ${
                   selectedTarget === "WEB"
-                    ? "bg-emerald-500/20 border-emerald-500 text-white font-bold"
-                    : "bg-[#141628] border-[#22243e] text-slate-400 hover:bg-[#1a1c32]"
+                    ? "bg-[var(--vly-success)]/20 border-[var(--vly-border-success)] text-[var(--vly-text-primary)] font-bold"
+                    : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] hover:border-[var(--vly-border-strong)]"
                 }`}
               >
-                <Globe size={18} className="text-emerald-400" />
+                <Globe size={18} className="text-[var(--vly-success)]" />
                 <span>Web Build (HTML5)</span>
-                <span className="text-[9px] text-emerald-400 font-bold uppercase">Disponível</span>
+                <span className="text-[9px] font-bold uppercase text-[var(--vly-success)]">Disponível</span>
               </button>
 
               <button
                 onClick={() => setSelectedTarget("ANDROID")}
                 className={`p-3 rounded-xl border flex flex-col items-center text-center gap-1.5 transition ${
                   selectedTarget === "ANDROID"
-                    ? "bg-amber-500/20 border-amber-500 text-white font-bold"
-                    : "bg-[#141628] border-[#22243e] text-slate-500 opacity-60"
+                    ? "bg-[var(--vly-warning)]/20 border-[var(--vly-border-warning)] text-[var(--vly-text-primary)] font-bold"
+                    : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] opacity-60"
                 }`}
               >
                 <Smartphone size={18} />
                 <span>Android (APK)</span>
-                <span className="text-[9px] text-slate-500 uppercase">Sem Toolchain</span>
+                <span className="text-[9px] text-[var(--vly-text-muted)] uppercase">Sem Toolchain</span>
               </button>
 
               <button
                 onClick={() => setSelectedTarget("DESKTOP")}
                 className={`p-3 rounded-xl border flex flex-col items-center text-center gap-1.5 transition ${
                   selectedTarget === "DESKTOP"
-                    ? "bg-amber-500/20 border-amber-500 text-white font-bold"
-                    : "bg-[#141628] border-[#22243e] text-slate-500 opacity-60"
+                    ? "bg-[var(--vly-warning)]/20 border-[var(--vly-border-warning)] text-[var(--vly-text-primary)] font-bold"
+                    : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] opacity-60"
                 }`}
               >
                 <Monitor size={18} />
                 <span>Desktop (EXE)</span>
-                <span className="text-[9px] text-slate-500 uppercase">Sem Toolchain</span>
+                <span className="text-[9px] text-[var(--vly-text-muted)] uppercase">Sem Toolchain</span>
               </button>
             </div>
           </div>
 
           {selectedTarget !== "WEB" ? (
-            <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-amber-300 text-xs">
-              <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-[var(--vly-border-warning)] bg-[var(--vly-warning)]/10 p-4 text-xs text-[var(--vly-warning)]">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--vly-warning)]" />
               <div>
                 <p className="font-bold">Capacidade Indisponível (Honest Capability)</p>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="mt-1 text-[11px] text-[var(--vly-text-muted)]">
                   O ambiente local atual não possui toolchains nativas instaladas para compilação Android/Desktop. Utilize o pacote Web (HTML5) para execução imediata em qualquer navegador.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="p-3 bg-[#131526] rounded-xl border border-white/5 space-y-1.5 font-mono text-[11px]">
+            <div className="space-y-1.5 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] p-3 font-mono text-[11px]">
               <div className="flex justify-between">
-                <span className="text-slate-400">Cenas Incluídas:</span>
-                <span className="text-white">{documentState.scenes.length}</span>
+                <span className="text-[var(--vly-text-muted)]">Cenas Incluídas:</span>
+                <span className="text-[var(--vly-text-primary)]">{documentState.scenes.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Entidades Totais:</span>
-                <span className="text-white">{documentState.entities.length}</span>
+                <span className="text-[var(--vly-text-muted)]">Entidades Totais:</span>
+                <span className="text-[var(--vly-text-primary)]">{documentState.entities.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Regras Declarativas:</span>
-                <span className="text-white">{documentState.rules.length}</span>
+                <span className="text-[var(--vly-text-muted)]">Regras Declarativas:</span>
+                <span className="text-[var(--vly-text-primary)]">{documentState.rules.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Runtime:</span>
-                <span className="text-emerald-400 font-bold">VARYNTH Web 2D Runtime v1.0</span>
+                <span className="text-[var(--vly-text-muted)]">Runtime:</span>
+                <span className="font-bold text-[var(--vly-success)]">VARYNTH Web 2D Runtime v1.0</span>
               </div>
             </div>
           )}
@@ -146,8 +147,8 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
             <div
               className={`p-3 rounded-xl border flex items-center justify-between ${
                 buildResult.success
-                  ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300"
-                  : "bg-rose-950/40 border-rose-500/40 text-rose-300"
+                  ? "bg-[var(--vly-success)]/10 border-[var(--vly-border-success)] text-[var(--vly-success)]"
+                  : "bg-[var(--vly-danger)]/10 border-[var(--vly-border-danger)] text-[var(--vly-danger)]"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -159,7 +160,7 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
               {buildResult.success && (
                 <button
                   onClick={handleDownload}
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 shadow"
+                  className="vly-interactive flex items-center gap-1 rounded bg-[var(--vly-success)] px-3 py-1 text-xs font-semibold text-[var(--vly-text-on-accent)] shadow hover:opacity-90"
                 >
                   <Download size={13} /> Baixar
                 </button>
@@ -169,21 +170,21 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-[#121426] border-t border-[#20223c] flex items-center justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 hover:bg-white/10 rounded-xl text-slate-300 text-xs font-semibold">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] p-4">
+          <button onClick={onClose} className="vly-interactive rounded-xl px-4 py-2 text-xs font-semibold text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]">
             Fechar
           </button>
           {selectedTarget === "WEB" && (
             <button
               onClick={handleBuild}
               disabled={isBuilding}
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5"
+              className="vly-interactive flex items-center gap-1.5 rounded-xl bg-[var(--vly-success)] px-5 py-2 text-xs font-bold text-[var(--vly-text-on-accent)] shadow-lg disabled:opacity-50 transition hover:opacity-90"
             >
               {isBuilding ? "Compilando..." : "Compilar Web Game"}
             </button>
           )}
         </div>
-      </div>
+      </Surface>
     </div>
   );
 };

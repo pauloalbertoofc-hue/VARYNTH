@@ -20,13 +20,14 @@ import {
   FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Surface } from "@/components/ui/Surface";
 
 const STAGES: { id: OpportunityStatus; label: string; color: string }[] = [
-  { id: "interessado", label: "Interessado", color: "border-slate-700 text-slate-300" },
-  { id: "analisando", label: "Analisando Edital", color: "border-cyan-500/30 text-cyan-400" },
-  { id: "preparando", label: "Preparando Submissão", color: "border-amber-500/30 text-amber-400" },
-  { id: "submetido", label: "Submetido (Aguardando)", color: "border-violet-500/30 text-violet-400" },
-  { id: "aprovado", label: "Aprovado / Premiado", color: "border-emerald-500/30 text-emerald-400" },
+  { id: "interessado", label: "Interessado", color: "border-[var(--vly-border-default)] text-[var(--vly-text-secondary)]" },
+  { id: "analisando", label: "Analisando Edital", color: "border-[color-mix(in_srgb,var(--vly-info)_30%,transparent)] text-[var(--vly-info)]" },
+  { id: "preparando", label: "Preparando Submissão", color: "border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] text-[var(--vly-warning)]" },
+  { id: "submetido", label: "Submetido (Aguardando)", color: "border-[color-mix(in_srgb,var(--vly-accent)_30%,transparent)] text-[var(--vly-accent)]" },
+  { id: "aprovado", label: "Aprovado / Premiado", color: "border-[color-mix(in_srgb,var(--vly-success)_30%,transparent)] text-[var(--vly-success)]" },
 ];
 
 export default function OpportunitiesPage() {
@@ -84,26 +85,26 @@ export default function OpportunitiesPage() {
 
   return (
     <PageLayout title="Opportunities" subtitle="Radar de editais, bolsas e premiações">
-      <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <div className="vly-enter space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center text-yellow-400">
+              <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--vly-warning)_16%,transparent)] border border-[color-mix(in_srgb,var(--vly-warning)_30%,transparent)] flex items-center justify-center text-[var(--vly-warning)]">
                 <Trophy size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-[var(--vly-text-primary)] tracking-tight">
                 Radar de Editais & Oportunidades
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--vly-text-secondary)] mt-1">
               Pipeline de prospecção de chamadas públicas, bolsas PIBIC/PIBITI, prêmios acadêmicos e hackathons.
             </p>
           </div>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-500 glow-accent transition-all duration-200"
+            className="vly-interactive flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--vly-text-primary)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-accent)]"
           >
             <Plus size={16} />
             <span>Cadastrar Edital</span>
@@ -117,18 +118,18 @@ export default function OpportunitiesPage() {
 
             return (
               <div key={stage.id} className="space-y-3 min-w-[220px]">
-                <div className={cn("flex items-center justify-between p-3 rounded-xl bg-[#0f0f1a] border", stage.color)}>
+                <Surface tone="panel" className={cn("flex items-center justify-between p-3 border", stage.color)}>
                   <span className="text-[11px] font-bold uppercase tracking-wider">
                     {stage.label}
                   </span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-[#14141f] text-slate-400 font-mono">
+                  <span className="text-xs px-2 py-0.5 rounded bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)] font-mono">
                     {itemsInStage.length}
                   </span>
-                </div>
+                </Surface>
 
                 <div className="space-y-3">
                   {itemsInStage.length === 0 ? (
-                    <div className="py-8 text-center rounded-xl bg-[#0f0f1a]/40 border border-[#1e1e30] text-slate-600 text-xs">
+                    <div className="py-8 text-center rounded-xl bg-[color-mix(in_srgb,var(--vly-surface)_55%,transparent)] border border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] text-xs">
                       Vazio
                     </div>
                   ) : (
@@ -138,16 +139,16 @@ export default function OpportunitiesPage() {
                       return (
                         <div
                           key={opp.id}
-                          className="group relative p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-yellow-500/40 transition-all space-y-3 clip-corner-sm"
+                            className="vly-interactive group relative p-4 rounded-xl bg-[var(--vly-surface-panel)] border border-[var(--vly-border-subtle)] hover:border-[color-mix(in_srgb,var(--vly-warning)_40%,transparent)] space-y-3 clip-corner-sm"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="text-[10px] text-yellow-400 font-semibold flex items-center gap-1 truncate">
+                            <span className="text-[10px] text-[var(--vly-warning)] font-semibold flex items-center gap-1 truncate">
                               <Building size={11} className="flex-shrink-0" />
                               <span className="truncate">{opp.institution}</span>
                             </span>
                             <button
                               onClick={() => deleteOpportunity(opp.id)}
-                              className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                              className="vly-interactive opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-[var(--vly-text-muted)] hover:text-[var(--vly-danger)] touch-manipulation"
                               title="Remover edital"
                             >
                               <Trash2 size={13} />
@@ -155,11 +156,11 @@ export default function OpportunitiesPage() {
                           </div>
 
                           <div>
-                            <h4 className="text-xs font-bold text-slate-100 group-hover:text-yellow-300 transition-colors">
+                            <h4 className="text-xs font-bold text-[var(--vly-text-primary)] group-hover:text-[var(--vly-warning)] transition-colors">
                               {opp.title}
                             </h4>
                             {opp.prizeOrGrant && (
-                              <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold mt-1">
+                              <div className="flex items-center gap-1 text-[11px] text-[var(--vly-success)] font-semibold mt-1">
                                 <DollarSign size={12} />
                                 <span>{opp.prizeOrGrant}</span>
                               </div>
@@ -167,9 +168,9 @@ export default function OpportunitiesPage() {
                           </div>
 
                           {/* Deadline */}
-                          <div className="p-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                          <div className="p-2 rounded-lg bg-[var(--vly-surface)] border border-[var(--vly-border-subtle)] flex items-center justify-between text-[10px] text-[var(--vly-text-secondary)] font-mono">
                             <div className="flex items-center gap-1">
-                              <Calendar size={11} className="text-amber-400" />
+                              <Calendar size={11} className="text-[var(--vly-warning)]" />
                               <span>Prazo: {opp.deadline}</span>
                             </div>
                           </div>
@@ -178,7 +179,7 @@ export default function OpportunitiesPage() {
                           {proj && (
                             <Link
                               href={`/projects/${proj.id}`}
-                              className="flex items-center gap-1 text-[10px] text-cyan-400 hover:underline"
+                              className="flex items-center gap-1 text-[10px] text-[var(--vly-info)] hover:underline"
                             >
                               <FolderKanban size={11} />
                               <span className="truncate">{proj.title}</span>
@@ -186,13 +187,14 @@ export default function OpportunitiesPage() {
                           )}
 
                           {/* Stage Changer Dropdown */}
-                          <div className="pt-2 border-t border-[#1e1e30] flex items-center justify-between gap-2">
+                          <div className="pt-2 border-t border-[var(--vly-border-subtle)] flex items-center justify-between gap-2">
                             <select
                               value={opp.status}
                               onChange={(e) =>
                                 updateOpportunity(opp.id, { status: e.target.value as OpportunityStatus })
                               }
-                              className="w-full text-[10px] px-2 py-1 rounded bg-[#14141f] border border-[#1e1e30] text-slate-300 focus:outline-none"
+                              aria-label={`Mover ${opp.title}`}
+                              className="vly-field min-h-0 w-full text-[10px] px-2 py-1 rounded"
                             >
                               {STAGES.map((s) => (
                                 <option key={s.id} value={s.id}>
@@ -206,7 +208,7 @@ export default function OpportunitiesPage() {
                                 href={opp.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1 text-slate-400 hover:text-yellow-300"
+                                className="vly-interactive p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-warning)]"
                                 title="Abrir Edital / Link Oficial"
                               >
                                 <ExternalLink size={12} />
@@ -226,13 +228,13 @@ export default function OpportunitiesPage() {
         {/* Modal: Novo Edital */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-lg bg-[#0f0f1a] border border-[#2d2d4a] rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-[#1e1e30] pb-3">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Trophy size={16} className="text-yellow-400" />
+            <Surface tone="floating" className="w-full max-w-lg p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-3">
+                <h2 className="text-sm font-bold text-[var(--vly-text-primary)] flex items-center gap-2">
+                  <Trophy size={16} className="text-[var(--vly-warning)]" />
                   <span>Cadastrar Novo Edital / Prêmio</span>
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-200">
+                <button onClick={() => setIsModalOpen(false)} className="text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]">
                   ✕
                 </button>
               </div>
@@ -246,7 +248,7 @@ export default function OpportunitiesPage() {
                     placeholder="Ex: Edital PIBIC 2026/2027 ou Prêmio Jovem Jurista"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                    className="vly-field w-full px-3 py-2 rounded-lg text-xs"
                     autoFocus
                   />
                 </div>
@@ -260,7 +262,7 @@ export default function OpportunitiesPage() {
                       placeholder="Ex: CNPq, FAPESP, IBDT"
                       value={institution}
                       onChange={(e) => setInstitution(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full px-3 py-2 rounded-lg text-xs"
                     />
                   </div>
 
@@ -271,7 +273,7 @@ export default function OpportunitiesPage() {
                       required
                       value={deadline}
                       onChange={(e) => setDeadline(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                      className="vly-field w-full px-2.5 py-1.5 rounded-lg text-xs"
                     />
                   </div>
                 </div>
@@ -284,7 +286,7 @@ export default function OpportunitiesPage() {
                       placeholder="Ex: R$ 10.000 ou Bolsa R$ 700/mês"
                       value={prizeOrGrant}
                       onChange={(e) => setPrizeOrGrant(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full px-3 py-2 rounded-lg text-xs"
                     />
                   </div>
 
@@ -295,7 +297,7 @@ export default function OpportunitiesPage() {
                       placeholder="https://..."
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none"
+                      className="vly-field w-full px-3 py-2 rounded-lg text-xs"
                     />
                   </div>
                 </div>
@@ -305,7 +307,7 @@ export default function OpportunitiesPage() {
                   <select
                     value={relatedProject}
                     onChange={(e) => setRelatedProject(e.target.value)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                    className="vly-field w-full px-2.5 py-2 rounded-lg text-xs"
                   >
                     <option value="">Nenhum (Edital Geral)</option>
                     {projects.map((p) => (
@@ -321,7 +323,7 @@ export default function OpportunitiesPage() {
                     placeholder="Estar matriculado no 3º ano...&#10;Orientador Doutor..."
                     value={requirements}
                     onChange={(e) => setRequirements(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
+                    className="vly-field w-full px-3 py-2 rounded-lg text-xs resize-none"
                   />
                 </div>
 
@@ -332,7 +334,7 @@ export default function OpportunitiesPage() {
                     placeholder="Histórico Escolar...&#10;Lattes atualizado..."
                     value={requiredDocs}
                     onChange={(e) => setRequiredDocs(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 focus:outline-none resize-none"
+                    className="vly-field w-full px-3 py-2 rounded-lg text-xs resize-none"
                   />
                 </div>
 
@@ -340,19 +342,19 @@ export default function OpportunitiesPage() {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                    className="vly-interactive px-4 py-1.5 text-xs text-slate-400 hover:text-slate-200"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-500 glow-accent"
+                    className="vly-interactive px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-500 glow-accent"
                   >
                     Salvar no Radar
                   </button>
                 </div>
               </form>
-            </div>
+            </Surface>
           </div>
         )}
       </div>

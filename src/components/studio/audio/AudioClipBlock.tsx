@@ -19,7 +19,7 @@ interface AudioClipBlockProps {
 
 export function AudioClipBlock({
   clip,
-  trackColor = "#3b82f6",
+  trackColor = "var(--vly-accent)",
   zoom,
   isSelected,
   onSelect,
@@ -50,26 +50,36 @@ export function AudioClipBlock({
         e.stopPropagation();
         onSelect(e.ctrlKey || e.metaKey);
       }}
+      role="button"
+      tabIndex={0}
+      aria-current={isSelected ? "true" : undefined}
+      aria-label={`Selecionar ${clip.name || "clip de áudio"}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(e.ctrlKey || e.metaKey);
+        }
+      }}
       draggable={Boolean(onMove)}
       onDragStart={(e) => e.dataTransfer.setData("audio-clip-id", clip.id)}
       onDragEnd={(e) => { if (!onMove) return; const parent = (e.currentTarget.parentElement as HTMLElement)?.getBoundingClientRect(); if (parent) onMove(Math.max(0, Math.round(((e.clientX - parent.left) / zoom) * 1000))); }}
       style={{
         left: `${leftPx}px`,
         width: `${widthPx}px`,
-        borderColor: isSelected ? "#60a5fa" : trackColor,
+        borderColor: isSelected ? "var(--vly-accent)" : trackColor,
       }}
       className={`absolute top-1 bottom-1 rounded-lg border flex flex-col justify-between overflow-hidden cursor-pointer select-none transition-shadow ${
         isSelected
-          ? "bg-blue-950/70 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400 z-20"
-          : "bg-[#121426]/90 hover:bg-[#181a32] z-10"
+          ? "z-20 bg-[var(--vly-accent)]/25 shadow-lg ring-2 ring-[var(--vly-accent)]"
+          : "z-10 bg-[var(--vly-surface-raised)]/90 hover:bg-[var(--vly-surface)]"
       }`}
     >
-      {widthPx >= 32 && <button aria-label="Ajustar início do clip" onClick={(e) => { e.stopPropagation(); onTrimStart?.(100); }} className="absolute left-0 top-0 bottom-0 w-2 z-30 cursor-ew-resize bg-blue-400/30 hover:bg-blue-300/70" />}
+      {widthPx >= 32 && <button aria-label="Ajustar início do clip" onClick={(e) => { e.stopPropagation(); onTrimStart?.(100); }} className="absolute bottom-0 left-0 top-0 z-30 w-2 cursor-ew-resize bg-[var(--vly-accent)]/30 hover:bg-[var(--vly-accent)]/70" />}
       {/* Header with Title & Gain indicator */}
-      <div className="px-2 py-0.5 flex items-center justify-between text-[10px] font-medium bg-black/40 text-slate-300">
+      <div className="flex items-center justify-between bg-[var(--vly-world)]/40 px-2 py-0.5 text-[10px] font-medium text-[var(--vly-text-secondary)]">
         <span className="truncate max-w-[80%]">{clip.name || `Clip (${Math.round(clipDurationMs / 1000)}s)`}</span>
         {clip.gain !== 1.0 && (
-          <span className="font-mono text-[9px] text-amber-400 flex items-center gap-0.5">
+          <span className="flex items-center gap-0.5 font-mono text-[9px] text-[var(--vly-warning)]">
             <Volume2 size={9} />
             {Math.round(clip.gain * 100)}%
           </span>
@@ -79,13 +89,13 @@ export function AudioClipBlock({
       {/* Waveform Peaks Canvas/SVG */}
       <div className="flex-1 flex items-center px-1 gap-[1px] opacity-80 overflow-hidden">
         {waveform.peaks.length === 0 ? (
-          <span className="text-[9px] text-slate-500 italic px-2">Waveform aguardando decodificação…</span>
+          <span role="status" className="px-2 text-[9px] italic text-[var(--vly-text-muted)]">Waveform aguardando decodificação…</span>
         ) : waveform.peaks.slice(0, Math.max(10, Math.round(widthPx / 4))).map((peak, idx) => (
           <div
             key={idx}
             style={{
               height: `${Math.max(15, peak * 100)}%`,
-              backgroundColor: isSelected ? "#93c5fd" : trackColor,
+              backgroundColor: isSelected ? "var(--vly-accent)" : trackColor,
             }}
             className="flex-1 rounded-full min-w-[2px] transition-all"
           />
@@ -96,16 +106,16 @@ export function AudioClipBlock({
       {clip.fadeInMs && clip.fadeInMs > 0 && (
         <div
           style={{ width: `${(clip.fadeInMs / 1000) * zoom}px` }}
-          className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-black/80 to-transparent pointer-events-none"
+          className="pointer-events-none absolute bottom-0 left-0 top-0 bg-gradient-to-r from-[var(--vly-world)]/80 to-transparent"
         />
       )}
       {clip.fadeOutMs && clip.fadeOutMs > 0 && (
         <div
           style={{ width: `${(clip.fadeOutMs / 1000) * zoom}px` }}
-          className="absolute top-0 bottom-0 right-0 bg-gradient-to-l from-black/80 to-transparent pointer-events-none"
+          className="pointer-events-none absolute bottom-0 right-0 top-0 bg-gradient-to-l from-[var(--vly-world)]/80 to-transparent"
         />
       )}
-      {widthPx >= 32 && <button aria-label="Ajustar fim do clip" onClick={(e) => { e.stopPropagation(); onTrimEnd?.(-100); }} className="absolute right-0 top-0 bottom-0 w-2 z-30 cursor-ew-resize bg-blue-400/30 hover:bg-blue-300/70" />}
+      {widthPx >= 32 && <button aria-label="Ajustar fim do clip" onClick={(e) => { e.stopPropagation(); onTrimEnd?.(-100); }} className="absolute bottom-0 right-0 top-0 z-30 w-2 cursor-ew-resize bg-[var(--vly-accent)]/30 hover:bg-[var(--vly-accent)]/70" />}
     </div>
   );
 }

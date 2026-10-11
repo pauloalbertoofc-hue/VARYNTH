@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { backupService } from "@/lib/backup/backup-service";
 import { BackupModal } from "@/components/backup/BackupModal";
 import { EnvironmentPersonalization } from "@/components/admin/EnvironmentPersonalization";
+import { Surface } from "@/components/ui/Surface";
 
 export default function ProfilePage() {
   const store = useVarynthStore();
@@ -66,75 +67,75 @@ export default function ProfilePage() {
     <PageLayout title="Perfil & Gamificação" subtitle="Status de mestria, nível e central de backup do OS">
       <div className="space-y-6 max-w-4xl mx-auto animate-fade-in pb-12">
         {/* Gamer Card & Level Banner */}
-        <div className="relative rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/40 via-[#0f0f1a] to-[#0f0f1a] p-6 clip-corner overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
+        <Surface tone="raised" className="relative overflow-hidden border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/[0.04] p-6 shadow-2xl">
+          <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[var(--vly-accent)]/10 blur-3xl" />
 
           <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 border border-violet-400/40 flex items-center justify-center text-white text-2xl font-black shadow-lg glow-accent flex-shrink-0">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[var(--vly-border-accent)] bg-[var(--vly-accent)] text-2xl font-black text-[var(--vly-accent-contrast)] shadow-lg glow-accent">
                 P
               </div>
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-white">Paulo</h2>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold uppercase tracking-wider">
+                  <h2 className="text-xl font-black text-[var(--vly-text-primary)]">Paulo</h2>
+                  <span className="rounded-full border border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--vly-accent)]">
                     Dono do VARYNTH OS
                   </span>
                 </div>
-                <p className="text-xs text-cyan-400 font-bold mt-0.5">
+                <p className="mt-0.5 text-xs font-bold text-[var(--vly-info)]">
                   Nível {stats.level} · {stats.title}
                 </p>
-                <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                <p className="mt-0.5 font-mono text-[11px] text-[var(--vly-text-muted)]">
                   XP Total: {stats.totalXP.toLocaleString()} XP
                 </p>
               </div>
             </div>
 
             {/* Quick KPIs */}
-            <div className="flex items-center gap-4 bg-[#0a0a0f]/80 px-4 py-2.5 rounded-xl border border-[#1e1e30]">
+            <div className="flex items-center gap-4 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-world)]/80 px-4 py-2.5">
               <div className="text-center">
-                <p className="text-lg font-black text-white">{store.projects.length}</p>
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Projetos</p>
+                <p className="text-lg font-black text-[var(--vly-text-primary)]">{store.projects.length}</p>
+                <p className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Projetos</p>
               </div>
-              <div className="w-px h-7 bg-[#1e1e30]" />
+              <div className="h-7 w-px bg-[var(--vly-border-subtle)]" />
               <div className="text-center">
-                <p className="text-lg font-black text-emerald-400">
+                <p className="text-lg font-black text-[var(--vly-success)]">
                   {store.tasks.filter((t) => t.status === "concluida").length}
                 </p>
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Tarefas Feitas</p>
+                <p className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Tarefas Feitas</p>
               </div>
-              <div className="w-px h-7 bg-[#1e1e30]" />
+              <div className="h-7 w-px bg-[var(--vly-border-subtle)]" />
               <div className="text-center">
-                <p className="text-lg font-black text-violet-400">{stats.badges.filter((b) => b.unlocked).length}</p>
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Conquistas</p>
+                <p className="text-lg font-black text-[var(--vly-accent)]">{stats.badges.filter((b) => b.unlocked).length}</p>
+                <p className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Conquistas</p>
               </div>
             </div>
           </div>
 
           {/* Level Progress Bar */}
-          <div className="mt-6 pt-4 border-t border-[#1e1e30]/80 space-y-1.5">
+          <div className="mt-6 space-y-1.5 border-t border-[var(--vly-border-subtle)]/80 pt-4">
             <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400 font-bold">Progresso para o Nível {stats.level + 1}</span>
-              <span className="text-violet-300 font-bold">{stats.progressPercent}%</span>
+              <span className="font-bold text-[var(--vly-text-secondary)]">Progresso para o Nível {stats.level + 1}</span>
+              <span className="font-bold text-[var(--vly-accent)]">{stats.progressPercent}%</span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[#14141f] border border-[#1e1e30] overflow-hidden p-0.5">
+            <div className="w-full overflow-hidden rounded-full border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-0.5 h-2.5">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400 transition-all duration-500"
+                className="h-full rounded-full bg-[var(--vly-accent)] transition-all duration-500"
                 style={{ width: `${stats.progressPercent}%` }}
               />
             </div>
           </div>
-        </div>
+        </Surface>
 
-        <section className="rounded-2xl border border-[#292940] bg-[#11111b] p-5">
+        <Surface tone="panel" className="p-5">
           <EnvironmentPersonalization account allowedNavigation={["/modules/vault", "/modules/music", "/modules/athena", "/modules/studio"]} />
-        </section>
+        </Surface>
 
         {/* Badges & Achievements Grid */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Trophy size={14} className="text-yellow-400" />
+          <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--vly-text-secondary)]">
+            <Trophy size={14} className="text-[var(--vly-warning)]" />
             <span>Mural de Conquistas ({stats.badges.filter((b) => b.unlocked).length} / {stats.badges.length})</span>
           </h3>
 
@@ -145,14 +146,14 @@ export default function ProfilePage() {
                 className={cn(
                   "p-4 rounded-xl border transition-all clip-corner-sm flex items-start gap-3",
                   badge.unlocked
-                    ? "bg-[#0f0f1a] border-violet-500/30 text-white shadow-sm"
-                    : "bg-[#0a0a0f] border-[#1e1e30] opacity-40 grayscale"
+                    ? "bg-[var(--vly-surface-raised)] border-[var(--vly-accent)]/30 text-[var(--vly-text-primary)] shadow-sm"
+                    : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] opacity-40 grayscale"
                 )}
               >
                 <div className="text-2xl flex-shrink-0">{badge.icon}</div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-slate-100">{badge.title}</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">{badge.description}</p>
+                  <h4 className="text-xs font-bold text-[var(--vly-text-primary)]">{badge.title}</h4>
+                  <p className="mt-0.5 text-[11px] leading-tight text-[var(--vly-text-secondary)]">{badge.description}</p>
                 </div>
               </div>
             ))}
@@ -161,39 +162,39 @@ export default function ProfilePage() {
 
         {/* Global Density Metrics */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Layers size={14} className="text-cyan-400" />
+          <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--vly-text-secondary)]">
+            <Layers size={14} className="text-[var(--vly-info)]" />
             <span>Densidade do Universo Digital</span>
           </h3>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold">Vault (Conhecimento)</span>
-              <p className="text-xl font-bold text-purple-400 mt-1">{store.vaultItems.length}</p>
+            <div className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3.5">
+              <span className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Vault (Conhecimento)</span>
+              <p className="mt-1 text-xl font-bold text-[var(--vly-accent)]">{store.vaultItems.length}</p>
             </div>
-            <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold">Teses (Codex)</span>
-              <p className="text-xl font-bold text-cyan-400 mt-1">{store.theses.length}</p>
+            <div className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3.5">
+              <span className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Teses (Codex)</span>
+              <p className="mt-1 text-xl font-bold text-[var(--vly-info)]">{store.theses.length}</p>
             </div>
-            <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold">Evidências (Research)</span>
-              <p className="text-xl font-bold text-emerald-400 mt-1">{store.evidences.length}</p>
+            <div className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3.5">
+              <span className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Evidências (Research)</span>
+              <p className="mt-1 text-xl font-bold text-[var(--vly-success)]">{store.evidences.length}</p>
             </div>
-            <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold">Scripts (Forge)</span>
-              <p className="text-xl font-bold text-orange-400 mt-1">{store.forgeFiles.length}</p>
+            <div className="rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3.5">
+              <span className="text-[10px] font-semibold uppercase text-[var(--vly-text-muted)]">Scripts (Forge)</span>
+              <p className="mt-1 text-xl font-bold text-[var(--vly-warning)]">{store.forgeFiles.length}</p>
             </div>
           </div>
         </div>
 
         {/* Backup & Data Center */}
-        <div className="p-6 rounded-2xl bg-[#0f0f1a] border border-[#1e1e30] space-y-4 clip-corner">
+        <Surface tone="panel" className="space-y-4 p-6">
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Download size={16} className="text-violet-400" />
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
+              <Download size={16} className="text-[var(--vly-accent)]" />
               <span>Central de Backup & Portabilidade do VARYNTH OS</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+            <p className="mt-1 text-xs leading-relaxed text-[var(--vly-text-secondary)]">
               O VARYNTH armazena seus dados com segurança no navegador. Baixe um snapshot completo em JSON para guardar cópia ou transferir seu ambiente para outro dispositivo.
             </p>
           </div>
@@ -201,7 +202,7 @@ export default function ProfilePage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
             <button
               onClick={handleExportBackup}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              className="vly-interactive flex items-center justify-center gap-2 rounded-[var(--vly-radius-md)] bg-[var(--vly-accent)] px-4 py-2.5 text-xs font-bold text-[var(--vly-accent-contrast)] hover:opacity-90 glow-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vly-accent)]"
             >
               <Download size={15} />
               <span>Exportar Backup Completo (.JSON)</span>
@@ -209,19 +210,19 @@ export default function ProfilePage() {
 
             <button
               onClick={() => setIsBackupModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-[#14141f] hover:bg-[#1e1e30] border border-[#1e1e30] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              className="vly-interactive flex items-center justify-center gap-2 rounded-[var(--vly-radius-md)] border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-4 py-2.5 text-xs font-bold text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vly-info)]"
             >
-              <Upload size={15} className="text-cyan-400" />
+              <Upload size={15} className="text-[var(--vly-info)]" />
               <span>Gerenciador de Backup & Restauração</span>
             </button>
           </div>
 
           {importStatus && (
-            <div className="p-3 rounded-lg bg-[#0a0a0f] border border-violet-500/30 text-xs text-cyan-300 font-mono">
+            <div className="rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-world)] p-3 font-mono text-xs text-[var(--vly-info)]">
               {importStatus}
             </div>
           )}
-        </div>
+        </Surface>
 
         <BackupModal
           isOpen={isBackupModalOpen}

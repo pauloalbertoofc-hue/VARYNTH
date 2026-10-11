@@ -158,12 +158,18 @@ export class GameRulesEngine {
             return false;
           }
           break;
+        case "GREATER_OR_EQUALS":
+          if (typeof varVal !== "number" || typeof cond.value !== "number" || varVal < cond.value) return false;
+          break;
         case "LESS_THAN":
           if (typeof varVal === "number" && typeof cond.value === "number") {
             if (varVal >= cond.value) return false;
           } else {
             return false;
           }
+          break;
+        case "LESS_OR_EQUALS":
+          if (typeof varVal !== "number" || typeof cond.value !== "number" || varVal > cond.value) return false;
           break;
         case "CONTAINS":
           if (typeof varVal === "string" && typeof cond.value === "string") {
@@ -242,7 +248,7 @@ export class GameRulesEngine {
   private isTriggerMatching(ruleTrigger: GameTrigger, eventTrigger: GameTrigger): boolean {
     if (ruleTrigger.type !== eventTrigger.type) return false;
 
-    if (ruleTrigger.type === "ON_CLICK" || ruleTrigger.type === "ON_COLLISION") {
+    if (["ON_CLICK", "ON_COLLISION", "ON_COLLISION_ENTER", "ON_COLLISION_EXIT", "ON_TRIGGER_ENTER", "ON_TRIGGER_EXIT", "ON_ENTITY_CREATED", "ON_ENTITY_DESTROYED"].includes(ruleTrigger.type)) {
       if (ruleTrigger.entityId && ruleTrigger.entityId !== eventTrigger.entityId) return false;
       if (ruleTrigger.targetEntityId && ruleTrigger.targetEntityId !== eventTrigger.targetEntityId) return false;
     }
@@ -322,6 +328,20 @@ export class GameRulesEngine {
         }
         break;
       }
+      case "PLAY_ANIMATION": {
+        if (action.entityId && state.entities[action.entityId]) {
+          const animator = state.entities[action.entityId].components.find((component) => component.type === "ANIMATOR");
+          if (animator?.type === "ANIMATOR") {
+            const clip = animator.clips.find((item) => item.id === action.animationClipId || item.name === action.animationClipId);
+            if (clip) {
+              animator.activeClipId = clip.id;
+              animator.playing = true;
+              state.logs.push(`[ACTION_ANIMATION] Clip "${clip.name}" iniciado em "${state.entities[action.entityId].name}".`);
+            }
+          }
+        }
+        break;
+      }
       case "SHOW_ENTITY": {
         if (action.entityId && state.entities[action.entityId]) {
           state.entities[action.entityId].active = true;
@@ -368,6 +388,12 @@ export class GameRulesEngine {
         }
         break;
       }
+      case "STOP_AUDIO":
+        state.logs.push(`[ACTION_AUDIO_STOP] Fonte "${action.entityId || action.assetId || action.audioEventId || "global"}" interrompida.`);
+        break;
+      case "RESTART_GAME":
+        state.logs.push("[ACTION_RESTART] Reinício solicitado ao runtime.");
+        break;
       case "EMIT_EVENT": {
         if (action.eventType) this.queueEvent({ type: action.eventType, entityId: action.entityId, targetEntityId: action.targetEntityId } as any, { originEntityId: action.entityId, targetEntityId: action.targetEntityId, actionName: action.actionName }, 2, state.simulationClockMs);
         state.logs.push(`[ACTION_EVENT] Evento emitido: ${action.eventType || " desconhecido"}.`);
@@ -385,13 +411,33 @@ export class GameRulesEngine {
     }
   }
 
+  /**
+   * Runs UI-originated declarative actions through the same rule engine used by
+   * events. This keeps Button actions serializable and avoids a second runtime
+   * implementation in the Play Mode UI.
+   */
+  public executeActions(actions: GameAction[], state: RuleEngineRuntimeState, rules: GameRule[] = []) {
+    const context: RuleExecutionContext = {
+      executionId: `direct-${Date.now()}`,
+      tickId: state.simulationTick,
+      simulationClockMs: state.simulationClockMs,
+      eventDepth: 0,
+      stepCount: 0,
+      maxSteps: GameRulesEngine.DEFAULT_MAX_STEPS,
+      maxDepth: GameRulesEngine.DEFAULT_MAX_DEPTH,
+      executedRuleIds: [],
+    };
+    for (const action of actions) this.applyAction(action, state, context);
+    return this.processEvents(rules, state);
+  }
+
   public getCapabilities(): GameRuntimeCapabilities {
     return {
       supportedGameTypes: ["2D", "WEB_2D", "INTERACTIVE_STORY", "QUIZ", "SIMULATION"],
-      supportedComponents: ["TRANSFORM", "SPRITE", "TEXT", "AUDIO_SOURCE", "COLLIDER", "INPUT", "STATE", "VARIABLES", "SCRIPT", "UI"],
-      supportedTriggers: ["ON_START", "ON_CLICK", "ON_KEY", "ON_ACTION", "ON_COLLISION", "ON_VARIABLE_CHANGED", "ON_SCENE_ENTER", "ON_TIMER"],
-      supportedConditions: ["EQUALS", "NOT_EQUALS", "GREATER_THAN", "LESS_THAN", "CONTAINS"],
-      supportedActions: ["SET_VARIABLE", "ADD_VARIABLE", "MOVE_ENTITY", "SET_POSITION", "APPLY_FORCE", "SHOW_ENTITY", "HIDE_ENTITY", "PLAY_AUDIO", "CHANGE_SCENE", "SHOW_TEXT", "END_GAME", "EMIT_EVENT", "CREATE_ENTITY", "DESTROY_ENTITY", "WAIT"],
+      supportedComponents: ["TRANSFORM", "SPRITE", "TEXT", "AUDIO_SOURCE", "COLLIDER", "INPUT", "STATE", "VARIABLES", "SCRIPT", "UI", "RIGID_BODY", "ANIMATOR", "CAMERA", "HEALTH", "BEHAVIOR"],
+      supportedTriggers: ["ON_START", "ON_UPDATE", "ON_CLICK", "ON_KEY", "ON_KEY_UP", "ON_ACTION", "ON_COLLISION", "ON_COLLISION_ENTER", "ON_COLLISION_EXIT", "ON_TRIGGER_ENTER", "ON_TRIGGER_EXIT", "ON_VARIABLE_CHANGED", "ON_SCENE_ENTER", "ON_TIMER", "ON_ENTITY_CREATED", "ON_ENTITY_DESTROYED"],
+      supportedConditions: ["EQUALS", "NOT_EQUALS", "GREATER_THAN", "GREATER_OR_EQUALS", "LESS_THAN", "LESS_OR_EQUALS", "CONTAINS"],
+      supportedActions: ["SET_VARIABLE", "ADD_VARIABLE", "MOVE_ENTITY", "SET_POSITION", "APPLY_FORCE", "PLAY_ANIMATION", "SHOW_ENTITY", "HIDE_ENTITY", "PLAY_AUDIO", "STOP_AUDIO", "RESTART_GAME", "CHANGE_SCENE", "SHOW_TEXT", "END_GAME", "EMIT_EVENT", "CREATE_ENTITY", "DESTROY_ENTITY", "WAIT"],
       webBuildAvailable: true,
       androidBuildAvailable: false,
       desktopBuildAvailable: false,

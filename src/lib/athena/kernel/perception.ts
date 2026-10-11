@@ -36,7 +36,6 @@ export class HybridPerceptionEngine {
       lower.startsWith("excluir") ||
       lower.startsWith("apagar") ||
       lower.includes("lixeira") ||
-      lower.includes("diagnostico") ||
       lower.includes("resumo do sistema")
     ) {
       type = "ACTION_FAST";

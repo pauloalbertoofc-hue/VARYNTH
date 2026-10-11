@@ -16,6 +16,7 @@ import { imageRenderEngine } from "./image-render-engine";
 import { athenaEventBus } from "../../athena/events/event-bus";
 import { ArtifactActor } from "../../artifacts/types";
 import { IMAGE_TEMPLATES, ImageTemplate } from "./image-templates";
+import { appendVisualProvenance, migrateVisualDocument, imageFromVisualDocument, visualDocumentFromImage, type VisualDocument } from "../../visual-core/contracts";
 
 const IMAGE_STATE_STORAGE_PREFIX = "varynth_image_state_";
 const MAX_UNDO_STACK_SIZE = 50;
@@ -27,6 +28,38 @@ export class ImageService {
 
   constructor() {
     this.initFromStorage();
+  }
+
+  /** Returns the current composition using the versioned Visual Core contract. */
+  public exportVisualDocument(artifactId: string): VisualDocument | null {
+    const image = this.getImage(artifactId);
+    if (!image) return null;
+    return appendVisualProvenance(visualDocumentFromImage(image.documentState), {
+      operation: "PRODUCE",
+      description: "Exported as versioned Visual Core document",
+      actor: "USER",
+      derivedAssetIds: [],
+    });
+  }
+
+  /** Validates and imports a Visual Core document into the compatible Image Studio state. */
+  public importVisualDocument(document: VisualDocument, actor: ArtifactActor = "USER"): { success: boolean; error?: string } {
+    try {
+      const migrated = migrateVisualDocument(document);
+      const current = this.getImage(migrated.id);
+      if (!current) return { success: false, error: "IMAGE_ARTIFACT_NOT_FOUND" };
+      const imported = appendVisualProvenance(migrated, {
+        operation: "EDIT",
+        description: "Imported from versioned Visual Core document",
+        actor: actor === "USER" || actor === "ATHENA" || actor === "SYSTEM" ? actor : "SYSTEM",
+      });
+      const state = imageFromVisualDocument(imported);
+      this.persistState(state);
+      athenaEventBus.emit("IMAGE_DOCUMENT_IMPORTED" as any, { artifactId: document.id, actor });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "INVALID_VISUAL_DOCUMENT" };
+    }
   }
 
   private initFromStorage(): void {
@@ -226,6 +259,7 @@ export class ImageService {
     sizeBytes: number;
     data: string | Blob | ArrayBuffer;
     actor?: ArtifactActor;
+    captureMetadata?: { source: "DEVICE_CAMERA" | "FILE_IMPORT"; generated: false; capturedAt?: string };
   }): Promise<{ success: boolean; image?: ImageItem; error?: string }> {
     const actor = params.actor || "USER";
 
@@ -268,6 +302,7 @@ export class ImageService {
           sourceAssetId: sourceAsset.id,
           format: params.mimeType.replace("image/", "").toUpperCase(),
           documentMode: "RASTER",
+          ...(params.captureMetadata ?? {}),
         },
         tags: ["imported", "image", "source"],
       },

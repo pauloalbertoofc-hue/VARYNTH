@@ -14,16 +14,18 @@ import {
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatePanel } from "@/components/ui/StatePanel";
+import { Surface } from "@/components/ui/Surface";
 
 interface ProjectTasksTabProps {
   projectId: string;
 }
 
 const PRIORITY_BADGES = {
-  baixa: { label: "Baixa", class: "text-slate-400 border-slate-700 bg-slate-800/30" },
-  media: { label: "Média", class: "text-blue-400 border-blue-500/30 bg-blue-500/10" },
-  alta: { label: "Alta", class: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
-  urgente: { label: "Urgente", class: "text-red-400 border-red-500/30 bg-red-500/10" },
+  baixa: { label: "Baixa", class: "text-[var(--vly-text-muted)] border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)]" },
+  media: { label: "Média", class: "text-[var(--vly-info)] border-[var(--vly-info)]/30 bg-[var(--vly-info)]/10" },
+  alta: { label: "Alta", class: "text-[var(--vly-warning)] border-[var(--vly-warning)]/30 bg-[var(--vly-warning)]/10" },
+  urgente: { label: "Urgente", class: "text-[var(--vly-danger)] border-[var(--vly-danger)]/30 bg-[var(--vly-danger)]/10" },
 };
 
 export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
@@ -68,8 +70,8 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             className={cn(
               "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               filter === "todas"
-                ? "bg-violet-600/30 text-violet-300 border border-violet-500/40"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-[var(--vly-accent)]/20 text-[var(--vly-accent)] border border-[var(--vly-accent)]/40"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             )}
           >
             Todas ({projectTasks.length})
@@ -79,8 +81,8 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             className={cn(
               "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               filter === "pendentes"
-                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-[var(--vly-warning)]/15 text-[var(--vly-warning)] border border-[var(--vly-warning)]/40"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             )}
           >
             Pendentes ({projectTasks.filter((t) => t.status !== "concluida").length})
@@ -90,8 +92,8 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             className={cn(
               "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               filter === "concluidas"
-                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-[var(--vly-success)]/15 text-[var(--vly-success)] border border-[var(--vly-success)]/40"
+                : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             )}
           >
             Concluídas ({projectTasks.filter((t) => t.status === "concluida").length})
@@ -100,7 +102,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
 
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-[var(--vly-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--vly-accent-contrast)] transition-colors hover:opacity-90"
         >
           <Plus size={14} />
           <span>Nova Tarefa</span>
@@ -109,7 +111,7 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
 
       {/* Quick Add Form */}
       {isAdding && (
-        <form onSubmit={handleCreate} className="p-4 rounded-xl bg-[#14141f] border border-[#2d2d4a] space-y-3">
+        <form onSubmit={handleCreate} className="p-4 rounded-[var(--vly-radius-lg)] bg-[var(--vly-surface-raised)] border border-[var(--vly-border-strong)] space-y-3">
           <div>
             <input
               type="text"
@@ -117,17 +119,17 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
               placeholder="O que precisa ser feito neste projeto?"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+              className="vly-field w-full px-3 py-2 text-xs"
               autoFocus
             />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400">Prioridade:</span>
+              <span className="text-[11px] text-[var(--vly-text-secondary)]">Prioridade:</span>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as PriorityLevel)}
-                className="px-2.5 py-1 rounded bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                className="vly-field px-2.5 py-1 text-xs"
               >
                 <option value="baixa">Baixa</option>
                 <option value="media">Média</option>
@@ -137,12 +139,12 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400">Prazo:</span>
+              <span className="text-[11px] text-[var(--vly-text-secondary)]">Prazo:</span>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="px-2 py-1 rounded bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+                className="vly-field px-2 py-1 text-xs"
               />
             </div>
 
@@ -150,13 +152,13 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="px-3 py-1 text-xs text-slate-400 hover:text-slate-200"
+                className="px-3 py-1 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-4 py-1 rounded bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white transition-colors"
+                className="px-4 py-1 rounded bg-[var(--vly-accent)] hover:opacity-90 text-xs font-semibold text-[var(--vly-accent-contrast)] transition-colors"
               >
                 Adicionar
               </button>
@@ -168,21 +170,20 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
       {/* Task List */}
       <div className="space-y-2">
         {filteredTasks.length === 0 ? (
-          <div className="py-12 text-center rounded-xl bg-[#0f0f1a] border border-[#1e1e30] text-slate-500 text-xs">
-            Nenhuma tarefa encontrada para este filtro.
-          </div>
+          <StatePanel tone="empty" className="bg-[var(--vly-surface)]" title="Nenhuma tarefa encontrada" description="Ajuste o filtro ou adicione uma tarefa para este projeto." />
         ) : (
           filteredTasks.map((task) => {
             const isDone = task.status === "concluida";
             const prio = PRIORITY_BADGES[task.priority];
 
             return (
-              <div
+              <Surface
                 key={task.id}
+                tone="raised"
                 className={cn(
-                  "group flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30]",
-                  "hover:border-violet-500/40 transition-all duration-200",
-                  isDone && "opacity-60 bg-[#0a0a0f]"
+                  "group flex items-center justify-between gap-3 rounded-xl p-3.5",
+                  "transition-all duration-200 hover:border-[var(--vly-accent)]/40",
+                  isDone && "opacity-60"
                 )}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -190,17 +191,17 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                     onClick={() => toggleTask(task.id)}
                     aria-label={isDone ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
                     title={isDone ? "Reabrir tarefa" : "Concluir tarefa"}
-                    className="text-violet-400 hover:text-violet-300 transition-colors flex-shrink-0"
+                    className="shrink-0 text-[var(--vly-accent)] transition-colors hover:opacity-80"
                   >
-                    {isDone ? <CheckSquare size={18} className="text-emerald-400" /> : <Square size={18} />}
+                    {isDone ? <CheckSquare size={18} className="text-[var(--vly-success)]" /> : <Square size={18} />}
                   </button>
 
                   <div className="min-w-0">
-                    <p className={cn("text-xs font-medium text-slate-200 truncate", isDone && "line-through text-slate-500")}>
+                    <p className={cn("text-xs font-medium text-[var(--vly-text-secondary)] truncate", isDone && "line-through text-[var(--vly-text-muted)]")}>
                       {task.title}
                     </p>
                     {task.description && (
-                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{task.description}</p>
+                      <p className="text-[11px] text-[var(--vly-text-secondary)] mt-0.5 truncate">{task.description}</p>
                     )}
                   </div>
                 </div>
@@ -211,21 +212,21 @@ export function ProjectTasksTab({ projectId }: ProjectTasksTabProps) {
                   </span>
 
                   {task.dueDate && (
-                    <span className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-                      <Calendar size={11} className="text-violet-400" />
+                    <span className="flex items-center gap-1 text-[10px] text-[var(--vly-text-secondary)] font-mono">
+                      <Calendar size={11} className="text-[var(--vly-accent)]" />
                       <span>{task.dueDate}</span>
                     </span>
                   )}
 
                   <button
                     onClick={() => deleteTask(task.id)}
-                    className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                    className="touch-manipulation p-1.5 text-[var(--vly-text-muted)] opacity-70 transition-opacity hover:text-[var(--vly-danger)] sm:opacity-0 sm:group-hover:opacity-100"
                     title="Remover tarefa"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
-              </div>
+              </Surface>
             );
           })
         )}

@@ -186,7 +186,7 @@ export class GameService {
       ...state.scenes.flatMap((scene) => scene.backgroundAssetId ? [scene.backgroundAssetId] : []),
       ...state.entities.flatMap((entity) => entity.components.flatMap((component) => component.type === "SPRITE" || component.type === "AUDIO_SOURCE" ? [component.assetId] : component.type === "ANIMATOR" ? component.clips.flatMap((clip) => clip.frames.map((frame) => frame.assetId)) : [])),
     ];
-    item.metadata.sourceAssetIds = [...new Set(referencedAssetIds)];
+    item.metadata.sourceAssetIds = [...new Set(referencedAssetIds.filter(Boolean))];
     item.artifact.updatedAt = state.updatedAt;
     if (typeof window !== "undefined") window.localStorage.setItem(`varynth_game_state_${artifactId}`, JSON.stringify(item));
 

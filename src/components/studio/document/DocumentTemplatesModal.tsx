@@ -28,15 +28,15 @@ export function DocumentTemplatesModal({
     switch (type) {
       case "ARTICLE":
       case "RESEARCH":
-        return <BookOpen size={16} className="text-blue-400" />;
+        return <BookOpen size={16} className="text-[var(--vly-accent)]" />;
       case "LEGAL_DOCUMENT":
-        return <Scale size={16} className="text-amber-400" />;
+        return <Scale size={16} className="text-[var(--vly-warning)]" />;
       case "SCRIPT":
-        return <Video size={16} className="text-purple-400" />;
+        return <Video size={16} className="text-[var(--vly-brand)]" />;
       case "MANUAL":
-        return <Terminal size={16} className="text-emerald-400" />;
+        return <Terminal size={16} className="text-[var(--vly-success)]" />;
       default:
-        return <FileText size={16} className="text-slate-400" />;
+        return <FileText size={16} className="text-[var(--vly-text-muted)]" />;
     }
   };
 
@@ -47,72 +47,77 @@ export function DocumentTemplatesModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-[#10101c] border border-[#222238] rounded-xl max-w-2xl w-full p-6 shadow-2xl flex flex-col gap-5 text-slate-200">
-        <div className="flex items-center justify-between pb-3 border-b border-[#1e1e32]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 p-4 backdrop-blur-sm animate-fade-in">
+      <div role="dialog" aria-modal="true" aria-labelledby="document-template-title" className="flex w-full max-w-2xl flex-col gap-5 rounded-xl border border-[var(--vly-border-strong)] bg-[var(--vly-surface-floating)] p-6 text-[var(--vly-text-primary)] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-3">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400">
+            <div className="rounded-lg bg-[var(--vly-accent)]/10 p-1.5 text-[var(--vly-accent)]">
               <Plus size={18} />
             </div>
             <div>
-              <h3 className="font-semibold text-base text-white">Criar Novo Documento</h3>
-              <p className="text-xs text-slate-400">Escolha uma estrutura inicial para seu Document Artifact</p>
+              <h3 id="document-template-title" className="text-base font-semibold text-[var(--vly-text-primary)]">Criar Novo Documento</h3>
+              <p className="text-xs text-[var(--vly-text-muted)]">Escolha uma estrutura inicial para seu Document Artifact</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition">
+          <button type="button" onClick={onClose} aria-label="Fechar criação de documento" className="vly-interactive text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]">
             <X size={18} />
           </button>
         </div>
 
         {/* Title Input */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300">Título do Documento:</label>
+          <label htmlFor="document-template-title-input" className="text-xs font-semibold text-[var(--vly-text-secondary)]">Título do Documento:</label>
           <input
+            id="document-template-title-input"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={selectedTemplate.name}
-            className="w-full bg-[#141424] border border-[#24243a] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition"
+            className="vly-field w-full rounded-lg px-3 py-2 text-sm transition focus:outline-none"
           />
         </div>
 
         {/* Template Cards Grid */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300">Selecione o Modelo:</label>
+          <span className="text-xs font-semibold text-[var(--vly-text-secondary)]">Selecione o Modelo:</span>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
             {DOCUMENT_TEMPLATES.map((tmpl) => {
               const isSelected = tmpl.id === selectedTemplateId;
               return (
                 <button
                   key={tmpl.id}
+                  type="button"
                   onClick={() => setSelectedTemplateId(tmpl.id)}
-                  className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition ${
+                  aria-pressed={isSelected}
+                  className={`vly-interactive flex flex-col gap-1 rounded-lg border p-3 text-left transition ${
                     isSelected
-                      ? "bg-blue-600/15 border-blue-500 shadow-sm"
-                      : "bg-[#141424] border-[#202034] hover:border-slate-600"
+                      ? "border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/15 shadow-sm"
+                      : "border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] hover:border-[var(--vly-border-strong)]"
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     {getIcon(tmpl.type)}
-                    <span className="font-semibold text-xs text-white">{tmpl.name}</span>
+                    <span className="text-xs font-semibold text-[var(--vly-text-primary)]">{tmpl.name}</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-2">{tmpl.description}</p>
+                  <p className="line-clamp-2 text-[11px] text-[var(--vly-text-muted)]">{tmpl.description}</p>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1e1e32]">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--vly-border-subtle)] pt-3">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs text-slate-400 hover:text-white bg-[#161626] rounded-lg transition"
+            className="vly-interactive rounded-lg bg-[var(--vly-surface-raised)] px-4 py-2 text-xs text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
           >
             Cancelar
           </button>
           <button
+            type="button"
             onClick={handleCreate}
-            className="px-5 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            className="vly-interactive flex items-center gap-1.5 rounded-lg bg-[var(--vly-accent)] px-5 py-2 text-xs font-medium text-white shadow-sm hover:bg-[var(--vly-accent-strong)]"
           >
             <Plus size={15} />
             Criar Documento

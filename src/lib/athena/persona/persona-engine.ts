@@ -246,7 +246,7 @@ export class AthenaPersonaEngine {
       if (previous.includes("prefiro nao inventar") || previous.includes("novidade especifica")) {
         return "Porque eu não tinha uma novidade verificada nos dados disponíveis. Inventar uma atualização pareceria útil, mas criaria informação falsa. Posso consultar projetos, tarefas e prazos e dizer apenas o que estiver realmente registrado.";
       }
-      return "Minha resposta anterior não continha uma recomendação identificável. Posso explicar um trecho específico dela, mas não vou atribuir uma escolha ou justificativa que não apareceu na conversa.";
+      return "Minha resposta anterior não continha uma recomendação identificável nem razões estratégicas explícitas. Posso explicar um trecho específico dela, mas não vou atribuir uma escolha ou justificativa que não apareceu na conversa.";
     }
     const target = referent;
     return (
@@ -465,11 +465,11 @@ export class AthenaPersonaEngine {
       ) {
         if (activeProjectTitle) {
           return {
-            text: `Por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui acompanhando a evolução do projeto **"${activeProjectTitle}"** e pronta para a gente continuar refinando as ideias. Tudo rodando estável e no controle!\n\nE com você, como foi o seu dia? O que temos na pauta hoje?`,
+            text: `Paulo, por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui acompanhando a evolução do projeto **"${activeProjectTitle}"** e pronta para a gente continuar refinando as ideias. Tudo rodando estável e no controle!\n\nE com você, como foi o seu dia? O que temos na pauta hoje?`,
           };
         }
         return {
-          text: `Por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Tudo rodando redondo e estável!\n\nE com você, como foi o seu dia? Alguma ideia nova na mente ou quer trocar uma ideia leve?`,
+          text: `Paulo, por aqui tudo ótimo e em ordem! 😊\n\nEstava aqui conectada ao sistema, refinando o raciocínio e pronta para o que der e vier. Tudo rodando redondo e estável!\n\nE com você, como foi o seu dia? Alguma ideia nova na mente ou quer trocar uma ideia leve?`,
         };
       }
 

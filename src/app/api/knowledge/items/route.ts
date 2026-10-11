@@ -27,9 +27,19 @@ export async function POST(request: Request) {
   const session = await requireSession();
   if (!session) return Response.json({ error: "Autenticação necessária." }, { status: 401 });
   if (!sameOrigin(request)) return Response.json({ error: "Origem inválida." }, { status: 403 });
-  const body = await request.json().catch(() => ({})) as { operation?: unknown; item?: unknown; id?: unknown };
+  const body = await request.json().catch(() => ({})) as { operation?: unknown; item?: unknown; items?: unknown[]; id?: unknown };
   const user = session.user as typeof session.user & { id?: string };
   try {
+    if (body.operation === "UPSERT_VAULT_BATCH" && Array.isArray(body.items)) {
+      const projections = body.items.map(canonicalVaultProjection);
+      if (projections.some((projection) => !projection)) return Response.json({ error: "Itens do Vault inválidos." }, { status: 400 });
+      const items = await withKnowledgeAccount(knowledgeAccountId(user), async () => {
+        const stored = [];
+        for (const projection of projections) stored.push(await storeKnowledge(projection!));
+        return stored;
+      });
+      return Response.json({ items, persistenceMode: knowledgeAccountPersistenceMode(), persisted: true });
+    }
     if (body.operation === "UPSERT_VAULT") {
       const projection = canonicalVaultProjection(body.item);
       if (!projection) return Response.json({ error: "Item do Vault inválido." }, { status: 400 });

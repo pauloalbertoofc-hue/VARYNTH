@@ -28,6 +28,7 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
   const { tasks, notes, isLoaded } = store;
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const projectNotes = notes.filter((n) => n.projectId === project.id);
+  const pendingProjectTasks = projectTasks.filter((task) => task.status !== "concluida").length;
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -43,18 +44,17 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
   useEffect(() => {
     if (!isLoaded) return;
 
-    const pendingCount = projectTasks.filter((task) => task.status !== "concluida").length;
     const taskLabel = projectTasks.length === 1 ? "tarefa" : "tarefas";
-    const pendingLabel = pendingCount === 1 ? "pendente" : "pendentes";
+    const pendingLabel = pendingProjectTasks === 1 ? "pendente" : "pendentes";
     const noteLabel = projectNotes.length === 1 ? "nota vinculada" : "notas vinculadas";
-    const welcomeText = `Olá, Paulo! Estou conectada à workspace do projeto **${project.title}**. Identifiquei ${projectTasks.length} ${taskLabel} (${pendingCount} ${pendingLabel}) e ${projectNotes.length} ${noteLabel}. Como posso te auxiliar neste projeto hoje?`;
+    const welcomeText = `Olá, Paulo! Estou conectada à workspace do projeto **${project.title}**. Identifiquei ${projectTasks.length} ${taskLabel} (${pendingProjectTasks} ${pendingLabel}) e ${projectNotes.length} ${noteLabel}. Como posso te auxiliar neste projeto hoje?`;
 
     setMessages((current) =>
       current.length === 1 && current[0]?.id === "msg-1"
         ? [{ ...current[0], text: welcomeText }]
         : current
     );
-  }, [isLoaded, project.title, projectTasks.length, projectNotes.length, tasks]);
+  }, [isLoaded, project.title, projectTasks.length, projectNotes.length, pendingProjectTasks]);
 
   const promptChips = [
     "Resumir pendências e prazos",
@@ -114,22 +114,22 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
   };
 
   return (
-    <div className="flex flex-col h-[520px] rounded-xl bg-[#0f0f1a] border border-[#1e1e30] overflow-hidden">
+    <div className="flex flex-col h-[520px] rounded-xl bg-[var(--vly-surface)] border border-[var(--vly-border-subtle)] overflow-hidden">
       {/* Athena Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 bg-[#0a0a0f] border-b border-[#1e1e30]">
+      <div className="flex items-center justify-between px-5 py-3.5 bg-[var(--vly-world)] border-b border-[var(--vly-border-subtle)]">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 glow-accent">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--vly-accent)]/30 bg-[var(--vly-accent)]/20 text-[var(--vly-accent)] glow-accent">
             <Bot size={18} />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-100">Athena Copilot</span>
+              <span className="text-xs font-bold text-[var(--vly-text-primary)]">Athena Copilot</span>
               <span
                 className={cn(
                   "text-[10px] px-1.5 py-0.2 rounded font-semibold",
                   engineStatus.isLocalNeuralActive
-                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                    ? "bg-[var(--vly-success)]/10 text-[var(--vly-success)] border border-[var(--vly-success)]/20"
+                    : "bg-[var(--vly-accent)]/10 text-[var(--vly-accent)] border border-[var(--vly-accent)]/20"
                 )}
               >
                 {engineStatus.isLocalNeuralActive
@@ -137,14 +137,14 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
                   : "Offline Core"}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 truncate max-w-xs">
+            <p className="text-[11px] text-[var(--vly-text-secondary)] truncate max-w-xs">
               Contexto ativo: {project.title}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="flex items-center gap-1 rounded-full border border-[var(--vly-success)]/20 bg-[var(--vly-success)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--vly-success)]">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--vly-success)]" />
           <span>Pronta</span>
         </div>
       </div>
@@ -162,8 +162,8 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
                 className={cn(
                   "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs",
                   isAthena
-                    ? "bg-violet-600/20 border border-violet-500/30 text-violet-400"
-                    : "bg-[#1e1e30] text-slate-300"
+                    ? "bg-[var(--vly-accent)]/20 border border-[var(--vly-accent)]/30 text-[var(--vly-accent)]"
+                    : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)]"
                 )}
               >
                 {isAthena ? <Bot size={14} /> : <User size={14} />}
@@ -173,15 +173,15 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
                 className={cn(
                   "p-3.5 rounded-xl text-xs leading-relaxed",
                   isAthena
-                    ? "bg-[#14141f] border border-[#1e1e30] text-slate-200"
-                    : "bg-violet-600 text-white"
+                    ? "bg-[var(--vly-surface-raised)] border border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)]"
+                    : "bg-[var(--vly-accent)] text-[var(--vly-accent-contrast)]"
                 )}
               >
                   <AthenaMessageText text={m.text} />
                 <div
                   className={cn(
                     "text-[10px] mt-1 text-right",
-                    isAthena ? "text-slate-500" : "text-violet-200"
+                    isAthena ? "text-[var(--vly-text-muted)]" : "text-[var(--vly-accent-contrast)]/80"
                   )}
                 >
                   {m.timestamp}
@@ -192,20 +192,20 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
         })}
 
         {isTyping && (
-          <div className="flex gap-2 mr-auto items-center text-xs text-slate-500 py-1">
-            <Bot size={14} className="text-violet-400 animate-pulse" />
+          <div className="flex gap-2 mr-auto items-center text-xs text-[var(--vly-text-muted)] py-1">
+            <Bot size={14} className="animate-pulse text-[var(--vly-accent)]" />
             <span>Athena está analisando o contexto...</span>
           </div>
         )}
       </div>
 
       {/* Chips */}
-      <div className="px-4 py-2 bg-[#0a0a0f]/60 border-t border-[#1e1e30] flex items-center gap-1.5 overflow-x-auto">
+      <div className="px-4 py-2 bg-[var(--vly-world)]/60 border-t border-[var(--vly-border-subtle)] flex items-center gap-1.5 overflow-x-auto">
         {promptChips.map((chip) => (
           <button
             key={chip}
             onClick={() => handleSend(chip)}
-            className="text-[11px] px-2.5 py-1 rounded-full bg-[#14141f] hover:bg-violet-600/20 text-slate-400 hover:text-violet-300 border border-[#1e1e30] hover:border-violet-500/30 whitespace-nowrap transition-all"
+            className="whitespace-nowrap rounded-full border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-2.5 py-1 text-[11px] text-[var(--vly-text-secondary)] transition-all hover:border-[var(--vly-accent)]/30 hover:bg-[var(--vly-accent)]/20 hover:text-[var(--vly-accent)]"
           >
             {chip}
           </button>
@@ -218,20 +218,20 @@ export function ProjectAthenaTab({ project }: ProjectAthenaTabProps) {
           e.preventDefault();
           handleSend();
         }}
-        className="p-3 bg-[#0a0a0f] border-t border-[#1e1e30] flex items-center gap-2"
+        className="p-3 bg-[var(--vly-world)] border-t border-[var(--vly-border-subtle)] flex items-center gap-2"
       >
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={`Pergunte algo sobre ${project.title}...`}
-          className="flex-1 px-3 py-2 rounded-lg bg-[#14141f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+          className="vly-field flex-1 rounded-lg px-3 py-2 text-xs text-[var(--vly-text-primary)] placeholder:text-[var(--vly-text-muted)] focus:border-[var(--vly-accent)]/60 focus:outline-none"
         />
         <button
           type="submit"
           disabled={!input.trim()}
           aria-label="Enviar mensagem para a Athena do projeto"
-          className="p-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:hover:bg-violet-600 text-white transition-colors flex-shrink-0"
+          className="shrink-0 rounded-lg bg-[var(--vly-accent)] p-2 text-[var(--vly-accent-contrast)] transition-colors hover:opacity-90 disabled:opacity-40"
         >
           <Send size={14} />
         </button>

@@ -3,6 +3,8 @@
 import { useState, useMemo } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { ProjectCard } from "@/components/projects/ProjectCard";
+import { StatePanel } from "@/components/ui/StatePanel";
+import { Surface } from "@/components/ui/Surface";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { ProjectCategory, ProjectStatus } from "@/lib/types";
 import {
@@ -81,21 +83,21 @@ export default function ProjectsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--vly-info)]/30 bg-[var(--vly-info)]/20 text-[var(--vly-info)]">
                 <FolderKanban size={18} />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-[var(--vly-text-primary)] tracking-tight">
                 Workspaces de Projetos
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--vly-text-secondary)] mt-1">
               Ambientes modulares dedicados com tarefas, notas, referências, timeline e IA.
             </p>
           </div>
 
           <button
             onClick={handleOpenNewProject}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-500 glow-accent transition-all duration-200"
+            className="vly-interactive flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-[var(--vly-text-primary)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-accent)]"
           >
             <Plus size={16} />
             <span>Novo Projeto</span>
@@ -104,59 +106,60 @@ export default function ProjectsPage() {
 
         {/* Metrics Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <div className="flex items-center justify-between text-slate-400 text-xs">
+          <Surface tone="raised" className="p-3.5 rounded-xl clip-corner-sm">
+            <div className="flex items-center justify-between text-[var(--vly-text-secondary)] text-xs">
               <span>Total</span>
-              <FolderKanban size={14} className="text-violet-400" />
+              <FolderKanban size={14} className="text-[var(--vly-accent)]" />
             </div>
-            <p className="text-xl font-bold text-white mt-1">{projects.length}</p>
-          </div>
+            <p className="text-xl font-bold text-[var(--vly-text-primary)] mt-1">{projects.length}</p>
+          </Surface>
 
-          <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <div className="flex items-center justify-between text-slate-400 text-xs">
+          <Surface tone="raised" className="p-3.5 rounded-xl clip-corner-sm">
+            <div className="flex items-center justify-between text-[var(--vly-text-secondary)] text-xs">
               <span>Em Andamento</span>
-              <Clock size={14} className="text-emerald-400" />
+              <Clock size={14} className="text-[var(--vly-success)]" />
             </div>
-            <p className="text-xl font-bold text-emerald-400 mt-1">{activeCount}</p>
-          </div>
+            <p className="mt-1 text-xl font-bold text-[var(--vly-success)]">{activeCount}</p>
+          </Surface>
 
-          <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <div className="flex items-center justify-between text-slate-400 text-xs">
+          <Surface tone="raised" className="p-3.5 rounded-xl clip-corner-sm">
+            <div className="flex items-center justify-between text-[var(--vly-text-secondary)] text-xs">
               <span>Urgentes</span>
-              <Flame size={14} className="text-red-400" />
+              <Flame size={14} className="text-[var(--vly-danger)]" />
             </div>
-            <p className="text-xl font-bold text-red-400 mt-1">{urgentCount}</p>
-          </div>
+            <p className="mt-1 text-xl font-bold text-[var(--vly-danger)]">{urgentCount}</p>
+          </Surface>
 
-          <div className="p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] clip-corner-sm">
-            <div className="flex items-center justify-between text-slate-400 text-xs">
+          <Surface tone="raised" className="p-3.5 rounded-xl clip-corner-sm">
+            <div className="flex items-center justify-between text-[var(--vly-text-secondary)] text-xs">
               <span>Concluídos</span>
-              <CheckCircle2 size={14} className="text-cyan-400" />
+              <CheckCircle2 size={14} className="text-[var(--vly-info)]" />
             </div>
-            <p className="text-xl font-bold text-cyan-400 mt-1">{completedCount}</p>
-          </div>
+            <p className="mt-1 text-xl font-bold text-[var(--vly-info)]">{completedCount}</p>
+          </Surface>
         </div>
 
         {/* Filters and Controls */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 bg-[#0f0f1a] rounded-xl border border-[#1e1e30]">
+        <Surface tone="raised" className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl">
           {/* Search */}
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vly-text-muted)]" />
             <input
               type="text"
               placeholder="Buscar por título, tag ou descrição..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+              className="vly-field w-full rounded-lg py-1.5 pl-9 pr-3 text-xs text-[var(--vly-text-secondary)] placeholder:text-[var(--vly-text-muted)] focus:border-[var(--vly-accent)]/60 focus:outline-none"
             />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Category Filter */}
             <select
+              aria-label="Filtrar projetos por categoria"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+              className="vly-field px-2.5 py-1.5 rounded-lg text-xs text-[var(--vly-text-secondary)] focus:outline-none"
             >
               {CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -167,9 +170,10 @@ export default function ProjectsPage() {
 
             {/* Status Filter */}
             <select
+              aria-label="Filtrar projetos por status"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+              className="vly-field px-2.5 py-1.5 rounded-lg text-xs text-[var(--vly-text-secondary)] focus:outline-none"
             >
               {STATUS_FILTERS.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -178,18 +182,18 @@ export default function ProjectsPage() {
               ))}
             </select>
           </div>
-        </div>
+        </Surface>
 
         {/* Project List / Grid */}
         <div>
           {filteredProjects.length === 0 ? (
-            <div className="py-16 text-center rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3">
-              <FolderKanban size={32} className="mx-auto text-slate-600" />
-              <p className="text-sm font-semibold text-slate-300">Nenhum projeto encontrado</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Tente ajustar seus filtros ou crie um novo projeto clicando no botão acima.
-              </p>
-            </div>
+            <StatePanel
+              tone="empty"
+              className="min-h-52 bg-[var(--vly-surface)]"
+              title="Nenhum projeto encontrado"
+              description="Ajuste os filtros ou crie um novo projeto para começar a organizar seu Workspace."
+              action={<button type="button" onClick={handleOpenNewProject} className="vly-interactive rounded-[var(--vly-radius-md)] bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Plus size={13} className="mr-1 inline" />Novo projeto</button>}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProjects.map((project) => {
@@ -211,4 +215,3 @@ export default function ProjectsPage() {
     </PageLayout>
   );
 }
-

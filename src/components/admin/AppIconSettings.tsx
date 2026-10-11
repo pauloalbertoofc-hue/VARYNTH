@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Image as ImageIcon, LoaderCircle, RotateCcw, Upload } from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 interface IconStatus { updatedAt: string | null; updatedBy: string | null; isDefault: boolean }
 
@@ -86,37 +88,37 @@ export function AppIconSettings() {
 
   const imageSrc = preview || `/api/app-icon?v=${encodeURIComponent(version)}`;
 
-  return <section className="rounded-2xl border border-violet-500/20 bg-[#11111b] p-5">
+  return <Surface tone="panel" role="region" aria-labelledby="app-icon-settings-title" className="p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="flex items-center gap-2 text-sm font-bold text-white"><ImageIcon size={16} className="text-violet-300" /> Ícone global do VARYNTH</h2><p className="mt-1 text-xs text-slate-500">A mesma imagem aparece no navegador, no manifesto do Web App e nas novas instalações.</p></div>
-      {status && <span className="rounded-full border border-violet-400/15 bg-violet-400/[0.06] px-2.5 py-1 text-[10px] font-semibold text-violet-200">{status.isDefault ? "ÍCONE PADRÃO" : "PERSONALIZADO"}</span>}
+      <div><h2 id="app-icon-settings-title" className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]"><ImageIcon size={16} className="text-[var(--vly-accent)]" /> Ícone global do VARYNTH</h2><p className="mt-1 text-xs text-[var(--vly-text-muted)]">A mesma imagem aparece no navegador, no manifesto do Web App e nas novas instalações.</p></div>
+      {status && <span role="status" className="rounded-full border border-[var(--vly-border-accent)] bg-[var(--vly-accent)]/10 px-2.5 py-1 text-[10px] font-semibold text-[var(--vly-accent)]">{status.isDefault ? "ÍCONE PADRÃO" : "PERSONALIZADO"}</span>}
     </div>
-    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-2"><img src={imageSrc} alt="Prévia do ícone global do VARYNTH" className="h-full w-full rounded-xl object-cover" /></div>
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[var(--vly-border-default)] bg-[var(--vly-world)] p-2"><Image src={imageSrc} alt="Prévia do ícone global do VARYNTH" fill sizes="96px" unoptimized className="rounded-xl object-cover p-2" /></div>
       <div className="min-w-0 flex-1">
-        <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-violet-400/25 px-3 text-xs font-bold text-violet-200 transition hover:bg-violet-500/10">
+        <label className="vly-interactive inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-[var(--vly-border-accent)] px-3 text-xs font-bold text-[var(--vly-accent)] transition hover:bg-[var(--vly-accent)]/10">
           <Upload size={14} /> Escolher nova imagem
           <input type="file" accept="image/png,.png" className="sr-only" onChange={chooseFile} />
         </label>
-        <p className="mt-2 text-[11px] leading-5 text-slate-500">PNG quadrado, de 192 × 192 a 1024 × 1024 px; máximo de 512 KB. Recomendado: 512 × 512 px.</p>
-        {status?.updatedAt && <p className="mt-1 text-[10px] text-slate-600">Atualizado em {new Date(status.updatedAt).toLocaleString("pt-BR")}{status.updatedBy ? ` por ${status.updatedBy}` : ""}.</p>}
+        <p className="mt-2 text-[11px] leading-5 text-[var(--vly-text-muted)]">PNG quadrado, de 192 × 192 a 1024 × 1024 px; máximo de 512 KB. Recomendado: 512 × 512 px.</p>
+        {status?.updatedAt && <p className="mt-1 text-[10px] text-[var(--vly-text-muted)]">Atualizado em {new Date(status.updatedAt).toLocaleString("pt-BR")}{status.updatedBy ? ` por ${status.updatedBy}` : ""}.</p>}
       </div>
       <div className="flex shrink-0 gap-2 sm:flex-col">
-        <button type="button" disabled={!file || busy} onClick={() => void save()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 text-xs font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">{busy ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />} Aplicar para todos</button>
-        <button type="button" disabled={busy || status?.isDefault} onClick={() => void reset()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-400 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"><RotateCcw size={13} /> Restaurar padrão</button>
+        <button type="button" disabled={!file || busy} aria-busy={busy} aria-label="Aplicar novo ícone para todos" onClick={() => void save()} className="vly-interactive inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--vly-accent)] px-3 text-xs font-bold text-[var(--vly-accent-contrast)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40">{busy ? <LoaderCircle size={14} className="animate-spin" /> : <Upload size={14} />} Aplicar para todos</button>
+        <button type="button" disabled={busy || status?.isDefault} aria-label="Restaurar ícone padrão" onClick={() => void reset()} className="vly-interactive inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--vly-border-default)] px-3 text-xs font-semibold text-[var(--vly-text-secondary)] transition hover:text-[var(--vly-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"><RotateCcw size={13} /> Restaurar padrão</button>
       </div>
     </div>
-    {message && <p role="status" className="mt-3 rounded-lg border border-[#292940] bg-[#09090f] px-3 py-2 text-xs text-slate-300">{message}</p>}
-    <div className="mt-4 rounded-lg border border-amber-400/10 bg-amber-400/[0.04] px-3 py-2.5 text-[11px] leading-5 text-amber-100/70">
+    {message && <p role="status" className="vly-motion-success mt-3 rounded-lg border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-3 py-2 text-xs text-[var(--vly-text-secondary)]">{message}</p>}
+    <div className="mt-4 rounded-lg border border-[var(--vly-border-warning)] bg-[var(--vly-surface-warning)] px-3 py-2.5 text-[11px] leading-5 text-[var(--vly-warning)]">
       <p>O novo ícone já está publicado para todo o VARYNTH e vale imediatamente para quem instalar depois. Atalhos existentes dependem da sincronização do navegador. No Android, o Chrome pode pedir que a pessoa confirme a mudança de identidade do app; a Administração não consegue aprovar essa confirmação no aparelho de cada pessoa.</p>
-      <details className="mt-2 text-amber-100/80">
+      <details className="mt-2 text-[var(--vly-warning)]">
         <summary className="cursor-pointer font-semibold">O atalho no Android ainda mostra o ícone antigo?</summary>
         <ol className="ml-4 mt-2 list-decimal space-y-1">
           <li>Abra o app VARYNTH instalado e confira o menu ⋮. Se aparecer “Revisar atualização do app”, abra e confirme a troca do ícone.</li>
-          <li>Se essa opção não aparecer, no Chrome do Android abra <code className="rounded bg-black/30 px-1">about://webapks</code>, toque em “Atualizar” ao lado do VARYNTH e depois abra o app novamente.</li>
+          <li>Se essa opção não aparecer, no Chrome do Android abra <code className="rounded bg-[var(--vly-surface-active)] px-1 text-[var(--vly-text-secondary)]">about://webapks</code>, toque em “Atualizar” ao lado do VARYNTH e depois abra o app novamente.</li>
         </ol>
       </details>
       <p className="mt-2">No iPhone ou iPad, o sistema pode exigir remover o atalho antigo e adicioná-lo novamente.</p>
     </div>
-  </section>;
+  </Surface>;
 }

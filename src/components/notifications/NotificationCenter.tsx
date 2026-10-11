@@ -133,17 +133,17 @@ export function NotificationCenter() {
   const getSourceIcon = (source: NotificationSource) => {
     switch (source) {
       case "ATHENA":
-        return <Cpu className="w-3.5 h-3.5 text-purple-400" />;
+        return <Cpu className="w-3.5 h-3.5 text-[var(--vly-accent)]" />;
       case "DOCUMENTATION":
-        return <BookOpen className="w-3.5 h-3.5 text-cyan-400" />;
+        return <BookOpen className="w-3.5 h-3.5 text-[var(--vly-info)]" />;
       case "CHRONOS":
-        return <Calendar className="w-3.5 h-3.5 text-amber-400" />;
+        return <Calendar className="w-3.5 h-3.5 text-[var(--vly-warning)]" />;
       case "PROJECTS":
-        return <Layers className="w-3.5 h-3.5 text-emerald-400" />;
+        return <Layers className="w-3.5 h-3.5 text-[var(--vly-success)]" />;
       case "TRASH":
-        return <Archive className="w-3.5 h-3.5 text-red-400" />;
+        return <Archive className="w-3.5 h-3.5 text-[var(--vly-danger)]" />;
       default:
-        return <Sparkles className="w-3.5 h-3.5 text-slate-400" />;
+        return <Sparkles className="w-3.5 h-3.5 text-[var(--vly-text-muted)]" />;
     }
   };
 
@@ -151,26 +151,26 @@ export function NotificationCenter() {
     switch (severity) {
       case "CRITICAL":
         return (
-          <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 text-[9px] font-mono font-bold flex items-center gap-1">
+          <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-danger)_12%,var(--vly-surface))] text-[var(--vly-danger)] border border-[var(--vly-border-danger)] text-[9px] font-mono font-bold flex items-center gap-1">
             <ShieldAlert className="w-2.5 h-2.5" /> CRÍTICO
           </span>
         );
       case "WARNING":
         return (
-          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold flex items-center gap-1">
+          <span className="px-1.5 py-0.5 rounded bg-[var(--vly-surface-warning)] text-[var(--vly-warning)] border border-[var(--vly-border-warning)] text-[9px] font-mono font-bold flex items-center gap-1">
             <AlertTriangle className="w-2.5 h-2.5" /> ATENÇÃO
           </span>
         );
       case "SUCCESS":
         return (
-          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-mono font-bold flex items-center gap-1">
+          <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] text-[var(--vly-success)] border border-[var(--vly-border-success)] text-[9px] font-mono font-bold flex items-center gap-1">
             <CheckCircle2 className="w-2.5 h-2.5" /> SUCESSO
           </span>
         );
       case "INFO":
       default:
         return (
-          <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-mono font-bold flex items-center gap-1">
+          <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] text-[9px] font-mono font-bold flex items-center gap-1">
             <Info className="w-2.5 h-2.5" /> INFO
           </span>
         );
@@ -196,12 +196,15 @@ export function NotificationCenter() {
     <div className="relative" ref={dropdownRef}>
       {/* SINO DO HEADER (INTERATIVO COM BADGE REAL) */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls="notification-panel"
         className={cn(
-          "relative w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer",
+          "vly-interactive relative w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer",
           isOpen
-            ? "bg-violet-600/20 border-violet-500/50 text-violet-300"
-            : "text-slate-400 hover:text-slate-100 hover:bg-white/5 border border-[#1e1e30] hover:border-violet-500/30"
+            ? "bg-[var(--vly-surface-active)] border-[var(--vly-border-accent)] text-[var(--vly-accent-hover)]"
+            : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-subtle)] hover:border-[var(--vly-border-accent)]"
         )}
         title={unreadCount > 0 ? `${unreadCount} notificações não lidas` : "Notificações do Sistema"}
         aria-label="Abrir central de notificações"
@@ -212,7 +215,7 @@ export function NotificationCenter() {
         {/* BADGE DERIVADO DO STORE */}
         {unreadCount > 0 && (
           <span
-            className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-emerald-500 text-black text-[9px] font-extrabold flex items-center justify-center shadow-lg animate-pulse"
+            className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--vly-success)] text-[var(--vly-accent-contrast)] text-[9px] font-extrabold flex items-center justify-center shadow-lg animate-pulse"
             data-testid="notification-unread-badge"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -223,20 +226,23 @@ export function NotificationCenter() {
       {/* DROPDOWN FLYOUT PANEL */}
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[#0a0a0f] border border-[#1e1e30] shadow-2xl shadow-black/80 z-50 overflow-hidden flex flex-col animate-fade-in text-slate-200"
+          id="notification-panel"
+          role="region"
+          aria-labelledby="notification-panel-title"
+          className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] shadow-2xl shadow-black/30 z-50 overflow-hidden flex flex-col vly-motion-enter text-[var(--vly-text-secondary)]"
           data-testid="notification-panel"
         >
           {/* HEADER */}
-          <div className="p-4 border-b border-[#1e1e30] bg-[#10101a] flex items-center justify-between">
+          <div className="p-4 border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+              <div className="w-6 h-6 rounded-md bg-[var(--vly-surface-active)] border border-[var(--vly-border-accent)] flex items-center justify-center text-[var(--vly-accent)]">
                 <Bell size={12} />
               </div>
-              <h3 className="text-xs font-bold text-white tracking-wide">
+              <h3 id="notification-panel-title" className="text-xs font-bold text-[var(--vly-text-primary)] tracking-wide">
                 Central de Notificações
               </h3>
               {unreadCount > 0 && (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[var(--vly-surface-success)] text-[var(--vly-success)] border border-[var(--vly-border-success)] font-bold">
                   {unreadCount} nova(s)
                 </span>
               )}
@@ -245,8 +251,9 @@ export function NotificationCenter() {
             <div className="flex items-center gap-1">
               {unreadCount > 0 && (
                 <button
+                  type="button"
                   onClick={handleMarkAllAsRead}
-                  className="px-2 py-1 rounded-md text-[10px] font-semibold text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition-colors flex items-center gap-1"
+                  className="vly-interactive px-2 py-1 rounded-md text-[10px] font-semibold text-[var(--vly-text-muted)] hover:text-[var(--vly-info)] hover:bg-[var(--vly-surface-hover)] transition-colors flex items-center gap-1"
                   title="Marcar todas como lidas"
                 >
                   <CheckCheck size={12} />
@@ -254,8 +261,10 @@ export function NotificationCenter() {
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/5"
+                aria-label="Fechar central de notificações"
+                className="vly-interactive p-1 rounded-md text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
               >
                 <X size={14} />
               </button>
@@ -263,7 +272,7 @@ export function NotificationCenter() {
           </div>
 
           {/* FILTER TABS */}
-          <div className="px-3 py-2 border-b border-[#1e1e30] bg-[#0c0c14] flex items-center gap-1.5 text-[11px] font-mono">
+          <div role="tablist" aria-label="Filtros de notificações" className="px-3 py-2 border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] flex items-center gap-1.5 text-[11px] font-mono">
             {[
               { id: "ALL", label: `Todas (${notifications.length})` },
               { id: "UNREAD", label: `Não Lidas (${unreadCount})` },
@@ -278,12 +287,15 @@ export function NotificationCenter() {
             ].map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setFilter(tab.id as NotificationFilter)}
+                role="tab"
+                aria-selected={filter === tab.id}
                 className={cn(
                   "px-2.5 py-1 rounded-lg transition-all",
                   filter === tab.id
-                    ? "bg-violet-600/30 text-violet-300 font-bold border border-violet-500/40"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] font-bold border border-[var(--vly-border-accent)]"
+                    : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
                 )}
               >
                 {tab.label}
@@ -292,38 +304,47 @@ export function NotificationCenter() {
           </div>
 
           {/* NOTIFICATION LIST */}
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-[#1e1e30]/60">
+          <div className="max-h-[380px] overflow-y-auto divide-y divide-[var(--vly-border-subtle)]">
             {filteredNotifications.length === 0 ? (
               <div className="p-8 text-center space-y-2">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] border border-[var(--vly-border-success)] text-[var(--vly-success)] mx-auto flex items-center justify-center">
                   <CheckCircle2 size={18} />
                 </div>
-                <p className="text-xs font-bold text-white">Tudo tranquilo por aqui.</p>
-                <p className="text-[11px] text-slate-400">Nenhuma notificação pendente no filtro atual.</p>
+                <p className="text-xs font-bold text-[var(--vly-text-primary)]">Tudo tranquilo por aqui.</p>
+                <p className="text-[11px] text-[var(--vly-text-muted)]">Nenhuma notificação pendente no filtro atual.</p>
               </div>
             ) : (
               filteredNotifications.map((notif) => (
                 <div
                   key={notif.id}
                   onClick={() => handleNavigate(notif)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${notif.title}${notif.read ? "" : " (não lida)"}`}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleNavigate(notif);
+                    }
+                  }}
                   className={cn(
                     "p-3.5 transition-all cursor-pointer group flex flex-col space-y-2 relative",
                     notif.read
-                      ? "bg-transparent hover:bg-white/[0.02] opacity-75 hover:opacity-100"
-                      : "bg-violet-950/20 hover:bg-violet-950/30 border-l-2 border-l-cyan-400"
+                      ? "bg-transparent hover:bg-[var(--vly-surface-hover)] opacity-75 hover:opacity-100"
+                      : "bg-[var(--vly-surface-active)] hover:bg-[var(--vly-surface-hover)] border-l-2 border-l-[var(--vly-info)]"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       {getSourceIcon(notif.source)}
-                      <span className="text-[10px] font-mono text-slate-400 uppercase">
+                      <span className="text-[10px] font-mono text-[var(--vly-text-muted)] uppercase">
                         {notif.source}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1.5">
                       {getSeverityBadge(notif.severity)}
-                      <span className="text-[9px] font-mono text-slate-500 flex items-center gap-0.5">
+                      <span className="text-[9px] font-mono text-[var(--vly-text-disabled)] flex items-center gap-0.5">
                         <Clock size={9} />
                         {formatTimeAgo(notif.createdAt)}
                       </span>
@@ -331,52 +352,56 @@ export function NotificationCenter() {
                   </div>
 
                   <div>
-                    <h4 className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                    <h4 className="text-xs font-bold text-[var(--vly-text-primary)] group-hover:text-[var(--vly-info)] transition-colors leading-snug">
                       {notif.title}
                     </h4>
-                    <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                    <p className="text-[11px] text-[var(--vly-text-secondary)] mt-0.5 leading-relaxed">
                       {notif.message}
                     </p>
                   </div>
 
                   {notif.reason && (
-                    <details onClick={(event) => event.stopPropagation()} className="rounded-lg border border-[#27273b] bg-black/10 px-2.5 py-1.5 text-[10px] text-slate-400">
-                      <summary className="cursor-pointer font-semibold text-slate-300">Por que recebi isto?</summary>
+                    <details onClick={(event) => event.stopPropagation()} className="rounded-lg border border-[var(--vly-border-default)] bg-[var(--vly-surface)] px-2.5 py-1.5 text-[10px] text-[var(--vly-text-muted)]">
+                      <summary className="cursor-pointer font-semibold text-[var(--vly-text-secondary)]">Por que recebi isto?</summary>
                       <p className="mt-1 leading-relaxed">{notif.reason}</p>
-                      {notif.evidence?.length ? <ul className="mt-1 list-disc pl-4 text-slate-500">{notif.evidence.map((item) => <li key={item}>{item}</li>)}</ul> : null}
+                      {notif.evidence?.length ? <ul className="mt-1 list-disc pl-4 text-[var(--vly-text-disabled)]">{notif.evidence.map((item) => <li key={item}>{item}</li>)}</ul> : null}
                     </details>
                   )}
 
                   {notif.actions?.length ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {notif.actions.map((action) => <button key={action.id} onClick={(event) => handleAction(notif, action, event)} className="rounded-md border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-[9px] font-bold text-violet-300 hover:bg-violet-500/20">{action.label}</button>)}
+                      {notif.actions.map((action) => <button type="button" key={action.id} onClick={(event) => handleAction(notif, action, event)} className="vly-interactive rounded-md border border-[var(--vly-border-accent)] bg-[var(--vly-surface-active)] px-2 py-1 text-[9px] font-bold text-[var(--vly-accent-hover)] hover:bg-[var(--vly-surface-hover)]">{action.label}</button>)}
                     </div>
                   ) : null}
 
                   {/* ACTION FOOTER */}
                   <div className="pt-1.5 flex items-center justify-between text-[10px]">
                     {notif.targetPath ? (
-                      <span className="text-cyan-400 font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                        <span className="text-[var(--vly-info)] font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
                         <span>Acessar contexto</span>
                         <ExternalLink size={10} />
                       </span>
                     ) : (
-                      <span className="text-slate-500">Notificação informativa</span>
+                      <span className="text-[var(--vly-text-disabled)]">Notificação informativa</span>
                     )}
 
                     <div className="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       {!notif.read && (
                         <button
+                          type="button"
                           onClick={(e) => handleMarkAsRead(notif.id, e)}
-                          className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
+                          aria-label="Marcar notificação como lida"
+                          className="vly-interactive p-1 rounded bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                           title="Marcar como lida"
                         >
                           <Check size={11} />
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={(e) => handleRemove(notif.id, e)}
-                        className="p-1 rounded bg-slate-800 hover:bg-red-900/60 text-slate-400 hover:text-red-300"
+                        aria-label="Remover notificação"
+                        className="vly-interactive p-1 rounded bg-[var(--vly-surface-raised)] hover:bg-[color-mix(in_srgb,var(--vly-danger)_16%,var(--vly-surface-raised))] text-[var(--vly-text-muted)] hover:text-[var(--vly-danger)]"
                         title="Remover notificação"
                       >
                         <Trash2 size={11} />
@@ -389,14 +414,15 @@ export function NotificationCenter() {
           </div>
 
           {/* FOOTER */}
-          <div className="p-2.5 bg-[#0e0e18] border-t border-[#1e1e30] text-center text-[10px] text-slate-500 flex items-center justify-between px-4">
+          <div className="p-2.5 bg-[var(--vly-surface)] border-t border-[var(--vly-border-subtle)] text-center text-[10px] text-[var(--vly-text-disabled)] flex items-center justify-between px-4">
             <span className="font-mono">VARYNTH Notification Center</span>
             <button
+              type="button"
               onClick={() => {
                 notificationService.clearAll();
                 syncNotifications();
               }}
-              className="text-[10px] text-slate-400 hover:text-red-400 transition-colors"
+              className="vly-interactive text-[10px] text-[var(--vly-text-muted)] hover:text-[var(--vly-danger)] transition-colors"
             >
               Limpar todas
             </button>

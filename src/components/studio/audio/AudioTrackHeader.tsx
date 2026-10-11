@@ -26,35 +26,45 @@ export function AudioTrackHeader({
   const getTrackIcon = () => {
     switch (track.type) {
       case "VOICE":
-        return <Mic size={12} className="text-blue-400" />;
+        return <Mic size={12} className="text-[var(--vly-info)]" />;
       case "MUSIC":
-        return <Music size={12} className="text-purple-400" />;
+        return <Music size={12} className="text-[var(--vly-accent)]" />;
       case "SFX":
-        return <Sparkles size={12} className="text-amber-400" />;
+        return <Sparkles size={12} className="text-[var(--vly-warning)]" />;
       default:
-        return <Radio size={12} className="text-slate-400" />;
+        return <Radio size={12} className="text-[var(--vly-text-muted)]" />;
     }
   };
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Faixa de áudio ${track.name}`}
+      aria-current={isSelected ? "true" : undefined}
       onClick={onSelect}
+      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(); } }}
       style={{
-        borderLeftColor: track.color || "#3b82f6",
+        borderLeftColor: track.color || "var(--vly-accent)",
       }}
-      className={`w-28 sm:w-60 h-24 border-l-4 border-b border-r border-[#1e2038] p-1.5 sm:p-2.5 flex flex-col justify-between select-none cursor-pointer transition ${
+      className={`vly-interactive flex h-24 w-28 select-none flex-col justify-between border-b border-r border-l-4 border-[var(--vly-border-default)] p-1.5 sm:w-60 sm:p-2.5 ${
         isSelected
-          ? "bg-[#141628] border-blue-500/50 shadow-inner"
-          : "bg-[#0c0d18] hover:bg-[#101120]"
+        ? "border-l-[var(--vly-accent)] bg-[var(--vly-surface-raised)] shadow-inner"
+          : "bg-[var(--vly-surface)] hover:bg-[var(--vly-surface-hover)]"
       }`}
     >
       {/* Top Row: Track Name & Type */}
       <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1 overflow-hidden min-w-0">
           {getTrackIcon()}
-          <span className="font-semibold text-[11px] sm:text-xs text-white truncate max-w-[50px] sm:max-w-[120px]">
+          <button
+            type="button"
+            aria-label={`Selecionar faixa ${track.name}`}
+            onClick={(event) => { event.stopPropagation(); onSelect(); }}
+            className="max-w-[50px] truncate text-left text-[11px] font-semibold text-[var(--vly-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--vly-accent)] sm:max-w-[120px] sm:text-xs"
+          >
             {track.name}
-          </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -64,10 +74,12 @@ export function AudioTrackHeader({
               e.stopPropagation();
               onToggleMute();
             }}
-            className={`w-5 h-5 rounded text-[10px] font-bold transition flex items-center justify-center touch-manipulation ${
+            aria-pressed={track.muted}
+            aria-label={track.muted ? "Ativar faixa" : "Silenciar faixa"}
+            className={`vly-interactive flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold touch-manipulation ${
               track.muted
-                ? "bg-red-500 text-white shadow-sm"
-                : "bg-[#1a1c30] text-slate-400 hover:text-white"
+                ? "bg-[var(--vly-danger)] text-[var(--vly-accent-contrast)] shadow-sm"
+                : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
             }`}
             title="Mute (Silenciar Faixa)"
           >
@@ -80,10 +92,12 @@ export function AudioTrackHeader({
               e.stopPropagation();
               onToggleSolo();
             }}
-            className={`w-5 h-5 rounded text-[10px] font-bold transition flex items-center justify-center touch-manipulation ${
+            aria-pressed={track.solo}
+            aria-label={track.solo ? "Desativar solo" : "Isolar faixa"}
+            className={`vly-interactive flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold touch-manipulation ${
               track.solo
-                ? "bg-amber-500 text-black shadow-sm font-extrabold"
-                : "bg-[#1a1c30] text-slate-400 hover:text-white"
+                ? "bg-[var(--vly-warning)] text-[var(--vly-accent-contrast)] shadow-sm font-extrabold"
+                : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
             }`}
             title="Solo (Isolar Faixa)"
           >
@@ -93,7 +107,7 @@ export function AudioTrackHeader({
       </div>
 
       {/* Sliders Row: Volume & Pan (compact on mobile) */}
-      <div className="space-y-1 text-[10px] text-slate-400">
+      <div className="space-y-1 text-[10px] text-[var(--vly-text-muted)]">
         <div className="flex items-center justify-between gap-1.5">
           <span className="hidden sm:flex items-center gap-1 text-[9px] w-8">
             <Volume2 size={10} /> Vol
@@ -102,12 +116,13 @@ export function AudioTrackHeader({
             type="range"
             min="0"
             max="150"
+            aria-label={`Volume da faixa ${track.name}`}
             value={Math.round((track.volume ?? 1.0) * 100)}
             onChange={(e) => onUpdateVolume(parseInt(e.target.value) / 100)}
             onClick={(e) => e.stopPropagation()}
-            className="w-full accent-blue-500 h-1 bg-[#1a1c32] rounded cursor-pointer"
+            className="vly-interactive h-1 w-full cursor-pointer rounded bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
           />
-          <span className="font-mono text-[9px] text-slate-300 w-6 sm:w-7 text-right">
+          <span className="w-6 text-right font-mono text-[9px] text-[var(--vly-text-secondary)] sm:w-7">
             {Math.round((track.volume ?? 1.0) * 100)}%
           </span>
         </div>
@@ -118,12 +133,13 @@ export function AudioTrackHeader({
             type="range"
             min="-100"
             max="100"
+            aria-label={`Pan da faixa ${track.name}`}
             value={Math.round((track.pan ?? 0) * 100)}
             onChange={(e) => onUpdatePan(parseInt(e.target.value) / 100)}
             onClick={(e) => e.stopPropagation()}
-            className="w-full accent-purple-500 h-1 bg-[#1a1c32] rounded cursor-pointer"
+            className="vly-interactive h-1 w-full cursor-pointer rounded bg-[var(--vly-surface-raised)] accent-[var(--vly-accent)]"
           />
-          <span className="font-mono text-[9px] text-slate-300 w-7 text-right">
+          <span className="w-7 text-right font-mono text-[9px] text-[var(--vly-text-secondary)]">
             {(track.pan ?? 0) === 0 ? "C" : (track.pan ?? 0) < 0 ? `L${Math.abs(Math.round((track.pan ?? 0) * 100))}` : `R${Math.round((track.pan ?? 0) * 100)}`}
           </span>
         </div>
@@ -131,4 +147,3 @@ export function AudioTrackHeader({
     </div>
   );
 }
-

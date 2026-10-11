@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { processAthenaQueryAsync } from "../engine";
 import { athenaConversationManager } from "../conversation/conversation-manager";
+import { athenaCapabilitySelector } from "../kernel/capability-selector";
+import { athenaPerceptionEngine } from "../kernel/perception";
+import { athenaContextBuilder } from "../memory/context-builder";
+import { agentRegistry } from "../agents/registry";
+import { athenaGeneralistAgent } from "../agents/council/athena-generalist";
+import { archivistAgent } from "../agents/council/archivist";
 
 const ctx: any = {
   projects: [
@@ -56,6 +62,27 @@ async function run() {
 
   const greeting = await ask("oi Athena, tudo bem?", "outcome-social", true);
   assert.match(greeting, /olá|oi|ótimo|bem/i);
+
+  const boundedTurns = athenaConversationManager.getRecentTurns(compareSession, 2);
+  assert.equal(boundedTurns.length, 2, "Recent-turn access must be bounded and return a copy");
+  boundedTurns.pop();
+  assert.equal(athenaConversationManager.getRecentTurns(compareSession, 2).length, 2, "Mutating a read result must not mutate session history");
+
+  const generalTask = athenaPerceptionEngine.perceive("gostaria de uma ideia", "geral");
+  const generalContext = athenaContextBuilder.buildContext(generalTask, "geral", ctx);
+  const unknownTask = { ...generalTask, rawPrompt: "assunto sem área reconhecida", type: "GENERAL_DELIBERATION" as const };
+  const noExpert = athenaCapabilitySelector.select({ kind: "AGENT", task: unknownTask, context: generalContext });
+  assert.equal(noExpert.status, "NO_MATCH", "Unmatched requests must not invent Sophia/Critias delegation");
+  assert.equal(agentRegistry.findCompetentAgents(unknownTask, generalContext).length, 0);
+
+  const general = await athenaGeneralistAgent.execute({ ...unknownTask, rawPrompt: "explique uma dúvida geral", title: "dúvida geral" }, generalContext);
+  assert.equal(general.success, false, "Generalist must not report a canned, unperformed analysis as success");
+  assert.equal(general.metadata?.generatedAnalysis, false);
+
+  const archive = await archivistAgent.execute({ ...generalTask, rawPrompt: "arquitetura" }, generalContext);
+  assert.match(archive.content, new RegExp(`${agentRegistry.listAgents().length} agentes`), "Archive inventory must be measured at runtime");
+  assert.doesNotMatch(archive.content, /100% versionada|Next\.js 16|baseline determinístico de 0 ms/i, "Archive must not assert unsupported synchronization or fixed architecture claims");
+  assert.match(archive.content, /não prova.*sincronizado externamente/i, "Archive must state the limits of its local catalog audit");
 
   const parsed = athenaConversationManager.processMessage("outcome-state", "quero aquele negócio lá", ctx.projects);
   assert.ok(["UNKNOWN", "AMBIGUOUS", "MISSING_INFORMATION"].includes(parsed.comprehensionStatus || ""));

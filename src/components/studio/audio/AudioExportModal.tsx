@@ -113,14 +113,14 @@ export function AudioExportModal({
   const formats: AudioExportFormat[] = ["WAV", "MP3", "OGG"];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#121324] border border-[#222442] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-[#1e2038] flex items-center justify-between bg-[#15162a]">
-          <h3 className="font-bold text-base text-white flex items-center gap-2">
-            <Download size={16} className="text-blue-400" />
+    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 p-4 backdrop-blur-sm">
+      <div role="dialog" aria-modal="true" aria-labelledby="audio-export-title" className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--vly-border-strong)] bg-[var(--vly-surface-floating)] shadow-2xl">
+        <div className="px-6 py-4 border-b border-[var(--vly-border-subtle)] flex items-center justify-between bg-[var(--vly-surface-raised)]">
+          <h3 id="audio-export-title" className="flex items-center gap-2 text-base font-bold text-[var(--vly-text-primary)]">
+            <Download size={16} className="text-[var(--vly-info)]" />
             Exportar Mixagem de Áudio
           </h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded">
+          <button type="button" aria-label="Fechar exportação" onClick={onClose} className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]">
             <X size={16} />
           </button>
         </div>
@@ -128,7 +128,7 @@ export function AudioExportModal({
         <div className="p-6 space-y-4 text-xs">
           {/* Format Selector with Honest Capability Check */}
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+            <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider block mb-2">
               Formato de Áudio
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -142,10 +142,11 @@ export function AudioExportModal({
                     type="button"
                     disabled={!isSupported}
                     onClick={() => setFormat(fmt)}
-                    className={`p-2.5 rounded-xl border text-center font-semibold transition ${
+                    aria-pressed={isSelected}
+                    className={`vly-interactive rounded-xl border p-2.5 text-center font-semibold ${
                       isSelected
-                        ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20"
-                        : "bg-[#0b0c16] border-[#1d1f36] text-slate-300 hover:border-slate-500"
+                        ? "bg-[var(--vly-info)] border-[var(--vly-info)] text-[var(--vly-text-primary)]"
+                        : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-strong)]"
                     } ${!isSupported ? "opacity-30 cursor-not-allowed" : ""}`}
                     title={!isSupported ? "Codec não disponível no runtime local" : ""}
                   >
@@ -158,15 +159,15 @@ export function AudioExportModal({
 
           {/* Sample Rate */}
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">Destino</label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><button type="button" onClick={() => setTargetType("FULL_MIX")} className={`rounded-lg border p-2 text-xs ${targetType === "FULL_MIX" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400"}`}>Mix completo</button><button type="button" onClick={() => setTargetType("CLIP")} disabled={!selectedClipId} className={`rounded-lg border p-2 text-xs ${targetType === "CLIP" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400 disabled:opacity-30"}`}>Clip selecionado</button><button type="button" onClick={() => setTargetType("SELECTED_REGION")} className={`rounded-lg border p-2 text-xs ${targetType === "SELECTED_REGION" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400"}`}>Região</button><button type="button" onClick={() => setTargetType("STEMS")} className={`rounded-lg border p-2 text-xs ${targetType === "STEMS" ? "border-blue-500 bg-blue-600/20 text-blue-200" : "border-[#1d1f36] text-slate-400"}`}>Stems</button></div>
+            <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider block mb-2">Destino</label>
+            <div role="group" aria-label="Destino da exportação" className="grid grid-cols-2 gap-2 sm:grid-cols-4"><button type="button" aria-pressed={targetType === "FULL_MIX"} onClick={() => setTargetType("FULL_MIX")} className={`vly-interactive rounded-lg border p-2 text-xs ${targetType === "FULL_MIX" ? "border-[var(--vly-border-accent)] bg-[color-mix(in_srgb,var(--vly-accent)_18%,transparent)] text-[var(--vly-accent)]" : "border-[var(--vly-border-default)] text-[var(--vly-text-muted)]"}`}>Mix completo</button><button type="button" aria-pressed={targetType === "CLIP"} onClick={() => setTargetType("CLIP")} disabled={!selectedClipId} className={`vly-interactive rounded-lg border p-2 text-xs ${targetType === "CLIP" ? "border-[var(--vly-border-accent)] bg-[color-mix(in_srgb,var(--vly-accent)_18%,transparent)] text-[var(--vly-accent)]" : "border-[var(--vly-border-default)] text-[var(--vly-text-muted)] disabled:opacity-30"}`}>Clip selecionado</button><button type="button" aria-pressed={targetType === "SELECTED_REGION"} onClick={() => setTargetType("SELECTED_REGION")} className={`vly-interactive rounded-lg border p-2 text-xs ${targetType === "SELECTED_REGION" ? "border-[var(--vly-border-accent)] bg-[color-mix(in_srgb,var(--vly-accent)_18%,transparent)] text-[var(--vly-accent)]" : "border-[var(--vly-border-default)] text-[var(--vly-text-muted)]"}`}>Região</button><button type="button" aria-pressed={targetType === "STEMS"} onClick={() => setTargetType("STEMS")} className={`vly-interactive rounded-lg border p-2 text-xs ${targetType === "STEMS" ? "border-[var(--vly-border-accent)] bg-[color-mix(in_srgb,var(--vly-accent)_18%,transparent)] text-[var(--vly-accent)]" : "border-[var(--vly-border-default)] text-[var(--vly-text-muted)]"}`}>Stems</button></div>
             {targetType === "STEMS" && <div className="mt-2 space-y-1">{tracks.map((track) => <label key={track.id} className="flex items-center gap-2 text-[10px] text-slate-400"><input type="checkbox" checked={selectedTrackIds.includes(track.id)} onChange={(event) => setSelectedTrackIds((current) => event.target.checked ? [...current, track.id] : current.filter((id) => id !== track.id))} />{track.name}</label>)}</div>}
-            {targetType === "SELECTED_REGION" && <div className="mt-2 grid grid-cols-2 gap-2"><label className="text-[10px] text-slate-500">Início (ms)<input type="number" min="0" value={startMs} onChange={(event) => setStartMs(Number(event.target.value))} className="mt-1 w-full rounded border border-[#303650] bg-[#0b0c16] p-2 text-white" /></label><label className="text-[10px] text-slate-500">Fim (ms)<input type="number" min="1" value={endMs} onChange={(event) => setEndMs(Number(event.target.value))} className="mt-1 w-full rounded border border-[#303650] bg-[#0b0c16] p-2 text-white" /></label></div>}
+            {targetType === "SELECTED_REGION" && <div className="mt-2 grid grid-cols-2 gap-2"><label className="text-[10px] text-[var(--vly-text-muted)]">Início (ms)<input aria-label="Início da região em milissegundos" type="number" min="0" value={startMs} onChange={(event) => setStartMs(Number(event.target.value))} className="vly-field mt-1 w-full p-2" /></label><label className="text-[10px] text-[var(--vly-text-muted)]">Fim (ms)<input aria-label="Fim da região em milissegundos" type="number" min="1" value={endMs} onChange={(event) => setEndMs(Number(event.target.value))} className="vly-field mt-1 w-full p-2" /></label></div>}
           </div>
 
           {/* Sample Rate */}
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+            <label className="text-[11px] font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider block mb-2">
               Taxa de Amostragem (Sample Rate)
             </label>
             <div className="grid grid-cols-2 gap-2 font-mono">
@@ -177,8 +178,8 @@ export function AudioExportModal({
                   onClick={() => setSampleRate(rate)}
                   className={`p-2 rounded-lg border text-xs ${
                     sampleRate === rate
-                      ? "bg-blue-600/20 border-blue-500 text-blue-300 font-bold"
-                      : "bg-[#0b0c16] border-[#1d1f36] text-slate-400 hover:text-white"
+                      ? "bg-[var(--vly-info)]/20 border-[var(--vly-info)] text-[var(--vly-info)] font-bold"
+                      : "bg-[var(--vly-world)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                   }`}
                 >
                   {rate / 1000} kHz ({rate === 44100 ? "CD / Padrão" : "Vídeo / Studio"})
@@ -188,45 +189,45 @@ export function AudioExportModal({
           </div>
 
           {/* Normalization Toggle */}
-          <label className="flex items-center gap-2 pt-2 cursor-pointer text-slate-300">
+          <label className="flex items-center gap-2 pt-2 cursor-pointer text-[var(--vly-text-secondary)]">
             <input
               type="checkbox"
               checked={normalize}
               onChange={(e) => setNormalize(e.target.checked)}
-              className="rounded accent-blue-500"
+              className="rounded accent-[var(--vly-accent)]"
             />
             <span>Normalizar Áudio na Exportação (-0.2 dBFS Peak)</span>
           </label>
 
           {/* Warnings Display */}
           {warnings.length > 0 && (
-            <div className="p-3 bg-amber-950/40 border border-amber-500/40 rounded-xl space-y-1">
-              <span className="font-semibold text-amber-300 flex items-center gap-1">
+            <div className="p-3 bg-[var(--vly-warning)]/10 border border-[var(--vly-warning)]/40 rounded-xl space-y-1">
+              <span className="font-semibold text-[var(--vly-warning)] flex items-center gap-1">
                 <AlertTriangle size={13} /> Alerta de Renderização
               </span>
               {warnings.map((w, i) => (
-                <p key={i} className="text-[11px] text-amber-200/80">{w}</p>
+                <p key={i} className="text-[11px] text-[var(--vly-warning)]/80">{w}</p>
               ))}
             </div>
           )}
-          {exportError && <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-950/30 p-3 text-[11px] text-rose-200">{exportError}</p>}
+          {exportError && <p role="alert" className="rounded-lg border border-[var(--vly-danger)]/40 bg-[var(--vly-danger)]/10 p-3 text-[11px] text-[var(--vly-danger)]">{exportError}</p>}
 
           {/* Actions */}
-          <div className="pt-4 border-t border-[#1e2038] flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-[var(--vly-border-subtle)] flex items-center justify-end gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#1a1b2e] hover:bg-[#252740] text-slate-300 rounded-lg text-xs font-medium transition"
+              className="px-4 py-2 bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] rounded-lg text-xs font-medium transition"
             >
               Cancelar
             </button>
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-lg shadow-blue-500/20 transition flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2 bg-[var(--vly-accent)] hover:opacity-90 text-[var(--vly-accent-contrast)] rounded-lg text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
             >
               {exported ? (
                 <>
-                  <Check size={14} className="text-emerald-300" />
+                  <Check size={14} className="text-[var(--vly-success)]" />
                   Mixagem Baixada!
                 </>
               ) : isExporting ? (

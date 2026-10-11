@@ -703,7 +703,20 @@ export default function StudioPage() {
   const handleUpdateMusicState = (music: NonNullable<AudioItem["documentState"]["music"]>) => {
     if (!activeAudio) return;
     const trackId = selectedAudioTrackId || activeAudio.documentState.tracks.find((track) => track.type === "INSTRUMENT" || track.type === "MIDI")?.id;
-    handleUpdateAudioDocumentState({ ...activeAudio.documentState, music: trackId ? syncMusicNotesWithClips(music, trackId) : music });
+    const currentMusic = activeAudio.documentState.music || { ...defaultMusicProject(), tempoMap: [{ beat: 0, bpm: activeAudio.documentState.settings?.bpm || 120 }] };
+    const nextMusic = trackId ? syncMusicNotesWithClips(music, trackId) : music;
+    const updatedState = { ...activeAudio.documentState, music: nextMusic };
+    const tempoMapChanged = JSON.stringify(currentMusic.tempoMap) !== JSON.stringify(nextMusic.tempoMap);
+    handleUpdateAudioDocumentState(updatedState);
+    if (tempoMapChanged && audioPlaybackState === "PLAYING") {
+      const playbackState = { ...updatedState, settings: { ...updatedState.settings!, metronome: { enabled: audioMetronome, volume: 0.7, accentFirstBeat: true, countInBars: 0 } } };
+      void audioEngine.refreshMusicSchedule(playbackState).catch((error: unknown) => {
+        console.error("[AudioStudio] Tempo-map reschedule failed", error);
+        if (playbackTimerRef.current) clearInterval(playbackTimerRef.current);
+        setAudioPlaybackError(error instanceof Error ? error.message : "Não foi possível reagendar as notas após a mudança de tempo.");
+        setAudioPlaybackState("ERROR");
+      });
+    }
   };
 
   const handleRecordedMidiNotes = (notes: NonNullable<AudioItem["documentState"]["music"]>["notes"]) => {
@@ -783,6 +796,7 @@ export default function StudioPage() {
     if (!activeAudio) return;
     const newTrack = athenaAudioActions.createTrack(name || `Faixa ${activeAudio.documentState.tracks.length + 1}`, type);
     handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: [...activeAudio.documentState.tracks, newTrack] });
+    setSelectedAudioClipIds([]);
     setSelectedAudioTrackId(newTrack.id);
   };
 
@@ -1199,7 +1213,7 @@ export default function StudioPage() {
           <div className="pt-2">
             <button
               onClick={() => handleBackToHub()}
-              className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-violet-500/20 transition"
+              className="vly-interactive px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-lg shadow-violet-500/20"
             >
               <ArrowLeft size={16} />
               Voltar ao Studio Hub
@@ -1219,12 +1233,12 @@ export default function StudioPage() {
         title="VARYNTH Studios"
         subtitle="Suíte criativa integrada sobre o Universal Artifact System"
       >
-        <div className="flex flex-col gap-6 max-w-6xl mx-auto">
+        <div className="vly-enter flex flex-col gap-6 max-w-6xl mx-auto">
           {/* Studio Selector Tabs */}
           <div className="flex items-center gap-3 border-b border-[#1c1d32] pb-3 flex-wrap">
             <button
               onClick={() => handleSwitchStudioTab("DOCUMENT")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+              className={`vly-interactive px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                 activeStudio === "DOCUMENT"
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
@@ -1236,7 +1250,7 @@ export default function StudioPage() {
 
             <button
               onClick={() => handleSwitchStudioTab("WEB")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+              className={`vly-interactive px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                 activeStudio === "WEB"
                   ? "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
@@ -1248,7 +1262,7 @@ export default function StudioPage() {
 
             <button
               onClick={() => handleSwitchStudioTab("IMAGE")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+              className={`vly-interactive px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                 activeStudio === "IMAGE"
                   ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
@@ -1260,7 +1274,7 @@ export default function StudioPage() {
 
             <button
               onClick={() => handleSwitchStudioTab("AUDIO")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+              className={`vly-interactive px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                 activeStudio === "AUDIO"
                   ? "bg-amber-600 text-white shadow-lg shadow-amber-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
@@ -1272,7 +1286,7 @@ export default function StudioPage() {
 
             <button
               onClick={() => handleSwitchStudioTab("VIDEO")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+              className={`vly-interactive px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                 activeStudio === "VIDEO"
                   ? "bg-rose-600 text-white shadow-lg shadow-rose-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
@@ -1284,7 +1298,7 @@ export default function StudioPage() {
 
             <button
               onClick={() => handleSwitchStudioTab("GAME")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition ${
+              className={`vly-interactive px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                 activeStudio === "GAME"
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
                   : "bg-[#111220] text-slate-400 hover:text-white border border-[#1e2038]"
@@ -1296,7 +1310,7 @@ export default function StudioPage() {
 
             <button
               onClick={() => setIsOrchestrationModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-2 bg-gradient-to-r from-indigo-950/60 to-violet-950/60 hover:from-indigo-900/60 hover:to-violet-900/60 text-indigo-300 border border-indigo-500/30 ml-auto transition shadow-md shadow-indigo-500/10"
+              className="vly-interactive px-4 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-2 bg-gradient-to-r from-indigo-950/60 to-violet-950/60 hover:from-indigo-900/60 hover:to-violet-900/60 text-indigo-300 border border-indigo-500/30 ml-auto shadow-md shadow-indigo-500/10"
               title="Visualizar e coordenar planos criativos acíclicos através dos 6 Studios"
             >
               <Network size={15} className="text-indigo-400" />
@@ -1989,7 +2003,7 @@ export default function StudioPage() {
             )
           }
           mainContent={
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col h-full overflow-hidden">
               {/* Game Top Action Bar */}
               <div className="p-2.5 bg-[#0f1020] border-b border-[#1c1d32] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -2647,7 +2661,7 @@ export default function StudioPage() {
                   {activeAudio.documentState.tracks.map((t) => (
                     <div
                       key={t.id}
-                      onClick={() => setSelectedAudioTrackId(t.id)}
+                      onClick={() => { setSelectedAudioClipIds([]); setSelectedAudioTrackId(t.id); }}
                       className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between border ${
                         t.id === selectedAudioTrackId
                           ? "bg-amber-500/15 border-amber-500/40 text-white font-medium"
@@ -2832,14 +2846,14 @@ export default function StudioPage() {
                 <button type="button" onClick={() => { setAudioVoiceOpen((open) => !open); setAudioAnalysisOpen(false); setAudioSoundDesignOpen(false); setAudioPianoRollOpen(false); setAudioScoreOpen(false); setAudioMixerOpen(false); setAudioGameAudioOpen(false); setAudioAmbienceOpen(false); }} className="rounded bg-fuchsia-900/70 px-2 py-1 text-[10px] text-fuchsia-100">{audioVoiceOpen ? "Fechar Voice" : "Voice"}</button>
                 <button type="button" onClick={() => { setAudioAnalysisOpen((open) => !open); setAudioVoiceOpen(false); setAudioSoundDesignOpen(false); setAudioPianoRollOpen(false); setAudioScoreOpen(false); setAudioMixerOpen(false); setAudioGameAudioOpen(false); setAudioAmbienceOpen(false); }} className="rounded bg-sky-900/70 px-2 py-1 text-[10px] text-sky-100">{audioAnalysisOpen ? "Fechar Analysis" : "Analysis"}</button>
               </div>
-              <div className="flex-1 flex h-full overflow-hidden">
+              <div className="flex min-h-0 flex-1 h-full overflow-hidden">
                 {audioGameAudioOpen && gameAudioBrowserPackage ? <GameAudioBrowser packageData={gameAudioBrowserPackage} issues={gameAudioBrowserIssues} onSelectEvent={(event) => { if (event.trackId) setSelectedAudioTrackId(event.trackId); if (event.clipId) setSelectedAudioClipIds([event.clipId]); setAudioGameAudioOpen(false); }} /> : audioAmbienceOpen ? <AmbienceLayersPanel tracks={activeAudio.documentState.tracks} buses={activeAudio.documentState.buses || []} onAddLayer={() => handleAddAudioTrack("AMBIENCE", `Ambience ${activeAudio.documentState.tracks.filter((track) => track.type === "AMBIENCE").length + 1}`)} onUpdateTrack={(trackId, updates) => handleUpdateAudioDocumentState({ ...activeAudio.documentState, tracks: activeAudio.documentState.tracks.map((track) => track.id === trackId ? { ...track, ...updates } : track) })} onSelectTrack={(trackId) => { setSelectedAudioTrackId(trackId); setSelectedAudioClipIds([]); }} onOpenAssets={(trackId) => { setSelectedAudioTrackId(trackId); setAudioSidebarTab("ASSETS"); }} onOpenTimeline={(trackId) => { setSelectedAudioTrackId(trackId); setSelectedAudioClipIds([]); setAudioAmbienceOpen(false); }} /> : audioVoiceOpen ? <VoicePanel profile={activeAudio.documentState.voiceProfiles?.find((item) => item.characterId === "euterpe") || { characterId: "euterpe", displayName: "Euterpe", language: "pt-BR", styleProfile: { age: "young-adult", qualities: [], expression: "Neutral" }, processingChain: [], version: "Euterpe Voice v1", pronunciationDictionary: [] }} takes={activeAudio.documentState.voiceTakes || []} onChange={(voiceTakes) => handleUpdateAudioDocumentState({ ...activeAudio.documentState, voiceTakes })} onProfileChange={(profile) => handleUpdateAudioDocumentState({ ...activeAudio.documentState, voiceProfiles: (activeAudio.documentState.voiceProfiles || []).some((item) => item.characterId === profile.characterId) ? (activeAudio.documentState.voiceProfiles || []).map((item) => item.characterId === profile.characterId ? profile : item) : [...(activeAudio.documentState.voiceProfiles || []), profile] })} onGenerate={handleGenerateVoice} onProcessTake={handleProcessVoiceTake} /> : audioAnalysisOpen ? <AnalysisPanel tracks={activeAudio.documentState.tracks} selectedClipIds={selectedAudioClipIds} /> : audioDrumSequencerOpen ? <DrumSequencerPanel patterns={activeAudio.documentState.drumPatterns || []} onPatternsChange={(drumPatterns) => handleUpdateAudioDocumentState({ ...activeAudio.documentState, drumPatterns })} music={activeAudio.documentState.music || defaultMusicProject()} onMusicChange={handleUpdateMusicState} samplerDefinitions={activeAudio.documentState.samplerDefinitions || []} /> : audioSoundDesignOpen ? <SoundDesignPanel onGenerated={handleGeneratedAudio} samplerAssets={assetManager.listAssetsForArtifact(activeAudio.artifact.id)} samplerDefinitions={activeAudio.documentState.samplerDefinitions || []} onSamplerDefinitionsChange={(samplerDefinitions) => handleUpdateAudioDocumentState({ ...activeAudio.documentState, samplerDefinitions })} drumPatterns={activeAudio.documentState.drumPatterns || []} onDrumPatternsChange={(drumPatterns) => handleUpdateAudioDocumentState({ ...activeAudio.documentState, drumPatterns })} music={activeAudio.documentState.music || defaultMusicProject()} onMusicChange={handleUpdateMusicState} /> : audioPianoRollOpen ? <PianoRoll music={activeAudio.documentState.music || { version: 1, tuning: { concertPitchHz: 440, temperament: "12-TET" }, tempoMap: [{ beat: 0, bpm: activeAudio.documentState.settings?.bpm || 120 }], timeSignature: { numerator: 4, denominator: 4 }, key: { tonic: "C", accidental: "natural", scale: "major" }, notes: [], rests: [], chords: [] }} onChange={handleUpdateMusicState} /> : audioScoreOpen ? <ScoreView music={activeAudio.documentState.music || { version: 1, tuning: { concertPitchHz: 440, temperament: "12-TET" }, tempoMap: [{ beat: 0, bpm: activeAudio.documentState.settings?.bpm || 120 }], timeSignature: { numerator: 4, denominator: 4 }, key: { tonic: "C", accidental: "natural", scale: "major" }, notes: [], rests: [], chords: [] }} onChange={handleUpdateMusicState} /> : audioMixerOpen ? <AudioMixer state={activeAudio.documentState} onChange={handleUpdateAudioDocumentState} /> : <div className={`flex-1 h-full overflow-hidden ${audioViewMode === "PREVIEW" ? "pointer-events-none" : ""}`}>
                   <AudioTimeline
                     documentState={activeAudio.documentState}
                     zoom={audioZoom}
                     selectedTrackId={selectedAudioTrackId}
                     selectedClipIds={selectedAudioClipIds}
-                    onSelectTrack={setSelectedAudioTrackId}
+                    onSelectTrack={(trackId) => { setSelectedAudioClipIds([]); setSelectedAudioTrackId(trackId); }}
                     onSelectClip={(cId, additive) => setSelectedAudioClipIds((current) => additive ? (current.includes(cId) ? current.filter((id) => id !== cId) : [...current, cId]) : [cId])}
                     onSeek={(timeMs) =>
                       setActiveAudio({
@@ -2894,6 +2908,7 @@ export default function StudioPage() {
                     selectedClips={selectedAudioClips}
                     selectedClipTracks={selectedAudioClipTracks}
                     selectedTrack={selectedTrack}
+                    samplerDefinitions={activeAudio.documentState.samplerDefinitions || []}
                     playheadMs={activeAudio.documentState.playheadMs}
                     onUpdateClip={(clipId, updates) => {
                       const updatedTracks = activeAudio.documentState.tracks.map((t) => ({
@@ -3553,6 +3568,11 @@ export default function StudioPage() {
         artifactId={activeImage!.artifact.id}
         imageTitle={activeImage!.artifact.name}
         onClose={() => setIsImageExportOpen(false)}
+        onImported={() => {
+          const ref = imageService.getImage(activeImage!.artifact.id);
+          if (ref) setActiveImage(ref);
+          loadData();
+        }}
       />
 
       <ImageChangeSetModal

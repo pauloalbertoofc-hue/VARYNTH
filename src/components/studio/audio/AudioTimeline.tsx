@@ -60,11 +60,11 @@ export function AudioTimeline({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#080912] overflow-hidden select-none">
+    <main aria-label="Timeline do Audio Studio" className="flex h-full flex-1 select-none flex-col overflow-hidden bg-[var(--vly-surface)]">
       {/* Top Header & Time Ruler */}
-      <div className="flex border-b border-[#1e2038] bg-[#0c0d1a] h-7 shrink-0">
+      <div className="flex h-7 shrink-0 border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)]">
         {/* Track Headers Placeholder */}
-        <div className="w-28 sm:w-60 shrink-0 border-r border-[#1e2038] px-2 sm:px-3 flex items-center text-[10px] uppercase font-semibold text-slate-500 tracking-wider truncate">
+        <div className="w-28 shrink-0 truncate border-r border-[var(--vly-border-default)] px-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)] sm:w-60 sm:px-3">
           Faixas ({documentState.tracks.length})
         </div>
 
@@ -72,14 +72,15 @@ export function AudioTimeline({
         <div
           ref={timelineContentRef}
           onClick={handleRulerClick}
-          className="flex-1 overflow-x-auto overflow-y-hidden relative cursor-pointer"
+          aria-label="Régua temporal; clique para mover o playhead"
+          className="relative flex-1 cursor-pointer overflow-x-auto overflow-y-hidden"
         >
           <div style={{ width: `${totalTimelineWidthPx}px` }} className="h-full relative">
             {ticks.map((sec) => (
               <div
                 key={sec}
                 style={{ left: `${sec * zoom}px` }}
-                className="absolute top-0 bottom-0 border-l border-[#222442] flex items-center pl-1 font-mono text-[9px] text-slate-500 pointer-events-none"
+                className="pointer-events-none absolute bottom-0 top-0 flex items-center border-l border-[var(--vly-border-default)] pl-1 font-mono text-[9px] text-[var(--vly-text-muted)]"
               >
                 {Math.floor(sec / 60)}:{(sec % 60).toString().padStart(2, "0")}
               </div>
@@ -90,7 +91,7 @@ export function AudioTimeline({
               <div
                 key={marker.id}
                 style={{ left: `${(marker.timeMs / 1000) * zoom}px` }}
-                className="absolute top-0 bottom-0 z-30 flex items-center gap-0.5 text-[9px] font-semibold text-amber-400 bg-amber-500/20 px-1 border-l-2 border-amber-500 rounded-r"
+                className="absolute bottom-0 top-0 z-30 flex items-center gap-0.5 rounded-r border-l-2 border-[var(--vly-warning)] bg-[var(--vly-surface-warning)] px-1 text-[9px] font-semibold text-[var(--vly-warning)]"
               >
                 <Flag size={9} />
                 {marker.label}
@@ -101,7 +102,7 @@ export function AudioTimeline({
       </div>
 
       {/* Main Timeline Lanes Area */}
-      <div className="flex-1 flex overflow-y-auto">
+      <div className="flex flex-1 overflow-y-auto" role="region" aria-label="Faixas e clips de áudio">
         {/* Left: Track Headers Stack */}
         <div className="w-28 sm:w-60 shrink-0 flex flex-col">
           {documentState.tracks.map((track) => (
@@ -123,7 +124,7 @@ export function AudioTimeline({
           onClick={handleRulerClick}
           onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
           onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith("audio/")); if (files.length) onImportFiles?.(files); }}
-          className="flex-1 overflow-x-auto overflow-y-hidden relative bg-[#090a16]"
+          className="relative flex-1 overflow-x-auto overflow-y-hidden bg-[var(--vly-surface)]"
         >
           <div style={{ width: `${totalTimelineWidthPx}px` }} className="relative h-full">
             {/* Background Grid Lines */}
@@ -131,7 +132,7 @@ export function AudioTimeline({
               <div
                 key={sec}
                 style={{ left: `${sec * zoom}px` }}
-                className="absolute top-0 bottom-0 border-l border-[#141628] pointer-events-none"
+                className="pointer-events-none absolute bottom-0 top-0 border-l border-[var(--vly-border-subtle)]"
               />
             ))}
 
@@ -140,8 +141,10 @@ export function AudioTimeline({
               <div
                 key={track.id}
                 onClick={() => onSelectTrack(track.id)}
-                className={`h-24 border-b border-[#181a2e] relative transition-colors ${
-                  track.id === selectedTrackId ? "bg-blue-950/10" : ""
+                role="group"
+                aria-label={`Lane da faixa ${track.name}`}
+                className={`relative h-24 border-b border-[var(--vly-border-subtle)] transition-colors ${
+                  track.id === selectedTrackId ? "bg-[color-mix(in_srgb,var(--vly-accent)_8%,transparent)]" : ""
                 }`}
               >
                 {/* Clips in this track */}
@@ -164,13 +167,14 @@ export function AudioTimeline({
             {/* Playhead Scrubber Vertical Line */}
             <div
               style={{ left: `${playheadLeftPx}px` }}
-              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-40 pointer-events-none shadow-lg shadow-red-500/50"
+              aria-label={`Playhead em ${documentState.playheadMs} ms`}
+              className="pointer-events-none absolute bottom-0 top-0 z-40 w-0.5 bg-[var(--vly-danger)] shadow-lg shadow-[var(--vly-danger)]/50"
             >
-              <div className="w-3 h-3 bg-red-500 -ml-[5px] -mt-1 rotate-45 rounded-sm" />
+              <div className="-ml-[5px] -mt-1 h-3 w-3 rotate-45 rounded-sm bg-[var(--vly-danger)]" />
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

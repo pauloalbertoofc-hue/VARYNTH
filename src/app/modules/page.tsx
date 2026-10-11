@@ -9,11 +9,11 @@ export default function ModulesPage() {
 
   return (
     <PageLayout title="Apps" subtitle="Todos os módulos do VARYNTH">
-      <div className="p-6 space-y-10 animate-fade-in">
+      <div className="vly-enter p-6 space-y-10">
         {/* Active */}
         {active.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-emerald-400 tracking-[0.2em] uppercase mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-semibold text-[var(--vly-success)] tracking-[0.2em] uppercase mb-4 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
               Ativos
             </h2>
@@ -26,7 +26,7 @@ export default function ModulesPage() {
         {/* WIP */}
         {wip.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-amber-400 tracking-[0.2em] uppercase mb-4 flex items-center gap-2">
+            <h2 className="text-xs font-semibold text-[var(--vly-warning)] tracking-[0.2em] uppercase mb-4 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block animate-pulse" />
               Em Desenvolvimento
             </h2>
@@ -39,8 +39,8 @@ export default function ModulesPage() {
         {/* Coming soon */}
         {coming.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-slate-500 tracking-[0.2em] uppercase mb-4 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-500 inline-block" />
+            <h2 className="text-xs font-semibold text-[var(--vly-text-muted)] tracking-[0.2em] uppercase mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--vly-text-muted)] inline-block" />
               Em Breve
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -52,4 +52,3 @@ export default function ModulesPage() {
     </PageLayout>
   );
 }
-

@@ -34,24 +34,25 @@ export function Navbar({ title, subtitle }: NavbarProps) {
   };
 
   return (
-    <header className="flex items-center justify-between h-14 px-3 sm:px-6 bg-[#0a0a0f]/85 border-b border-[#1e1e30] backdrop-blur-md sticky top-0 z-20">
+    <header aria-label="Barra superior do VARYNTH" className="flex items-center justify-between h-14 px-3 sm:px-6 bg-[var(--vly-surface-glass)] border-b border-[var(--vly-border-default)] backdrop-blur-md sticky top-0 z-[var(--vly-z-raised)]">
       {/* Left: Mobile hamburger + page title */}
       <div className="flex items-center gap-2.5 min-w-0 pr-2">
         <button
+          type="button"
           onClick={handleToggleMobileSidebar}
-          className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-[#1e1e30] flex-shrink-0 touch-manipulation"
+          className="lg:hidden vly-interactive p-2 rounded-[var(--vly-radius-md)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-default)] flex-shrink-0 touch-manipulation"
           title="Abrir Menu de Navegação"
-          aria-label="Abrir Menu"
+          aria-label="Abrir menu de navegação"
         >
           <Menu size={18} />
         </button>
 
         <div className="flex flex-col justify-center min-w-0">
           {title && (
-            <h1 className="text-sm font-bold text-slate-100 leading-none truncate">{title}</h1>
+            <h1 className="text-sm font-bold text-[var(--vly-text-primary)] leading-none truncate">{title}</h1>
           )}
           {subtitle && (
-            <p className="text-[11px] text-slate-400 mt-0.5 truncate hidden sm:block">{subtitle}</p>
+            <p className="text-[11px] text-[var(--vly-text-secondary)] mt-0.5 truncate hidden sm:block">{subtitle}</p>
           )}
         </div>
       </div>
@@ -60,11 +61,13 @@ export function Navbar({ title, subtitle }: NavbarProps) {
       <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
         {/* Universal "+ Criar" button */}
         <button
+          type="button"
           onClick={handleOpenQuickCreate}
+          aria-label="Abrir criação rápida"
           className={cn(
             "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-white",
-            "bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600",
-            "border border-violet-500/30 glow-accent transition-all duration-200"
+            "bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)]",
+            "border border-[var(--vly-border-strong)] vly-interactive"
           )}
           title="Criação Rápida (Ctrl + J)"
         >
@@ -74,17 +77,19 @@ export function Navbar({ title, subtitle }: NavbarProps) {
 
         {/* Search */}
         <button
+          type="button"
           onClick={handleOpenSearch}
+          aria-label="Abrir busca universal"
           className={cn(
-            "flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs text-slate-400",
-            "bg-white/5 border border-[#1e1e30]",
-            "hover:bg-white/10 hover:text-slate-200 hover:border-violet-500/30 transition-all duration-200"
+            "flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-[var(--vly-radius-md)] text-xs text-[var(--vly-text-secondary)]",
+            "bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)]",
+            "hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)] hover:border-[var(--vly-border-strong)] vly-interactive"
           )}
           title="Busca Universal (Ctrl + K)"
         >
           <Search size={13} />
           <span className="hidden md:inline">Buscar...</span>
-          <kbd className="hidden sm:inline text-[10px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 ml-1 font-mono">
+          <kbd className="hidden sm:inline text-[10px] bg-[var(--vly-surface-muted)] px-1.5 py-0.5 rounded border border-[var(--vly-border-subtle)] ml-1 font-mono">
             ⌘K
           </kbd>
         </button>
@@ -96,8 +101,9 @@ export function Navbar({ title, subtitle }: NavbarProps) {
         <NotificationCenter />
 
         <button
+          type="button"
           onClick={() => void handleSignOut()}
-          className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+          className="vly-interactive p-2 rounded-[var(--vly-radius-md)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-danger)] hover:bg-[color-mix(in_srgb,var(--vly-danger)_12%,transparent)]"
           title="Sair da plataforma"
           aria-label="Sair da plataforma"
         >
@@ -105,8 +111,8 @@ export function Navbar({ title, subtitle }: NavbarProps) {
         </button>
 
         {/* System Pill */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#14141f] border border-[#1e1e30] text-[10px] font-medium text-violet-300">
-          <Sparkles size={11} className="text-violet-400" />
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--vly-radius-sm)] bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] text-[10px] font-medium text-[var(--vly-text-secondary)]">
+          <Sparkles size={11} className="text-[var(--vly-accent)]" />
           <span>VARYNTH OS</span>
         </div>
       </div>

@@ -23,6 +23,7 @@ import {
   Boxes,
   ShieldCheck,
 } from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 interface DependencyInspectorModalProps {
   artifact: Artifact;
@@ -89,19 +90,19 @@ export function DependencyInspectorModal({
     switch (health) {
       case "VALID":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[var(--vly-success)]/10 text-[var(--vly-success)] border border-[var(--vly-border-success)]">
             <CheckCircle2 className="w-3 h-3" /> Válido
           </span>
         );
       case "UPDATE_AVAILABLE":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[var(--vly-info)]/10 text-[var(--vly-info)] border border-[var(--vly-border-info)]">
             <RefreshCw className="w-3 h-3 animate-spin" /> Atualização Disponível
           </span>
         );
       case "SOURCE_TRASHED":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[var(--vly-warning)]/10 text-[var(--vly-warning)] border border-[var(--vly-border-warning)]">
             <AlertTriangle className="w-3 h-3" /> Origem na Lixeira
           </span>
         );
@@ -109,13 +110,13 @@ export function DependencyInspectorModal({
       case "ASSET_MISSING":
       case "VERSION_MISMATCH":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-red-500/10 text-red-400 border border-red-500/30">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[var(--vly-danger)]/10 text-[var(--vly-danger)] border border-[var(--vly-border-danger)]">
             <AlertCircle className="w-3 h-3" /> {health.replace("_", " ")}
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-zinc-800 text-zinc-400 border border-zinc-700">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[var(--vly-surface-raised)] text-[var(--vly-text-muted)] border border-[var(--vly-border-subtle)]">
             {health}
           </span>
         );
@@ -123,27 +124,29 @@ export function DependencyInspectorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 p-4 backdrop-blur-sm">
+      <Surface tone="floating" role="dialog" aria-modal="true" aria-labelledby="dependency-inspector-title" className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface)]/50 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <div className="rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] p-2 text-[var(--vly-accent)]">
               <GitFork className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+              <h2 id="dependency-inspector-title" className="flex items-center gap-2 text-lg font-bold text-[var(--vly-text-primary)]">
                 Grafo Criativo & Dependências
                 {getHealthBadge(integrity.overallHealth)}
               </h2>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-[var(--vly-text-secondary)]">
                 {artifact.name} ({artifact.type} · v{artifact.currentVersionNumber || 1}.0)
               </p>
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Fechar inspetor de dependências"
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg hover:bg-zinc-800 transition-colors"
+            className="vly-interactive rounded-lg p-1.5 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -153,9 +156,9 @@ export function DependencyInspectorModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Integrity Issues Alert */}
           {integrity.issues.length > 0 && (
-            <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-2">
-              <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-indigo-400" /> Diagnóstico do CreativeIntegrityValidator
+            <div className="bg-[var(--vly-world)] border border-[var(--vly-border-subtle)] rounded-lg p-4 space-y-2">
+              <h3 className="text-xs font-semibold text-[var(--vly-text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[var(--vly-info)]" /> Diagnóstico do CreativeIntegrityValidator
               </h3>
               <div className="space-y-1.5">
                 {integrity.issues.map((iss, idx) => (
@@ -163,10 +166,10 @@ export function DependencyInspectorModal({
                     key={idx}
                     className={`flex items-start justify-between text-xs p-2.5 rounded border ${
                       iss.severity === "ERROR"
-                        ? "bg-red-500/5 border-red-500/20 text-red-300"
+                        ? "bg-[var(--vly-danger)]/5 border-[var(--vly-border-danger)] text-[var(--vly-danger)]"
                         : iss.severity === "WARNING"
-                        ? "bg-amber-500/5 border-amber-500/20 text-amber-300"
-                        : "bg-cyan-500/5 border-cyan-500/20 text-cyan-300"
+                        ? "bg-[var(--vly-warning)]/5 border-[var(--vly-border-warning)] text-[var(--vly-warning)]"
+                        : "bg-[var(--vly-info)]/5 border-[var(--vly-border-info)] text-[var(--vly-info)]"
                     }`}
                   >
                     <div>
@@ -317,16 +320,15 @@ export function DependencyInspectorModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-zinc-800 bg-zinc-900/50 flex justify-end">
+        <div className="flex justify-end border-t border-[var(--vly-border-default)] bg-[var(--vly-surface)]/50 px-6 py-3">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-sm transition-colors"
+            className="vly-interactive rounded-lg bg-[var(--vly-surface-raised)] px-4 py-1.5 text-sm text-[var(--vly-text-primary)]"
           >
             Fechar
           </button>
         </div>
-      </div>
+      </Surface>
     </div>
   );
 }
-

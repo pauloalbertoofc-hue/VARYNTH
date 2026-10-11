@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { WebConsoleLogEntry } from "@/lib/studio/web/types";
 import { webPreviewBridge } from "@/lib/studio/web/web-preview-bridge";
 import { Terminal, AlertTriangle, AlertCircle, Info, Trash2 } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface WebConsolePanelProps {
   previewSessionId?: string;
@@ -43,23 +44,25 @@ export function WebConsolePanel({
   const getLogIcon = (level: string) => {
     switch (level) {
       case "error":
-        return <AlertCircle size={12} className="text-red-400 shrink-0 mt-0.5" />;
+        return <AlertCircle size={12} className="mt-0.5 shrink-0 text-[var(--vly-danger)]" />;
       case "warn":
-        return <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />;
+        return <AlertTriangle size={12} className="mt-0.5 shrink-0 text-[var(--vly-warning)]" />;
       default:
-        return <Info size={12} className="text-blue-400 shrink-0 mt-0.5" />;
+        return <Info size={12} className="mt-0.5 shrink-0 text-[var(--vly-info)]" />;
     }
   };
 
   return (
-    <div className="h-44 flex flex-col bg-[#090a13] border-t border-[#1a1c30] text-xs font-mono select-text">
+    <div className="flex h-44 select-text flex-col border-t border-[var(--vly-border-default)] bg-[var(--vly-world)] font-mono text-xs">
       {/* Header Tabs */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-[#0f1020] border-b border-[#18192c]">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-3 py-1.5">
+        <div role="tablist" aria-label="Saída do Web Studio" className="flex items-center gap-2">
           <button
+            role="tab"
+            aria-selected={activeTab === "console"}
             onClick={() => setActiveTab("console")}
-            className={`px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition ${
-              activeTab === "console" ? "bg-blue-600/20 text-blue-300 font-semibold" : "text-slate-400 hover:text-white"
+            className={`vly-interactive flex items-center gap-1.5 rounded px-2.5 py-1 text-xs ${
+              activeTab === "console" ? "bg-[var(--vly-info)]/15 text-[var(--vly-info)] font-semibold" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <Terminal size={12} />
@@ -67,9 +70,11 @@ export function WebConsolePanel({
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === "build"}
             onClick={() => setActiveTab("build")}
-            className={`px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition ${
-              activeTab === "build" ? "bg-blue-600/20 text-blue-300 font-semibold" : "text-slate-400 hover:text-white"
+            className={`vly-interactive flex items-center gap-1.5 rounded px-2.5 py-1 text-xs ${
+              activeTab === "build" ? "bg-[var(--vly-info)]/15 text-[var(--vly-info)] font-semibold" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
             <Info size={12} />
@@ -77,12 +82,14 @@ export function WebConsolePanel({
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === "problems"}
             onClick={() => setActiveTab("problems")}
-            className={`px-2.5 py-1 rounded text-xs flex items-center gap-1.5 transition ${
-              activeTab === "problems" ? "bg-blue-600/20 text-blue-300 font-semibold" : "text-slate-400 hover:text-white"
+            className={`vly-interactive flex items-center gap-1.5 rounded px-2.5 py-1 text-xs ${
+              activeTab === "problems" ? "bg-[var(--vly-info)]/15 text-[var(--vly-info)] font-semibold" : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
             }`}
           >
-            <AlertCircle size={12} className={buildErrors.length > 0 ? "text-red-400" : ""} />
+            <AlertCircle size={12} className={buildErrors.length > 0 ? "text-[var(--vly-danger)]" : ""} />
             Problemas ({buildErrors.length})
           </button>
         </div>
@@ -90,7 +97,7 @@ export function WebConsolePanel({
         {activeTab === "console" && (
           <button
             onClick={handleClear}
-            className="p-1 text-slate-500 hover:text-slate-300 transition rounded"
+            className="vly-interactive rounded p-1 text-[var(--vly-text-muted)] transition hover:text-[var(--vly-text-secondary)]"
             title="Limpar Console"
           >
             <Trash2 size={12} />
@@ -99,29 +106,29 @@ export function WebConsolePanel({
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 space-y-1 overflow-y-auto p-2">
         {activeTab === "console" && (
           logs.length === 0 ? (
-            <div className="text-slate-600 italic p-2">Nenhuma mensagem registrada no console.</div>
+            <StatePanel tone="empty" title="Console limpo" description="As mensagens do preview aparecerão aqui." />
           ) : (
             logs.map((log) => (
               <div
                 key={log.id}
                 className={`flex items-start gap-2 p-1 rounded text-[11px] ${
                   log.level === "error"
-                    ? "bg-red-500/10 text-red-300"
+                    ? "bg-[var(--vly-danger)]/10 text-[var(--vly-danger)]"
                     : log.level === "warn"
-                    ? "bg-amber-500/10 text-amber-300"
-                    : "text-slate-300"
+                    ? "bg-[var(--vly-warning)]/10 text-[var(--vly-warning)]"
+                    : "text-[var(--vly-text-secondary)]"
                 }`}
               >
                 {getLogIcon(log.level)}
-                <span className="text-slate-500 text-[10px]">
+                <span className="text-[10px] text-[var(--vly-text-muted)]">
                   {new Date(log.timestamp).toLocaleTimeString()}
                 </span>
                 <span className="flex-1 whitespace-pre-wrap">{log.message}</span>
                 {log.sourceFile && (
-                  <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-[var(--vly-text-muted)]">
                     {log.sourceFile}:{log.line}
                   </span>
                 )}
@@ -132,10 +139,10 @@ export function WebConsolePanel({
 
         {activeTab === "build" && (
           buildLogs.length === 0 ? (
-            <div className="text-slate-600 italic p-2">Nenhum log de build disponível. Execute um Build no estúdio.</div>
+            <StatePanel tone="empty" title="Sem logs de build" description="Execute um Build no estúdio para registrar a saída." />
           ) : (
             buildLogs.map((bLog, i) => (
-              <div key={i} className="text-slate-300 text-[11px] leading-5">
+              <div key={i} className="text-[11px] leading-5 text-[var(--vly-text-secondary)]">
                 {bLog}
               </div>
             ))
@@ -144,13 +151,13 @@ export function WebConsolePanel({
 
         {activeTab === "problems" && (
           buildErrors.length === 0 ? (
-            <div className="text-emerald-400/80 italic p-2 flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 p-2 italic text-[var(--vly-success)]/80">
               <span>Zero problemas detectados.</span>
             </div>
           ) : (
             buildErrors.map((err, i) => (
-              <div key={i} className="flex items-start gap-2 p-1.5 bg-red-500/10 border border-red-500/20 rounded text-red-300 text-[11px]">
-                <AlertCircle size={13} className="shrink-0 mt-0.5" />
+              <div key={i} className="flex items-start gap-2 rounded border border-[var(--vly-border-danger)] bg-[var(--vly-danger)]/10 p-1.5 text-[11px] text-[var(--vly-danger)]">
+                <AlertCircle size={13} className="mt-0.5 shrink-0" />
                 <span className="whitespace-pre-wrap">{err}</span>
               </div>
             ))
@@ -160,4 +167,3 @@ export function WebConsolePanel({
     </div>
   );
 }
-

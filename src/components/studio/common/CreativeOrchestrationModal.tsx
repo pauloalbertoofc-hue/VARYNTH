@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { CreativePlan, CreativeExecutionPlan, PlanStatus } from "@/lib/orchestration/types";
 import { CreativeOrchestrator } from "@/lib/orchestration/creative-orchestrator";
 import { CreativeExecutionController } from "@/lib/orchestration/creative-execution-controller";
 import { athenaEventBus } from "@/lib/athena/events/event-bus";
 import { Network, Sparkles, Layers, ShieldCheck, CheckCircle2, AlertCircle, Play, X, RefreshCw } from "lucide-react";
 import { STUDIO_DEFINITIONS } from "@/lib/studio/studio-registry";
+import { Surface } from "@/components/ui/Surface";
 
 interface CreativeOrchestrationModalProps {
   planId?: string;
@@ -24,7 +25,7 @@ export function CreativeOrchestrationModal({
   const [isExecuting, setIsExecuting] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "dag" | "capabilities" | "execution">("overview");
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     if (planId) {
       const p = CreativeOrchestrator.getPlan(planId);
       setPlan(p || null);
@@ -41,13 +42,13 @@ export function CreativeOrchestrationModal({
         setExecutionPlan(execP || null);
       }
     }
-  };
+  }, [planId]);
 
   useEffect(() => {
     if (isOpen) {
       refresh();
     }
-  }, [isOpen, planId]);
+  }, [isOpen, refresh]);
 
   useEffect(() => {
     const unsubCreated = athenaEventBus.on("CREATIVE_PLAN_CREATED", refresh);
@@ -61,7 +62,7 @@ export function CreativeOrchestrationModal({
       unsubRevised();
       unsubExec();
     };
-  }, []);
+  }, [refresh]);
 
   if (!isOpen) return null;
 
@@ -129,19 +130,19 @@ export function CreativeOrchestrationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
-      <div className="bg-[#0f101f] border border-[#232542] rounded-2xl max-w-4xl w-full max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden text-slate-200 clip-corner">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--vly-world)]/80 backdrop-blur-md p-4 animate-fade-in">
+      <Surface tone="floating" className="flex max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl text-[var(--vly-text-secondary)] clip-corner">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#1c1d32] flex items-center justify-between bg-[#0a0a14]/80">
+        <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface)]/80 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] text-[var(--vly-accent)]">
               <Network size={18} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
                 {plan ? plan.title : "Orquestrador Criativo Multi-Estúdio"}
                 {plan && (
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300 border border-indigo-700 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--vly-info)]/15 text-[var(--vly-info)] border border-[var(--vly-border-info)] font-mono">
                     Rev v{plan.revision}
                   </span>
                 )}
@@ -149,26 +150,26 @@ export function CreativeOrchestrationModal({
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
                       plan.status === "COMPLETED"
-                        ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                        ? "bg-[var(--vly-success)]/15 text-[var(--vly-success)] border border-[var(--vly-border-success)]"
                         : plan.status === "APPROVED"
-                        ? "bg-sky-950 text-sky-300 border border-sky-800"
+                        ? "bg-[var(--vly-info)]/15 text-[var(--vly-info)] border border-[var(--vly-border-info)]"
                         : plan.status === "BLOCKED"
-                        ? "bg-rose-950 text-rose-300 border border-rose-800"
-                        : "bg-slate-800 text-slate-300 border border-slate-700"
+                        ? "bg-[var(--vly-danger)]/15 text-[var(--vly-danger)] border border-[var(--vly-border-danger)]"
+                        : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)] border border-[var(--vly-border-subtle)]"
                     }`}
                   >
                     {plan.status}
                   </span>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[var(--vly-text-secondary)]">
                 Coordenação de pipelines acíclicos dirigidos (DAG) através dos 6 Studios
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
+            className="vly-interactive rounded-lg p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
           >
             <X size={16} />
           </button>
@@ -177,31 +178,31 @@ export function CreativeOrchestrationModal({
         {/* If no plan exists yet, show clean intro & capabilities */}
         {!plan ? (
           <div className="p-8 flex flex-col items-center text-center space-y-6 overflow-y-auto">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] text-[var(--vly-accent)]">
               <Sparkles size={28} />
             </div>
             <div className="max-w-lg space-y-2">
-              <h3 className="text-base font-bold text-white">Nenhum Plano Ativo no Momento</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <h3 className="text-base font-bold text-[var(--vly-text-primary)]">Nenhum Plano Ativo no Momento</h3>
+              <p className="text-xs leading-relaxed text-[var(--vly-text-secondary)]">
                 O Orquestrador Criativo permite encadear criações complexas com dependências governadas (ex: roteiro no Document Studio gera locução no Audio Studio, renderiza vídeo no Video Studio e publica no Web Studio).
               </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-2xl text-left">
               {STUDIO_DEFINITIONS.map((s) => (
-                <div key={s.type} className="p-3 rounded-xl bg-[#131424] border border-[#202238] space-y-1">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-200">
+                <div key={s.type} className="p-3 rounded-xl bg-[var(--vly-surface-raised)] border border-[var(--vly-border-subtle)] space-y-1">
+                  <div className="flex items-center justify-between text-xs font-semibold text-[var(--vly-text-primary)]">
                     <span>{s.label}</span>
-                    <span className="text-[9px] text-slate-500 font-mono">S{s.studioNumber}</span>
+                    <span className="text-[9px] text-[var(--vly-text-muted)] font-mono">S{s.studioNumber}</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 line-clamp-2">{s.description}</p>
+                  <p className="text-[10px] text-[var(--vly-text-secondary)] line-clamp-2">{s.description}</p>
                 </div>
               ))}
             </div>
 
             <button
               onClick={handleCreateSamplePlan}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition"
+              className="vly-interactive flex items-center gap-2 rounded-xl border border-[var(--vly-border-accent)] bg-[var(--vly-accent)] px-5 py-2.5 text-xs font-semibold text-[var(--vly-text-on-accent)] shadow-lg shadow-[var(--vly-accent-soft)]"
             >
               <Play size={14} /> Criar Plano Integrado de Exemplo
             </button>
@@ -209,13 +210,13 @@ export function CreativeOrchestrationModal({
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex border-b border-[#1c1d32] bg-[#0a0a14]/40 px-6 gap-2">
+            <div className="flex border-b border-[var(--vly-border-subtle)] bg-[var(--vly-world)]/40 px-6 gap-2">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={`py-3 px-3 border-b-2 text-xs font-semibold transition ${
                   activeTab === "overview"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-[var(--vly-info)] text-[var(--vly-info)]"
+                    : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 }`}
               >
                 Visão Geral
@@ -224,8 +225,8 @@ export function CreativeOrchestrationModal({
                 onClick={() => setActiveTab("dag")}
                 className={`py-3 px-3 border-b-2 text-xs font-semibold transition ${
                   activeTab === "dag"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-[var(--vly-info)] text-[var(--vly-info)]"
+                    : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 }`}
               >
                 Grafo de Execução (DAG)
@@ -234,8 +235,8 @@ export function CreativeOrchestrationModal({
                 onClick={() => setActiveTab("capabilities")}
                 className={`py-3 px-3 border-b-2 text-xs font-semibold transition ${
                   activeTab === "capabilities"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-[var(--vly-info)] text-[var(--vly-info)]"
+                    : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 }`}
               >
                 Capacidades & Recursos
@@ -244,8 +245,8 @@ export function CreativeOrchestrationModal({
                 onClick={() => setActiveTab("execution")}
                 className={`py-3 px-3 border-b-2 text-xs font-semibold transition ${
                   activeTab === "execution"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-[var(--vly-info)] text-[var(--vly-info)]"
+                    : "border-transparent text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 }`}
               >
                 Execução em Tempo Real
@@ -256,9 +257,9 @@ export function CreativeOrchestrationModal({
             <div className="p-6 overflow-y-auto max-h-[55vh] space-y-4">
               {activeTab === "overview" && (
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-[#131426] border border-[#20233f]">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">Resumo do Plano</h4>
-                    <p className="text-xs text-slate-400">{plan.summary}</p>
+                  <div className="p-4 rounded-xl bg-[var(--vly-surface-raised)] border border-[var(--vly-border-subtle)]">
+                    <h4 className="text-xs font-bold text-[var(--vly-text-secondary)] uppercase tracking-wider mb-1">Resumo do Plano</h4>
+                    <p className="text-xs text-[var(--vly-text-secondary)]">{plan.summary}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -422,7 +423,7 @@ export function CreativeOrchestrationModal({
             </div>
           </>
         )}
-      </div>
+      </Surface>
     </div>
   );
 }

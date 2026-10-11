@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { ProjectFile } from "@/lib/types";
-import { File, FileText, Download, Upload, Trash2, ExternalLink, Plus } from "lucide-react";
+import { FileText, Upload, Trash2 } from "lucide-react";
+import { StatePanel } from "@/components/ui/StatePanel";
+import { Surface } from "@/components/ui/Surface";
 
 interface ProjectFilesTabProps {
   projectId: string;
@@ -50,12 +52,12 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+        <h3 className="text-xs font-bold text-[var(--vly-text-secondary)] uppercase tracking-wider">
           Arquivos & Documentos ({projectFiles.length})
         </h3>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-[var(--vly-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--vly-accent-contrast)] transition-colors hover:opacity-90"
         >
           <Upload size={14} />
           <span>Registrar Arquivo</span>
@@ -64,7 +66,7 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
 
       {/* Add Form */}
       {isAdding && (
-        <form onSubmit={handleAddFile} className="p-4 rounded-xl bg-[#14141f] border border-[#2d2d4a] space-y-3">
+        <form onSubmit={handleAddFile} className="p-4 rounded-[var(--vly-radius-lg)] bg-[var(--vly-surface-raised)] border border-[var(--vly-border-strong)] space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input
               type="text"
@@ -72,13 +74,13 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
               placeholder="Nome do arquivo (ex: Relatorio_Final.pdf)"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
-              className="sm:col-span-2 px-3 py-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500/60"
+              className="vly-field sm:col-span-2 px-3 py-2 text-xs"
               autoFocus
             />
             <select
               value={fileType}
               onChange={(e) => setFileType(e.target.value)}
-              className="px-2.5 py-2 rounded-lg bg-[#0a0a0f] border border-[#1e1e30] text-xs text-slate-200 focus:outline-none"
+              className="vly-field px-2.5 py-2 text-xs"
             >
               <option value="PDF">PDF</option>
               <option value="DOCX">DOCX</option>
@@ -91,13 +93,13 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
             <button
               type="button"
               onClick={() => setIsAdding(false)}
-              className="px-3 py-1 text-xs text-slate-400 hover:text-slate-200"
+              className="px-3 py-1 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-1 rounded bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white transition-colors"
+              className="px-4 py-1 rounded bg-[var(--vly-accent)] hover:opacity-90 text-xs font-semibold text-[var(--vly-accent-contrast)] transition-colors"
             >
               Adicionar
             </button>
@@ -108,22 +110,21 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
       {/* File List */}
       <div className="space-y-2">
         {projectFiles.length === 0 ? (
-          <div className="py-12 text-center rounded-xl bg-[#0f0f1a] border border-[#1e1e30] text-slate-500 text-xs">
-            Nenhum arquivo registrado para este projeto.
-          </div>
+          <StatePanel tone="empty" className="bg-[var(--vly-surface)]" title="Nenhum arquivo registrado" description="Registre um arquivo para manter os materiais deste projeto acessíveis no Workspace." action={<button type="button" onClick={() => setIsAdding(true)} className="vly-interactive rounded-[var(--vly-radius-md)] bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Upload size={13} className="mr-1 inline" />Registrar arquivo</button>} />
         ) : (
           projectFiles.map((file) => (
-            <div
+            <Surface
               key={file.id}
-              className="group flex items-center justify-between p-3.5 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] hover:border-violet-500/40 transition-all duration-200"
+              tone="raised"
+              className="group flex items-center justify-between rounded-xl p-3.5 transition-all duration-200 hover:border-[var(--vly-accent)]/40"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 flex-shrink-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--vly-accent)]/20 bg-[var(--vly-accent)]/10 text-[var(--vly-accent)]">
                   <FileText size={16} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-200 truncate">{file.name}</p>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-xs font-medium text-[var(--vly-text-secondary)] truncate">{file.name}</p>
+                  <p className="text-[10px] text-[var(--vly-text-muted)]">
                     {file.size} · {file.type} · {file.uploadedAt}
                   </p>
                 </div>
@@ -132,17 +133,16 @@ export function ProjectFilesTab({ projectId }: ProjectFilesTabProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleDelete(file.id)}
-                  className="opacity-70 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-opacity touch-manipulation"
+                  className="touch-manipulation p-1.5 text-[var(--vly-text-muted)] opacity-70 transition-opacity hover:text-[var(--vly-danger)] sm:opacity-0 sm:group-hover:opacity-100"
                   title="Remover arquivo"
                 >
                   <Trash2 size={13} />
                 </button>
               </div>
-            </div>
+            </Surface>
           ))
         )}
       </div>
     </div>
   );
 }
-

@@ -4,6 +4,7 @@ import React from "react";
 import { VideoScene } from "@/lib/studio/video/types";
 import { Film, Clock, Plus, LayoutGrid, List } from "lucide-react";
 import { formatTimecode } from "@/lib/studio/temporal/temporal-core";
+import { StatePanel } from "@/components/ui/StatePanel";
 
 interface VideoScenePanelProps {
   scenes: VideoScene[];
@@ -23,21 +24,22 @@ export function VideoScenePanel({
   onAddScene,
 }: VideoScenePanelProps) {
   return (
-    <div className="h-full flex flex-col bg-[#0b0c16] text-xs text-slate-300 select-none overflow-hidden">
+    <div className="flex h-full select-none flex-col overflow-hidden bg-[var(--vly-surface)] text-xs text-[var(--vly-text-primary)]">
       {/* Header */}
-      <div className="px-4 py-2.5 border-b border-[#1c1d32] flex items-center justify-between bg-[#111222]">
-        <div className="flex items-center gap-1.5 font-bold text-white text-xs">
-          <Film size={14} className="text-blue-400" />
+      <div className="flex items-center justify-between border-b border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-4 py-2.5">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--vly-text-primary)]">
+          <Film size={14} className="text-[var(--vly-info)]" />
           Cenas Semânticas ({scenes.length})
         </div>
 
         <div className="flex items-center gap-1">
           <button
             onClick={onToggleStoryboard}
+            aria-pressed={isStoryboardMode}
             className={`p-1.5 rounded-lg border transition ${
               isStoryboardMode
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-[#16172e] border-[#222442] text-slate-400 hover:text-white"
+                ? "bg-[var(--vly-info)] border-[var(--vly-border-info)] text-[var(--vly-text-on-accent)]"
+                : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-subtle)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)]"
             }`}
             title={isStoryboardMode ? "Modo Lista de Cenas" : "Modo Storyboard Visual"}
           >
@@ -47,7 +49,7 @@ export function VideoScenePanel({
           {onAddScene && (
             <button
               onClick={onAddScene}
-              className="p-1.5 bg-[#16172e] hover:bg-[#202244] border border-[#222442] text-blue-400 rounded-lg"
+              className="vly-interactive rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-1.5 text-[var(--vly-info)] hover:border-[var(--vly-border-info)]"
               title="Criar Nova Cena"
             >
               <Plus size={13} />
@@ -57,7 +59,8 @@ export function VideoScenePanel({
       </div>
 
       {/* Content: List or Storyboard Cards */}
-      <div className="flex-1 p-3 overflow-y-auto space-y-2">
+      <div className="flex-1 space-y-2 overflow-y-auto p-3">
+        {scenes.length === 0 && <StatePanel tone="empty" title="Nenhuma cena" description="Crie uma cena para organizar a narrativa do vídeo." action={onAddScene ? <button type="button" onClick={onAddScene} className="vly-interactive rounded border border-[var(--vly-border-accent)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--vly-accent)]">Nova cena</button> : undefined} />}
         {isStoryboardMode ? (
           <div className="grid grid-cols-2 gap-2">
             {scenes.map((scene, idx) => {
@@ -68,19 +71,23 @@ export function VideoScenePanel({
                 <div
                   key={scene.id}
                   onClick={() => onSelectScene(scene.id)}
+                  onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectScene(scene.id); } }}
+                  role="button"
+                  tabIndex={0}
+                  aria-current={isSelected ? "page" : undefined}
                   className={`p-2.5 rounded-xl border cursor-pointer transition flex flex-col justify-between aspect-video ${
                     isSelected
-                      ? "bg-blue-600/15 border-blue-500 text-white shadow-lg shadow-blue-500/10"
-                      : "bg-[#111222] border-[#1e2038] text-slate-300 hover:border-slate-600"
+                      ? "bg-[var(--vly-info)]/15 border-[var(--vly-border-info)] text-[var(--vly-text-primary)] shadow-lg"
+                      : "bg-[var(--vly-surface)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)] hover:border-[var(--vly-border-strong)]"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs truncate max-w-[100px]">{scene.name}</span>
-                    <span className="font-mono text-[9px] bg-[#1a1c34] px-1.5 py-0.5 rounded text-blue-300">
+                    <span className="rounded bg-[var(--vly-info)]/10 px-1.5 py-0.5 font-mono text-[9px] text-[var(--vly-info)]">
                       {durationSec}s
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400 line-clamp-2 mt-1">
+                  <p className="mt-1 line-clamp-2 text-[10px] text-[var(--vly-text-muted)]">
                     {scene.description || `Cena ${idx + 1} da linha do tempo`}
                   </p>
                 </div>
@@ -97,23 +104,27 @@ export function VideoScenePanel({
               <div
                 key={scene.id}
                 onClick={() => onSelectScene(scene.id)}
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectScene(scene.id); } }}
+                role="button"
+                tabIndex={0}
+                aria-current={isSelected ? "page" : undefined}
                 className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between ${
                   isSelected
-                    ? "bg-blue-600/15 border-blue-500 text-white font-medium"
-                    : "bg-[#101120] border-transparent text-slate-400 hover:bg-[#141528] hover:text-white"
+                    ? "bg-[var(--vly-info)]/15 border-[var(--vly-border-info)] text-[var(--vly-text-primary)] font-medium"
+                    : "bg-[var(--vly-world)] border-transparent text-[var(--vly-text-muted)] hover:bg-[var(--vly-surface)] hover:text-[var(--vly-text-primary)]"
                 }`}
               >
                 <div className="overflow-hidden max-w-[65%]">
-                  <div className="font-semibold text-xs text-white truncate">{scene.name}</div>
-                  <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                  <div className="truncate text-xs font-semibold text-[var(--vly-text-primary)]">{scene.name}</div>
+                  <div className="mt-0.5 truncate text-[10px] text-[var(--vly-text-muted)]">
                     {scene.description || `Intervalo de cena semântica`}
                   </div>
                 </div>
 
-                <div className="font-mono text-[10px] text-slate-400 flex items-center gap-1">
+                <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--vly-text-muted)]">
                   <Clock size={10} />
                   <span>{startTc}</span>
-                  <span className="text-slate-600">→</span>
+                  <span className="text-[var(--vly-text-muted)]">→</span>
                   <span>{endTc}</span>
                 </div>
               </div>
@@ -124,4 +135,3 @@ export function VideoScenePanel({
     </div>
   );
 }
-

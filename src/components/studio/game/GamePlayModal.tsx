@@ -197,8 +197,22 @@ export const GamePlayModal: React.FC<GamePlayModalProps> = ({
         setRuntimeEntities(gameRuntimeEngine.getRuntimeEntities(result.session.id) || {});
       }
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      const action = documentState.inputActions.find((mapping) => mapping.keys.includes(event.code))?.action;
+      if (!action) return;
+      event.preventDefault();
+      const result = gameRuntimeEngine.stepSimulation(session.id, documentState, [{ tickId: session.runtimeState.simulationTick + 1, timeMs: session.runtimeState.simulationClockMs, type: "ACTION_UP", action }]);
+      if (result.success && result.session) {
+        setSession({ ...result.session });
+        setRuntimeEntities(gameRuntimeEngine.getRuntimeEntities(result.session.id) || {});
+      }
+    };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
   }, [isOpen, session, documentState]);
 
   if (!isOpen) return null;
@@ -210,8 +224,17 @@ export const GamePlayModal: React.FC<GamePlayModalProps> = ({
   const cameraState = camera && camera.type === "CAMERA" ? ((camera as typeof camera & { runtimeState?: { x: number; y: number } }).runtimeState || { x: 400, y: 300 }) : { x: 400, y: 300 };
   const cameraZoom = camera && camera.type === "CAMERA" ? camera.zoom : 1;
 
-  const handleEntityClick = (entityId: string) => {
+  const handleEntityClick = (entityId: string, action?: import("@/lib/studio/game/types").GameAction) => {
     if (!session) return;
+    if (action) {
+      const actionResult = gameRuntimeEngine.executeDeclarativeActions(session.id, documentState, [action]);
+      if (!actionResult.success || !actionResult.session) {
+        setErrorMessage(actionResult.error || "Não foi possível executar a ação do botão.");
+        return;
+      }
+      setSession({ ...actionResult.session });
+      setRuntimeEntities(gameRuntimeEngine.getRuntimeEntities(actionResult.session.id) || {});
+    }
     const stepRes = gameRuntimeEngine.stepSimulation(session.id, documentState, [
       {
         tickId: session.runtimeState.simulationTick + 1,
@@ -249,18 +272,18 @@ export const GamePlayModal: React.FC<GamePlayModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
-      <div className="w-full max-w-5xl h-[85vh] bg-[#0c0d18] border border-[#252848] rounded-2xl flex flex-col shadow-2xl overflow-hidden select-none">
+    <div className="fixed inset-0 z-50 bg-[var(--vly-world)]/80 backdrop-blur-md flex items-center justify-center p-6">
+      <div role="dialog" aria-modal="true" aria-label="Play Mode do Game Studio" className="w-full max-w-5xl h-[85vh] bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] rounded-2xl flex flex-col shadow-2xl overflow-hidden select-none">
         {/* Modal Header */}
-        <div className="p-4 bg-[#101222] border-b border-[#20223c] flex items-center justify-between">
+        <div className="p-4 bg-[var(--vly-surface-raised)] border-b border-[var(--vly-border-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-3 h-3 rounded-full bg-[var(--vly-success)] animate-pulse" aria-label="Runtime ativo" />
             <div>
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <Play size={16} className="text-emerald-400 fill-emerald-400" />
+              <h3 className="font-bold text-sm text-[var(--vly-text-primary)] flex items-center gap-2">
+                <Play size={16} className="text-[var(--vly-success)] fill-[var(--vly-success)]" />
                 Play Mode — Sandbox Test Session
               </h3>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[11px] text-[var(--vly-text-muted)] font-mono">
                 Sessão: {session?.id || "N/A"} | Seed: {session?.seed} | Ticks: {session?.runtimeState.simulationTick || 0} ({Math.round((session?.runtimeState.simulationClockMs || 0) / 1000)}s)
               </span>
             </div>
@@ -270,13 +293,13 @@ export const GamePlayModal: React.FC<GamePlayModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => { void setRuntimeAudioPaused(isPlaying); setIsPlaying(!isPlaying); }}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow"
+              className="vly-interactive px-3 py-1.5 bg-[var(--vly-success)] hover:opacity-90 text-[var(--vly-text-on-accent)] rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow"
             >
               {isPlaying ? <Pause size={13} /> : <Play size={13} />}
               {isPlaying ? "Pausar" : "Executar"}
             </button>
-            <button onClick={() => setShowBounds((value) => !value)} className={`px-2 py-1.5 rounded-lg text-[11px] border ${showBounds ? "bg-amber-500/20 border-amber-500/40 text-amber-200" : "bg-[#1e2038] border-white/10 text-slate-300"}`}>Bounds</button>
-            <button onClick={() => setShowColliders((value) => !value)} className={`px-2 py-1.5 rounded-lg text-[11px] border ${showColliders ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-200" : "bg-[#1e2038] border-white/10 text-slate-300"}`}>Colliders</button>
+            <button onClick={() => setShowBounds((value) => !value)} aria-pressed={showBounds} className={`vly-interactive px-2 py-1.5 rounded-lg text-[11px] border ${showBounds ? "bg-[var(--vly-warning)]/20 border-[var(--vly-border-warning)] text-[var(--vly-warning)]" : "bg-[var(--vly-surface-active)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)]"}`}>Bounds</button>
+            <button onClick={() => setShowColliders((value) => !value)} aria-pressed={showColliders} className={`vly-interactive px-2 py-1.5 rounded-lg text-[11px] border ${showColliders ? "bg-[var(--vly-info)]/20 border-[var(--vly-border-info)] text-[var(--vly-info)]" : "bg-[var(--vly-surface-active)] border-[var(--vly-border-subtle)] text-[var(--vly-text-secondary)]"}`}>Colliders</button>
             <button
               onClick={handleStepOnce}
               className="px-3 py-1.5 bg-[#1e2038] hover:bg-[#282a4a] text-slate-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-white/10"
@@ -367,8 +390,14 @@ export const GamePlayModal: React.FC<GamePlayModalProps> = ({
                           >
                             {textComp.text}
                           </div>
-                        ) : uiComp && uiComp.type === "UI" ? (
-                          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-xs font-bold shadow-xl border border-indigo-400/40">
+                        ) : uiComp && uiComp.type === "UI" && uiComp.elementType === "PROGRESS_BAR" ? (() => {
+                          const minimum = Number(uiComp.min ?? 0);
+                          const maximum = Math.max(minimum + 0.0001, Number(uiComp.max ?? 100));
+                          const value = Number(session?.runtimeState.variables[uiComp.variableId || ""] ?? minimum);
+                          const percent = Math.min(100, Math.max(0, ((value - minimum) / (maximum - minimum)) * 100));
+                          return <div className="w-44 rounded border border-white/20 bg-black/65 p-1.5 shadow-md"><div className="mb-1 flex justify-between gap-3 text-[10px] font-bold text-white"><span>{uiComp.text || ent.name}</span><span>{Math.round(value)}/{Math.round(maximum)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${percent}%` }} /></div></div>;
+                        })() : uiComp && uiComp.type === "UI" ? (
+                          <button onClick={(event) => { event.stopPropagation(); handleEntityClick(ent.id, uiComp.onClickAction); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-xs font-bold shadow-xl border border-indigo-400/40">
                             {uiComp.text || ent.name}
                           </button>
                         ) : (

@@ -29,7 +29,14 @@ export class MnemosyneAgent implements AthenaAgent {
   }
 
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
-    const content = `🧠 **Recuperação Contextual & Memória (Mnemosyne):**\n\n• **Conexões do Sistema:** Mapeando as relações no Graph Epistêmico entre os projetos e as referências do Vault.\n• **Preservação de Aprendizados:** O histórico de atividades recentes e os projetos concluídos guardam padrões que podem ser reaproveitados para evitar retrabalho nesta tarefa.`;
+    const evidence = [
+      ...context.relevantProjects.slice(0, 5).map((project) => `Projeto disponível: ${project.title} (${project.status}).`),
+      ...context.relevantVaultItems.slice(0, 5).map((item) => `Referência no Vault: ${item.title}${item.author ? ` — ${item.author}` : ""}.`),
+      ...context.relevantTasks.slice(0, 5).map((item) => `Tarefa disponível: ${item.title} (${item.status}).`),
+    ];
+    const content = evidence.length
+      ? `🧠 **Recuperação Contextual & Memória (Mnemosyne):**\n\nEncontrei estes itens no contexto fornecido para “${task.title}”:\n${evidence.map((item) => `• ${item}`).join("\n")}\n\nIsto é uma lista de contexto disponível; não consultei o Graph Epistêmico nem inferi relações que não estejam explicitamente presentes.`
+      : `🧠 **Recuperação Contextual & Memória (Mnemosyne):**\n\nNão recebi itens de projeto, Vault ou tarefas relevantes para “${task.title}”. Não consultei o Graph Epistêmico nesta execução, então não afirmarei conexões ou aprendizados históricos sem evidência.`;
 
     return {
       agentId: this.manifest.id,
@@ -37,11 +44,12 @@ export class MnemosyneAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: 0.89,
-      recommendations: ["Consultar o Graph Epistêmico para ver nós relacionados", "Revisar retrospectivas no Graveyard"],
+      confidence: evidence.length ? 0.65 : 0.25,
+      sources: evidence.length ? ["Contexto da tarefa: projetos, Vault e tarefas"] : [],
+      recommendations: ["Se quiser uma conexão histórica, especifique os projetos ou itens a comparar."],
+      metadata: { queriedGraph: false, evidenceCount: evidence.length },
     };
   }
 }
 
 export const mnemosyneAgent = new MnemosyneAgent();
-

@@ -15,11 +15,17 @@ export function stepPhysics(entities: Record<string, GameEntity>, dtMs: number):
   const collisions: PhysicsStepResult["collisions"] = [];
   for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
     const a = component(list[i], "COLLIDER"), b = component(list[j], "COLLIDER"), at = component(list[i], "TRANSFORM"), bt = component(list[j], "TRANSFORM");
-    if (!a || !b || !at || !bt || !overlap(at, a, bt, b)) continue;
+    if (!a || !b || !at || !bt || !canCollide(a, b) || !overlap(at, a, bt, b)) continue;
     collisions.push({ entityId: list[i].id, targetEntityId: list[j].id }, { entityId: list[j].id, targetEntityId: list[i].id });
     if (!a.isTrigger && !b.isTrigger) resolve(list[i], list[j]);
   }
   return { collisions };
+}
+
+function canCollide(a: { collisionLayer?: number; collisionMask?: number }, b: { collisionLayer?: number; collisionMask?: number }) {
+  const aLayer = a.collisionLayer ?? 1, bLayer = b.collisionLayer ?? 1;
+  const aMask = a.collisionMask ?? -1, bMask = b.collisionMask ?? -1;
+  return (aMask & bLayer) !== 0 && (bMask & aLayer) !== 0;
 }
 
 function overlap(at: any, a: any, bt: any, b: any) {

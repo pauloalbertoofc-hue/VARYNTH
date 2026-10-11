@@ -391,36 +391,40 @@ export function QuickCreateModal() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--vly-overlay)] backdrop-blur-md animate-fade-in">
       <div
-        className="w-full max-w-xl max-h-[90dvh] bg-[#0f0f1a] border border-[#2d2d4a] rounded-xl shadow-2xl overflow-hidden clip-corner glow-accent flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-create-title"
+        className="vly-quick-create w-full max-w-xl max-h-[90dvh] bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] rounded-[var(--vly-radius-lg)] shadow-[0_24px_70px_rgb(0_0_0_/_38%)] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e30] bg-[#0a0a0f]/80 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--vly-border-default)] bg-[var(--vly-world)]/80 shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+            <div className="w-7 h-7 rounded-lg bg-[var(--vly-surface-active)] border border-[var(--vly-border-accent)] flex items-center justify-center text-[var(--vly-accent)]">
               <Plus size={16} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+              <h2 id="quick-create-title" className="text-sm font-bold text-[var(--vly-text-primary)] flex items-center gap-1.5">
                 Criação Rápida Universal
-                <Sparkles size={13} className="text-violet-400" />
+                <Sparkles size={13} className="text-[var(--vly-accent)]" />
               </h2>
-              <p className="text-[11px] text-slate-400">VARYNTH Quick Capture & Creative Studios</p>
+              <p className="text-[11px] text-[var(--vly-text-muted)]">VARYNTH Quick Capture & Creative Studios</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setIsOpen(false)}
             aria-label="Fechar criação rápida"
-            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-white/5"
+            className="vly-interactive p-1 rounded-[var(--vly-radius-sm)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Tab Selection */}
-        <div className="flex items-center gap-1 px-4 py-2 bg-[#0a0a0f]/40 border-b border-[#1e1e30] overflow-x-auto shrink-0">
+        <div role="tablist" aria-label="Tipos de criação" className="flex items-center gap-1 px-4 py-2 bg-[var(--vly-world)] border-b border-[var(--vly-border-default)] overflow-x-auto shrink-0">
           {[
             { id: "studio", label: "Studios (6 Criativos)", icon: Palette },
             { id: "project", label: "Projeto", icon: FolderKanban },
@@ -437,12 +441,15 @@ export function QuickCreateModal() {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id as QuickCreateTab)}
+                role="tab"
+                aria-selected={isActive}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",
+                  "vly-interactive flex items-center gap-2 px-3 py-1.5 rounded-[var(--vly-radius-md)] text-xs font-medium whitespace-nowrap",
                   isActive
-                    ? "bg-violet-600/25 text-violet-300 border border-violet-500/40"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                    ? "bg-[color-mix(in_srgb,var(--vly-accent)_14%,var(--vly-surface))] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]"
+                    : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
                 )}
               >
                 <Icon size={13} />
@@ -458,7 +465,7 @@ export function QuickCreateModal() {
           {activeTab === "project" && (
             <form onSubmit={handleSubmitProject} className="space-y-3">
               <div>
-                <label htmlFor="quick-project-title" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label htmlFor="quick-project-title" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Nome do Projeto *
                 </label>
                 <input
@@ -469,12 +476,12 @@ export function QuickCreateModal() {
                   value={projectTitle}
                   onChange={(e) => setProjectTitle(e.target.value)}
                   placeholder="Ex: Plataforma de Pesquisa Aplicada"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label htmlFor="quick-project-description" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label htmlFor="quick-project-description" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Descrição
                 </label>
                 <textarea
@@ -483,14 +490,14 @@ export function QuickCreateModal() {
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                   placeholder="Objetivo e contexto do projeto..."
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 resize-none"
+                  className="vly-field w-full resize-none px-3 py-2 text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
-                  <label htmlFor="quick-project-category" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Categoria</label>
-                  <select id="quick-project-category" value={projectCategory} onChange={(e) => setProjectCategory(e.target.value as ProjectCategory)} className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500">
+                  <label htmlFor="quick-project-category" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">Categoria</label>
+                  <select id="quick-project-category" value={projectCategory} onChange={(e) => setProjectCategory(e.target.value as ProjectCategory)} className="vly-field w-full px-2.5 py-2 text-xs">
                     <option value="software">Software</option>
                     <option value="pesquisa">Pesquisa</option>
                     <option value="estudo">Estudo</option>
@@ -501,8 +508,8 @@ export function QuickCreateModal() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="quick-project-priority" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Prioridade</label>
-                  <select id="quick-project-priority" value={projectPriority} onChange={(e) => setProjectPriority(e.target.value as PriorityLevel)} className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500">
+                  <label htmlFor="quick-project-priority" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">Prioridade</label>
+                  <select id="quick-project-priority" value={projectPriority} onChange={(e) => setProjectPriority(e.target.value as PriorityLevel)} className="vly-field w-full px-2.5 py-2 text-xs">
                     <option value="baixa">Baixa</option>
                     <option value="media">Média</option>
                     <option value="alta">Alta</option>
@@ -510,14 +517,14 @@ export function QuickCreateModal() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="quick-project-deadline" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Prazo</label>
-                  <input id="quick-project-deadline" type="date" value={projectDeadline} onChange={(e) => setProjectDeadline(e.target.value)} className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500" />
+                  <label htmlFor="quick-project-deadline" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">Prazo</label>
+                <input id="quick-project-deadline" type="date" value={projectDeadline} onChange={(e) => setProjectDeadline(e.target.value)} className="vly-field w-full px-2.5 py-2 text-xs" />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
-                <button type="button" onClick={() => setIsOpen(false)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancelar</button>
-                <button type="submit" disabled={!projectTitle.trim()} className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
+                <button type="button" onClick={() => setIsOpen(false)} className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]">Cancelar</button>
+                <button type="submit" disabled={!projectTitle.trim()} className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] disabled:opacity-50 text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition">
                   Criar Projeto <ArrowRight size={13} />
                 </button>
               </div>
@@ -528,23 +535,23 @@ export function QuickCreateModal() {
           {activeTab === "note" && (
             <form onSubmit={handleSubmitNote} className="space-y-3">
               <div>
-                <label htmlFor="quick-note-title" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Título da Nota *</label>
-                <input id="quick-note-title" type="text" required autoFocus value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Ex: Decisão da reunião" className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500" />
+                <label htmlFor="quick-note-title" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">Título da Nota *</label>
+                <input id="quick-note-title" type="text" required autoFocus value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="Ex: Decisão da reunião" className="vly-field w-full px-3 py-2 text-xs" />
               </div>
               <div>
-                <label htmlFor="quick-note-content" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Conteúdo</label>
-                <textarea id="quick-note-content" rows={4} value={noteContent} onChange={(e) => setNoteContent(e.target.value)} placeholder="Registre a ideia ou informação..." className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 resize-none" />
+                <label htmlFor="quick-note-content" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">Conteúdo</label>
+                <textarea id="quick-note-content" rows={4} value={noteContent} onChange={(e) => setNoteContent(e.target.value)} placeholder="Registre a ideia ou informação..." className="vly-field w-full resize-none px-3 py-2 text-xs" />
               </div>
               <div>
-                <label htmlFor="quick-note-project" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Vincular ao projeto</label>
-                <select id="quick-note-project" value={noteProject} onChange={(e) => setNoteProject(e.target.value)} className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500">
+                <label htmlFor="quick-note-project" className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">Vincular ao projeto</label>
+                <select id="quick-note-project" value={noteProject} onChange={(e) => setNoteProject(e.target.value)} className="vly-field w-full px-2.5 py-2 text-xs">
                   <option value="">Nota geral</option>
                   {projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
                 </select>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
-                <button type="button" onClick={() => setIsOpen(false)} className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancelar</button>
-                <button type="submit" disabled={!noteTitle.trim()} className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold">Salvar Nota</button>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
+                <button type="button" onClick={() => setIsOpen(false)} className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]">Cancelar</button>
+                <button type="submit" disabled={!noteTitle.trim()} className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] disabled:opacity-50 text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold">Salvar Nota</button>
               </div>
             </form>
           )}
@@ -553,7 +560,7 @@ export function QuickCreateModal() {
           {activeTab === "studio" && (
             <form onSubmit={handleSubmitStudioArtifact} className="space-y-4">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-2">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)] block mb-2">
                   Escolha o Studio de Destino
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -568,16 +575,16 @@ export function QuickCreateModal() {
                         className={cn(
                           "p-2.5 rounded-xl border text-left flex flex-col gap-1 transition-all",
                           isSelected
-                            ? "bg-violet-600/25 border-violet-500/50 text-white shadow-md shadow-violet-500/10"
-                            : "bg-[#111222] border-[#222238] text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                            ? "bg-[var(--vly-surface-active)] border-[var(--vly-border-accent)] text-[var(--vly-text-primary)] shadow-md"
+                            : "bg-[var(--vly-surface-raised)] border-[var(--vly-border-default)] text-[var(--vly-text-muted)] hover:text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)]"
                         )}
                       >
                         <div className="flex items-center justify-between">
-                          <Icon size={16} className={isSelected ? "text-violet-400" : "text-slate-500"} />
-                          <span className="text-[9px] font-mono text-slate-500">S{s.studioNumber}</span>
+                          <Icon size={16} className={isSelected ? "text-[var(--vly-accent)]" : "text-[var(--vly-text-disabled)]"} />
+                          <span className="text-[9px] font-mono text-[var(--vly-text-disabled)]">S{s.studioNumber}</span>
                         </div>
                         <span className="text-xs font-semibold truncate">{s.shortLabel}</span>
-                        <span className="text-[9px] text-slate-500 truncate">{s.creationLabel}</span>
+                        <span className="text-[9px] text-[var(--vly-text-muted)] truncate">{s.creationLabel}</span>
                       </button>
                     );
                   })}
@@ -585,7 +592,7 @@ export function QuickCreateModal() {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-muted)] block mb-1">
                   Título / Nome do Artefato *
                 </label>
                 <input
@@ -606,7 +613,7 @@ export function QuickCreateModal() {
                       ? "Vídeo Explicativo VARYNTH"
                       : "Protótipo 2D Arena"
                   }`}
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
@@ -614,14 +621,14 @@ export function QuickCreateModal() {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-muted)] hover:text-[var(--vly-text-secondary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isCreatingStudioArtifact || !studioTitle.trim()}
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] disabled:opacity-50 text-[var(--vly-accent-contrast)] rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md transition"
                 >
                   {isCreatingStudioArtifact ? (
                     <>
@@ -641,7 +648,7 @@ export function QuickCreateModal() {
           {activeTab === "task" && (
             <form onSubmit={handleSubmitTask} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Título da Tarefa *
                 </label>
                 <input
@@ -650,12 +657,12 @@ export function QuickCreateModal() {
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
                   placeholder="Ex: Escrever abstract do paper"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Descrição (opcional)
                 </label>
                 <textarea
@@ -663,19 +670,19 @@ export function QuickCreateModal() {
                   value={taskDesc}
                   onChange={(e) => setTaskDesc(e.target.value)}
                   placeholder="Detalhes da tarefa..."
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 resize-none"
+                  className="vly-field w-full resize-none px-3 py-2 text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Projeto
                   </label>
                   <select
                     value={taskProject}
                     onChange={(e) => setTaskProject(e.target.value)}
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-2.5 py-2 text-xs"
                   >
                     <option value="">Sem projeto</option>
                     {projects.map((p) => (
@@ -687,13 +694,13 @@ export function QuickCreateModal() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Prioridade
                   </label>
                   <select
                     value={taskPriority}
                     onChange={(e) => setTaskPriority(e.target.value as PriorityLevel)}
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-2.5 py-2 text-xs"
                   >
                     <option value="baixa">Baixa</option>
                     <option value="media">Média</option>
@@ -703,29 +710,29 @@ export function QuickCreateModal() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Prazo
                   </label>
                   <input
                     type="date"
                     value={taskDueDate}
                     onChange={(e) => setTaskDueDate(e.target.value)}
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-2.5 py-2 text-xs"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition"
                 >
                   Criar Tarefa
                 </button>
@@ -737,7 +744,7 @@ export function QuickCreateModal() {
           {activeTab === "thesis" && (
             <form onSubmit={handleSubmitThesis} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Título da Tese *
                 </label>
                 <input
@@ -746,12 +753,12 @@ export function QuickCreateModal() {
                   value={thesisTitle}
                   onChange={(e) => setThesisTitle(e.target.value)}
                   placeholder="Ex: Responsabilidade Civil de Algoritmos"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Questão-Chave *
                 </label>
                 <input
@@ -760,12 +767,12 @@ export function QuickCreateModal() {
                   value={thesisQuestion}
                   onChange={(e) => setThesisQuestion(e.target.value)}
                   placeholder="Ex: O desenvolvedor responde objetivamente por alucinações?"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Área do Conhecimento
                 </label>
                 <input
@@ -773,21 +780,21 @@ export function QuickCreateModal() {
                   value={thesisArea}
                   onChange={(e) => setThesisArea(e.target.value)}
                   placeholder="Ex: Direito Digital, IA, Filosofia"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition"
                 >
                   Cadastrar Tese
                 </button>
@@ -799,7 +806,7 @@ export function QuickCreateModal() {
           {activeTab === "evidence" && (
             <form onSubmit={handleSubmitEvidence} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Alegação / Claim *
                 </label>
                 <input
@@ -808,12 +815,12 @@ export function QuickCreateModal() {
                   value={eviClaim}
                   onChange={(e) => setEviClaim(e.target.value)}
                   placeholder="Ex: O STF pacificou que o Marco Civil protege..."
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Fonte (Autor, Obra ou Link) *
                 </label>
                 <input
@@ -822,19 +829,19 @@ export function QuickCreateModal() {
                   value={eviSource}
                   onChange={(e) => setEviSource(e.target.value)}
                   placeholder="Ex: RE 1037396 / STF, 2024"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Força Probatória
                   </label>
                   <select
                     value={eviStrength}
                     onChange={(e) => setEviStrength(e.target.value as EvidenceStrength)}
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-2.5 py-2 text-xs"
                   >
                     <option value="forte">Forte (Jurisprudência vinculante/Peer-reviewed)</option>
                     <option value="moderada">Moderada (Doutrina/Relatório)</option>
@@ -843,13 +850,13 @@ export function QuickCreateModal() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Seção do Paper
                   </label>
                   <select
                     value={eviSection}
                     onChange={(e) => setEviSection(e.target.value as PaperSection)}
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-2.5 py-2 text-xs"
                   >
                     <option value="introducao">Introdução</option>
                     <option value="metodologia">Metodologia</option>
@@ -860,17 +867,17 @@ export function QuickCreateModal() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition"
                 >
                   Salvar Evidência
                 </button>
@@ -882,7 +889,7 @@ export function QuickCreateModal() {
           {activeTab === "opportunity" && (
             <form onSubmit={handleSubmitOpportunity} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Título do Edital / Chamada *
                 </label>
                 <input
@@ -891,13 +898,13 @@ export function QuickCreateModal() {
                   value={oppTitle}
                   onChange={(e) => setOppTitle(e.target.value)}
                   placeholder="Ex: Chamada Universal CNPq 2026"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Instituição *
                   </label>
                   <input
@@ -906,12 +913,12 @@ export function QuickCreateModal() {
                     value={oppInst}
                     onChange={(e) => setOppInst(e.target.value)}
                     placeholder="Ex: CNPq / FAPESP"
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-3 py-2 text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                     Prazo Final *
                   </label>
                   <input
@@ -919,22 +926,22 @@ export function QuickCreateModal() {
                     required
                     value={oppDeadline}
                     onChange={(e) => setOppDeadline(e.target.value)}
-                    className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                    className="vly-field w-full px-2.5 py-2 text-xs"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition"
                 >
                   Cadastrar Edital
                 </button>
@@ -946,7 +953,7 @@ export function QuickCreateModal() {
           {activeTab === "vault" && (
             <form onSubmit={handleSubmitVault} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Título do Recurso *
                 </label>
                 <input
@@ -955,18 +962,18 @@ export function QuickCreateModal() {
                   value={vaultTitle}
                   onChange={(e) => setVaultTitle(e.target.value)}
                   placeholder="Ex: Lei Geral de Proteção de Dados Comentada"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Tipo de Conteúdo
                 </label>
                 <select
                   value={vaultType}
                   onChange={(e) => setVaultType(e.target.value as VaultItemType)}
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-2.5 py-2 text-xs"
                 >
                   <option value="artigo">Artigo Científico</option>
                   <option value="livro">Livro / Capítulo</option>
@@ -978,17 +985,17 @@ export function QuickCreateModal() {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition"
                 >
                   Adicionar ao Vault
                 </button>
@@ -1000,7 +1007,7 @@ export function QuickCreateModal() {
           {activeTab === "idea" && (
             <form onSubmit={handleSubmitIdea} className="space-y-3">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Hipótese / Título do Experimento *
                 </label>
                 <input
@@ -1009,12 +1016,12 @@ export function QuickCreateModal() {
                   value={ideaTitle}
                   onChange={(e) => setIdeaTitle(e.target.value)}
                   placeholder="Ex: Fine-tuning de modelo para extração de jurisprudência"
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                  className="vly-field w-full px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--vly-text-secondary)] block mb-1">
                   Descrição e Metodologia
                 </label>
                 <textarea
@@ -1022,21 +1029,21 @@ export function QuickCreateModal() {
                   value={ideaDesc}
                   onChange={(e) => setIdeaDesc(e.target.value)}
                   placeholder="Descreva o experimento e as variáveis..."
-                  className="w-full bg-[#141422] border border-[#222236] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 resize-none"
+                  className="vly-field w-full resize-none px-3 py-2 text-xs"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1e1e30]">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--vly-border-default)]">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                  className="vly-interactive px-3 py-1.5 text-xs text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-violet-500/20 transition"
+                  className="vly-interactive px-4 py-1.5 bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] rounded-[var(--vly-radius-md)] text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-[color-mix(in_srgb,var(--vly-accent)_20%,transparent)] transition"
                 >
                   Registrar no Labs
                 </button>

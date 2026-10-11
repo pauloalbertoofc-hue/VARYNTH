@@ -102,19 +102,19 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-xl rounded-2xl bg-[#0a0a0f] border border-[#1e1e30] shadow-2xl overflow-hidden text-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md vly-motion-enter">
+      <div className="relative w-full max-w-xl rounded-2xl bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] shadow-2xl shadow-black/30 overflow-hidden text-[var(--vly-text-secondary)]">
         {/* Header */}
-        <div className="p-4 border-b border-[#1e1e30] bg-[#10101a] flex items-center justify-between">
+        <div className="p-4 border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] border border-[var(--vly-border-success)] flex items-center justify-center text-[var(--vly-success)]">
               <Database size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white tracking-wide">
+              <h3 className="text-sm font-bold text-[var(--vly-text-primary)] tracking-wide">
                 Universal Backup & Portabilidade
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[var(--vly-text-muted)]">
                 Preservação soberana e restauração atômica de todo o ecossistema VARYNTH
               </p>
             </div>
@@ -122,14 +122,14 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
 
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/5"
+            className="vly-interactive p-1 rounded-md text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[#1e1e30] bg-[#0c0c14] text-xs font-mono">
+        <div className="flex border-b border-[var(--vly-border-subtle)] bg-[var(--vly-surface)] text-xs font-mono">
           <button
             onClick={() => {
               setActiveTab("export");
@@ -138,8 +138,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
             className={cn(
               "flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all",
               activeTab === "export"
-                ? "bg-violet-600/20 text-violet-300 border-b-2 border-violet-500"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
+                ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border-b-2 border-[var(--vly-accent)]"
+                : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             )}
           >
             <Download size={14} />
@@ -153,8 +153,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
             className={cn(
               "flex-1 py-2.5 flex items-center justify-center gap-2 font-semibold transition-all",
               activeTab === "import"
-                ? "bg-cyan-600/20 text-cyan-300 border-b-2 border-cyan-500"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
+                ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border-b-2 border-[var(--vly-info)]"
+                : "text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             )}
           >
             <Upload size={14} />
@@ -166,22 +166,22 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
         <div className="p-6 space-y-4">
           {activeTab === "export" ? (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-white font-bold">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <div className="p-4 rounded-xl bg-[var(--vly-surface)] border border-[var(--vly-border-default)] space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-[var(--vly-text-primary)] font-bold">
+                  <ShieldCheck className="w-4 h-4 text-[var(--vly-success)]" />
                   <span>Garantia de Soberania & Dados Sanitizados</span>
                 </div>
-                <p className="text-slate-400 leading-relaxed">
+                <p className="text-[var(--vly-text-muted)] leading-relaxed">
                   O pacote exportado inclui 100% dos seus Projetos, Artefatos criativos, Versões, Tarefas, Notas, Vault, Teses, Evidências, Editais, Trilha de Auditoria e Configurações em formato JSON padronizado e portável.
                 </p>
-                <div className="text-[11px] font-mono text-cyan-400">
+                <div className="text-[11px] font-mono text-[var(--vly-info)]">
                   🔒 Zero tokens, chaves de API ou segredos são incluídos na exportação.
                 </div>
               </div>
 
               <button
                 onClick={handleExport}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold shadow-xl border border-violet-400/30 flex items-center justify-center gap-2 transition-all"
+                className="vly-interactive w-full py-3 rounded-xl bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] text-xs font-bold shadow-xl border border-[var(--vly-border-accent)] flex items-center justify-center gap-2 transition-all"
               >
                 <Download size={16} />
                 <span>Baixar Pacote de Backup (.json)</span>
@@ -189,28 +189,28 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-[#0f0f1a] border border-[#1e1e30] space-y-3 text-xs">
-                <div className="flex items-center gap-2 text-white font-bold">
-                  <FileJson className="w-4 h-4 text-cyan-400" />
+              <div className="p-4 rounded-xl bg-[var(--vly-surface)] border border-[var(--vly-border-default)] space-y-3 text-xs">
+                <div className="flex items-center gap-2 text-[var(--vly-text-primary)] font-bold">
+                  <FileJson className="w-4 h-4 text-[var(--vly-info)]" />
                   <span>Selecione o arquivo .varynth-backup ou .json</span>
                 </div>
                 <input
                   type="file"
                   accept=".json"
                   onChange={handleFileSelect}
-                  className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-600/30 file:text-cyan-300 hover:file:bg-cyan-600/50 cursor-pointer"
+                  className="vly-field w-full text-xs text-[var(--vly-text-muted)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[color-mix(in_srgb,var(--vly-info)_18%,var(--vly-surface))] file:text-[var(--vly-info)] hover:file:bg-[var(--vly-surface-hover)] cursor-pointer"
                 />
 
                 {importPayload && (
-                  <div className="mt-3 p-3 rounded-lg bg-[#141422] border border-[#2d2d4a] space-y-2 text-[11px]">
-                    <div className="flex justify-between text-white font-mono">
+                  <div className="mt-3 p-3 rounded-lg bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] space-y-2 text-[11px]">
+                    <div className="flex justify-between text-[var(--vly-text-primary)] font-mono">
                       <span>Origem: {importPayload.manifest.exportSource}</span>
                       <span>v{importPayload.manifest.varynthVersion}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 font-mono text-slate-400">
-                      <div>Projetos: <strong className="text-white">{importPayload.manifest.entitiesCount.projects}</strong></div>
-                      <div>Artefatos: <strong className="text-white">{importPayload.manifest.entitiesCount.artifacts}</strong></div>
-                      <div>Tarefas: <strong className="text-white">{importPayload.manifest.entitiesCount.tasks}</strong></div>
+                    <div className="grid grid-cols-3 gap-2 font-mono text-[var(--vly-text-muted)]">
+                      <div>Projetos: <strong className="text-[var(--vly-text-primary)]">{importPayload.manifest.entitiesCount.projects}</strong></div>
+                      <div>Artefatos: <strong className="text-[var(--vly-text-primary)]">{importPayload.manifest.entitiesCount.artifacts}</strong></div>
+                      <div>Tarefas: <strong className="text-[var(--vly-text-primary)]">{importPayload.manifest.entitiesCount.tasks}</strong></div>
                     </div>
                   </div>
                 )}
@@ -218,8 +218,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
 
               {/* Mode Selection */}
               <div className="flex items-center gap-4 text-xs font-mono">
-                <span className="text-slate-400">Estratégia de Restauração:</span>
-                <label className="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                <span className="text-[var(--vly-text-muted)]">Estratégia de Restauração:</span>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[var(--vly-text-secondary)]">
                   <input
                     type="radio"
                     name="mode"
@@ -229,7 +229,7 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                   />
                   <span>Mesclar (Merge)</span>
                 </label>
-                <label className="flex items-center gap-1.5 cursor-pointer text-amber-400">
+                <label className="flex items-center gap-1.5 cursor-pointer text-[var(--vly-warning)]">
                   <input
                     type="radio"
                     name="mode"
@@ -247,8 +247,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                 className={cn(
                   "w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all",
                   importPayload && !isProcessing
-                    ? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-xl border border-cyan-400/30"
-                    : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
+                    ? "vly-interactive bg-[var(--vly-info)] hover:bg-[var(--vly-accent-hover)] text-[var(--vly-accent-contrast)] shadow-xl border border-[var(--vly-border-info)]"
+                    : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-disabled)] cursor-not-allowed border border-[var(--vly-border-default)]"
                 )}
               >
                 {isProcessing ? (
@@ -271,9 +271,9 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
             <div
               className={cn(
                 "p-3 rounded-xl text-xs font-mono border flex items-start gap-2",
-                statusMessage.type === "success" && "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
-                statusMessage.type === "error" && "bg-red-500/10 border-red-500/30 text-red-300",
-                statusMessage.type === "info" && "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
+                statusMessage.type === "success" && "bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] border-[var(--vly-border-success)] text-[var(--vly-success)]",
+                statusMessage.type === "error" && "bg-[color-mix(in_srgb,var(--vly-danger)_12%,var(--vly-surface))] border-[var(--vly-border-danger)] text-[var(--vly-danger)]",
+                statusMessage.type === "info" && "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] border-[var(--vly-border-info)] text-[var(--vly-info)]"
               )}
             >
               {statusMessage.type === "success" && <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />}

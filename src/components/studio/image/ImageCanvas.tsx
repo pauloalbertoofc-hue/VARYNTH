@@ -60,7 +60,7 @@ export function ImageCanvas({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 h-full bg-[#070810] overflow-hidden select-none flex items-center justify-center"
+      className="relative flex h-full flex-1 select-none items-center justify-center overflow-hidden bg-[var(--vly-world)]"
       style={{ touchAction: "none" }}
       onPointerDown={(e) => {
         if (e.target === containerRef.current || (e.target as HTMLElement).id === "canvas-backdrop") {
@@ -103,35 +103,35 @@ export function ImageCanvas({
       }}
     >
       {/* Zoom / Navigation Overlay Controls */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-[#121324]/90 backdrop-blur-md border border-[#222442] p-1.5 rounded-xl text-xs text-slate-300 shadow-xl">
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-xl border border-[var(--vly-border-strong)] bg-[var(--vly-surface-floating)] p-1.5 text-xs text-[var(--vly-text-secondary)] shadow-[var(--vly-shadow-floating)]">
         <button
           onClick={handleZoomOut}
-          className="p-1.5 hover:bg-[#1f213a] rounded-lg text-slate-400 hover:text-white transition"
+          className="vly-interactive rounded-lg p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Diminuir Zoom"
         >
           <ZoomOut size={14} />
         </button>
-        <span className="px-2 font-mono text-[11px] text-blue-400 font-semibold">
+        <span className="px-2 font-mono text-[11px] font-semibold text-[var(--vly-accent)]">
           {Math.round(zoom * 100)}%
         </span>
         <button
           onClick={handleZoomIn}
-          className="p-1.5 hover:bg-[#1f213a] rounded-lg text-slate-400 hover:text-white transition"
+          className="vly-interactive rounded-lg p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Aumentar Zoom"
         >
           <ZoomIn size={14} />
         </button>
-        <div className="w-[1px] h-4 bg-[#232544] mx-1" />
+        <div className="mx-1 h-4 w-px bg-[var(--vly-border-default)]" />
         <button
           onClick={handleFitScreen}
-          className="p-1.5 hover:bg-[#1f213a] rounded-lg text-slate-400 hover:text-white transition"
+          className="vly-interactive rounded-lg p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Ajustar à Tela"
         >
           <Maximize2 size={14} />
         </button>
         <button
           onClick={handleResetZoom}
-          className="px-2 py-1 hover:bg-[#1f213a] rounded-lg text-[10px] text-slate-400 hover:text-white transition font-mono"
+          className="vly-interactive rounded-lg px-2 py-1 font-mono text-[10px] text-[var(--vly-text-secondary)] hover:bg-[var(--vly-surface-hover)] hover:text-[var(--vly-text-primary)]"
           title="Zoom Real 100%"
         >
           1:1
@@ -146,7 +146,7 @@ export function ImageCanvas({
           transformOrigin: "center center",
           transition: isPanning ? "none" : "transform 0.1s ease-out",
         }}
-        className="relative transition-transform shadow-2xl border border-[#222440]"
+        className="relative border border-[var(--vly-border-strong)] shadow-[var(--vly-shadow-floating)]"
       >
         <div
           style={{
@@ -183,15 +183,15 @@ export function ImageCanvas({
                   cursor: layer.locked ? "not-allowed" : "pointer",
                 }}
                 className={`group ${
-                  isSelected ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black z-30" : ""
+                  isSelected ? "z-30 ring-2 ring-[var(--vly-info)] ring-offset-2 ring-offset-[var(--vly-world)]" : ""
                 }`}
               >
                 {/* Missing Asset Warning Box */}
                 {isMissing ? (
-                  <div className="w-full h-full bg-red-950/40 border border-red-500/50 rounded flex flex-col items-center justify-center p-4 text-center text-red-300">
-                    <AlertTriangle size={24} className="text-red-400 mb-1" />
+                  <div className="flex h-full w-full flex-col items-center justify-center rounded border border-[var(--vly-border-danger)] bg-[var(--vly-danger)]/10 p-4 text-center text-[var(--vly-danger)]">
+                    <AlertTriangle size={24} className="mb-1 text-[var(--vly-danger)]" />
                     <span className="text-xs font-bold">ASSET_MISSING</span>
-                    <span className="text-[10px] text-red-400/80">Asset físico indisponível</span>
+                    <span className="text-[10px] text-[var(--vly-danger)]/80">Asset físico indisponível</span>
                   </div>
                 ) : layer.type === "SHAPE" && layer.shapeStyle ? (
                   <div
@@ -225,11 +225,11 @@ export function ImageCanvas({
                     {layer.textContent}
                   </div>
                 ) : layer.type === "IMAGE" ? (
-                  <div className="w-full h-full bg-blue-950/20 border border-blue-500/20 rounded flex items-center justify-center">
-                    <ImageIcon size={32} className="text-blue-400 opacity-60" />
+                  <div className="flex h-full w-full items-center justify-center rounded border border-[var(--vly-border-info)] bg-[var(--vly-info)]/10">
+                    <ImageIcon size={32} className="text-[var(--vly-info)] opacity-60" />
                   </div>
                 ) : (
-                  <div className="w-full h-full border border-dashed border-slate-600 rounded" />
+                  <div className="h-full w-full rounded border border-dashed border-[var(--vly-border-strong)]" />
                 )}
               </div>
             );
@@ -239,4 +239,3 @@ export function ImageCanvas({
     </div>
   );
 }
-

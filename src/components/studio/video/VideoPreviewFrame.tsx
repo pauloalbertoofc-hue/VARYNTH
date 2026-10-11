@@ -47,14 +47,14 @@ export function VideoPreviewFrame({
   }, [documentState, playheadMs]);
 
   return (
-    <div className="flex-1 h-full bg-[#05060b] flex flex-col items-center justify-center p-4 overflow-hidden select-none">
+    <div className="flex h-full flex-1 select-none flex-col items-center justify-center overflow-hidden bg-[var(--vly-world)] p-4">
       {/* Video Container Box with Aspect Ratio */}
       <div
         style={{ aspectRatio }}
-        className="relative max-w-full max-h-full w-auto h-auto bg-black rounded-xl overflow-hidden border border-[#222442] shadow-2xl flex items-center justify-center"
+        className="relative flex h-auto max-h-full w-auto max-w-full items-center justify-center overflow-hidden rounded-xl border border-[var(--vly-border-strong)] bg-black shadow-[var(--vly-shadow-floating)]"
       >
         {/* Background / Empty State */}
-        <div className="absolute inset-0 bg-[#0c0d18] flex items-center justify-center text-slate-700 text-xs font-mono">
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--vly-surface)] font-mono text-xs text-[var(--vly-text-muted)]">
           {width} × {height} @ {Math.round(frameRate.numerator / frameRate.denominator)}fps
         </div>
 
@@ -83,11 +83,11 @@ export function VideoPreviewFrame({
                   {clip.textContent || clip.name || "Texto"}
                 </div>
               ) : trackType === "IMAGE" ? (
-                <div className="w-4/5 h-4/5 bg-purple-950/40 border border-purple-500/40 rounded-xl flex items-center justify-center text-purple-300 font-medium text-sm shadow-inner">
+                <div className="w-4/5 h-4/5 bg-[var(--vly-accent)]/10 border border-[var(--vly-border-accent)] rounded-xl flex items-center justify-center text-[var(--vly-accent)] font-medium text-sm shadow-inner">
                   {clip.name || "Imagem / Slide"}
                 </div>
               ) : (
-                <div className="w-full h-full bg-blue-950/30 border border-blue-500/20 flex items-center justify-center text-blue-300 font-medium text-sm">
+                <div className="flex h-full w-full items-center justify-center border border-[var(--vly-border-info)] bg-[var(--vly-info)]/10 text-sm font-medium text-[var(--vly-info)]">
                   {clip.name || "Vídeo Principal"}
                 </div>
               )}
@@ -98,18 +98,17 @@ export function VideoPreviewFrame({
         {/* Subtitle Overlay Bar */}
         {activeElements.activeSubtitle && (
           <div className="absolute bottom-6 left-8 right-8 flex justify-center pointer-events-none z-30">
-            <span className="px-4 py-1.5 bg-black/85 text-yellow-300 text-sm font-semibold rounded-lg shadow-lg border border-yellow-500/30 text-center max-w-xl">
+            <span className="px-4 py-1.5 bg-[var(--vly-world)]/85 text-[var(--vly-warning)] text-sm font-semibold rounded-lg shadow-lg border border-[var(--vly-border-warning)] text-center max-w-xl">
               {activeElements.activeSubtitle}
             </span>
           </div>
         )}
 
         {/* Timecode HUD Overlay */}
-        <div className="absolute top-3 right-3 px-2 py-1 bg-black/70 rounded border border-white/10 font-mono text-[10px] text-blue-400 pointer-events-none">
+        <div className="pointer-events-none absolute right-3 top-3 rounded border border-white/10 bg-black/70 px-2 py-1 font-mono text-[10px] text-[var(--vly-accent)]">
           {formatTimecode(playheadMs, { fps: frameRate, showFrames: true })}
         </div>
       </div>
     </div>
   );
 }
-

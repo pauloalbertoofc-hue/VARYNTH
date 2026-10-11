@@ -17,4 +17,6 @@ if (samplerMigration.samplerDefinitions?.length !== 1 || samplerMigration.sample
 if (samplerMigration.drumPatterns?.length !== 0) throw new Error("Migração não deve criar padrões de bateria ausentes");
 const drumMigration = migrateAudioProject({ ...old, samplerDefinitions: samplerMigration.samplerDefinitions, drumPatterns: [{ id: "beat", name: "Beat", steps: 2, subdivision: 16, lanes: {}, laneSamplers: { kick: "sampler" } }] } as never);
 if (drumMigration.drumPatterns?.[0]?.lanes.kick.length !== 2 || drumMigration.drumPatterns[0].laneSamplers?.kick !== "sampler") throw new Error("Migração deve normalizar padrões e preservar o mapeamento de samples por lane");
-console.log("Audio migration tests passed: legacy defaults plus notes, transposed clips, voice takes, asset references, provenance, project-scoped asset annotations and schema 3→4 compatibility.");
+const legacyMusicArrangement = migrateAudioProject({ ...old, music: { ...defaultMusicProject(), arrangementSections: undefined, syncPoints: undefined } } as never);
+if (!Array.isArray(legacyMusicArrangement.music?.arrangementSections) || !Array.isArray(legacyMusicArrangement.music?.syncPoints)) throw new Error("Migração deve inicializar faixas de arranjo ausentes sem perder compatibilidade legada");
+console.log("Audio migration tests passed: legacy defaults plus notes, transposed clips, voice takes, asset references, provenance, arrangement tracks, project-scoped asset annotations and schema 3→4 compatibility.");

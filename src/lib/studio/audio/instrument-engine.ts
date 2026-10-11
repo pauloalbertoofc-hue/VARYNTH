@@ -1,5 +1,6 @@
 import { midiToFrequency } from "./music-domain";
 import { SamplerDefinition, mapSamplerVoice, validateSamplerDefinition } from "./sampler-domain";
+import { crossfadeLoopChannels } from "./audio-loop";
 
 export interface InstrumentNote { midi: number; velocity: number; concertPitchHz?: number; articulation?: "normal" | "legato" | "staccato" | "accent" | "tenuto" | "sustain"; expression?: number; }
 export interface SynthPreset { oscillator: OscillatorType; attack: number; decay: number; sustain: number; release: number; gain: number; detune: number; filterFrequency?: number; lfoRate?: number; lfoDepth?: number; }
@@ -29,6 +30,19 @@ export class LocalSynthInstrument implements InstrumentEngine {
 
 export function createLocalSynthInstrument(context?: AudioContext, destination?: AudioNode): LocalSynthInstrument { return new LocalSynthInstrument(context, destination); }
 
+export function prepareSamplerBuffer(context: BaseAudioContext, definition: SamplerDefinition, buffer: AudioBuffer): { buffer: AudioBuffer; loopStart?: number; loopEnd?: number } {
+  const loop = definition.loop;
+  if (!loop?.enabled) return { buffer };
+  if (loop.startMs >= buffer.duration * 1000 || loop.endMs > buffer.duration * 1000) throw new Error(`[SAMPLER_LOOP_OUT_OF_BOUNDS] Loop ${loop.startMs}-${loop.endMs}ms excede a duração do asset (${Math.round(buffer.duration * 1000)}ms).`);
+  const result = crossfadeLoopChannels(Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel)), buffer.sampleRate, loop.startMs, loop.endMs, loop.crossfadeMs);
+  if (result.crossfadeFrames > 0) {
+    const prepared = context.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+    result.channels.forEach((samples, channel) => prepared.getChannelData(channel).set(samples));
+    return { buffer: prepared, loopStart: result.loopStartFrame / buffer.sampleRate, loopEnd: result.loopEndFrame / buffer.sampleRate };
+  }
+  return { buffer, loopStart: result.loopStartFrame / buffer.sampleRate, loopEnd: result.loopEndFrame / buffer.sampleRate };
+}
+
 /** Plays a preloaded local AudioBuffer through the shared InstrumentEngine contract. */
 export class LocalSamplerInstrument implements InstrumentEngine {
   private context: AudioContext | null;
@@ -37,8 +51,14 @@ export class LocalSamplerInstrument implements InstrumentEngine {
   private voices = new Map<number, { source: AudioBufferSourceNode; gain: GainNode; release: number }>();
   private oneShots = new Set<AudioBufferSourceNode>();
   private definition: SamplerDefinition;
+  private loopBounds?: { start: number; end: number };
   constructor(definition: SamplerDefinition, context?: AudioContext, destination?: AudioNode) { this.definition = validateSamplerDefinition(definition); this.context = context || (typeof window !== "undefined" && window.AudioContext ? new AudioContext() : null); this.output = this.context?.createGain() || null; this.output?.connect(destination || this.context?.destination || this.output); }
-  loadBuffer(buffer: AudioBuffer): void { this.buffer = buffer; }
+  loadBuffer(buffer: AudioBuffer): void {
+    if (!this.context) { this.buffer = buffer; return; }
+    const prepared = prepareSamplerBuffer(this.context, this.definition, buffer);
+    this.buffer = prepared.buffer;
+    this.loopBounds = prepared.loopStart !== undefined && prepared.loopEnd !== undefined ? { start: prepared.loopStart, end: prepared.loopEnd } : undefined;
+  }
   triggerOneShot(velocity: number): void {
     if (!this.context || !this.output || !this.buffer) throw new Error("[SAMPLER_BUFFER_UNAVAILABLE] Carregue um asset de áudio antes de disparar o sampler.");
     const source = this.context.createBufferSource();
@@ -51,7 +71,7 @@ export class LocalSamplerInstrument implements InstrumentEngine {
     source.onended = () => { this.oneShots.delete(source); source.disconnect(); gain.disconnect(); };
     source.start();
   }
-  noteOn(note: InstrumentNote): void { if (!this.context || !this.output || !this.buffer) return; this.noteOff(note.midi); const mapping = mapSamplerVoice(this.definition, note.midi); const now = this.context.currentTime; const source = this.context.createBufferSource(); const gain = this.context.createGain(); source.buffer = this.buffer; source.playbackRate.value = mapping.playbackRate; if (this.definition.loop?.enabled) { source.loop = true; source.loopStart = this.definition.loop.startMs / 1000; source.loopEnd = this.definition.loop.endMs / 1000; } source.connect(gain); gain.connect(this.output); const velocity = Math.max(0, Math.min(127, note.velocity)) / 127; const peak = Math.min(1, this.definition.gain * velocity); const attack = Math.max(0.001, this.definition.envelope.attackMs / 1000); const decay = Math.max(0, this.definition.envelope.decayMs / 1000); gain.gain.setValueAtTime(0.0001, now); gain.gain.linearRampToValueAtTime(peak, now + attack); gain.gain.linearRampToValueAtTime(peak * this.definition.envelope.sustain, now + attack + decay); source.start(now); this.voices.set(note.midi, { source, gain, release: Math.max(0.01, this.definition.envelope.releaseMs / 1000) }); }
+  noteOn(note: InstrumentNote): void { if (!this.context || !this.output || !this.buffer) return; this.noteOff(note.midi); const mapping = mapSamplerVoice(this.definition, note.midi); const now = this.context.currentTime; const source = this.context.createBufferSource(); const gain = this.context.createGain(); source.buffer = this.buffer; source.playbackRate.value = mapping.playbackRate; if (this.definition.loop?.enabled && this.loopBounds) { source.loop = true; source.loopStart = this.loopBounds.start; source.loopEnd = this.loopBounds.end; } const filter = this.definition.filter ? this.context.createBiquadFilter() : undefined; if (filter && this.definition.filter) { filter.type = this.definition.filter.type; filter.frequency.value = Math.min(this.context.sampleRate / 2, this.definition.filter.frequencyHz); filter.Q.value = this.definition.filter.q; source.connect(filter).connect(gain); } else source.connect(gain); gain.connect(this.output); const velocity = Math.max(0, Math.min(127, note.velocity)) / 127; const peak = Math.min(1, this.definition.gain * velocity * Math.max(0, Math.min(1, note.expression ?? 1))); const attack = Math.max(0.001, this.definition.envelope.attackMs / 1000); const decay = Math.max(0, this.definition.envelope.decayMs / 1000); gain.gain.setValueAtTime(0.0001, now); gain.gain.linearRampToValueAtTime(peak, now + attack); gain.gain.linearRampToValueAtTime(peak * this.definition.envelope.sustain, now + attack + decay); source.start(now); this.voices.set(note.midi, { source, gain, release: Math.max(0.01, this.definition.envelope.releaseMs / 1000) }); }
   noteOff(midi: number): void { const voice = this.voices.get(midi); if (!voice || !this.context) return; const now = this.context.currentTime; voice.gain.gain.cancelScheduledValues(now); voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), now); voice.gain.gain.linearRampToValueAtTime(0.0001, now + voice.release); voice.source.stop(now + voice.release + 0.02); this.voices.delete(midi); }
   setParameter(name: keyof SynthPreset, value: number | OscillatorType): void { if (name === "gain") this.definition = { ...this.definition, gain: Math.max(0, Number(value)) }; }
   loadPreset(preset: Partial<SynthPreset>): void { if (typeof preset.gain === "number") this.definition = { ...this.definition, gain: Math.max(0, preset.gain) }; }

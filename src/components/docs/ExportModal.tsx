@@ -98,24 +98,24 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm vly-motion-enter">
+      <div className="bg-[var(--vly-surface-floating)] border border-[var(--vly-border-strong)] rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl shadow-black/30 text-[var(--vly-text-secondary)]">
         {/* MODAL HEADER */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-6 border-b border-[var(--vly-border-subtle)] flex items-center justify-between bg-[var(--vly-surface-raised)]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] border border-[var(--vly-border-info)] flex items-center justify-center text-[var(--vly-info)]">
               <Download className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Exportador de Manuais & Documentação Técnica</h2>
-              <p className="text-xs text-slate-400">
-                Geração autossuficiente em PDF, Markdown e HTML a partir de <code className="text-cyan-400">/docs</code>
+              <h2 className="text-base font-bold text-[var(--vly-text-primary)]">Exportador de Manuais & Documentação Técnica</h2>
+              <p className="text-xs text-[var(--vly-text-muted)]">
+                Geração autossuficiente em PDF, Markdown e HTML a partir de <code className="text-[var(--vly-info)]">/docs</code>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="vly-interactive p-2 rounded-lg text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,7 +127,7 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
           <div className="space-y-6">
             {/* 1. Escolha do Escopo */}
             <div className="space-y-2">
-              <label className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
+              <label className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--vly-text-secondary)]">
                 1. Selecione o Documento / Escopo
               </label>
               <div className="space-y-2">
@@ -180,14 +180,14 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
                     onClick={() => handleUpdatePreview(item.id as ExportScope, profile)}
                     className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
                       scope === item.id
-                        ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-300"
-                        : "bg-slate-950/40 border-slate-800 hover:border-slate-700 text-slate-300"
+                        ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] border-[var(--vly-border-info)] text-[var(--vly-info)]"
+                        : "bg-[var(--vly-surface)] border-[var(--vly-border-default)] hover:border-[var(--vly-border-strong)] text-[var(--vly-text-secondary)]"
                     }`}
                   >
                     <span className="text-xl">{item.icon}</span>
                     <div className="space-y-0.5">
-                      <div className="text-xs font-bold text-white">{item.title}</div>
-                      <div className="text-[11px] text-slate-400">{item.desc}</div>
+                      <div className="text-xs font-bold text-[var(--vly-text-primary)]">{item.title}</div>
+                      <div className="text-[11px] text-[var(--vly-text-muted)]">{item.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -196,7 +196,7 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
 
             {/* 2. Escolha do Formato */}
             <div className="space-y-2">
-              <label className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
+              <label className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--vly-text-secondary)]">
                 2. Formato de Exportação
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -212,13 +212,13 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
                       onClick={() => setFormat(fmt.id as ExportFormat)}
                       className={`p-3 rounded-xl border cursor-pointer transition-all text-center space-y-1 ${
                         format === fmt.id
-                          ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-300 shadow-sm"
-                          : "bg-slate-950/40 border-slate-800 hover:border-slate-700 text-slate-400"
+                          ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] border-[var(--vly-border-info)] text-[var(--vly-info)] shadow-sm"
+                          : "bg-[var(--vly-surface)] border-[var(--vly-border-default)] hover:border-[var(--vly-border-strong)] text-[var(--vly-text-muted)]"
                       }`}
                     >
-                      <Icon className="w-5 h-5 mx-auto text-cyan-400" />
-                      <div className="text-xs font-bold text-white">{fmt.label}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">{fmt.tag}</div>
+                      <Icon className="w-5 h-5 mx-auto text-[var(--vly-info)]" />
+                      <div className="text-xs font-bold text-[var(--vly-text-primary)]">{fmt.label}</div>
+                      <div className="text-[10px] text-[var(--vly-text-disabled)] font-mono">{fmt.tag}</div>
                     </div>
                   );
                 })}
@@ -227,7 +227,7 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
 
             {/* 3. Perfil de Privacidade */}
             <div className="space-y-2">
-              <label className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
+              <label className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--vly-text-secondary)]">
                 3. Perfil de Privacidade
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -235,15 +235,15 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
                   onClick={() => handleUpdatePreview(scope, "PUBLIC_SAFE")}
                   className={`p-3 rounded-xl border cursor-pointer transition-all space-y-1 ${
                     profile === "PUBLIC_SAFE"
-                      ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 shadow-sm"
-                      : "bg-slate-950/40 border-slate-800 hover:border-slate-700 text-slate-400"
+                      ? "bg-[color-mix(in_srgb,var(--vly-success)_12%,var(--vly-surface))] border-[var(--vly-border-success)] text-[var(--vly-success)] shadow-sm"
+                      : "bg-[var(--vly-surface)] border-[var(--vly-border-default)] hover:border-[var(--vly-border-strong)] text-[var(--vly-text-muted)]"
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-bold text-xs text-white">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <div className="flex items-center gap-2 font-bold text-xs text-[var(--vly-text-primary)]">
+                    <ShieldCheck className="w-4 h-4 text-[var(--vly-success)]" />
                     Public-Safe
                   </div>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-[var(--vly-text-muted)]">
                     Oculta caminhos absolutos locais; pronto para artigos, TCC e palestras.
                   </p>
                 </div>
@@ -252,15 +252,15 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
                   onClick={() => handleUpdatePreview(scope, "INTERNAL")}
                   className={`p-3 rounded-xl border cursor-pointer transition-all space-y-1 ${
                     profile === "INTERNAL"
-                      ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-300 shadow-sm"
-                      : "bg-slate-950/40 border-slate-800 hover:border-slate-700 text-slate-400"
+                      ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] border-[var(--vly-border-info)] text-[var(--vly-info)] shadow-sm"
+                      : "bg-[var(--vly-surface)] border-[var(--vly-border-default)] hover:border-[var(--vly-border-strong)] text-[var(--vly-text-muted)]"
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-bold text-xs text-white">
-                    <Shield className="w-4 h-4 text-cyan-400" />
+                    <div className="flex items-center gap-2 text-xs font-bold text-[var(--vly-text-primary)]">
+                    <Shield className="w-4 h-4 text-[var(--vly-info)]" />
                     Internal Completo
                   </div>
-                  <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-[var(--vly-text-muted)]">
                     Inclui referências relativas a arquivos e suítes de testes locais.
                   </p>
                 </div>
@@ -269,43 +269,43 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
           </div>
 
           {/* PREVIEW COLUMN */}
-          <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 flex flex-col justify-between space-y-4">
+          <div className="flex flex-col justify-between space-y-4 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-world)]/60 p-5">
             <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                <span className="text-xs font-mono uppercase text-slate-400 font-bold flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-cyan-400" />
+              <div className="mb-4 flex items-center justify-between border-b border-[var(--vly-border-subtle)] pb-3">
+                <span className="flex items-center gap-2 text-xs font-mono font-bold uppercase text-[var(--vly-text-secondary)]">
+                  <Eye className="h-4 w-4 text-[var(--vly-info)]" />
                   Pré-visualização do Documento
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+                <span className="rounded border border-[var(--vly-info)]/30 bg-[var(--vly-info)]/10 px-2 py-0.5 text-[10px] font-mono text-[var(--vly-info)]">
                   {previewDoc?.chapters.length} Capítulos
                 </span>
               </div>
 
               {previewDoc && (
                 <div className="space-y-4 text-xs">
-                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                    <span className="text-[10px] font-mono uppercase text-cyan-400 font-bold">
+                  <div className="space-y-2 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-4">
+                    <span className="text-[10px] font-mono font-bold uppercase text-[var(--vly-info)]">
                       {previewDoc.metadata.version}
                     </span>
-                    <h3 className="text-sm font-bold text-white">{previewDoc.metadata.title}</h3>
-                    <p className="text-slate-400 text-[11px]">{previewDoc.metadata.subtitle}</p>
-                    <div className="pt-2 flex items-center justify-between text-[10px] text-slate-500 font-mono border-t border-slate-800/60">
+                    <h3 className="text-sm font-bold text-[var(--vly-text-primary)]">{previewDoc.metadata.title}</h3>
+                    <p className="text-[11px] text-[var(--vly-text-secondary)]">{previewDoc.metadata.subtitle}</p>
+                    <div className="flex items-center justify-between border-t border-[var(--vly-border-subtle)]/60 pt-2 text-[10px] font-mono text-[var(--vly-text-muted)]">
                       <span>Data: {previewDoc.metadata.generatedAt}</span>
                       <span>Saúde: {previewDoc.metadata.healthScore}%</span>
                     </div>
                   </div>
 
                   <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                    <span className="text-[11px] font-mono uppercase text-slate-400 font-bold">
+                    <span className="text-[11px] font-mono font-bold uppercase text-[var(--vly-text-secondary)]">
                       Estrutura do Sumário:
                     </span>
                     <div className="space-y-1">
                       {previewDoc.tableOfContents.map((item, idx) => (
                         <div
                           key={idx}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-900/60 text-[11px] text-slate-300 flex items-center gap-2"
+                          className="flex items-center gap-2 rounded-lg bg-[var(--vly-surface-raised)]/60 px-2.5 py-1.5 text-[11px] text-[var(--vly-text-secondary)]"
                         >
-                          <span className="font-mono text-cyan-400 font-bold">{item.number}.</span>
+                          <span className="font-mono font-bold text-[var(--vly-info)]">{item.number}.</span>
                           <span className="truncate">{item.title}</span>
                         </div>
                       ))}
@@ -316,11 +316,11 @@ export function ExportModal({ isOpen, onClose, currentComponentId }: ExportModal
             </div>
 
             {/* ACTION BUTTON */}
-            <div className="pt-4 border-t border-slate-800">
+            <div className="border-t border-[var(--vly-border-subtle)] pt-4">
               <button
                 onClick={handleExport}
                 disabled={isGenerating}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer disabled:opacity-50"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--vly-accent)] px-4 py-3 text-xs font-bold text-[var(--vly-accent-contrast)] shadow-lg transition-all hover:opacity-90 disabled:opacity-50"
               >
                 {format === "PDF" ? <Printer className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                 {format === "PDF"

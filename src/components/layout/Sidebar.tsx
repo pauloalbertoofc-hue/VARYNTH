@@ -145,15 +145,16 @@ function SidebarContent() {
       {isMobileOpen && (
         <div
           onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden animate-fade-in"
+          className="fixed inset-0 bg-[var(--vly-overlay)] backdrop-blur-sm z-40 lg:hidden animate-fade-in"
           aria-hidden="true"
         />
       )}
 
       {/* Main Sidebar (Drawer on mobile, Collapsible on desktop) */}
       <aside
+        aria-label="Navegação principal"
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col h-[100dvh] bg-[#0a0a0f] border-r border-[#1e1e30] select-none",
+          "fixed inset-y-0 left-0 z-50 flex flex-col h-[100dvh] bg-[var(--vly-world)] border-r border-[var(--vly-border-default)] select-none",
           "transition-all duration-300 ease-in-out",
           // Mobile state
           isMobileOpen ? "translate-x-0 shadow-2xl w-72" : "-translate-x-full lg:translate-x-0",
@@ -165,7 +166,7 @@ function SidebarContent() {
         {/* Logo Header */}
         <div
           className={cn(
-            "flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e30]",
+            "flex items-center justify-between px-4 py-3.5 border-b border-[var(--vly-border-default)]",
             collapsed && "lg:justify-center lg:px-0"
           )}
         >
@@ -174,15 +175,15 @@ function SidebarContent() {
             onClick={() => setIsMobileOpen(false)}
             className="flex items-center gap-2.5 group"
           >
-            <div className="flex-shrink-0 w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center glow-accent group-hover:scale-105 transition-transform">
-              <Zap size={16} className="text-white" />
+            <div className="flex-shrink-0 w-8 h-8 bg-[var(--vly-surface-raised)] border border-[var(--vly-border-strong)] rounded-[var(--vly-radius-md)] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Zap size={16} className="text-[var(--vly-text-primary)]" />
             </div>
             {(!collapsed || isMobileOpen) && (
               <div className="flex flex-col">
-                <span className="text-xs font-black tracking-[0.25em] text-slate-100 text-glow-accent uppercase">
+                <span className="text-xs font-black tracking-[0.25em] text-[var(--vly-text-primary)] text-glow-accent uppercase">
                   {preferences.appName}
                 </span>
-                <span className="text-[9px] tracking-wider text-slate-500 font-mono">
+                <span className="text-[9px] tracking-wider text-[var(--vly-text-muted)] font-mono">
                   OS · UNIVERSE
                 </span>
               </div>
@@ -191,8 +192,9 @@ function SidebarContent() {
 
           {/* Close button on mobile */}
           <button
+            type="button"
             onClick={() => setIsMobileOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5"
+            className="vly-interactive lg:hidden p-1.5 rounded-lg text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)]"
             aria-label="Fechar menu"
           >
             <X size={18} />
@@ -204,7 +206,7 @@ function SidebarContent() {
           {/* System Apps */}
           <div>
             {(!collapsed || isMobileOpen) && (
-              <p className="px-2.5 pb-2 text-[10px] font-bold text-slate-500 tracking-[0.18em] uppercase">
+              <p className="px-2.5 pb-2 text-[10px] font-bold text-[var(--vly-text-muted)] tracking-[0.18em] uppercase">
                 Sistema
               </p>
             )}
@@ -220,8 +222,8 @@ function SidebarContent() {
                     className={cn(
                       "flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all group min-h-[42px]",
                       isActive
-                        ? "bg-violet-600/20 text-violet-300 border border-violet-500/30"
-                        : "text-slate-400 hover:text-slate-100 hover:bg-white/5 border border-transparent",
+                        ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)]"
+                        : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] border border-transparent",
                       collapsed && !isMobileOpen && "justify-center px-0 min-h-[40px]"
                     )}
                     title={collapsed && !isMobileOpen ? label : undefined}
@@ -231,13 +233,13 @@ function SidebarContent() {
                         size={16}
                         className={cn(
                           "flex-shrink-0 transition-colors",
-                          isActive ? "text-violet-400" : "text-slate-500 group-hover:text-slate-300"
+                            isActive ? "text-[var(--vly-accent)]" : "text-[var(--vly-text-disabled)] group-hover:text-[var(--vly-text-secondary)]"
                         )}
                       />
                       {(!collapsed || isMobileOpen) && <span className="truncate">{label}</span>}
                     </div>
                     {(!collapsed || isMobileOpen) && badge && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-semibold">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)] font-semibold">
                         {badge}
                       </span>
                     )}
@@ -250,23 +252,33 @@ function SidebarContent() {
           {/* Creative Studios (Collapsible Section) */}
           <div>
             <div
+              role="button"
+              tabIndex={collapsed && !isMobileOpen ? -1 : 0}
+              aria-expanded={studiosExpanded}
+              aria-controls="creative-studios-navigation"
               className={cn(
                 "flex items-center justify-between px-2.5 pb-2 cursor-pointer group",
                 collapsed && !isMobileOpen && "hidden"
               )}
               onClick={() => setStudiosExpanded(!studiosExpanded)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setStudiosExpanded((expanded) => !expanded);
+                }
+              }}
             >
-              <p className="text-[10px] font-bold text-slate-500 tracking-[0.18em] uppercase group-hover:text-slate-400 transition-colors">
+              <p className="text-[10px] font-bold text-[var(--vly-text-muted)] tracking-[0.18em] uppercase group-hover:text-[var(--vly-text-secondary)] transition-colors">
                 Studios Criativos
               </p>
               <div className="flex items-center gap-1">
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 font-mono">
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] font-mono">
                   6 Studios
                 </span>
                 <ChevronDown
                   size={12}
                   className={cn(
-                    "text-slate-500 transition-transform duration-200",
+                    "text-[var(--vly-text-disabled)] transition-transform duration-200",
                     !studiosExpanded && "-rotate-90"
                   )}
                 />
@@ -281,8 +293,8 @@ function SidebarContent() {
                 className={cn(
                   "flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all group min-h-[42px]",
                   isStudioPath && !activeStudioQuery
-                    ? "bg-indigo-600/25 text-indigo-200 border border-indigo-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-100 hover:bg-white/5 border border-transparent",
+                    ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)] shadow-sm"
+                    : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] border border-transparent",
                   collapsed && !isMobileOpen && "justify-center px-0 min-h-[40px]"
                 )}
                 title={collapsed && !isMobileOpen ? "Studios Hub" : undefined}
@@ -293,14 +305,14 @@ function SidebarContent() {
                     className={cn(
                       "flex-shrink-0 transition-colors",
                       isStudioPath && !activeStudioQuery
-                        ? "text-indigo-400"
-                        : "text-slate-500 group-hover:text-slate-300"
+                        ? "text-[var(--vly-accent)]"
+                        : "text-[var(--vly-text-disabled)] group-hover:text-[var(--vly-text-secondary)]"
                     )}
                   />
                   {(!collapsed || isMobileOpen) && <span className="truncate">Studios Hub</span>}
                 </div>
                 {(!collapsed || isMobileOpen) && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-semibold font-mono">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)] font-semibold font-mono">
                     HUB
                   </span>
                 )}
@@ -308,7 +320,7 @@ function SidebarContent() {
 
               {/* Sub-Studios (Expanded View) */}
               {(studiosExpanded || collapsed) && (
-                <div className={cn("space-y-0.5", (!collapsed || isMobileOpen) && "pl-2 border-l border-[#1a1b2e] ml-3 mt-1")}>
+                <div id="creative-studios-navigation" className={cn("space-y-0.5", (!collapsed || isMobileOpen) && "pl-2 border-l border-[var(--vly-border-subtle)] ml-3 mt-1")}>
                   {STUDIO_DEFINITIONS.filter((s) => !preferences.hiddenNavigation.includes("/modules/studio" as never)).map((s) => {
                     const Icon = studioIconMap[s.iconName] || Palette;
                     const isActive = isStudioPath && activeStudioQuery === s.type;
@@ -321,8 +333,8 @@ function SidebarContent() {
                         className={cn(
                           "flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all group min-h-[38px]",
                           isActive
-                            ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                            : "text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent",
+                            ? "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)]"
+                            : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] border border-transparent",
                           collapsed && !isMobileOpen && "justify-center px-0 min-h-[38px]"
                         )}
                         title={collapsed && !isMobileOpen ? s.label : undefined}
@@ -332,13 +344,13 @@ function SidebarContent() {
                             size={14}
                             className={cn(
                               "flex-shrink-0 transition-colors",
-                              isActive ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300"
+                              isActive ? "text-[var(--vly-accent)]" : "text-[var(--vly-text-disabled)] group-hover:text-[var(--vly-text-secondary)]"
                             )}
                           />
                           {(!collapsed || isMobileOpen) && <span className="truncate">{s.label}</span>}
                         </div>
                         {(!collapsed || isMobileOpen) && (
-                          <span className="text-[9px] text-slate-500 font-mono">S{s.studioNumber}</span>
+                          <span className="text-[9px] text-[var(--vly-text-muted)] font-mono">S{s.studioNumber}</span>
                         )}
                       </Link>
                     );
@@ -351,7 +363,7 @@ function SidebarContent() {
           {/* Personal Apps */}
           <div>
             {(!collapsed || isMobileOpen) && (
-              <p className="px-2.5 pb-2 text-[10px] font-bold text-slate-500 tracking-[0.18em] uppercase">
+              <p className="px-2.5 pb-2 text-[10px] font-bold text-[var(--vly-text-muted)] tracking-[0.18em] uppercase">
                 Apps Pessoais
               </p>
             )}
@@ -366,7 +378,7 @@ function SidebarContent() {
                     rel="noopener noreferrer"
                     onClick={() => setIsMobileOpen(false)}
                     className={cn(
-                      "flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-all group min-h-[42px]",
+                      "vly-interactive flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-[var(--vly-text-muted)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] transition-all group min-h-[42px]",
                       collapsed && !isMobileOpen && "justify-center px-0 min-h-[40px]"
                     )}
                     title={collapsed && !isMobileOpen ? label : undefined}
@@ -374,12 +386,12 @@ function SidebarContent() {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Icon
                         size={16}
-                        className="flex-shrink-0 text-slate-500 group-hover:text-slate-300 transition-colors"
+                        className="flex-shrink-0 text-[var(--vly-text-disabled)] group-hover:text-[var(--vly-text-secondary)] transition-colors"
                       />
                       {(!collapsed || isMobileOpen) && <span className="truncate">{label}</span>}
                     </div>
                     {(!collapsed || isMobileOpen) && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold flex items-center gap-0.5">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] font-semibold flex items-center gap-0.5">
                         <ExternalLink size={9} /> {badge || "Ext"}
                       </span>
                     )}
@@ -392,8 +404,8 @@ function SidebarContent() {
                     className={cn(
                       "flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all group min-h-[42px]",
                       isActive
-                        ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/30"
-                        : "text-slate-400 hover:text-slate-100 hover:bg-white/5 border border-transparent",
+                        ? "bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)]"
+                        : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] border border-transparent",
                       collapsed && !isMobileOpen && "justify-center px-0 min-h-[40px]"
                     )}
                     title={collapsed && !isMobileOpen ? label : undefined}
@@ -403,13 +415,13 @@ function SidebarContent() {
                         size={16}
                         className={cn(
                           "flex-shrink-0 transition-colors",
-                          isActive ? "text-cyan-400" : "text-slate-500 group-hover:text-slate-300"
+                            isActive ? "text-[var(--vly-info)]" : "text-[var(--vly-text-disabled)] group-hover:text-[var(--vly-text-secondary)]"
                         )}
                       />
                       {(!collapsed || isMobileOpen) && <span className="truncate">{label}</span>}
                     </div>
                     {(!collapsed || isMobileOpen) && badge && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--vly-info)_12%,var(--vly-surface))] text-[var(--vly-info)] border border-[var(--vly-border-info)] font-semibold">
                         {badge}
                       </span>
                     )}
@@ -421,24 +433,24 @@ function SidebarContent() {
         </nav>
 
         {/* Profile & Footer */}
-        <div className="p-2.5 border-t border-[#1e1e30] space-y-1">
+        <div className="p-2.5 border-t border-[var(--vly-border-default)] space-y-1">
           <Link
             href="/profile"
             onClick={() => setIsMobileOpen(false)}
             className={cn(
-              "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-white/5 transition-all min-h-[44px]",
-              pathname === "/profile" && "bg-violet-600/20 text-violet-300 border border-violet-500/30",
+              "vly-interactive flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] hover:bg-[var(--vly-surface-hover)] transition-all min-h-[44px]",
+              pathname === "/profile" && "bg-[var(--vly-surface-active)] text-[var(--vly-accent-hover)] border border-[var(--vly-border-accent)]",
               collapsed && !isMobileOpen && "lg:justify-center lg:px-0"
             )}
             title={collapsed && !isMobileOpen ? "Perfil do Dono" : undefined}
           >
-            <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[var(--vly-surface-active)] border border-[var(--vly-border-accent)] flex items-center justify-center text-[var(--vly-accent)] flex-shrink-0">
               <User size={14} />
             </div>
             {(!collapsed || isMobileOpen) && (
               <div className="flex flex-col min-w-0">
-                <span className="text-slate-200 font-semibold truncate leading-tight">{accountName}</span>
-                <span className="text-[10px] text-slate-500 leading-tight">{role === "owner" ? "Dono do VARYNTH" : "Conta VARYNTH"}</span>
+                <span className="text-[var(--vly-text-primary)] font-semibold truncate leading-tight">{accountName}</span>
+                <span className="text-[10px] leading-tight text-[var(--vly-text-secondary)]">{role === "owner" ? "Dono do VARYNTH" : "Conta VARYNTH"}</span>
               </div>
             )}
           </Link>
@@ -446,8 +458,8 @@ function SidebarContent() {
             href="/download"
             onClick={() => setIsMobileOpen(false)}
             className={cn(
-              "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-violet-500/20 bg-violet-500/[0.07] text-xs font-semibold text-violet-200 hover:bg-violet-500/15 transition min-h-[44px]",
-              pathname === "/download" && "border-violet-400/40 bg-violet-500/15",
+              "vly-interactive flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[var(--vly-border-accent)] bg-[var(--vly-surface)] text-xs font-semibold text-[var(--vly-accent-hover)] hover:bg-[var(--vly-surface-hover)] transition min-h-[44px]",
+              pathname === "/download" && "border-[var(--vly-accent)] bg-[var(--vly-surface-active)]",
               collapsed && !isMobileOpen && "lg:justify-center lg:px-0"
             )}
             title={collapsed && !isMobileOpen ? "Instalar app" : undefined}
@@ -456,7 +468,7 @@ function SidebarContent() {
             {(!collapsed || isMobileOpen) && (
               <>
                 <span className="flex-1">Instalar app</span>
-                <span className="rounded-md border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 text-[9px] text-violet-200">Web App</span>
+                <span className="rounded-md border border-[var(--vly-border-accent)] bg-[var(--vly-surface-active)] px-1.5 py-0.5 text-[9px] text-[var(--vly-accent-hover)]">Web App</span>
               </>
             )}
           </Link>
@@ -464,15 +476,16 @@ function SidebarContent() {
 
         {/* Desktop Collapse button */}
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
           title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
           aria-expanded={!collapsed}
           className={cn(
             "hidden lg:flex absolute -right-3 top-7 w-6 h-6 rounded-full",
-            "bg-[#14141f] border border-[#1e1e30] text-slate-400",
+            "bg-[var(--vly-surface-raised)] border border-[var(--vly-border-default)] text-[var(--vly-text-secondary)]",
             "items-center justify-center",
-            "hover:text-slate-100 hover:border-violet-500/50 transition-all duration-200",
+            "hover:text-[var(--vly-text-primary)] hover:border-[var(--vly-border-accent)] transition-all duration-200",
             "z-40 shadow-md"
           )}
         >
@@ -485,7 +498,7 @@ function SidebarContent() {
 
 export function Sidebar() {
   return (
-    <Suspense fallback={<aside className="hidden lg:block w-64 h-screen bg-[#0a0a0f] border-r border-[#1e1e30]" />}>
+    <Suspense fallback={<aside className="hidden lg:block w-64 h-screen bg-[var(--vly-world)] border-r border-[var(--vly-border-default)]" />}>
       <SidebarContent />
     </Suspense>
   );

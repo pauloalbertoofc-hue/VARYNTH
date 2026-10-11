@@ -65,31 +65,31 @@ export function StudioShell({
     switch (saveState) {
       case "SAVED":
         return (
-          <span className="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 whitespace-nowrap font-medium">
+          <span className="flex items-center gap-1 whitespace-nowrap rounded border border-[var(--vly-border-success)] bg-[var(--vly-success-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--vly-success)]">
             <ShieldCheck size={12} /> <span className="hidden xs:inline">Salvo</span>
           </span>
         );
       case "SAVING":
         return (
-          <span className="flex items-center gap-1 text-[11px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse whitespace-nowrap font-medium">
+          <span className="flex items-center gap-1 whitespace-nowrap rounded border border-[var(--vly-border-warning)] bg-[var(--vly-warning-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--vly-warning)] animate-pulse">
             <Clock size={12} /> <span className="hidden xs:inline">Salvando...</span>
           </span>
         );
       case "UNSAVED":
         return (
-          <span className="flex items-center gap-1 text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700 whitespace-nowrap font-medium">
+          <span className="flex items-center gap-1 whitespace-nowrap rounded border border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] px-2 py-0.5 text-[11px] font-medium text-[var(--vly-text-secondary)]">
             Pendente
           </span>
         );
       case "STORAGE_PROTECTED":
         return (
-          <span className="flex items-center gap-1 text-[11px] text-amber-300 bg-amber-900/30 px-2 py-0.5 rounded border border-amber-600/40 whitespace-nowrap font-medium">
+          <span className="flex items-center gap-1 whitespace-nowrap rounded border border-[var(--vly-border-warning)] bg-[var(--vly-warning-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--vly-warning)]">
             <AlertTriangle size={12} /> Protegido
           </span>
         );
       case "SAVE_FAILED":
         return (
-          <span className="flex items-center gap-1 text-[11px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 whitespace-nowrap font-medium">
+          <span className="flex items-center gap-1 whitespace-nowrap rounded border border-[var(--vly-border-danger)] bg-[var(--vly-danger-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--vly-danger)]">
             <AlertTriangle size={12} /> Falha
           </span>
         );
@@ -102,14 +102,14 @@ export function StudioShell({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0a0a10] text-slate-200 overflow-hidden font-sans">
+    <div className="flex flex-col h-full bg-[var(--vly-world)] text-[var(--vly-text-primary)] overflow-hidden font-sans">
       {/* Studio Header */}
-      <header className="h-14 border-b border-[#1e1e30] bg-[#0d0d16] px-3 sm:px-4 flex items-center justify-between shrink-0">
+      <header className="h-14 border-b border-[var(--vly-border-default)] bg-[var(--vly-surface)] px-3 sm:px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
           {onBackToHub && (
             <button
               onClick={onBackToHub}
-              className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-[#222238] flex items-center gap-1.5 text-xs font-semibold transition group flex-shrink-0 touch-manipulation"
+              className="vly-interactive px-2.5 py-1.5 rounded-[var(--vly-radius-md)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] border border-[var(--vly-border-default)] flex items-center gap-1.5 text-xs font-semibold group flex-shrink-0 touch-manipulation"
               title="Voltar ao Studio Hub"
             >
               <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -117,51 +117,54 @@ export function StudioShell({
             </button>
           )}
 
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--vly-border-accent)] bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] sm:h-8 sm:w-8">
             <FileText size={16} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="font-semibold text-xs sm:text-sm text-white truncate max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
+              <h1 className="max-w-[140px] truncate text-xs font-semibold text-[var(--vly-text-primary)] sm:max-w-xs sm:text-sm md:max-w-md xs:max-w-[200px]">
                 {title}
               </h1>
               {getSaveBadge()}
             </div>
-            {subtitle && <p className="text-[10px] sm:text-xs text-slate-400 truncate max-w-[180px] sm:max-w-xs">{subtitle}</p>}
+            {subtitle && <p className="max-w-[180px] truncate text-[10px] text-[var(--vly-text-secondary)] sm:max-w-xs sm:text-xs">{subtitle}</p>}
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          <span className="text-xs text-slate-500 hidden lg:inline mr-2">{wordCount} palavras</span>
+          <span className="mr-2 hidden text-xs text-[var(--vly-text-muted)] lg:inline">{wordCount} palavras</span>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-[#141422] p-0.5 rounded-lg border border-[#222236]">
+          <div role="group" aria-label="Modo de visualização" className="flex items-center bg-[var(--vly-surface-raised)] p-0.5 rounded-[var(--vly-radius-md)] border border-[var(--vly-border-default)]">
             <button
               onClick={() => onViewModeChange("EDIT")}
-              className={`px-2 sm:px-2.5 py-1 text-xs rounded-md flex items-center gap-1 transition touch-manipulation ${
-                viewMode === "EDIT" ? "bg-blue-600 text-white font-semibold" : "text-slate-400 hover:text-slate-200"
+              className={`vly-interactive px-2 sm:px-2.5 py-1 text-xs rounded-md flex items-center gap-1 touch-manipulation ${
+                viewMode === "EDIT" ? "bg-[var(--vly-accent)] text-[var(--vly-text-on-accent)] font-semibold" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               }`}
               title="Modo Edição"
+              aria-pressed={viewMode === "EDIT"}
             >
               <Edit3 size={13} />
               <span className="hidden md:inline">Editar</span>
             </button>
             <button
               onClick={() => onViewModeChange("SPLIT")}
-              className={`px-2 sm:px-2.5 py-1 text-xs rounded-md flex items-center gap-1 transition touch-manipulation ${
-                viewMode === "SPLIT" ? "bg-blue-600 text-white font-semibold" : "text-slate-400 hover:text-slate-200"
+              className={`vly-interactive px-2 sm:px-2.5 py-1 text-xs rounded-md flex items-center gap-1 touch-manipulation ${
+                viewMode === "SPLIT" ? "bg-[var(--vly-accent)] text-[var(--vly-text-on-accent)] font-semibold" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               }`}
               title="Modo Dividido (Editor + Preview)"
+              aria-pressed={viewMode === "SPLIT"}
             >
               <Columns size={13} />
               <span className="hidden md:inline">Dividido</span>
             </button>
             <button
               onClick={() => onViewModeChange("PREVIEW")}
-              className={`px-2 sm:px-2.5 py-1 text-xs rounded-md flex items-center gap-1 transition touch-manipulation ${
-                viewMode === "PREVIEW" ? "bg-blue-600 text-white font-semibold" : "text-slate-400 hover:text-slate-200"
+              className={`vly-interactive px-2 sm:px-2.5 py-1 text-xs rounded-md flex items-center gap-1 touch-manipulation ${
+                viewMode === "PREVIEW" ? "bg-[var(--vly-accent)] text-[var(--vly-text-on-accent)] font-semibold" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
               }`}
               title="Modo Preview"
+              aria-pressed={viewMode === "PREVIEW"}
             >
               <Eye size={13} />
               <span className="hidden md:inline">Preview</span>
@@ -171,8 +174,8 @@ export function StudioShell({
           {/* Mobile Panel Toggle */}
           <button
             onClick={() => setIsMobilePanelOpen(!isMobilePanelOpen)}
-            className={`md:hidden p-1.5 rounded-lg border text-xs flex items-center gap-1 transition touch-manipulation ${
-              isMobilePanelOpen ? "bg-blue-600 text-white border-blue-500" : "bg-[#141422] text-slate-300 border-[#222236]"
+              className={`md:hidden vly-interactive p-1.5 rounded-[var(--vly-radius-md)] border text-xs flex items-center gap-1 touch-manipulation ${
+              isMobilePanelOpen ? "bg-[var(--vly-accent)] text-[var(--vly-accent-contrast)] border-[var(--vly-border-strong)]" : "bg-[var(--vly-surface-raised)] text-[var(--vly-text-secondary)] border-[var(--vly-border-default)]"
             }`}
             title="Abrir Painel Lateral"
           >
@@ -183,7 +186,7 @@ export function StudioShell({
 
           <button
             onClick={onCreateVersion}
-            className="hidden sm:flex px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-[#1a1a2b] hover:bg-[#25253d] border border-[#2a2a44] rounded-lg items-center gap-1.5 transition touch-manipulation"
+              className="hidden sm:flex vly-interactive px-3 py-1.5 text-xs font-medium text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)] bg-[var(--vly-surface-raised)] hover:bg-[var(--vly-surface-hover)] border border-[var(--vly-border-default)] rounded-[var(--vly-radius-md)] items-center gap-1.5 touch-manipulation"
           >
             <Clock size={14} />
             <span>Versão</span>
@@ -192,7 +195,7 @@ export function StudioShell({
           <button
             onClick={onExport}
             title="Exportar projeto"
-            className="px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-1.5 shadow-sm transition touch-manipulation"
+            className="vly-interactive px-2.5 sm:px-3 py-1.5 text-xs font-medium text-[var(--vly-accent-contrast)] bg-[var(--vly-accent)] hover:bg-[var(--vly-accent-hover)] rounded-[var(--vly-radius-md)] flex items-center gap-1.5 shadow-sm touch-manipulation"
           >
             <Share2 size={14} />
             <span className="hidden xs:inline">Exportar</span>
@@ -201,7 +204,7 @@ export function StudioShell({
           {onDelete && (
             <button
               onClick={onDelete}
-              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition touch-manipulation"
+            className="vly-interactive rounded-lg p-1.5 text-[var(--vly-text-secondary)] hover:bg-[var(--vly-danger-soft)] hover:text-[var(--vly-danger)] touch-manipulation"
               title="Mover para Lixeira"
             >
               <Trash2 size={15} />
@@ -213,11 +216,12 @@ export function StudioShell({
       {/* Main Studio Area */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Desktop Sidebar Icon Strip (hidden on mobile) */}
-        <aside className="hidden md:flex w-12 border-r border-[#1e1e30] bg-[#0c0c14] flex-col items-center py-3 gap-3 shrink-0">
+        <aside aria-label="Ferramentas do Studio" className="hidden md:flex w-12 border-r border-[var(--vly-border-default)] bg-[var(--vly-surface)] flex-col items-center py-3 gap-3 shrink-0">
           <button
             onClick={() => onSidebarTabChange("OUTLINE")}
-            className={`p-2 rounded-lg transition ${
-              activeSidebarTab === "OUTLINE" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-slate-400 hover:text-slate-200"
+            aria-label="Abrir estrutura do Studio"
+            className={`vly-interactive p-2 rounded-lg ${
+              activeSidebarTab === "OUTLINE" ? "bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
             title="Sumário / Estrutura (Outline)"
           >
@@ -225,8 +229,9 @@ export function StudioShell({
           </button>
           <button
             onClick={() => onSidebarTabChange("VERSIONS")}
-            className={`p-2 rounded-lg transition ${
-              activeSidebarTab === "VERSIONS" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-slate-400 hover:text-slate-200"
+            aria-label="Abrir histórico de versões"
+            className={`vly-interactive p-2 rounded-lg ${
+              activeSidebarTab === "VERSIONS" ? "bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
             title="Histórico de Versões"
           >
@@ -234,8 +239,9 @@ export function StudioShell({
           </button>
           <button
             onClick={() => onSidebarTabChange("ASSETS")}
-            className={`p-2 rounded-lg transition ${
-              activeSidebarTab === "ASSETS" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-slate-400 hover:text-slate-200"
+            aria-label="Assets Físicos e Anexos"
+            className={`vly-interactive p-2 rounded-lg ${
+              activeSidebarTab === "ASSETS" ? "bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
             title="Assets Físicos e Anexos"
           >
@@ -243,8 +249,9 @@ export function StudioShell({
           </button>
           <button
             onClick={() => onSidebarTabChange("RELATIONS")}
-            className={`p-2 rounded-lg transition ${
-              activeSidebarTab === "RELATIONS" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-slate-400 hover:text-slate-200"
+            aria-label="Abrir relacionamentos"
+            className={`vly-interactive p-2 rounded-lg ${
+              activeSidebarTab === "RELATIONS" ? "bg-[var(--vly-accent-soft)] text-[var(--vly-accent)] border border-[var(--vly-border-accent)]" : "text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
             }`}
             title="Relacionamentos e Derivações"
           >
@@ -253,8 +260,9 @@ export function StudioShell({
           <div className="my-auto" />
           <button
             onClick={() => onSidebarTabChange("ATHENA")}
-            className={`p-2 rounded-lg transition ${
-              activeSidebarTab === "ATHENA" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "text-amber-400/70 hover:text-amber-300"
+            aria-label="Abrir Athena no Studio"
+            className={`vly-interactive p-2 rounded-lg ${
+              activeSidebarTab === "ATHENA" ? "bg-[var(--vly-warning-soft)] text-[var(--vly-warning)] border border-[var(--vly-border-warning)]" : "text-[var(--vly-warning)]/70 hover:text-[var(--vly-warning)]"
             }`}
             title="Athena Copilot Criativo"
           >
@@ -263,7 +271,7 @@ export function StudioShell({
         </aside>
 
         {/* Desktop Sidebar Panel Content */}
-        <div className="hidden md:flex w-64 border-r border-[#1e1e30] bg-[#0e0e18] flex-col shrink-0 overflow-y-auto">
+        <div className="hidden md:flex w-64 border-r border-[var(--vly-border-default)] bg-[var(--vly-surface-raised)] flex-col shrink-0 overflow-y-auto">
           {sidebarContent}
         </div>
 
@@ -275,14 +283,14 @@ export function StudioShell({
               className="md:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-30 animate-fade-in"
               aria-hidden="true"
             />
-            <div className="md:hidden fixed inset-y-0 right-0 z-40 w-72 max-w-[85vw] bg-[#0e0e18] border-l border-[#1e1e30] shadow-2xl flex flex-col animate-slide-left">
-              <div className="h-12 px-4 border-b border-[#1e1e30] bg-[#0c0c14] flex items-center justify-between shrink-0">
-                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+            <div role="dialog" aria-modal="true" aria-label={`Painel ${activeSidebarTab}`} className="md:hidden fixed inset-y-0 right-0 z-40 w-72 max-w-[85vw] bg-[var(--vly-surface-raised)] border-l border-[var(--vly-border-default)] shadow-2xl flex flex-col animate-slide-left">
+              <div className="h-12 px-4 border-b border-[var(--vly-border-default)] bg-[var(--vly-surface)] flex items-center justify-between shrink-0">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--vly-text-primary)]">
                   Painel · {activeSidebarTab}
                 </span>
                 <button
                   onClick={() => setIsMobilePanelOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white"
+                  className="vly-interactive rounded-lg p-1 text-[var(--vly-text-secondary)] hover:text-[var(--vly-text-primary)]"
                 >
                   <X size={16} />
                 </button>
@@ -295,18 +303,19 @@ export function StudioShell({
         )}
 
         {/* Main Editor & Workspace (100% width on mobile) */}
-        <main className="flex-1 flex flex-col bg-[#08080e] overflow-hidden min-w-0">
+        <main className="flex-1 flex flex-col bg-[var(--vly-world)] overflow-hidden min-w-0">
           <div className="flex-1 flex overflow-hidden min-w-0">{mainContent}</div>
           {bottomContent && (
-            <div className="border-t border-[#1e1e30] bg-[#0c0c14] p-2 sm:p-3 shrink-0">{bottomContent}</div>
+            <div className="border-t border-[var(--vly-border-default)] bg-[var(--vly-surface)] p-2 sm:p-3 shrink-0">{bottomContent}</div>
           )}
 
           {/* Mobile Bottom Studio Panel Navigation Bar */}
-          <div className="md:hidden border-t border-[#1e1e30] bg-[#0a0a10] px-2 py-1.5 flex items-center justify-around shrink-0">
+          <div className="md:hidden border-t border-[var(--vly-border-default)] bg-[var(--vly-surface)] px-2 py-1.5 flex items-center justify-around shrink-0">
             <button
               onClick={() => handleMobileTabClick("OUTLINE")}
-              className={`p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] transition ${
-                activeSidebarTab === "OUTLINE" && isMobilePanelOpen ? "text-blue-400 bg-blue-500/10" : "text-slate-400"
+              aria-label="Abrir estrutura do Studio"
+              className={`vly-interactive p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] ${
+                activeSidebarTab === "OUTLINE" && isMobilePanelOpen ? "text-[var(--vly-accent)] bg-[var(--vly-accent-soft)]" : "text-[var(--vly-text-secondary)]"
               }`}
             >
               <Layers size={16} />
@@ -314,8 +323,9 @@ export function StudioShell({
             </button>
             <button
               onClick={() => handleMobileTabClick("VERSIONS")}
-              className={`p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] transition ${
-                activeSidebarTab === "VERSIONS" && isMobilePanelOpen ? "text-blue-400 bg-blue-500/10" : "text-slate-400"
+              aria-label="Abrir histórico de versões"
+              className={`vly-interactive p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] ${
+                activeSidebarTab === "VERSIONS" && isMobilePanelOpen ? "text-[var(--vly-accent)] bg-[var(--vly-accent-soft)]" : "text-[var(--vly-text-secondary)]"
               }`}
             >
               <Clock size={16} />
@@ -323,8 +333,9 @@ export function StudioShell({
             </button>
             <button
               onClick={() => handleMobileTabClick("ASSETS")}
-              className={`p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] transition ${
-                activeSidebarTab === "ASSETS" && isMobilePanelOpen ? "text-blue-400 bg-blue-500/10" : "text-slate-400"
+                aria-label="Assets Físicos e Anexos"
+              className={`vly-interactive p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] ${
+                activeSidebarTab === "ASSETS" && isMobilePanelOpen ? "text-[var(--vly-accent)] bg-[var(--vly-accent-soft)]" : "text-[var(--vly-text-secondary)]"
               }`}
             >
               <Paperclip size={16} />
@@ -332,8 +343,9 @@ export function StudioShell({
             </button>
             <button
               onClick={() => handleMobileTabClick("RELATIONS")}
-              className={`p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] transition ${
-                activeSidebarTab === "RELATIONS" && isMobilePanelOpen ? "text-blue-400 bg-blue-500/10" : "text-slate-400"
+              aria-label="Abrir relacionamentos"
+              className={`vly-interactive p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] ${
+                activeSidebarTab === "RELATIONS" && isMobilePanelOpen ? "text-[var(--vly-accent)] bg-[var(--vly-accent-soft)]" : "text-[var(--vly-text-secondary)]"
               }`}
             >
               <GitBranch size={16} />
@@ -341,8 +353,9 @@ export function StudioShell({
             </button>
             <button
               onClick={() => handleMobileTabClick("ATHENA")}
-              className={`p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] transition ${
-                activeSidebarTab === "ATHENA" && isMobilePanelOpen ? "text-amber-400 bg-amber-500/10" : "text-amber-400/70"
+              aria-label="Abrir Athena no Studio"
+              className={`vly-interactive p-2 rounded-lg flex flex-col items-center gap-0.5 text-[10px] ${
+                activeSidebarTab === "ATHENA" && isMobilePanelOpen ? "text-[var(--vly-warning)] bg-[var(--vly-warning-soft)]" : "text-[var(--vly-warning)]/70"
               }`}
             >
               <Sparkles size={16} />
