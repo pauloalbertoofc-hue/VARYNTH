@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AthenaMessageText } from "@/components/athena/AthenaMessageText";
 import { AthenaFeedbackControls } from "@/components/athena/AthenaFeedbackControls";
+import { feedbackTargetFromMetadata } from "@/lib/athena/conversation/feedback-target";
 import { AthenaExperienceTrace } from "@/components/athena/AthenaExperienceTrace";
 import { analyzeAthenaState } from "@/lib/athena/insights/global-intelligence";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
@@ -431,6 +432,7 @@ export default function AthenaHubPage() {
                           response={msg.text}
                           sessionId={activeConversationId || "global-athena-session"}
                           prompt={messages[index - 1]?.sender === "user" ? messages[index - 1].text : undefined}
+                          {...feedbackTargetFromMetadata(msg.metadata)}
                         />
                       )}
 

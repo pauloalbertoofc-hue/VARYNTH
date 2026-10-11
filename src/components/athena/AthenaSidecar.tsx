@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AthenaMessageText } from "./AthenaMessageText";
 import { AthenaFeedbackControls } from "./AthenaFeedbackControls";
+import { feedbackTargetFromMetadata } from "@/lib/athena/conversation/feedback-target";
 import { AthenaExperienceTrace } from "./AthenaExperienceTrace";
 import { athenaContextualMemory } from "@/lib/athena/memory/contextual-memory";
 import { AthenaCapabilityPlanPanel } from "./AthenaCapabilityPlanPanel";
@@ -302,6 +303,7 @@ export function AthenaSidecar() {
                           response={msg.text}
                           sessionId={activeConversationId || (routeProjectId ? `project-${routeProjectId}-sidecar-session` : "global-athena-session")}
                           prompt={messages[index - 1]?.sender === "user" ? messages[index - 1].text : undefined}
+                          {...feedbackTargetFromMetadata(msg.metadata)}
                         />
                       )}
 
