@@ -158,22 +158,20 @@ export class SemanticInterpretationEngine {
       semanticSource = "DETERMINISTIC";
       deterministicSignals.push("TASK_QUERY_COLLOQUIAL_PHRASE");
     }
-    // Rule F: Polite Indirect Command
-    else if (pragRes.isIndirectPoliteRequest && pragRes.suggestedIntent) {
-      selectedIntent = pragRes.suggestedIntent;
-      finalConfidence = pragRes.confidence;
-      semanticSource = "DETERMINISTIC";
-    }
-    // Rule G: explicit cognitive speech acts are meaningful even when their
+    // Rule F: explicit cognitive speech acts are meaningful even when their
     // subject is new and therefore absent from the local similarity corpus.
-    else if (
-      /\b(analise|analisar|examine|explique|explica|critique|compare|resuma|sintetize)\b/.test(cleanText) &&
-      !/\b(projeto|workspace|tarefa|sistema|ecossistema|status)\b/.test(cleanText)
-    ) {
+    else if (/\b(analise|analisar|examine|explique|explica|explicar|critique|compare|comparar|resuma|resumir|sintetize|avaliar|avalie)\b/.test(cleanText)) {
       selectedIntent = "EPISTEMIC_QUERY";
       finalConfidence = 0.9;
       semanticSource = "DETERMINISTIC";
       deterministicSignals.push("EXPLICIT_COGNITIVE_SPEECH_ACT");
+    }
+    // Rule G: Polite indirect action requests enter the governed operational
+    // path, but this classification is not permission or execution.
+    else if (pragRes.isIndirectPoliteRequest && pragRes.suggestedIntent) {
+      selectedIntent = pragRes.suggestedIntent;
+      finalConfidence = pragRes.confidence;
+      semanticSource = "DETERMINISTIC";
     }
     else if (/\b(ideia|ideias|inventar|brainstorm|sugira|recomende|planeje)\b/.test(cleanText)) {
       selectedIntent = "CREATIVE_INTENT";

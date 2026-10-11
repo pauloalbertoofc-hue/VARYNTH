@@ -92,6 +92,8 @@ A Camada Semântica Local Híbrida da Athena atua como o elo de tradução semâ
 
 ## 4. Aprovação coloquial e separação entre plano e esclarecimento
 
+Perguntas de capacidade (“Você consegue criar...?”, “É possível...?”) permanecem conversa e não autorizam uma ação. Pedidos corteses com verbo de ação (“Você pode criar...?”, “Poderia apagar...?”) são classificados como solicitações e encaminhados ao fluxo operacional governado; a classificação semântica não equivale a consentimento para executar. Pedidos cognitivos (“pode explicar/analisar...?”) permanecem no caminho cognitivo, inclusive quando mencionam uma ação como assunto.
+
 `hasPendingSlot` representa uma pergunta de esclarecimento em aberto; não é autorização para executar. O analisador pragmático recebe apenas `hasPendingPlan` como contexto de aprovação, e a fusão estatística também rebaixa `APPROVAL` para conversa social quando não existe plano pendente. Isso evita que uma resposta curta a uma dúvida seja confundida com confirmação operacional.
 
 O vocabulário contextual inclui variantes formais e coloquiais como “Confirmo”, “Pode mandar” e “Manda ver no rascunho”. O caminho operacional reconhece essas formas somente para localizar um plano persistido na mesma sessão; pontuação terminal é normalizada antes da comparação. Sem plano correspondente, nenhuma mutação é executada e Athena informa que não há confirmação pendente.
@@ -102,5 +104,5 @@ Marcadores explícitos de mudança de assunto (“mudando de assunto”, “outr
 
 O adaptador conversacional dos especialistas também remove o turno atual da busca de antecedentes, não atribui uma referência curta a uma mensagem de mudança de assunto, e só atravessa essa fronteira quando o usuário pede explicitamente para retomar o tema anterior. A janela de histórico continua limitada à sessão ativa; assistentes não são tratados como evidência independente do pedido do usuário.
 
-Verificação local em 2026-10-11: `npm run test:athena-semantic` passou 33/33 cenários, incluindo execução governada do plano exato na mesma sessão e recusa sem plano; `npm run test:athena-intelligence` passou 100 cenários e `npm run test:athena-communication` cobre agora respostas compatíveis, referências comparativas sem alvo e alvos nomeados. Esses resultados são testes automatizados, não substituem um walkthrough manual autenticado.
+Verificação local anterior em 2026-10-11: `npm run test:athena-semantic` passou 33/33 cenários, incluindo execução governada do plano exato na mesma sessão e recusa sem plano; `npm run test:athena-intelligence` passou 100 cenários e `npm run test:athena-communication` cobre agora respostas compatíveis, referências comparativas sem alvo e alvos nomeados. A regressão recente amplia a distinção pragmática para 38 casos. Resultados automatizados não substituem um walkthrough manual autenticado.
 

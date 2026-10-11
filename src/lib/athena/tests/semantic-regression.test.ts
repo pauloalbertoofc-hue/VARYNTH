@@ -1,6 +1,6 @@
 /**
  * VARYNTH OS — ATHENA SEMANTIC REGRESSION SUITE
- * 33 Regression Scenarios (SEM-REG-001 .. SEM-REG-033)
+ * 38 Regression Scenarios (SEM-REG-001 .. SEM-REG-038)
  * Validates Hybrid Local Semantic Layer, Negation, Pragmatics, Noise, Slot Provenance,
  * Generalization on Unseen Holdout, and Invariants INV-037..042.
  */
@@ -33,7 +33,7 @@ interface SemanticTestRecord {
 
 export async function runSemanticRegressionSuite(): Promise<{ total: number; passed: number; failed: number }> {
   console.log("\n===============================================================");
-  console.log("  VARYNTH OS — ATHENA SEMANTIC REGRESSION SUITE (33 CASES)");
+  console.log("  VARYNTH OS — ATHENA SEMANTIC REGRESSION SUITE (38 CASES)");
   console.log("===============================================================\n");
 
   const results: SemanticTestRecord[] = [];
@@ -398,6 +398,27 @@ export async function runSemanticRegressionSuite(): Promise<{ total: number; pas
     confirmedPlanStatus === "COMPLETED" && ctx.tasks.length === taskCountBeforeApproval + 1 && ctx.tasks.at(-1)?.title === "Rascunho aprovado",
     `Plan status: ${String(confirmedPlanStatus)}; created task: ${ctx.tasks.at(-1)?.title || "none"}`
   );
+
+  // SEM-REG-034..038: Capability, governed requests, and cognitive intent.
+  const p34 = "Você consegue criar uma tarefa?";
+  const r34 = SemanticInterpretationEngine.interpretSync(normalizeText(p34), p34);
+  record("SEM-REG-034", "Capability question is not an action request", r34.intent === "SOCIAL_CONVERSATION" && r34.trace.pragmaticFlags.includes("CAPABILITY_INQUIRY"), `Intent: ${r34.intent}`);
+
+  const p35 = "Você pode criar uma tarefa para revisar o relatório?";
+  const r35 = SemanticInterpretationEngine.interpretSync(normalizeText(p35), p35);
+  record("SEM-REG-035", "Polite action request enters governed request routing", r35.intent === "EXECUTION_REQUEST" && r35.trace.pragmaticFlags.includes("POLITE_INDIRECT_REQUEST"), `Intent: ${r35.intent}`);
+
+  const p36 = "Poderia apagar isso?";
+  const r36 = SemanticInterpretationEngine.interpretSync(normalizeText(p36), p36);
+  record("SEM-REG-036", "Polite destructive request is classified but not executed", r36.intent === "EXECUTION_REQUEST" && r36.trace.pragmaticFlags.includes("POLITE_INDIRECT_REQUEST"), `Intent: ${r36.intent}; semantic layer only classifies`);
+
+  const p37 = "Você pode me explicar como criar uma tarefa?";
+  const r37 = SemanticInterpretationEngine.interpretSync(normalizeText(p37), p37);
+  record("SEM-REG-037", "Explanation request remains cognitive despite embedded action", r37.intent === "EPISTEMIC_QUERY" && !r37.trace.pragmaticFlags.includes("POLITE_INDIRECT_REQUEST"), `Intent: ${r37.intent}`);
+
+  const p38 = "Você pode analisar esta proposta?";
+  const r38 = SemanticInterpretationEngine.interpretSync(normalizeText(p38), p38);
+  record("SEM-REG-038", "Analysis request remains cognitive", r38.intent === "EPISTEMIC_QUERY" && !r38.trace.pragmaticFlags.includes("POLITE_INDIRECT_REQUEST"), `Intent: ${r38.intent}`);
 
   console.log("\n===============================================================");
   const passed = results.filter((r) => r.status === "PASS").length;

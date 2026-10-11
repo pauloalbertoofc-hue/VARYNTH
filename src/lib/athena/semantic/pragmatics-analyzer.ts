@@ -21,6 +21,8 @@ export class PragmaticsAnalyzer {
   static analyze(cleanText: string, hasPendingConfirmation = false): PragmaticAnalysisResult {
     const text = cleanText
       .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .replace(/^(athena|athenas)[,.:;!?\s-]+/, "")
       .trim();
 
@@ -90,14 +92,19 @@ export class PragmaticsAnalyzer {
     }
 
     // 4. Capability Question (Inquiry vs Execution Command)
-    // e.g. "voce consegue apagar isso?", "seria possivel criar um video?", "voce pode gerar um pdf?"
+    // "consegue/é possível?" asks about ability; "pode/poderia + action" is
+    // ordinarily a polite request and is handled below as a governed request.
     const hasCapabilityInquiry =
       text.startsWith("voce consegue") ||
       text.startsWith("consegue") ||
       text.startsWith("consegue fazer") ||
       text.startsWith("seria possivel") ||
+      text.startsWith("e possivel") ||
+      text.startsWith("voce sabe se consegue") ||
+      text.startsWith("voce tem como") ||
       text.startsWith("voce sabe como") ||
-      text.startsWith("voce tem capacidade");
+      text.startsWith("voce tem capacidade") ||
+      /^(?:voce\s+)?(?:pode|poderia)\s+(?:me\s+)?(?:dizer|informar)\s+se\b/.test(text);
 
     if (hasCapabilityInquiry) {
       return {
@@ -133,17 +140,23 @@ export class PragmaticsAnalyzer {
     }
 
     // 6. Polite indirect request
-    // e.g. "se nao for incomodo voce poderia criar uma tarefa?", "por favor crie...", "poderia gerar..."
+    // Distinguish action requests from asking for an explanation, analysis or help.
+    const actionVerb = "(?:criar|crie|adicionar|adicione|gerar|gere|produzir|produza|fazer|faca|montar|monte|abrir|abra|salvar|salve|guardar|guarde|arquivar|arquive|apagar|apague|excluir|exclua|remover|remova|mover|mova|atualizar|atualize|alterar|altere|publicar|publique|enviar|envie|exportar|exporte|renderizar|renderize|iniciar|inicie|executar|execute|construir|construa)";
+    const modalActionRequest = /^(?:(?:voce|vc)\s+)?(?:pode|poderia)\s+(?:(?:por\s+favor|me\s+fazer\s+o\s+favor\s+de)\s+)?(?:criar|crie|adicionar|adicione|gerar|gere|produzir|produza|fazer|faca|montar|monte|abrir|abra|salvar|salve|guardar|guarde|arquivar|arquive|apagar|apague|excluir|exclua|remover|remova|mover|mova|atualizar|atualize|alterar|altere|publicar|publique|enviar|envie|exportar|exporte|renderizar|renderize|iniciar|inicie|executar|execute|construir|construa)\b/.test(text) && text.length > "pode fazer".length;
+    const asksForHelpRatherThanAction = /\b(?:me\s+)?ajudar\s+(?:a|com)\b/.test(text);
+    const explicitCognitiveRequest = /\b(?:explicar|explique|explica|analisar|analise|examinar|examine|comparar|compare|resumir|resuma|criticar|critique|avaliar|avalie)\b/.test(text);
     const hasPoliteIndirect =
-      text.includes("se nao for incomodo") ||
-      text.includes("voce poderia criar") ||
-      text.includes("voce poderia gerar") ||
-      text.includes("poderia fazer") ||
-      text.includes("seria bom ter");
+      (text.includes("se nao for incomodo") && !explicitCognitiveRequest && !asksForHelpRatherThanAction) ||
+      (text.includes("voce poderia criar") && !explicitCognitiveRequest) ||
+      (text.includes("voce poderia gerar") && !explicitCognitiveRequest) ||
+      (text.includes("poderia fazer") && !explicitCognitiveRequest) ||
+      text.includes("seria bom ter") ||
+      (modalActionRequest && !asksForHelpRatherThanAction && !explicitCognitiveRequest);
 
     if (hasPoliteIndirect) {
       const isTaskOrNote = text.includes("tarefa") || text.includes("nota");
       const isCreative = text.includes("video") || text.includes("site") || text.includes("imagem") || text.includes("pdf");
+      const isGovernedAction = new RegExp(`\\b${actionVerb}\\b`).test(text);
 
       return {
         speechAct: "COMMAND",
@@ -152,7 +165,7 @@ export class PragmaticsAnalyzer {
         isEmotionalVenting: false,
         isCapabilityQuestion: false,
         isApprovalPhrase: false,
-        suggestedIntent: isCreative ? "CREATIVE_INTENT" : isTaskOrNote ? "EXECUTION_REQUEST" : undefined,
+        suggestedIntent: isCreative ? "CREATIVE_INTENT" : (isTaskOrNote || isGovernedAction) ? "EXECUTION_REQUEST" : undefined,
         confidence: 0.86,
       };
     }
