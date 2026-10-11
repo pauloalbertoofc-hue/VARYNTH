@@ -198,6 +198,15 @@ void (async () => {
   assert.equal(contextualCritique.metadata?.verifiedDefect, false, "Grounding the object must not turn an unverified concern into a proven defect");
   const contextualLegal = await justitiaAgent.execute(task("Quais os riscos?"), { ...ctx, ...followUpContext });
   assert.equal(contextualLegal.metadata?.conversationReferenceResolved, true);
+  const thesisBackedLegal = await justitiaAgent.execute(task("Analise a tese registrada"), {
+    ...ctx,
+    scope: "juridico",
+    relevantTheses: [{ id: "thesis-1", title: "Responsabilidade digital", area: "Direito Civil", question: "Quem responde pelo dano?", pros: [], cons: [], precedents: ["REsp 12345"], tags: [], status: "consolidada", createdAt: "", updatedAt: "", conclusion: "" }],
+  } as unknown as AthenaContext);
+  assert.match(thesisBackedLegal.content, /força vinculante e vigência não verificadas/i);
+  assert.doesNotMatch(thesisBackedLegal.content, /Precedentes Vinculantes/);
+  assert.equal(thesisBackedLegal.metadata?.currentLawVerified, false);
+  assert.equal(thesisBackedLegal.confidence, 0.68);
   const contextualResearch = await logosAgent.execute(task("Explique isso melhor"), { ...ctx, ...followUpContext });
   assert.match(contextualResearch.content, /preservação de rios/i);
   assert.equal(contextualResearch.metadata?.conversationReferenceResolved, true);

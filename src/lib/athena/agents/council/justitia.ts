@@ -44,7 +44,7 @@ export class JustitiaAgent implements AthenaAgent {
     const thesis = context.relevantTheses[0];
     const vaultLegal = context.relevantVaultItems.filter((v) => v.type === "jurisprudencia" || v.type === "lei");
 
-    let content = `⚖️ **Parecer Jurídico (Justitia):**\n\n`;
+    let content = `⚖️ **Leitura jurídica preliminar da tese registrada**\n\n`;
 
     if (thesis) {
       content += `Com base na tese ativa **"${thesis.title}"** (Área: ${thesis.area}):\n`;
@@ -56,7 +56,7 @@ export class JustitiaAgent implements AthenaAgent {
         content += `• **Objeções & Riscos:** ${thesis.cons.map((c) => c.statement).join("; ")}\n`;
       }
       if (thesis.precedents.length > 0) {
-        content += `• **Precedentes Vinculantes:** ${thesis.precedents.join(", ")}\n`;
+        content += `• **Precedentes registrados na tese (força vinculante e vigência não verificadas):** ${thesis.precedents.join(", ")}\n`;
       }
     } else {
       content += `Não recebi uma tese formal relevante na Argument Arena. Portanto, ainda não posso avaliar os argumentos concretos do caso. `;
@@ -66,7 +66,7 @@ export class JustitiaAgent implements AthenaAgent {
     }
 
     if (vaultLegal.length > 0) {
-      content += `\n\n📚 **Obras e Precedentes Relacionados no Vault:**\n${vaultLegal.map((v) => `• ${v.title} (${v.author || "Acervo"})`).join("\n")}`;
+      content += `\n\n📚 **Itens jurídicos relacionados no Vault (vigência não verificada nesta resposta):**\n${vaultLegal.map((v) => `• ${v.title} (${v.author || "autoria não informada"})`).join("\n")}`;
     }
     content += formatExperienceMethodHints(priorOutcomes);
 
@@ -76,9 +76,9 @@ export class JustitiaAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: thesis ? 0.82 : vaultLegal.length ? 0.48 : 0.2,
+      confidence: thesis ? 0.68 : vaultLegal.length ? 0.4 : 0.2,
       sources: [...(thesis?.precedents || []), ...vaultLegal.map((item) => item.title)],
-      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
+      metadata: { analyzedThesisId: thesis?.id, vaultLegalItems: vaultLegal.length, legalAdvice: false, currentLawVerified: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
       recommendations: [
         "Verificar conformidade com súmulas vinculantes",
         "Confrontar argumentos contrários no Codex",
