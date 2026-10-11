@@ -33,6 +33,21 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
     if (selected === category) return;
     const feedback = athenaConversationFeedback.record({ ...props, category });
     setSelected(category);
+    setSaved(false);
+    setExperienceStatus("saving");
+    try {
+      await recordAgentFeedbackInExperience(feedback);
+      setExperienceStatus("saved");
+    } catch {
+      setExperienceStatus("local-only");
+    }
+  };
+
+  const saveCorrection = async () => {
+    const text = correction.trim();
+    if (!text || !selected || experienceStatus === "saving") return;
+    const feedback = athenaConversationFeedback.record({ ...props, category: selected, correction: text });
+    setSaved(true);
     setExperienceStatus("saving");
     try {
       await recordAgentFeedbackInExperience(feedback);
@@ -63,8 +78,8 @@ export function AthenaFeedbackControls(props: AthenaFeedbackControlsProps) {
       {selected && selected !== "HELPFUL" && (
         <div className="basis-full space-y-1 pt-1">
           <input aria-label={`Como ${props.agentName || "Athena"} deveria responder`} value={correction} onChange={event => { setCorrection(event.target.value); setSaved(false); }} placeholder="O que deveria acontecer? (opcional)" className="w-full rounded border border-white/15 bg-black/20 p-2 text-xs text-slate-200" />
-          <button type="button" onClick={() => { athenaConversationFeedback.record({ ...props, category: selected, correction: correction.trim() }); setSaved(true); }} className="text-xs text-violet-300">Salvar correção</button>
-          <p role="status" className="text-[10px] text-slate-400">{saved ? "Correção salva. Diga “corrija a resposta” para retomar este pedido." : "Feedback registrado. Você pode explicar o ajuste e pedir “corrija a resposta”."}</p>
+          <button type="button" onClick={() => { void saveCorrection(); }} disabled={!correction.trim() || experienceStatus === "saving"} className="text-xs text-violet-300 disabled:opacity-50">Salvar correção</button>
+          <p role="status" className="text-[10px] text-slate-400">{saved ? experienceStatus === "saving" ? "Associando sua correção explícita à Experience…" : experienceStatus === "saved" ? "Correção registrada na Experience desta conta. O prompt e a resposta completa não foram copiados." : "Correção salva apenas no histórico local; a Experience não foi atualizada. Verifique se você está conectado." : "A correção é opcional e só é registrada quando você a salva."}</p>
         </div>
       )}
       {selected && <p role="status" className="basis-full text-[10px] text-slate-400">

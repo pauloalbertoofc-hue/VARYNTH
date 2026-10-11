@@ -22,8 +22,12 @@ async function main() {
   assert.equal(event.moduleId, "athena");
   assert.equal(event.sessionId, "feedback-bridge-session");
   assert.equal(event.learningEligible, true);
-  assert.deepEqual(event.metadata, { feedbackType: "DISLIKE", context: { qualityCategory: "MISUNDERSTOOD" }, strength: "HIGH" });
-  assert.equal(JSON.stringify(event).includes("conteúdo sensível"), false, "experience evidence stores category and provenance, not conversation text");
+  assert.deepEqual(event.metadata, { feedbackType: "CORRECTION", context: { qualityCategory: "MISUNDERSTOOD" }, reason: "reformule com clareza", strength: "HIGH" });
+  assert.equal(JSON.stringify(event).includes("conteúdo sensível"), false, "experience evidence excludes the original conversation prompt");
+  assert.equal(JSON.stringify(event).includes("conteúdo integral"), false, "experience evidence excludes the full assistant response");
+  assert.equal(JSON.stringify(event).includes("reformule com clareza"), true, "only the correction explicitly saved by the user is retained as feedback provenance");
+  const categoryOnly = await recordAgentFeedbackInExperience({ sessionId: "feedback-bridge-session", messageId: "response-44", category: "MISUNDERSTOOD", agentId: "logos" });
+  assert.equal(categoryOnly.metadata.feedbackType, "DISLIKE", "categorical feedback without an explicit correction stays categorical");
   const helpful = await recordAthenaFeedbackInExperience({ sessionId: "feedback-bridge-session", messageId: "response-43", category: "HELPFUL" });
   assert.equal(helpful.metadata.feedbackType, "LIKE", "positive feedback is distinguished from correction signals");
   const euterpe = await recordAgentFeedbackInExperience({ sessionId: "music-session-account-a", messageId: "euterpe-response-1", category: "LOST_CONTEXT", agentId: "euterpe", moduleId: "music" });

@@ -2,16 +2,18 @@ import { submitFeedback } from "@/lib/experience/feedback-service";
 import type { AthenaConversationFeedback } from "./quality-feedback";
 
 /** Sends only explicit, minimal response-quality feedback to the account-scoped Experience Layer. */
-export function recordAgentFeedbackInExperience(feedback: Pick<AthenaConversationFeedback, "messageId" | "sessionId" | "category" | "agentId" | "moduleId">) {
+export function recordAgentFeedbackInExperience(feedback: Pick<AthenaConversationFeedback, "messageId" | "sessionId" | "category" | "agentId" | "moduleId" | "correction">) {
   const agentId = feedback.agentId || "athena";
+  const correction = feedback.correction?.trim().slice(0, 500);
   return submitFeedback({
-    type: feedback.category === "HELPFUL" ? "LIKE" : "DISLIKE",
+    type: correction ? "CORRECTION" : feedback.category === "HELPFUL" ? "LIKE" : "DISLIKE",
     targetType: `${agentId.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}_RESPONSE`,
     targetId: feedback.messageId,
     moduleId: feedback.moduleId || (agentId === "athena" ? "athena" : undefined),
     agentId,
     sessionId: feedback.sessionId,
     strength: "HIGH",
+    reason: correction || undefined,
     context: { qualityCategory: feedback.category },
   });
 }

@@ -31,6 +31,21 @@ function candidateClarificationSubject(question: string | undefined): string {
   return "GENERAL_TOPIC";
 }
 
+function isAnswerToPendingQuestion(question: string | undefined, clean: string, candidateProject?: Project): boolean {
+  if (!question || !clean || /\b(por que|porque|o que e|quem e|como funciona|explique|explora|analise|compare|resuma|recomende|sugira|planeje|crie|quero|preciso|pode|poderia)\b/.test(clean)) {
+    return false;
+  }
+
+  const normalizedQuestion = normalizeText(question);
+  const asksProject = /\b(projeto|qual deles|qual projeto)\b/.test(normalizedQuestion);
+  if (asksProject) {
+    return Boolean(candidateProject);
+  }
+
+  const asksForFreeFormAnswer = /\b(resultado|esperava|quis dizer|significa|reformular|descrever|qual parte|o que faltou)\b/.test(normalizedQuestion);
+  return asksForFreeFormAnswer && clean.split(" ").length <= 24;
+}
+
 export class ConversationManager {
   private sessions: Map<string, ConversationState> = new Map();
   private sessionHistories: Map<string, ConversationTurn[]> = new Map();
@@ -259,14 +274,10 @@ export class ConversationManager {
       hasPendingSlot: Boolean(state.pendingQuestion),
     });
 
-    const isAnswerToPendingClarification = Boolean(state.pendingQuestion)
-      && clean.split(" ").length <= 8
-      && !/^(nao|mas|corrigindo|na verdade|quis dizer|eu quis dizer|nao era|nao,)/.test(clean)
-      && !/\b(compare|comparar|critique|analise|analisar|explique|explica|resuma|sintetize|recomende|sugira|planeje|crie|criar|quero|preciso|pode|poderia)\b/.test(clean)
-      && !/\b(por que|porque|explique|desenvolva|continue|prossiga)\b/.test(clean);
-    const candidateProject = isAnswerToPendingClarification
+    const candidateProject = state.pendingQuestion
       ? allProjects.find((project) => normalizeText(project.title) === clean)
       : undefined;
+    const isAnswerToPendingClarification = isAnswerToPendingQuestion(state.pendingQuestion, clean, candidateProject);
     if (isAnswerToPendingClarification) {
       semantic.intent = "CLARIFICATION_RESPONSE";
       semantic.confidence = candidateProject ? 0.95 : 0.8;
@@ -760,11 +771,13 @@ export class ConversationManager {
         ? (semantic.comprehensionStatus === "UNKNOWN" ? "UNKNOWN" as const : "AMBIGUOUS" as const)
         : semantic.comprehensionStatus;
 
-    if (comprehensionStatus === "UNDERSTOOD") {
+    const preservesPendingQuestion = Boolean(state.pendingQuestion)
+      && (semantic.isNoise || semantic.intent === "SOCIAL_CONVERSATION");
+    if (comprehensionStatus === "UNDERSTOOD" && !preservesPendingQuestion) {
       state.lastUnderstoodRequest = prompt;
       state.currentGoal = subject || prompt;
       state.pendingQuestion = undefined;
-    } else if (clarificationPrompt) {
+    } else if (clarificationPrompt && !preservesPendingQuestion) {
       state.pendingQuestion = clarificationPrompt;
     }
 
