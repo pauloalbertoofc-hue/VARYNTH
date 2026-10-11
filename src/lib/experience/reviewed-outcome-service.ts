@@ -4,6 +4,7 @@ import { experienceService } from "./experience-service";
 import { findLearningExclusion } from "./learning-policy";
 import { getExperienceOwnerId } from "./identity";
 import { retainExperience } from "./outcome-service";
+import { resolveExperienceFeatureFlags, type ExperienceFeatureFlags } from "./feature-flags";
 
 export interface ReviewedProjectOutcomeInput {
   projectId: string;
@@ -23,7 +24,13 @@ function requiredText(value: string, field: string): string {
 }
 
 /** Persist only a user-reviewed, useful outcome with exact owner/project evidence. */
-export async function recordReviewedProjectOutcome(input: ReviewedProjectOutcomeInput) {
+export async function recordReviewedProjectOutcome(
+  input: ReviewedProjectOutcomeInput,
+  featureFlags: ExperienceFeatureFlags = resolveExperienceFeatureFlags(),
+) {
+  if (!featureFlags.enabled || !featureFlags.projectRetrospectivesEnabled) {
+    throw new Error("[EXPERIENCE_FEATURE_DISABLED] Registro de retrospectivas está desativado nesta versão.");
+  }
   const projectId = input.projectId.trim();
   if (!projectId) throw new Error("[REVIEWED_OUTCOME_PROJECT_REQUIRED] Selecione um projeto.");
   if (!input.confirmsUseful) throw new Error("[REVIEWED_OUTCOME_CONFIRMATION_REQUIRED] Confirme que o resultado foi útil antes de registrar.");

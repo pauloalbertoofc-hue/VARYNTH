@@ -2,6 +2,7 @@ import type { ExperienceEvent, EvidenceRef, PreferenceCandidate } from "./contra
 import { extractSignal } from "./signals";
 import { findLearningExclusion } from "./learning-policy";
 import { domainRegistry } from "@/lib/knowledge/domain-registry";
+import { resolveExperienceFeatureFlags, type ExperienceFeatureFlags } from "./feature-flags";
 
 const MIN_EVIDENCE = 3;
 const MIN_INDEPENDENT_ARTIFACTS = 2;
@@ -82,7 +83,13 @@ export function derivePreferenceCandidates(events: ExperienceEvent[], subject: s
 
 /** Applies current account exclusions to historical events before proposing candidates.
  * Excluded observations remain in the audit log but cannot create new hypotheses. */
-export async function derivePreferenceCandidatesWithPolicy(events: ExperienceEvent[], subject: string, domain?: string): Promise<PreferenceCandidate[]> {
+export async function derivePreferenceCandidatesWithPolicy(
+  events: ExperienceEvent[],
+  subject: string,
+  domain?: string,
+  featureFlags: ExperienceFeatureFlags = resolveExperienceFeatureFlags(),
+): Promise<PreferenceCandidate[]> {
+  if (!featureFlags.enabled || !featureFlags.preferenceInferenceEnabled) return [];
   const ownerId = subject.trim();
   if (!ownerId) return [];
   const eligibleEvents: ExperienceEvent[] = [];

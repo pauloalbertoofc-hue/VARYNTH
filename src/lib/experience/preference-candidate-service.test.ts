@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { ExperienceEvent } from "./contracts";
-import { derivePreferenceCandidates } from "./preference-candidate-service";
+import { derivePreferenceCandidates, derivePreferenceCandidatesWithPolicy } from "./preference-candidate-service";
 
 function event(id: string, value: number, artifactId: string, overrides: Partial<ExperienceEvent> = {}): ExperienceEvent {
   return {
@@ -36,3 +36,12 @@ assert.equal(derivePreferenceCandidates([
   event("agent-3", 120, "c", { actor: "AGENT", learningEligible: false }),
 ], subject).length, 0, "agent-authored evidence must not create candidates");
 console.log("Preference candidate thresholds and adversarial policy tests passed.");
+
+void derivePreferenceCandidatesWithPolicy(repeated, subject, undefined, {
+  enabled: true,
+  preferenceInferenceEnabled: false,
+  projectRetrospectivesEnabled: true,
+}).then((disabledCandidates) => {
+  assert.equal(disabledCandidates.length, 0, "preference inference kill switch must suppress candidates without deleting evidence");
+  console.log("Preference inference rollback test passed.");
+}).catch((error) => { console.error(error); process.exitCode = 1; });

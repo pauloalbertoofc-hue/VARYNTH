@@ -2,6 +2,7 @@ import { preferenceService } from "./preference-service";
 import { Preference } from "./contracts";
 import { retrieveExperiences } from "./outcome-service";
 import { getExperienceOwnerId } from "./identity";
+import { experienceContextUnavailable, resolveExperienceFeatureFlags, type ExperienceFeatureFlags } from "./feature-flags";
 
 export interface ExperienceContextRequest {
   requester: string;
@@ -24,9 +25,13 @@ export interface ExperienceContext {
   truncated: boolean;
 }
 
-export async function buildExperienceContext(request: ExperienceContextRequest): Promise<ExperienceContext> {
+export async function buildExperienceContext(
+  request: ExperienceContextRequest,
+  featureFlags: ExperienceFeatureFlags = resolveExperienceFeatureFlags(),
+): Promise<ExperienceContext> {
+  if (!featureFlags.enabled) return experienceContextUnavailable();
   const budget = Math.max(0, Math.min(request.budget ?? 12, 50));
-  if (budget === 0) return { preferences: [], experiences: [], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: new Date().toISOString(), truncated: false };
+  if (budget === 0) return experienceContextUnavailable();
   // The current instruction is a precedence rule for the consuming agent, not
   // a reason to erase unrelated preferences from the context. Callers receive
   // both and must let explicit instructions win when they conflict.

@@ -16,6 +16,13 @@ async function run() {
   if (result.initialApproach[0] !== "prototype" || result.importantDecisions[0] !== "accepted" || result.evidence.length !== 2) throw new Error("retrospective assembly failed");
   if (result.successfulExperiences.length !== 1 || result.successfulExperiences[0].id !== "relevant-experience" || result.successfulExperiences[0].evidence[0]?.eventId !== "accepted") throw new Error("retrospective leaked unrelated or cross-account experience");
   if ((await buildProjectRetrospective("  p1  ")).projectId !== "p1") throw new Error("project ID normalization failed");
+  let disabledSafely = false;
+  try {
+    await buildProjectRetrospective("p1", undefined, { enabled: true, preferenceInferenceEnabled: true, projectRetrospectivesEnabled: false });
+  } catch (error) {
+    disabledSafely = error instanceof Error && error.message.includes("EXPERIENCE_FEATURE_DISABLED");
+  }
+  if (!disabledSafely) throw new Error("disabled retrospective flag must fail explicitly without reading or deleting project records");
   let rejectedBlankId = false;
   try { await buildProjectRetrospective("   "); } catch { rejectedBlankId = true; }
   if (!rejectedBlankId) throw new Error("blank project id accepted");

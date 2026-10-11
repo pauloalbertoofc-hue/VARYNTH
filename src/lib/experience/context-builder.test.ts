@@ -19,6 +19,12 @@ async function main() {
   assert.equal(context.preferences.some((preference) => preference.key === "tempo"), false, "global inferred preferences are not shared across agents");
   assert.equal(context.instructionPrecedence, "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION");
   assert.ok(context.preferences.length + context.experiences.length <= 4);
+  const disabled = await buildExperienceContext(
+    { requester: "test", ownerId: "context-owner", agentId: "euterpe", domain: "music", budget: 4 },
+    { enabled: false, preferenceInferenceEnabled: true, projectRetrospectivesEnabled: true },
+  );
+  assert.equal(disabled.preferences.length + disabled.experiences.length, 0, "global rollback disables personalization retrieval without deleting stored records");
+  assert.equal(disabled.instructionPrecedence, "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION");
   const other = await buildExperienceContext({ requester: "test", ownerId: "other-owner", agentId: "euterpe", domain: "music", budget: 4 });
   assert.equal(other.preferences.length, 0, "context is isolated by owner");
   console.log("Experience context builder tests passed");

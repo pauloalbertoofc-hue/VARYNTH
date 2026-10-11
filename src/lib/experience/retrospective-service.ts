@@ -1,6 +1,7 @@
 import { experienceEventRepository, experienceRepository } from "@/lib/persistence/repositories";
 import { ExperienceRecord, EvidenceRef } from "./contracts";
 import { getExperienceOwnerId } from "./identity";
+import { resolveExperienceFeatureFlags, type ExperienceFeatureFlags } from "./feature-flags";
 
 export interface ProjectRetrospective {
   projectId: string;
@@ -13,7 +14,14 @@ export interface ProjectRetrospective {
   generatedAt: string;
 }
 
-export async function buildProjectRetrospective(projectId: string, requestedOwnerId?: string): Promise<ProjectRetrospective> {
+export async function buildProjectRetrospective(
+  projectId: string,
+  requestedOwnerId?: string,
+  featureFlags: ExperienceFeatureFlags = resolveExperienceFeatureFlags(),
+): Promise<ProjectRetrospective> {
+  if (!featureFlags.enabled || !featureFlags.projectRetrospectivesEnabled) {
+    throw new Error("[EXPERIENCE_FEATURE_DISABLED] Retrospectivas de projeto estão desativadas nesta versão.");
+  }
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) throw new Error("[RETROSPECTIVE_INVALID] projectId obrigatório.");
   const ownerId = await getExperienceOwnerId(requestedOwnerId);
