@@ -1,4 +1,8 @@
 type EuterpeSpeechSynthesis = Pick<SpeechSynthesis, "speak" | "cancel"> & Partial<Pick<SpeechSynthesis, "getVoices">>;
+export type EuterpeSpeechStyle = "SWEET" | "NATURAL" | "SERENE";
+const speechStyleSettings: Record<EuterpeSpeechStyle, { rate: number; pitch: number }> = {
+  SWEET: { rate: 0.9, pitch: 1.08 }, NATURAL: { rate: 0.96, pitch: 1.04 }, SERENE: { rate: 0.84, pitch: 1.02 },
+};
 
 /** Prefer a warm Brazilian voice when the browser exposes one; voice catalogs differ by OS. */
 export function selectEuterpeVoice(voices: readonly SpeechSynthesisVoice[], language = "pt-BR"): SpeechSynthesisVoice | undefined {
@@ -16,12 +20,13 @@ export function speakEuterpeText(
   text: string,
   speech: EuterpeSpeechSynthesis,
   createUtterance: (text: string) => SpeechSynthesisUtterance,
+  style: EuterpeSpeechStyle = "SWEET",
 ): SpeechSynthesisUtterance {
   speech.cancel();
   const utterance = createUtterance(text);
   utterance.lang = "pt-BR";
-  utterance.rate = 0.9;
-  utterance.pitch = 1.08;
+  utterance.rate = speechStyleSettings[style].rate;
+  utterance.pitch = speechStyleSettings[style].pitch;
   const voice = speech.getVoices?.();
   const selectedVoice = voice?.length ? selectEuterpeVoice(voice) : undefined;
   if (selectedVoice) utterance.voice = selectedVoice;
