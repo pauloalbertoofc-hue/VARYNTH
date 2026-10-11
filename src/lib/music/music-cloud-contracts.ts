@@ -19,7 +19,7 @@ export type MusicArtworkUploadPayload = {
 export function isMusicArtworkUploadPayload(value: unknown): value is MusicArtworkUploadPayload {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<MusicArtworkUploadPayload>;
-  const mimeTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif", "image/svg+xml"];
+  const mimeTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/apng", "image/avif", "image/svg+xml"];
   return typeof item.assetId === "string" && musicTrackIdPattern.test(item.assetId)
     && (item.kind === "cover" || item.kind === "background")
     && Array.isArray(item.trackIds) && item.trackIds.length > 0 && item.trackIds.length <= MUSIC_ARTWORK_MAX_TRACKS
@@ -60,5 +60,5 @@ export function validMusicBlobPath(pathname: string, namespace: string) {
 
 export function validMusicArtworkBlobPath(pathname: string, namespace: string) {
   return /^[a-f0-9]{32}$/i.test(namespace)
-    && new RegExp(`^music/${namespace}/artwork/[a-f0-9-]{36}\\.(png|jpe?g|webp|gif|avif|svg)(?![\\s\\S])`, "i").test(pathname);
+    && new RegExp(`^music/${namespace}/artwork/[a-f0-9-]{36}\\.(png|jpe?g|webp|gif|apng|avif|svg)(?![\\s\\S])`, "i").test(pathname);
 }

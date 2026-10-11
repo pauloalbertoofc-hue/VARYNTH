@@ -11,6 +11,7 @@ assert.equal(validMusicBlobPath(`music/${ownerA}/tracks/${id}.mp3/other`, ownerA
 assert.equal(validMusicBlobPath(`music/${ownerA}/tracks/${id}.pdf`, ownerA), false);
 assert.equal(validMusicBlobPath(`music/${ownerA}/tracks/${id}.mp3`, "../"), false);
 assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/${id}.gif`, ownerA), true);
+assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/${id}.apng`, ownerA), true, "animated PNG artwork is accepted");
 assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/${id}.webp`, ownerA), true);
 assert.equal(validMusicArtworkBlobPath(`music/${ownerB}/artwork/${id}.png`, ownerA), false);
 assert.equal(validMusicArtworkBlobPath(`music/${ownerA}/artwork/../${id}.png`, ownerA), false);
@@ -27,6 +28,7 @@ assert.equal(isMusicArtworkUploadPayload(uploadPayload), true, "signed upload va
 assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, trackIds: [...manyTrackIds, manyTrackIds[0]] }), false, "signed upload rejects duplicate targets");
 assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, trackIds: Array.from({ length: 5_001 }, (_, index) => `${String(index).padStart(8, "0")}-aaaa-bbbb-cccc-${String(index).padStart(12, "0")}`) }), false, "signed upload rejects selections above the declared ceiling");
 assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, mimeType: "image/svg+xml", sizeBytes: 20 * 1024 * 1024 + 1 }), false, "signed upload enforces image size limits");
+assert.equal(isMusicArtworkUploadPayload({ ...uploadPayload, mimeType: "image/apng" }), true, "signed upload accepts animated PNG artwork");
 const association = buildMusicArtworkAssociationCommand(ownerA, "cover", manyTrackIds, id);
 assert.equal(association[0], "HSET");
 assert.equal(association[1], `varynth:music:artwork:v1:${ownerA}`);

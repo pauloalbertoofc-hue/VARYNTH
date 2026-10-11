@@ -662,7 +662,8 @@ export default function MusicPage() {
   };
   const uploadVisualAsset = async (event: ChangeEvent<HTMLInputElement>, kind: "cover" | "background") => {
     const file = event.target.files?.[0]; event.target.value = "";
-    if (!file || !selectedTrack || !file.type.startsWith("image/")) { if (file) { const status = "Escolha uma imagem animada ou estática válida."; setVisualActionStatus(status); setMessage(status); } return; }
+    const imageExtension = /\.(png|jpe?g|webp|gif|apng|avif|svg)$/i.test(file?.name ?? "");
+    if (!file || !selectedTrack || (!file.type.startsWith("image/") && !imageExtension)) { if (file) { const status = "Escolha uma imagem animada ou estática válida."; setVisualActionStatus(status); setMessage(status); } return; }
     if (!visualProfileReady) { const status = "Carregando o perfil visual desta faixa. Tente novamente em instantes."; setVisualActionStatus(status); setMessage(status); return; }
     if (file.size > 20 * 1024 * 1024) { const status = "A imagem pode ter no máximo 20 MB."; setVisualActionStatus(status); setMessage(status); return; }
     const targetIds = resolveVisualAssetTargetIds(visualAssetScope, selectedTrack.id, visualTargetIds, tracks.map((track) => track.id));
@@ -670,9 +671,11 @@ export default function MusicPage() {
     if (!targets.length) { const status = "Escolha ao menos uma faixa para aplicar a imagem."; setVisualActionStatus(status); setMessage(status); return; }
     try {
       setMessage("Salvando imagem privada da sua conta…");
+      const inferredMime = file.type || ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", apng: "image/apng", avif: "image/avif", svg: "image/svg+xml" }[file.name.split(".").pop()?.toLowerCase() ?? ""] ?? "");
+      const uploadFile = file.type || !inferredMime ? file : new File([file], file.name, { type: inferredMime, lastModified: file.lastModified });
       let dataUrl: string;
       if (musicLibrary.isAccountStorageAvailable()) {
-        await musicLibrary.uploadArtwork(file, kind, targets.map((track) => track.id));
+        await musicLibrary.uploadArtwork(uploadFile, kind, targets.map((track) => track.id));
         const urls = await musicLibrary.getArtworkUrls(selectedTrack.id);
         dataUrl = (kind === "cover" ? urls.coverUrl : urls.backgroundUrl) || "";
         if (!dataUrl) throw new Error("A imagem foi enviada, mas não foi possível confirmar a associação à faixa.");
@@ -683,7 +686,7 @@ export default function MusicPage() {
       await Promise.all(targets.map(async (track) => { const stored = await musicStudio.getVisualProfile(track.id) as VisualProfile | undefined; const base = stored?.schemaVersion === 1 ? stored : createVisualProfile(track.id, track.id === selectedTrack.id ? dna : undefined); await musicStudio.saveVisualProfile({ ...base, ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp }); }));
       const current = { ...(selectedVisualProfile ?? selectedVisualProfileRef ?? createVisualProfile(selectedTrack.id, dna)), ...(kind === "cover" ? { coverDataUrl: dataUrl, coverCleared: false } : { backgroundDataUrl: dataUrl, backgroundCleared: false }), updatedAt: stamp };
       setVisualProfile(current);
-      const label = kind === "cover" ? "Capa" : "Fundo"; const animation = file.type === "image/gif" || file.type === "image/webp" ? " animado" : "";
+      const label = kind === "cover" ? "Capa" : "Fundo"; const animation = inferredMime === "image/gif" || inferredMime === "image/webp" || inferredMime === "image/apng" || /\.(gif|webp|apng)$/i.test(file.name) ? " animado" : "";
       const destination = visualAssetScope === "LIBRARY" ? "em toda a biblioteca" : visualAssetScope === "SELECTED" ? `em ${targets.length} faixas selecionadas` : "nesta faixa";
       const status = `${label}${animation} salvo de forma permanente ${destination}.`; setVisualActionStatus(status); setMessage(status);
     } catch (error) { const status = error instanceof Error ? error.message : "Não foi possível salvar a imagem."; setVisualActionStatus(status); setMessage(status); }
@@ -910,8 +913,8 @@ export default function MusicPage() {
           <label className="flex items-center gap-2 text-xs text-slate-400">Aplicar imagem em<select value={visualAssetScope} onChange={(event) => setVisualAssetScope(event.target.value as VisualAssetScope)} className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-slate-200"><option value="TRACK">Somente esta faixa</option><option value="SELECTED">Faixas específicas</option><option value="LIBRARY">Todas as faixas da biblioteca</option></select></label>
           {visualAssetScope === "SELECTED" && <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2 text-xs text-slate-300">{tracks.map((track) => <label key={track.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-white/5"><input type="checkbox" checked={track.id === selectedTrack?.id || visualTargetIds.includes(track.id)} disabled={track.id === selectedTrack?.id} onChange={() => setVisualTargetIds((ids) => ids.includes(track.id) ? ids.filter((id) => id !== track.id) : [...ids, track.id])} />{track.name}</label>)}</div>}
           <div className="flex flex-wrap gap-2">
-            <label aria-disabled={!visualProfileReady || !selectedTrack} className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 ${visualProfileReady && selectedTrack ? "cursor-pointer" : "cursor-wait opacity-50"}`}>Escolher capa ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" disabled={!visualProfileReady || !selectedTrack || visualBusy} onChange={(e) => void uploadVisualAsset(e, "cover")} /></label>
-            <label aria-disabled={!visualProfileReady || !selectedTrack} className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 ${visualProfileReady && selectedTrack ? "cursor-pointer" : "cursor-wait opacity-50"}`}>Escolher fundo ou GIF<input className="sr-only" type="file" accept="image/gif,image/webp,image/png,image/jpeg,image/avif" disabled={!visualProfileReady || !selectedTrack || visualBusy} onChange={(e) => void uploadVisualAsset(e, "background")} /></label>
+            <label aria-disabled={!visualProfileReady || !selectedTrack} className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 ${visualProfileReady && selectedTrack ? "cursor-pointer" : "cursor-wait opacity-50"}`}>Escolher capa ou imagem animada<input className="sr-only" type="file" accept="image/gif,image/webp,image/apng,image/png,image/jpeg,image/avif,image/svg+xml,.gif,.webp,.apng" disabled={!visualProfileReady || !selectedTrack || visualBusy} onChange={(e) => void uploadVisualAsset(e, "cover")} /></label>
+            <label aria-disabled={!visualProfileReady || !selectedTrack} className={`rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-200 ${visualProfileReady && selectedTrack ? "cursor-pointer" : "cursor-wait opacity-50"}`}>Escolher fundo ou imagem animada<input className="sr-only" type="file" accept="image/gif,image/webp,image/apng,image/png,image/jpeg,image/avif,image/svg+xml,.gif,.webp,.apng" disabled={!visualProfileReady || !selectedTrack || visualBusy} onChange={(e) => void uploadVisualAsset(e, "background")} /></label>
             <button onClick={() => void generateVisualPrompt()} disabled={visualBusy || !selectedTrack || !visualProfileReady} className="rounded-lg border border-violet-300/20 px-3 py-2 text-xs text-violet-200 disabled:cursor-wait disabled:opacity-50">{visualBusy ? "Criando…" : "Criar visual local"}</button>
             <button type="button" data-testid="create-athena-music-artwork" onClick={() => void generateImagesWithAthena()} disabled={visualBusy || !selectedTrack || !visualProfileReady} className="rounded-lg bg-violet-500 px-3 py-2 text-xs text-white disabled:cursor-wait disabled:opacity-50">{visualBusy ? "Athena criando…" : "Criar capa e fundo com Athena"}</button>
             <button type="button" onClick={() => void clearVisualAsset("cover")} disabled={!selectedTrack || !visualProfileReady || visualBusy} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 disabled:cursor-wait disabled:opacity-50">Remover capa</button>
