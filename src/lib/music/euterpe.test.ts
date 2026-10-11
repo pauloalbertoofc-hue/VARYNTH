@@ -98,4 +98,18 @@ const boundedPriorQuote = interpretEuterpeRequest("Explique melhor", { ...contex
 assert.equal(boundedPriorQuote.response.match(/“([^”]*)”/)?.[1].length, 180, "Quoted conversational context must remain bounded");
 const expandedContinue = interpretEuterpeRequest("Me conta mais", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "Music DNA registra tags dark." }, { sender: "user", text: "Me conta mais" }]);
 assert.match(expandedContinue.response, /Music DNA|tags/);
+for (const followUp of ["E aí?", "Mas como?", "Desenvolve", "Pode detalhar?"]) {
+  const resolved = interpretEuterpeRequest(followUp, { ...context, dna: undefined }, [
+    { sender: "user", text: "Descreva a faixa" },
+    { sender: "curator", text: "Ainda não recebi Music DNA para descrever o áudio." },
+    { sender: "user", text: followUp },
+  ]);
+  assert.match(resolved.response, /não recebi Music DNA/i, `${followUp} should continue the prior grounded music response`);
+}
+const preferenceBecause = interpretEuterpeRequest("Gosto de jazz porque me lembra viagens", context, [
+  { sender: "user", text: "O que acha dessa faixa?" },
+  { sender: "curator", text: "A faixa não tem Music DNA." },
+  { sender: "user", text: "Gosto de jazz porque me lembra viagens" },
+]);
+assert.equal(preferenceBecause.proposal?.kind, "preference", "ordinary explanatory clauses must not be misread as conversational why-follow-ups");
 console.log("Euterpe identity, context, structured proposals, and confirmation policy passed.");

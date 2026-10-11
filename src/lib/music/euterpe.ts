@@ -17,8 +17,8 @@ function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conver
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const shortTurn = normalized.split(/\s+/).length <= 10;
   const isWhy = shortTurn && /^(?:(?:mas|e)\s+)?(?:por que|porque|qual o motivo|qual a razao)\b/.test(normalized);
-  const isExplain = shortTurn && /\b(como assim|(?:me )?explica(?:r)?(?: melhor)?|poderia explicar|explique melhor|o que quis dizer|qual delas|me conta mais)\b/.test(normalized);
-  const isContinue = shortTurn && /\b(continua|continue|fala mais|me fala mais|aprofunda|detalha mais|pode desenvolver|desenvolva mais)\b/.test(normalized);
+  const isExplain = shortTurn && /\b(como assim|mas como|e ai|(?:me )?explica(?:r)?(?: melhor)?|poderia explicar|explique melhor|o que quis dizer|qual delas|me conta mais)\b/.test(normalized);
+  const isContinue = shortTurn && /\b(continua|continue|fala mais|me fala mais|aprofunda|detalha mais|desenvolve|desenvolva|pode desenvolver|pode detalhar|me da mais detalhes)\b/.test(normalized);
   if (!isWhy && !isExplain && !isContinue) return undefined;
 
   const currentUserIndex = conversation.map((turn) => turn.sender).lastIndexOf("user");
