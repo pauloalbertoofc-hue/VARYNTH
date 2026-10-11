@@ -92,6 +92,25 @@ void (async () => {
   const detailedRequest = await converseAsSpecialist(agent, { rawPrompt: "Explique passo a passo, com detalhes.", scope: "pesquisa" } as AthenaTask, context);
   assert.doesNotMatch(detailedRequest.content, /Se quiser, posso aprofundar/, "a response that already fulfills an explicit depth request should not append a generic offer");
 
+  const scopedMethodHint = {
+    id: "confirmed-method", domain: "research", context: {}, situation: "revisão de evidências",
+    action: "separar achados de hipóteses antes de recomendar", outcome: "a revisão ficou clara", usefulness: 1, confidence: 0.9,
+    evidence: [{ eventId: "method-event", weight: "VERY_HIGH" as const, reason: "confirmado pelo usuário" }],
+    scope: "AGENT" as const, scopeId: "logos", createdAt: new Date(0).toISOString(),
+  };
+  const specialistMethodHint = await converseAsSpecialist(agent, { rawPrompt: "Avalie a evidência", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    experienceContext: { preferences: [], experiences: [scopedMethodHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  assert.match(specialistMethodHint.content, /Em experiências anteriores, mostrou-se útil: separar achados de hipóteses/);
+  assert.equal(specialistMethodHint.metadata?.sharedExperienceHints, 1);
+  const suppressedMethodHint = await converseAsSpecialist(agent, { rawPrompt: "Avalie a evidência sem usar experiências anteriores.", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    experienceContext: { preferences: [], experiences: [scopedMethodHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  assert.doesNotMatch(suppressedMethodHint.content, /Em experiências anteriores, mostrou-se útil/);
+  assert.equal(suppressedMethodHint.metadata?.sharedExperienceHints, 0);
+
   responseBody = "🔬 **Análise Metodológica & Científica (Logos):**\n\nOs estudos recebidos ainda não permitem uma conclusão firme.";
   const athenaOwned = await converseAsSpecialist(agent, { rawPrompt: "Avalie esta evidência", scope: "pesquisa" } as AthenaTask, {
     ...context,

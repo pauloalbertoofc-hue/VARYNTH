@@ -100,6 +100,15 @@ export function relevantExperienceGuidance(
   );
 }
 
+/** Shared, per-agent method hints for specialists that do not author their own guidance. */
+export function specialistExperienceGuidance(
+  context: ExperienceAwareContext,
+  agentId: string,
+  currentInstruction: string,
+): string[] {
+  return relevantExperienceGuidance(context, agentId, undefined, agentId, currentInstruction).slice(0, 2);
+}
+
 /** Read only explicit confirmed communication preferences for this agent. */
 export function confirmedCommunicationGuidance(context: ExperienceAwareContext, agentId: string, prompt: string): string[] {
   const guidance: string[] = [];

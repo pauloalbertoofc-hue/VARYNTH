@@ -84,6 +84,25 @@ void (async () => {
     assert.doesNotMatch(athenaOwnedResult.content.split("\n")[0], new RegExp(agent.manifest.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), `${agent.manifest.id} must not introduce a second visible chatbot on Athena surfaces`);
   }
 
+  const scopedMethodHint = {
+    id: "persona-method", domain: "writing", context: {}, situation: "rascunho para leitores iniciantes",
+    action: "começar pela ideia central antes dos detalhes", outcome: "o rascunho ficou mais fácil de acompanhar", usefulness: 1, confidence: 0.9,
+    evidence: [{ eventId: "persona-event", weight: "VERY_HIGH" as const, reason: "confirmado pelo usuário" }],
+    scope: "AGENT" as const, scopeId: "sophia", createdAt: new Date(0).toISOString(),
+  };
+  const scopedGuidance = await sophiaAgent.converseWithFeedback!(task("Escreva um texto sobre preservação de rios."), {
+    ...ctx,
+    experienceContext: { preferences: [], experiences: [scopedMethodHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  assert.match(scopedGuidance.content, /Em experiências anteriores, mostrou-se útil: começar pela ideia central/);
+  assert.equal(scopedGuidance.metadata?.sharedExperienceHints, 0, "Sophia already presents her own scoped historical hint; the shared layer must not duplicate it");
+  const isolatedGuidance = await logosAgent.converseWithFeedback!(task("Avalie esta evidência."), {
+    ...ctx,
+    experienceContext: { preferences: [], experiences: [scopedMethodHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  assert.doesNotMatch(isolatedGuidance.content, /começar pela ideia central/);
+  assert.equal(isolatedGuidance.metadata?.sharedExperienceHints, 0, "agent-scoped method history must not leak to another specialist");
+
   const legal = await justitiaAgent.execute(task("Analise a legislação aplicável"), ctx);
   assert.match(legal.content, /não recebi.*tese formal/i);
   assert.equal(legal.metadata?.legalAdvice, false);

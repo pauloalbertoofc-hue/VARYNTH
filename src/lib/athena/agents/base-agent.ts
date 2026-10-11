@@ -3,7 +3,7 @@ import { AthenaContext } from "../domain/context";
 import { AgentExperienceTrace, AgentResult } from "../domain/result";
 import { resolveSpecialistCorrection } from "../conversation/specialist-correction";
 import { athenaConversationFeedback } from "../conversation/quality-feedback";
-import { agentGuidanceInstruction, confirmedAgentGuidance } from "./experience-guidance";
+import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, specialistExperienceGuidance } from "./experience-guidance";
 
 export interface AgentManifest {
   id: string;
@@ -103,9 +103,12 @@ function conversationalizeSpecialistResult(
   // Put the domain answer first: identity and conversational scaffolding must
   // never make a short answer feel like a fresh introduction instead of a reply.
   const responseAudience = context.responseAudience ?? "SPECIALIST";
+  const priorOutcomeHints = specialistExperienceGuidance(context, manifest.id, originalPrompt);
+  const hasExistingExperienceHints = /em experiências anteriores, mostrou-se útil:/i.test(body);
+  const withExperienceGuidance = hasExistingExperienceHints ? body : `${body}${formatExperienceMethodHints(priorOutcomeHints)}`;
   const content = responseAudience === "ATHENA"
-    ? anonymizeSpecialistLead(body, manifest.name)
-    : `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp || asksForDepth ? "" : `\n\n${nextStep}`}`;
+    ? anonymizeSpecialistLead(withExperienceGuidance, manifest.name)
+    : `${withExperienceGuidance}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp || asksForDepth ? "" : `\n\n${nextStep}`}`;
 
   return {
     ...result,
@@ -116,6 +119,7 @@ function conversationalizeSpecialistResult(
       conversationAudience: responseAudience,
       conversationReferenceResolved: usedHistory || result.metadata?.conversationReferenceResolved === true,
       presentationPreferences: { ...(verbosity ? { verbosity } : {}), ...(formality ? { formality } : {}) },
+      sharedExperienceHints: priorOutcomeHints.length > 0 && !hasExistingExperienceHints ? priorOutcomeHints.length : 0,
     },
   };
 }
