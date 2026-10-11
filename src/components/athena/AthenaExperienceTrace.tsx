@@ -61,9 +61,9 @@ export function AthenaExperienceTrace({ metadata }: { metadata?: unknown }) {
             <p className="font-semibold text-slate-300">Agente: {agentName}</p>
             <IdList label="IDs de preferências recuperadas" ids={trace.retrievedPreferenceIds} />
             <IdList label="IDs de experiências recuperadas" ids={trace.retrievedExperienceIds} />
-            <IdList label="IDs com correspondência literal na resposta" ids={trace.experienceIdsReferencedInResponse} />
+            <IdList label="IDs cuja ação aparece literalmente no retorno do especialista" ids={trace.experienceIdsReferencedInResponse} />
             <IdList label="IDs de eventos de evidência referidos" ids={trace.evidenceEventIdsReferencedInResponse} />
-            <p className="text-slate-500">A instrução atual prevalece sobre personalização. Este rastro mostra IDs e correspondências registradas; não prova influência causal nem expõe o conteúdo armazenado.</p>
+            <p className="text-slate-500">A instrução atual prevalece sobre personalização. O retorno do especialista pode ter sido sintetizado ou bloqueado antes da exibição. O rastro mostra IDs e correspondências registradas, não prova influência causal nem expõe o conteúdo armazenado.</p>
           </section>
         ))}
       </div>

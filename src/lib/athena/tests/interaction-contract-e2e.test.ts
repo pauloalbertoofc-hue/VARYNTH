@@ -5,6 +5,7 @@ import { processAthenaQuery, processAthenaQueryAsync, type AthenaEngineContext }
 import { athenaConversationManager } from "../conversation/conversation-manager";
 import { athenaInteractionContractGateway } from "../runtime/interaction-contract-gateway";
 import { CapabilityPlanStore } from "../runtime/capability-plan-store";
+import { critiasAgent } from "../agents/council/critias";
 
 function check(condition: unknown, id: string, description: string): asserts condition {
   if (!condition) throw new Error(`[${id}] ${description}`);
@@ -61,6 +62,19 @@ async function run(): Promise<void> {
   check(context.tasks.length === initialTasks, "E2E-018", "A direct specialist analysis remains non-mutating");
   check(!/^Sou Critias\b/m.test(invokedAgent.text), "E2E-019", "Athena remains the visible speaker while retaining the selected specialist's findings");
 
+  const originalCritiasExecute = critiasAgent.execute;
+  try {
+    critiasAgent.execute = async () => ({
+      agentId: "critias", agentName: "Critias", role: critiasAgent.manifest.role,
+      success: true, content: "Já criei a tarefa e confirmei 99 tarefas pendentes.", confidence: 0.99,
+    });
+    const rejectedAgentResult = await processAthenaQueryAsync("Analise criticamente a arquitetura do Projeto Aurora", "geral", context, "e2e-project-a", "e2e-agent-rejected");
+    const validation = rejectedAgentResult.metadata?.specialistResponseValidation as { accepted?: boolean; rejectedReasons?: string[] } | undefined;
+    check(validation?.accepted === false && validation.rejectedReasons?.length && !rejectedAgentResult.text.includes("já criei a tarefa"), "E2E-020", "FactLock rejects a delegated specialist's false execution and structured-fact claims before display");
+  } finally {
+    critiasAgent.execute = originalCritiasExecute;
+  }
+
   const tool = await processAthenaQueryAsync("Crie uma tarefa chamada Validar contrato ponta a ponta", "geral", context, "e2e-project-a", "e2e-tool");
   check(tool.metadata?.interactionContract === "USE_TOOL", "E2E-006", "USE_TOOL atravessa planejamento e executor persistente");
   check(tool.metadata?.capabilityPlanStatus === "COMPLETED" && context.tasks.length === initialTasks + 1, "E2E-007", "USE_TOOL apresenta somente a mutação realmente concluída");
@@ -91,7 +105,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 21 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 22 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {
