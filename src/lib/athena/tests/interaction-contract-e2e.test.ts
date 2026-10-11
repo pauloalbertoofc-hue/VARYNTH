@@ -59,6 +59,7 @@ async function run(): Promise<void> {
   const traceKeys = Object.keys(traceEntries?.[0]?.trace ?? {}).sort().join(",");
   check(traceKeys === "agentId,evidenceEventIdsReferencedInResponse,experienceIdsReferencedInResponse,instructionPrecedence,retrievedExperienceIds,retrievedPreferenceIds", "E2E-017", "The trace projection exposes only the documented identifier fields, not stored Experience contents");
   check(context.tasks.length === initialTasks, "E2E-018", "A direct specialist analysis remains non-mutating");
+  check(!/^Sou Critias\b/m.test(invokedAgent.text), "E2E-019", "Athena remains the visible speaker while retaining the selected specialist's findings");
 
   const tool = await processAthenaQueryAsync("Crie uma tarefa chamada Validar contrato ponta a ponta", "geral", context, "e2e-project-a", "e2e-tool");
   check(tool.metadata?.interactionContract === "USE_TOOL", "E2E-006", "USE_TOOL atravessa planejamento e executor persistente");
@@ -90,7 +91,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 20 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 21 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {

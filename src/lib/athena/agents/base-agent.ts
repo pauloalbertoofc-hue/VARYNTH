@@ -80,7 +80,10 @@ function conversationalizeSpecialistResult(
   const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
   // Put the domain answer first: identity and conversational scaffolding must
   // never make a short answer feel like a fresh introduction instead of a reply.
-  const content = `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
+  const responseAudience = context.responseAudience ?? "SPECIALIST";
+  const content = responseAudience === "ATHENA"
+    ? body
+    : `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
 
   return {
     ...result,
@@ -88,6 +91,7 @@ function conversationalizeSpecialistResult(
     metadata: {
       ...result.metadata,
       conversationPresentation: true,
+      conversationAudience: responseAudience,
       conversationReferenceResolved: usedHistory || result.metadata?.conversationReferenceResolved === true,
       presentationPreferences: { ...(verbosity ? { verbosity } : {}), ...(formality ? { formality } : {}) },
     },

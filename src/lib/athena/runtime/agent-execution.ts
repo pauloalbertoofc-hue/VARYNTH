@@ -18,6 +18,7 @@ export async function executeAgentWithExperience(
 ): Promise<AgentExecution> {
   const agentContext: AthenaContext = {
     ...context,
+    responseAudience: "ATHENA",
     experienceContext: await prepareAgentExperienceContext(agent.manifest.id, task, context, ownerId),
   };
   const result = agent.converseWithFeedback
