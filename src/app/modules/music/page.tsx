@@ -23,6 +23,7 @@ import { EuterpePresence } from "@/components/music/EuterpePresence";
 import { EuterpeCharacterArtwork } from "@/components/music/EuterpeCharacterArtwork";
 import type { EuterpeVisualState } from "@/lib/music/euterpe-character";
 import { getEuterpeOverlayBridge, type EuterpeNativePlayerState } from "@/lib/music/euterpe-native-bridge";
+import { findAndroidAppUpdate, type AndroidAppRelease } from "@/lib/music/android-app-update";
 import { VisualScene } from "@/components/music/VisualScene";
 import { musicSeekTimeAtPointer } from "@/lib/music/music-playback";
 import { decodeWaveform, MusicEngine } from "@/lib/music/music-engine";
@@ -135,6 +136,9 @@ export default function MusicPage() {
   const [nativeOverlaySupported, setNativeOverlaySupported] = useState(false);
   const [nativeOverlayGranted, setNativeOverlayGranted] = useState(false);
   const [nativeOverlayEnabled, setNativeOverlayEnabled] = useState(false);
+  const [androidAppUpdate, setAndroidAppUpdate] = useState<AndroidAppRelease | null>(null);
+  const [androidUpdateDismissed, setAndroidUpdateDismissed] = useState(false);
+  const [openingAndroidUpdate, setOpeningAndroidUpdate] = useState(false);
   const [reactiveMotion, setReactiveMotion] = useState(true);
   const [focusMode, setFocusMode] = useState(false);
   const [reducedMotionSetting, setReducedMotionSetting] = useState(false);
@@ -174,6 +178,16 @@ export default function MusicPage() {
     if (!bridge) return;
     setNativeOverlaySupported(true);
     void bridge.checkPermission().then((result) => { setNativeOverlaySupported(result.supported); setNativeOverlayGranted(result.granted); setNativeOverlayEnabled(result.enabled); }).catch(() => setNativeOverlaySupported(false));
+  }, []);
+  useEffect(() => {
+    const bridge = getEuterpeOverlayBridge();
+    if (!bridge) return;
+    let active = true;
+    void bridge.getAppInfo()
+      .then((appInfo) => findAndroidAppUpdate(appInfo.version))
+      .then((release) => { if (active && release) setAndroidAppUpdate(release); })
+      .catch(() => undefined);
+    return () => { active = false; };
   }, []);
 
   const reloadLibrary = useCallback(async () => {
@@ -443,6 +457,16 @@ export default function MusicPage() {
       setMessage("Euterpe está flutuando sobre outros apps. A notificação oferece o comando para desativar.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível ativar a personagem flutuante."); }
   }, [nativeOverlayEnabled, nativePlayerState]);
+  const openAndroidUpdate = async () => {
+    const bridge = getEuterpeOverlayBridge();
+    if (!bridge || !androidAppUpdate || openingAndroidUpdate) return;
+    setOpeningAndroidUpdate(true);
+    try {
+      await bridge.openUpdateLink({ url: new URL(androidAppUpdate.url, window.location.origin).href });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível abrir a atualização do Android.");
+    } finally { setOpeningAndroidUpdate(false); }
+  };
   useEffect(() => {
     if (!nativeOverlayEnabled) return;
     const bridge = getEuterpeOverlayBridge();
@@ -817,6 +841,7 @@ export default function MusicPage() {
   return <PageLayout title="Music" subtitle="Player, biblioteca e visualização musical" className={activeView === "now-playing" ? "!overflow-hidden !p-0" : undefined}>
     <div className={activeView === "now-playing" ? "relative h-full min-h-0" : "mx-auto max-w-7xl space-y-5 p-4 sm:p-6"}>
       <nav aria-label="Navegação Music" className={`flex flex-wrap items-center gap-2 ${activeView === "now-playing" ? "absolute left-3 right-3 top-3 z-30 border border-white/10 bg-[#101018]/35 p-2 backdrop-blur-lg sm:left-6 sm:right-6 sm:top-5" : "rounded-xl border border-white/[0.07] bg-[#101018] p-2"}`}>{([ ["home", "Início"], ["library", "Biblioteca"], ["playlists", "Playlists"], ["now-playing", "Tocando agora"] ] as const).map(([view, label]) => <button key={view} onClick={() => setActiveView(view)} aria-current={activeView === view ? "page" : undefined} className={`rounded-lg px-3 py-2 text-xs sm:px-4 sm:text-sm ${activeView === view ? "bg-violet-500/20 text-violet-100" : "text-slate-300 hover:bg-white/[0.08]"}`}>{label}</button>)}<label className={`ml-auto inline-flex cursor-pointer items-center gap-2 rounded-lg bg-violet-500 px-3 py-2 text-xs font-medium text-white sm:px-4 sm:text-sm ${busy ? "pointer-events-none opacity-60" : ""}`}>{busy ? "Importando…" : "Importar músicas"}<input className="sr-only" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus,.webm" multiple onChange={importFiles} disabled={busy} /></label></nav>
+      {androidAppUpdate && !androidUpdateDismissed && <aside role="status" aria-label="Atualização do aplicativo Android" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4.75rem)] z-[60] mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-violet-300/30 bg-[#171329]/95 p-4 text-white shadow-2xl backdrop-blur-xl"><EuterpeCharacterArtwork variant="chibi" state="HAPPY" width={42} label="Euterpe" /><div className="min-w-0 flex-1"><p className="text-sm font-semibold">Euterpe: o VARYNTH {androidAppUpdate.version} está disponível.</p><p className="mt-1 text-xs text-slate-300">Vou abrir o download. O Android pedirá sua confirmação para instalar a atualização.</p></div><button type="button" onClick={() => void openAndroidUpdate()} disabled={openingAndroidUpdate} className="shrink-0 rounded-lg bg-violet-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{openingAndroidUpdate ? "Abrindo…" : "Atualizar"}</button><button type="button" aria-label="Dispensar aviso de atualização" onClick={() => setAndroidUpdateDismissed(true)} className="rounded-lg px-2 py-2 text-sm text-slate-300 hover:bg-white/10">×</button></aside>}
       <section hidden={activeView !== "home"} className="relative overflow-hidden rounded-3xl border border-violet-400/15 bg-gradient-to-br from-[#171329] via-[#10111d] to-[#0c1118] p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
         <div className="relative grid gap-7 lg:grid-cols-[1fr_340px] lg:items-center">

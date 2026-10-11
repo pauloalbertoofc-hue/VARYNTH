@@ -4,6 +4,8 @@ import type { EuterpeVisualState } from "@/lib/music/euterpe-character";
 export type EuterpeNativePlayerState = { state: EuterpeVisualState; title: string; artist: string; playing: boolean; coverDataUrl?: string };
 
 export type EuterpeOverlayBridge = {
+  getAppInfo(): Promise<{ version: string; build: number }>;
+  openUpdateLink(options: { url: string }): Promise<void>;
   checkPermission(): Promise<{ supported: boolean; granted: boolean; notificationsGranted: boolean; enabled: boolean }>;
   requestNotificationPermission(): Promise<{ granted: boolean }>;
   show(options: EuterpeNativePlayerState): Promise<{ enabled: boolean; permissionRequired: boolean }>;

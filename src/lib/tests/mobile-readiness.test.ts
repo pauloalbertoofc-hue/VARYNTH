@@ -3,7 +3,7 @@
  * Validates responsive shell, touch operability, pointer events, PWA readiness,
  * dynamic viewports, and capability honesty.
  *
- * Test Codes: MOBILE-REG-001 .. MOBILE-REG-032
+ * Test Codes: MOBILE-REG-001 .. MOBILE-REG-037
  */
 
 import fs from "fs";
@@ -142,7 +142,7 @@ assert(
 const downloadPageContent = fs.readFileSync(path.join(SRC_DIR, "components/public/AppDownloadPage.tsx"), "utf-8");
 const releaseManifest = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, "downloads/release.json"), "utf-8")) as {
   latestVersion: string;
-  channels: { android: { version: string; url: string; sizeBytes: number; sha256: string } };
+  channels: { android: { version: string; url: string; sizeBytes: number; sha256: string; requiresManualInstall: boolean } };
 };
 const androidRelease = releaseManifest.channels.android;
 assert(
@@ -200,6 +200,25 @@ assert(
     dynamicManifestRoute.includes("/api/app-icon?v=") &&
     appIconSettingsContent.includes("Aplicar para todos"),
   "The owner-only setting persists one icon for the public icon endpoint and versioned install manifest"
+);
+
+// MOBILE-REG-037: The Android Music app can discover and hand off a verified update link
+const musicPageContent = fs.readFileSync(path.join(SRC_DIR, "app/modules/music/page.tsx"), "utf-8");
+const updateDiscoveryContent = fs.readFileSync(path.join(SRC_DIR, "lib/music/android-app-update.ts"), "utf-8");
+const nativeUpdateBridgeContent = fs.readFileSync(path.join(SRC_DIR, "lib/music/euterpe-native-bridge.ts"), "utf-8");
+const nativeUpdatePluginContent = fs.readFileSync(path.resolve(process.cwd(), "apps/mobile/android/app/src/main/java/com/varynth/os/EuterpeOverlayPlugin.java"), "utf-8");
+assert(
+  "MOBILE-REG-037",
+  "Android Music announces newer app builds and opens only the signed VARYNTH package path",
+  "STATIC_CONTRACT",
+  releaseManifest.latestVersion === androidRelease.version &&
+    androidRelease.requiresManualInstall === true &&
+    musicPageContent.includes("findAndroidAppUpdate") && musicPageContent.includes("Euterpe: o VARYNTH") &&
+    updateDiscoveryContent.includes('"/downloads/release.json"') && updateDiscoveryContent.includes("compareAppVersions") &&
+    nativeUpdateBridgeContent.includes("getAppInfo()") && nativeUpdateBridgeContent.includes("openUpdateLink") &&
+    nativeUpdatePluginContent.includes("getAppInfo") && nativeUpdatePluginContent.includes("Intent.ACTION_VIEW") &&
+    nativeUpdatePluginContent.includes("varynth-ynqv-plum.vercel.app") && nativeUpdatePluginContent.includes("call.reject(\"O endereço desta atualização não é confiável.\")"),
+  "The installed Android app receives an Euterpe update notice; the native handoff rejects untrusted URLs and retains Android's install confirmation"
 );
 
 // MOBILE-REG-009: Backup payload round-trip remains 100% agnostic across device formats

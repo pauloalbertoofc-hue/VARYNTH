@@ -54,6 +54,41 @@ public class EuterpeOverlayPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getAppInfo(PluginCall call) {
+        try {
+            android.content.pm.PackageInfo info = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
+            JSObject result = new JSObject();
+            result.put("version", info.versionName == null ? "0.0.0" : info.versionName);
+            result.put("build", Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ? info.getLongVersionCode() : info.versionCode);
+            call.resolve(result);
+        } catch (android.content.pm.PackageManager.NameNotFoundException error) {
+            call.reject("Não foi possível ler a versão instalada do VARYNTH.", error);
+        }
+    }
+
+    @PluginMethod
+    public void openUpdateLink(PluginCall call) {
+        Uri uri = Uri.parse(call.getString("url", ""));
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        boolean trusted = "https".equals(uri.getScheme())
+            && "varynth-ynqv-plum.vercel.app".equals(uri.getHost())
+            && uri.getQuery() == null && uri.getFragment() == null
+            && path.matches("^/downloads/varynth-android-\\d+(?:\\.\\d+){1,3}-debug\\.apk$");
+        if (!trusted) {
+            call.reject("O endereço desta atualização não é confiável.");
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (RuntimeException error) {
+            call.reject("Não foi possível abrir a atualização no navegador.", error);
+        }
+    }
+
+    @PluginMethod
     public void checkPermission(PluginCall call) {
         JSObject result = new JSObject();
         result.put("supported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.M);
