@@ -2,6 +2,9 @@ import type { AthenaEngineContext } from "../engine";
 import { processAthenaQueryAsync } from "../engine";
 import { athenaConversationManager } from "../conversation/conversation-manager";
 import { athenaConversationStore } from "../conversation/conversation-store";
+import { experienceEventRepository, experienceRepository } from "@/lib/persistence/repositories";
+import { experienceService } from "@/lib/experience/experience-service";
+import { retainExperience } from "@/lib/experience/outcome-service";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -14,6 +17,7 @@ const context: AthenaEngineContext = {
 };
 
 async function run(): Promise<void> {
+  await Promise.all([experienceEventRepository.clear(), experienceRepository.clear()]);
   for (const [index, question] of [
     "Quais tarefas eu tenho?",
     "Tem coisa pendente?",
@@ -64,7 +68,36 @@ async function run(): Promise<void> {
   const greeting = await processAthenaQueryAsync("Oi Athena", "geral", context, undefined, "communication-greeting");
   assert(!greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural without leaking another account name");
 
-  console.log("✓ Colloquial task queries, image ideation, incomplete fragments, Vault handoff and genuine greetings communicate correctly");
+  const outcomeEvent = await experienceService.record({
+    ownerId: "local-owner", actor: "USER", actionType: "OUTCOME_RECORDED", metadata: { reviewed: true },
+    source: "project-retrospective", privacyScope: "PROJECT_SHARED", learningEligible: true, projectId: "communication-project",
+  });
+  await retainExperience({
+    ownerId: "local-owner", domain: "creativity", context: {}, situation: "As primeiras propostas estavam genéricas",
+    action: "Relacionar cada proposta ao objetivo visual do projeto", outcome: "A direção foi escolhida com menos revisões",
+    usefulness: 0.9, evidence: [{ eventId: outcomeEvent.id, weight: "HIGH", reason: "retrospectiva confirmada" }],
+    scope: "PROJECT", scopeId: "communication-project",
+  });
+  const projectContext: AthenaEngineContext = {
+    ...context,
+    experienceOwnerId: "local-owner",
+    projects: [{
+      id: "communication-project", title: "Identidade visual", description: "Projeto de teste", category: "experimento",
+      status: "ativo", priority: "media", tags: [], createdAt: "2026-10-10", updatedAt: "2026-10-10",
+    }],
+  };
+  const projectIdeas = await processAthenaQueryAsync("Me dê ideias para este projeto", "geral", projectContext, "communication-project", "communication-project-experience");
+  assert(projectIdeas.text.includes("Experiência registrada neste projeto") && projectIdeas.text.includes("menos revisões"), "Deterministic Athena should use a positive retained outcome for the exact active project as a method reference");
+  const appliedExperienceIds = ((projectIdeas.metadata?.experienceContext as { appliedExperienceIds?: string[] } | undefined)?.appliedExperienceIds) ?? [];
+  assert(appliedExperienceIds.length === 1, "The response trace should identify the exact experience record it used");
+
+  const suppressedIdeas = await processAthenaQueryAsync("Me dê ideias para este projeto sem usar experiências anteriores", "geral", projectContext, "communication-project", "communication-project-no-history");
+  assert(!suppressedIdeas.text.includes("Experiência registrada neste projeto"), "Explicit current instruction must suppress historical guidance");
+
+  const otherProjectIdeas = await processAthenaQueryAsync("Me dê ideias para outro projeto", "geral", projectContext, "another-project", "communication-other-project");
+  assert(!otherProjectIdeas.text.includes("Experiência registrada neste projeto"), "Project outcome must not cross into another project");
+
+  console.log("✓ Athena colloquial conversation, real project-outcome retrieval, instruction override and project isolation passed");
 }
 
 run().catch((error) => {

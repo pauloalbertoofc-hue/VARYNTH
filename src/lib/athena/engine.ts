@@ -37,6 +37,8 @@ import { processStudioConversation } from "./conversation/studio-continuity";
 import { athenaConversationFeedback } from "./conversation/quality-feedback";
 import { buildExperienceContext } from "@/lib/experience/context-builder";
 import { applyConfirmedCommunicationStyle } from "@/lib/experience/communication-style";
+import type { ExperienceContext } from "@/lib/experience/context-builder";
+import { buildProjectExperienceGuidance } from "./persona/project-experience-guidance";
 
 export interface AthenaEngineContext {
   experienceOwnerId?: string;
@@ -342,6 +344,7 @@ export async function processAthenaQueryAsync(
   // Personalization is restricted to manually confirmed, allowlisted style enums.
   // Fetch separately from cognitive recall so the deterministic path stays offline-safe.
   let responseIntent = plannedResponseIntent;
+  let deterministicExperienceContext: ExperienceContext | undefined;
   try {
     const communicationContext = await buildExperienceContext({
       requester: ctx.experienceOwnerId ? `user:${ctx.experienceOwnerId}` : "local-owner",
@@ -351,8 +354,9 @@ export async function processAthenaQueryAsync(
       projectId: resolvedProjectId,
       sessionId,
       currentInstruction: prompt,
-      budget: 12,
+      budget: 16,
     });
+    deterministicExperienceContext = communicationContext;
     responseIntent = applyConfirmedCommunicationStyle(plannedResponseIntent, communicationContext.preferences, prompt);
   } catch {
     // Personalization is optional; retain the deterministic baseline on storage errors.
@@ -491,7 +495,14 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     )
   );
 
-  const finalText = enforceResponseQuality(prompt, parsed, result.text, sessionId, resolvedProjectId);
+  const projectExperienceGuidance = parsed.intents.some((intent) => intent === "BRAINSTORM" || intent === "RECOMMEND")
+    ? buildProjectExperienceGuidance({
+        records: deterministicExperienceContext?.experiences ?? [],
+        projectId: resolvedProjectId,
+        currentInstruction: prompt,
+      })
+    : { text: "", experienceIds: [] };
+  const finalText = enforceResponseQuality(prompt, parsed, `${result.text}${projectExperienceGuidance.text}`, sessionId, resolvedProjectId);
 
   // Record in History for future turns / ellipses
   athenaConversationManager.recordAssistantResponse(
@@ -509,6 +520,12 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     scope,
     metadata: {
       engine: "deterministic-core",
+      ...(projectExperienceGuidance.experienceIds.length ? {
+        experienceContext: {
+          appliedExperienceIds: projectExperienceGuidance.experienceIds,
+          instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION",
+        },
+      } : {}),
       debug: {
         interactionType: parsed.interactionType,
         detectedIntents: parsed.intents,
