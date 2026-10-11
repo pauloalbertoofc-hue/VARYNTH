@@ -53,7 +53,7 @@ assert(
 );
 
 // MOBILE-REG-002: Sidebar collapses into overlay drawer on mobile viewports with backdrop
-const sidebarContent = fs.readFileSync(path.join(SRC_DIR, "components/layout/Sidebar.tsx"), "utf-8");
+const sidebarContent = fs.readFileSync(path.join(SRC_DIR, "components/layout/Sidebar.tsx"), "utf-8").replace(/\r\n/g, "\n");
 assert(
   "MOBILE-REG-002",
   "Sidebar collapses into overlay drawer on mobile viewports with backdrop",
@@ -140,6 +140,11 @@ assert(
 
 // MOBILE-REG-033: The public app page offers honest, platform-specific installation guidance
 const downloadPageContent = fs.readFileSync(path.join(SRC_DIR, "components/public/AppDownloadPage.tsx"), "utf-8");
+const releaseManifest = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, "downloads/release.json"), "utf-8")) as {
+  latestVersion: string;
+  channels: { android: { version: string; url: string; sizeBytes: number; sha256: string } };
+};
+const androidRelease = releaseManifest.channels.android;
 assert(
   "MOBILE-REG-033",
   "Public app page explains installation for mobile and desktop",
@@ -148,8 +153,12 @@ assert(
     downloadPageContent.includes("iPhone e iPad") &&
     downloadPageContent.includes("Computador") &&
     downloadPageContent.includes("beforeinstallprompt") &&
-    downloadPageContent.includes("Não há arquivo APK"),
-  "The install guide covers available device families, native browser prompt, and current package availability"
+    downloadPageContent.includes(`APK Android ${androidRelease.version}`) &&
+    downloadPageContent.includes(androidRelease.url) &&
+    releaseManifest.latestVersion === androidRelease.version &&
+    fs.existsSync(path.join(PUBLIC_DIR, androidRelease.url.replace(/^\//, ""))) &&
+    fs.statSync(path.join(PUBLIC_DIR, androidRelease.url.replace(/^\//, ""))).size === androidRelease.sizeBytes,
+  "The install guide links the exact latest Android package and its release manifest"
 );
 
 // MOBILE-REG-034: PWA manifest references a first-party app icon

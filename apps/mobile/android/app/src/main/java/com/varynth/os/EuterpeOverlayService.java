@@ -244,18 +244,39 @@ public class EuterpeOverlayService extends Service {
     private void startGentleMotion() {
         if (avatar == null) return;
         if (motionAnimator != null) motionAnimator.cancel();
-        ObjectAnimator floatMotion = ObjectAnimator.ofFloat(avatar, View.TRANSLATION_Y, 0f, -dp("SLEEP".equals(currentState) ? 2 : 6));
-        floatMotion.setDuration("SLEEP".equals(currentState) ? 3600 : 2200);
+        EuterpeMotionProfile profile = EuterpeMotionProfile.forState(currentState);
+        ObjectAnimator floatMotion = ObjectAnimator.ofFloat(avatar, View.TRANSLATION_Y, 0f, -dp(profile.bobDp));
+        floatMotion.setDuration(profile.bobDurationMs);
         floatMotion.setRepeatCount(ValueAnimator.INFINITE);
         floatMotion.setRepeatMode(ValueAnimator.REVERSE);
         floatMotion.setInterpolator(new AccelerateDecelerateInterpolator());
-        ObjectAnimator sway = ObjectAnimator.ofFloat(avatar, View.ROTATION, -1.2f, 1.2f);
-        sway.setDuration("SLEEP".equals(currentState) ? 5000 : 3300);
+        ObjectAnimator sway = ObjectAnimator.ofFloat(avatar, View.ROTATION, -profile.tiltDegrees, profile.tiltDegrees);
+        sway.setDuration(profile.tiltDurationMs);
         sway.setRepeatCount(ValueAnimator.INFINITE);
         sway.setRepeatMode(ValueAnimator.REVERSE);
         sway.setInterpolator(new AccelerateDecelerateInterpolator());
         motionAnimator = new AnimatorSet();
         motionAnimator.playTogether(floatMotion, sway);
+        if (profile.sideDurationMs > 0 && profile.sideDp > 0) {
+            ObjectAnimator sideMotion = ObjectAnimator.ofFloat(avatar, View.TRANSLATION_X, -dp(profile.sideDp), dp(profile.sideDp));
+            sideMotion.setDuration(profile.sideDurationMs);
+            sideMotion.setRepeatCount(ValueAnimator.INFINITE);
+            sideMotion.setRepeatMode(ValueAnimator.REVERSE);
+            sideMotion.setInterpolator(new AccelerateDecelerateInterpolator());
+            motionAnimator.playTogether(sideMotion);
+        }
+        if (profile.pulseDurationMs > 0 && profile.pulseScale > 1f) {
+            ObjectAnimator pulse = ObjectAnimator.ofFloat(avatar, View.SCALE_X, 1f, profile.pulseScale);
+            ObjectAnimator pulseY = ObjectAnimator.ofFloat(avatar, View.SCALE_Y, 1f, profile.pulseScale);
+            pulse.setDuration(profile.pulseDurationMs);
+            pulseY.setDuration(profile.pulseDurationMs);
+            for (ObjectAnimator animator : new ObjectAnimator[] { pulse, pulseY }) {
+                animator.setRepeatCount(ValueAnimator.INFINITE);
+                animator.setRepeatMode(ValueAnimator.REVERSE);
+                animator.setInterpolator(new AccelerateDecelerateInterpolator());
+            }
+            motionAnimator.playTogether(pulse, pulseY);
+        }
         motionAnimator.start();
     }
 
@@ -308,6 +329,7 @@ public class EuterpeOverlayService extends Service {
 
     private void savePosition() { getSharedPreferences("euterpe-overlay", MODE_PRIVATE).edit().putInt("x", layout.x).putInt("y", layout.y).apply(); }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private float dp(float value) { return value * getResources().getDisplayMetrics().density; }
 
     @Override
     public void onDestroy() {
