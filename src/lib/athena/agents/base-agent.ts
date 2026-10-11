@@ -251,12 +251,12 @@ export async function converseAsSpecialist(
       metadata: { conversationRepair: true, executedDomainWork: false, authority: agent.manifest.persona.authorityBoundary },
     };
   }
-  const { instructions: conversationalInstructions } = conversationalStyleInstructions(task.rawPrompt, context, agent.manifest.id);
+  const { instructions: conversationalInstructions, verbosity, formality } = conversationalStyleInstructions(task.rawPrompt, context, agent.manifest.id);
   const resolution = resolveAgentFollowUp(correction.prompt, context);
   const resolvedTask = resolution.prompt === correction.prompt ? task : { ...task, rawPrompt: resolution.prompt };
   const executionTask = correction.repaired ? { ...resolvedTask, rawPrompt: correction.prompt } : resolvedTask;
   const taskForExecution = conversationalInstructions.length
-    ? { ...executionTask, rawPrompt: `${executionTask.rawPrompt}\n\nPreferências de apresentação para esta resposta (sem alterar o objetivo): ${conversationalInstructions.join(" ")}` }
+    ? { ...executionTask, metadata: { ...executionTask.metadata, presentationPreferences: { ...(verbosity ? { verbosity } : {}), ...(formality ? { formality } : {}), instructions: conversationalInstructions } } }
     : executionTask;
   const result = await agent.execute(taskForExecution, context);
   const presented = conversationalizeSpecialistResult(result, agent.manifest, task.rawPrompt, resolution.usedHistory || correction.repaired === true, context);

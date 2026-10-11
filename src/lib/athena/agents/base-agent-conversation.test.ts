@@ -81,19 +81,22 @@ void (async () => {
     ...context,
     experienceContext: { preferences: [{ key: "verbosity", value: "concise", status: "CONFIRMED", source: "MANUAL", scope: "GLOBAL", domain: "communication" }] },
   } as unknown as AthenaContext);
-  assert.match(receivedPrompt, /Preferências de apresentação.*Responda de forma concisa/);
+  assert.equal(receivedPrompt, "Explica em poucas palavras", "presentation guidance must not contaminate domain intent or reference resolution");
+  assert.deepEqual((informal.metadata?.presentationPreferences as { verbosity?: string })?.verbosity, "concise");
   assert.doesNotMatch(informal.content, /Sou Logos — avalio como uma afirmação é sustentada/);
   assert.doesNotMatch(informal.content, /Se quiser, posso aprofundar/);
   assert.match(informal.content, /Resposta revisada/);
   assert.ok(informal.content.startsWith("Resposta revisada"), "The specialist should answer the current request before identity and follow-up scaffolding");
 
   const registerMatched = await converseAsSpecialist(agent, { rawPrompt: "Vc pode me dar uma força nisso?", scope: "pesquisa" } as AthenaTask, context);
-  assert.match(receivedPrompt, /Use registro informal respeitoso/);
+  assert.equal(receivedPrompt, "Vc pode me dar uma força nisso?");
+  assert.equal((registerMatched.metadata?.presentationPreferences as { formality?: string })?.formality, "informal");
   assert.deepEqual(registerMatched.metadata?.presentationPreferences, { formality: "informal" }, "A clear informal register may guide this reply without being persisted as a preference");
   assert.ok(registerMatched.content.startsWith("Resposta revisada"));
   assert.doesNotMatch(registerMatched.content, /Se quiser, posso aprofundar/);
   const formalRegister = await converseAsSpecialist(agent, { rawPrompt: "Poderia, por gentileza, revisar esta análise?", scope: "pesquisa" } as AthenaTask, context);
-  assert.match(receivedPrompt, /Use registro formal, claro e natural/);
+  assert.equal(receivedPrompt, "Poderia, por gentileza, revisar esta análise?");
+  assert.equal((formalRegister.metadata?.presentationPreferences as { formality?: string })?.formality, "formal");
   assert.deepEqual(formalRegister.metadata?.presentationPreferences, { formality: "formal" }, "A clear formal register may guide this reply without being persisted as a preference");
   assert.doesNotMatch(formalRegister.content, /Caso deseje, posso aprofundar/);
 
