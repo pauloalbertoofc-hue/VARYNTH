@@ -28,7 +28,7 @@ Esta auditoria inicia a especificação `VARYNTH VISUAL ECOSYSTEM`. O checkout f
 ## Limitações confirmadas
 
 - Não há ainda contrato universal versionado para documentos visuais abrangendo raster, vetor, procedural, shader, 3D, dependências e proveniência completa.
-- Image Studio não equivale ainda a um editor profissional completo: pintura, vetor, nós, shaders, 3D, câmera e análise científica não estão implementados como capacidades reais.
+- Image Studio não equivale ainda a um editor profissional completo: nós, shaders, 3D e análise científica continuam fora do escopo implementado; Camera, Digital Painting e Vector Studio já existem como módulos locais integrados, com limites explícitos.
 - O registro atual mistura estúdios de produção existentes com a futura separação Capture/Enhance/Edit/Create/Analyze/Produce.
 - Capacidades de hardware e GPU não devem ser anunciadas antes de um adapter real e de um estado explícito de suporte/permissão.
 
