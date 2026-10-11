@@ -701,7 +701,7 @@ test("keeps an explicitly removed account cover cleared when another device has 
 });
 
 test("keeps Euterpe conversations and Athena sessions separate when the signed-in account changes", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   let currentUserId = "music-owner-a";
   await page.addInitScript(() => {
     class FakeUtterance {
@@ -714,8 +714,8 @@ test("keeps Euterpe conversations and Athena sessions separate when the signed-i
       cancel() {},
       speak(utterance: FakeUtterance) {
         localStorage.setItem("music-euterpe-spoken-response", utterance.text);
-        utterance.onstart?.();
-        queueMicrotask(() => utterance.onend?.());
+        window.setTimeout(() => utterance.onstart?.(), 0);
+        window.setTimeout(() => utterance.onend?.(), 5_000);
       },
     } });
   });
@@ -726,8 +726,8 @@ test("keeps Euterpe conversations and Athena sessions separate when the signed-i
     chat: "varynth_music_curator_chat_v1:account:music-owner-a",
     session: "varynth_music_curator_athena_session_v1:account:music-owner-a",
   }));
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.session)).toBeTruthy();
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.chat)).toContain("Euterpe online");
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.session), { timeout: 60_000 }).toBeTruthy();
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.chat), { timeout: 60_000 }).toContain("Euterpe online");
   await page.locator('[data-testid="euterpe-presence"] button').click();
   await page.getByRole("button", { name: "Conversar", exact: true }).click();
   const autoVoice = page.getByRole("button", { name: "Ativar respostas faladas da Euterpe" });
@@ -737,6 +737,9 @@ test("keeps Euterpe conversations and Athena sessions separate when the signed-i
   await page.getByLabel("Mensagem para Euterpe").fill("Oi!");
   await page.getByRole("button", { name: "Enviar para Euterpe" }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("music-euterpe-spoken-response"))).toBeTruthy();
+  const euterpe = page.getByTestId("euterpe-presence");
+  await expect(euterpe).toHaveAttribute("data-state", "SPEAKING");
+  await expect.poll(() => euterpe.locator("img").evaluate((image) => getComputedStyle(image).animationName)).toBe("euterpe-speak");
   await page.evaluate(({ chat, session }) => {
     localStorage.setItem(chat, JSON.stringify([{ id: "private-a", sender: "user", text: "conversa privada da conta A", createdAt: new Date().toISOString() }]));
     localStorage.setItem(session, "athena-session-account-a");
