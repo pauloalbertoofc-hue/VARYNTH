@@ -25,6 +25,7 @@ jobs:
       - run: npm run test:game-studio
       - name: Verify Athena conversation and specialist quality
         run: |
+          npm run test:experience:inspector
           npm run test:athena-system
           npm run test:athena-response-quality
           npm run test:athena-intelligence

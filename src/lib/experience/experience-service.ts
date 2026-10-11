@@ -56,6 +56,8 @@ export class ExperienceService {
       experiencePreferenceRepository.getAll((item) => item.ownerId === ownerId && item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
       experienceRepository.getAll((item) => item.ownerId === ownerId && item.evidence.some((evidence) => evidence.eventId === eventIdToForget)),
     ]);
+    const invalidatedPreferenceIds = new Set(preferences.map((item) => item.id));
+    const invalidatedExperienceIds = new Set(experiences.map((item) => item.id));
     for (const preference of preferences) {
       const evidence = preference.evidence.filter((item) => item.eventId !== eventIdToForget);
       if (evidence.length) await experiencePreferenceRepository.save({ ...preference, evidence, confidence: confidenceFromEvidence(evidence), updatedAt: new Date().toISOString() });
@@ -66,6 +68,17 @@ export class ExperienceService {
       const evidence = experience.evidence.filter((item) => item.eventId !== eventIdToForget);
       if (evidence.length) await experienceRepository.save({ ...experience, evidence, confidence: confidenceFromEvidence(evidence) });
       else await experienceRepository.delete(experience.id);
+    }
+    const decisionTraces = await experienceEventRepository.getAll((item) => item.ownerId === ownerId && item.actionType === "EXPERIENCE_CONTEXT_RETRIEVED");
+    for (const trace of decisionTraces) {
+      const retrievedPreferences = Array.isArray(trace.metadata.retrievedPreferenceIds) ? trace.metadata.retrievedPreferenceIds : [];
+      const retrievedExperiences = Array.isArray(trace.metadata.retrievedExperienceIds) ? trace.metadata.retrievedExperienceIds : [];
+      const citedEvents = Array.isArray(trace.metadata.evidenceEventIdsReferencedInResponse) ? trace.metadata.evidenceEventIdsReferencedInResponse : [];
+      if (trace.id !== eventIdToForget && (retrievedPreferences.some((id) => typeof id === "string" && invalidatedPreferenceIds.has(id))
+        || retrievedExperiences.some((id) => typeof id === "string" && invalidatedExperienceIds.has(id))
+        || citedEvents.includes(eventIdToForget))) {
+        await experienceEventRepository.delete(trace.id);
+      }
     }
     return experienceEventRepository.delete(eventIdToForget);
   }

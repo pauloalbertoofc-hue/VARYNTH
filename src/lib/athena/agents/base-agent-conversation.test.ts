@@ -3,6 +3,7 @@ import type { AthenaTask } from "../domain/task";
 import type { AthenaContext } from "../domain/context";
 import { athenaConversationFeedback } from "../conversation/quality-feedback";
 import { converseAsSpecialist, type AthenaAgent } from "./base-agent";
+import { experienceEventRepository } from "@/lib/persistence/repositories";
 
 void (async () => {
   const sessionId = `specialist-repair-${Date.now()}-${Math.random()}`;
@@ -136,7 +137,8 @@ void (async () => {
     scope: "PROJECT" as const, scopeId: "trace-project", createdAt: new Date(0).toISOString(),
   };
   responseBody = "Resposta revisada: separar premissas e evidências antes da conclusão.";
-  const traced = await converseAsSpecialist(agent, { rawPrompt: "Avalie a análise", scope: "pesquisa" } as AthenaTask, {
+  const traceTaskId = "decision-trace-integration-test";
+  const traced = await converseAsSpecialist(agent, { id: traceTaskId, rawPrompt: "Avalie a análise", scope: "pesquisa" } as AthenaTask, {
     ...context,
     activeProject: { id: "trace-project", title: "Projeto de teste", description: "", category: "pesquisa", status: "ativo", priority: "media", tags: [], createdAt: "", updatedAt: "" },
     experienceContext: { preferences: [], experiences: [priorOutcome], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
@@ -146,6 +148,12 @@ void (async () => {
   assert.deepEqual(trace.experienceIdsReferencedInResponse, ["trace-experience"]);
   assert.deepEqual(trace.evidenceEventIdsReferencedInResponse, ["trace-event"]);
   assert.equal(trace.instructionPrecedence, "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION");
+  const persistedTrace = await experienceEventRepository.getById(`experience-trace:logos:${traceTaskId}`);
+  assert.ok(persistedTrace, "A real specialist response with retrieved Experience must persist an inspectable trace event");
+  assert.equal(persistedTrace.learningEligible, false);
+  assert.equal(persistedTrace.privacyScope, "AGENT_PRIVATE");
+  assert.deepEqual(persistedTrace.metadata.retrievedExperienceIds, ["trace-experience"]);
+  assert.equal(JSON.stringify(persistedTrace).includes("Resposta revisada"), false, "The persisted trace must not copy conversation text");
   responseBody = "Resposta revisada";
 
   athenaConversationFeedback.record({ sessionId, messageId: "response-2", agentId: "logos", category: "WRONG_ACTION" });

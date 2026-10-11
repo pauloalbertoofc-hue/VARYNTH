@@ -20,3 +20,5 @@ export * from "./preference-candidate-service";
 export * from "./identity";
 export * from "./legacy-migration-service";
 export * from "./feature-flags";
+export * from "./decision-trace";
+export * from "./inspector";

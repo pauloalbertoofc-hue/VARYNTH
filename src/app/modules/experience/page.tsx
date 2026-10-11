@@ -6,7 +6,7 @@ import { experienceService } from "@/lib/experience/experience-service";
 import { preferenceService } from "@/lib/experience/preference-service";
 import { learningExclusionService } from "@/lib/experience/learning-exclusion-service";
 import { derivePreferenceCandidatesWithPolicy } from "@/lib/experience/preference-candidate-service";
-import type { ExperienceEvent, LearningExclusion, LearningExclusionScope, Preference, PreferenceCandidate } from "@/lib/experience";
+import type { ExperienceEvent, ExperienceRecord, LearningExclusion, LearningExclusionScope, Preference, PreferenceCandidate } from "@/lib/experience";
 import { experienceRepository } from "@/lib/persistence/repositories";
 import { confidenceFromEvidence } from "@/lib/experience/signals";
 import { getExperienceOwnerId } from "@/lib/experience/identity";
@@ -15,10 +15,12 @@ import { EXPERIENCE_AGENT_CATALOG } from "@/lib/experience/agent-catalog";
 import { buildProjectRetrospective, type ProjectRetrospective } from "@/lib/experience/retrospective-service";
 import { recordReviewedProjectOutcome } from "@/lib/experience/reviewed-outcome-service";
 import { resolveExperienceFeatureFlags } from "@/lib/experience/feature-flags";
+import { buildExperienceEventLineage } from "@/lib/experience/inspector";
 
 export default function ExperiencePage() {
   const featureFlags = resolveExperienceFeatureFlags();
   const [events, setEvents] = useState<ExperienceEvent[]>([]);
+  const [experiences, setExperiences] = useState<ExperienceRecord[]>([]);
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [candidates, setCandidates] = useState<PreferenceCandidate[]>([]);
   const [exclusions, setExclusions] = useState<LearningExclusion[]>([]);
@@ -45,12 +47,13 @@ export default function ExperiencePage() {
   const [outcomeSavedMessage, setOutcomeSavedMessage] = useState("");
   async function refresh() {
     const currentOwnerId = await getExperienceOwnerId();
-    const [nextEvents, allPreferences, nextExclusions] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), learningExclusionService.list(currentOwnerId)]);
+    const [nextEvents, allPreferences, nextExclusions, nextExperiences] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), learningExclusionService.list(currentOwnerId), experienceRepository.getAll((experience) => experience.ownerId === currentOwnerId)]);
     const legacy = await legacyExperienceMigrationService.preview();
     const nextPreferences = allPreferences.filter((preference) => preference.status === "CONFIRMED" || preference.status === "INFERRED");
     setEvents(nextEvents.sort((a, b) => b.timestamp.localeCompare(a.timestamp)));
     setPreferences(nextPreferences);
     setExclusions(nextExclusions);
+    setExperiences(nextExperiences);
     setLegacyInventory(legacy);
     setOwnerId(currentOwnerId);
     const nextCandidates = await derivePreferenceCandidatesWithPolicy(nextEvents, currentOwnerId);
@@ -201,7 +204,37 @@ export default function ExperiencePage() {
         </div>}
         {observedProjectIds.length === 0 && <p className="mt-3 text-xs text-slate-500">Ainda não há eventos de Experience associados a projetos para revisar.</p>}
       </section>
-      <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5"><div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold text-white">Eventos observados</h2><p className="mt-1 text-xs text-slate-500">Registro local, escopado e reversível.</p></div><button disabled={busy} onClick={() => events[0] && void forget(events[0].id)} className="rounded border border-white/10 px-2 py-1 text-[10px] text-slate-400">Esquecer último</button></div><div className="mt-4 space-y-2">{events.slice(0, 20).map((event) => <div key={event.id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2"><span className="text-xs text-slate-200">{event.actionType} · {event.source} · {event.learningEligible ? "elegível" : "não aprendível"}</span><span className="flex items-center gap-3 text-[10px] text-slate-500">{event.privacyScope} · {new Date(event.timestamp).toLocaleString("pt-BR")}<button disabled={busy} onClick={() => void forget(event.id)} className="text-rose-300 underline">Esquecer</button></span></div>)}</div></section>
+      <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-semibold text-white">Eventos e inspector de proveniência</h2><p className="mt-1 text-xs text-slate-500">Rastro local por IDs: evento → sinal → evidência → preferência/experiência → recuperação pelo agente. Não implica causalidade.</p></div><button disabled={busy} onClick={() => { const latestUserEvent = events.find((event) => event.actor === "USER" && event.actionType !== "EXPERIENCE_CONTEXT_RETRIEVED"); if (latestUserEvent) void forget(latestUserEvent.id); }} className="rounded border border-white/10 px-2 py-1 text-[10px] text-slate-400">Esquecer último evento de usuário</button></div>
+        <div className="mt-4 space-y-2">{events.slice(0, 20).map((event) => {
+          const lineage = buildExperienceEventLineage(event.id, events, candidates, preferences, experiences);
+          const trace = event.actionType === "EXPERIENCE_CONTEXT_RETRIEVED";
+          const retrievedPreferences = Array.isArray(event.metadata.retrievedPreferenceIds) ? event.metadata.retrievedPreferenceIds.filter((id): id is string => typeof id === "string") : [];
+          const retrievedExperiences = Array.isArray(event.metadata.retrievedExperienceIds) ? event.metadata.retrievedExperienceIds.filter((id): id is string => typeof id === "string") : [];
+          return <article key={event.id} className="rounded-lg border border-white/10 px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-slate-200">{event.actionType} · {event.source} · {event.learningEligible ? "elegível" : "não aprendível"}</span><span className="flex items-center gap-3 text-[10px] text-slate-500">{event.privacyScope} · {new Date(event.timestamp).toLocaleString("pt-BR")}<button disabled={busy} onClick={() => void forget(event.id)} className="text-rose-300 underline">Esquecer</button></span></div>
+            <details className="mt-2 text-[10px] leading-relaxed">
+              <summary className="cursor-pointer text-cyan-200">Inspecionar vínculos e limites</summary>
+              <div className="mt-2 space-y-2 text-slate-300">
+                {trace ? <>
+                  <p>Contexto recuperado para {event.agentId || "agente não informado"}; este registro só contém IDs e não participa do aprendizado.</p>
+                  <p>Preferências: {retrievedPreferences.join(", ") || "nenhuma"} · Experiências: {retrievedExperiences.join(", ") || "nenhuma"}</p>
+                  <p>Experiências com ação citada literalmente na resposta: {Array.isArray(event.metadata.experienceIdsReferencedInResponse) ? (event.metadata.experienceIdsReferencedInResponse as unknown[]).filter((id): id is string => typeof id === "string").join(", ") || "nenhuma" : "nenhuma"}</p>
+                  <p>Instrução atual prevalece sobre a personalização. Correspondência literal não prova influência causal nem aprovação do usuário.</p>
+                </> : <>
+                  <p>Sinal derivado: {lineage?.signal ? `${lineage.signal.kind} · força ${lineage.signal.strength} · ${lineage.signal.eligible ? "elegível" : "não elegível"}` : "nenhum sinal de aprendizado mapeado"}</p>
+                  <p>Candidatos: {lineage?.candidates.map((item) => `${item.key}=${String(item.value)}`).join("; ") || "nenhum"}</p>
+                  <p>Preferências com este evento como evidência: {lineage?.preferences.map((item) => `${item.id} (${item.key}=${String(item.value)}, ${item.status})`).join("; ") || "nenhuma"}</p>
+                  <p>Experiências com este evento como evidência: {lineage?.experiences.map((item) => `${item.id} (${item.situation} → ${item.action} → ${item.outcome})`).join("; ") || "nenhuma"}</p>
+                  <p>Recuperações que referenciam os registros derivados: {lineage?.decisionTraces.map((item) => `${item.agentId || "agente"} · ${item.id}`).join("; ") || "nenhuma registrada"}</p>
+                  <p>Os vínculos vêm de IDs de proveniência. A sequência temporal não demonstra que o evento causou uma preferência ou determinou a resposta.</p>
+                </>}
+              </div>
+            </details>
+          </article>;
+        })}</div>
+        {events.length === 0 && <p className="mt-4 text-xs text-slate-500">Ainda não há eventos locais para inspecionar.</p>}
+      </section>
     </main>
   </PageLayout>;
 }

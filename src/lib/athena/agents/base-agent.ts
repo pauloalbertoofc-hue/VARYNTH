@@ -4,6 +4,8 @@ import { AgentExperienceTrace, AgentResult } from "../domain/result";
 import { resolveSpecialistCorrection } from "../conversation/specialist-correction";
 import { athenaConversationFeedback } from "../conversation/quality-feedback";
 import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, specialistExperienceGuidance } from "./experience-guidance";
+import { recordExperienceDecisionTrace } from "@/lib/experience/decision-trace";
+import { experienceDomainForAgent } from "../runtime/agent-experience-context";
 
 export interface AgentManifest {
   id: string;
@@ -270,6 +272,14 @@ export async function converseAsSpecialist(
     evidenceEventIdsReferencedInResponse: [...new Set(experiencesReferencedInResponse.flatMap((experience) => experience.evidence.map((evidence) => evidence.eventId)))],
     instructionPrecedence: context.experienceContext?.instructionPrecedence ?? "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION",
   };
+  await recordExperienceDecisionTrace({
+    taskId: task.id,
+    agentId: agent.manifest.id,
+    domain: experienceDomainForAgent(agent.manifest.id, task.scope),
+    projectId: context.activeProject?.id || task.targetProjectId,
+    sessionId: context.conversationSessionId || (typeof task.metadata?.sessionId === "string" ? task.metadata.sessionId : undefined),
+    trace: experienceTrace,
+  });
   return {
     ...presented,
     metadata: {
