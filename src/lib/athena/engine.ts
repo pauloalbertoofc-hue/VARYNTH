@@ -565,9 +565,51 @@ O bloco experience contém preferências e experiências anteriores da conta aut
         currentInstruction: prompt,
       })
     : { text: "", experienceIds: [] };
-  const finalText = invokedAgentResult?.content
+  const specialistCandidate = invokedAgentResult
     ? `${invokedAgentResult.content}${projectExperienceGuidance.text}`
-    : enforceResponseQuality(prompt, parsed, `${result.text}${projectExperienceGuidance.text}`, sessionId, resolvedProjectId);
+    : undefined;
+  const specialistRecommendation = invokedAgentResult?.recommendations?.find((recommendation) => recommendation.trim());
+  const specialistCompletenessCandidate = specialistCandidate !== undefined
+    ? `${specialistCandidate}\n\n${specialistRecommendation ? `**Próximo passo recomendado:** ${specialistRecommendation}` : ""}`
+    : undefined;
+  const specialistFactCheck = specialistCandidate !== undefined
+    ? FactLockValidator.validate(specialistCandidate, responseIntent)
+    : undefined;
+  const specialistCompleteness = specialistCompletenessCandidate !== undefined
+    ? responseCompletenessValidator.validate(parsed, specialistCompletenessCandidate)
+    : undefined;
+  if (specialistCompleteness && invokedAgentResult?.recommendations?.some((recommendation) => recommendation.trim())) {
+    specialistCompleteness.missingAspects = specialistCompleteness.missingAspects.filter((aspect) => aspect !== "MISSING_RECOMMENDATION");
+    specialistCompleteness.isComplete = specialistCompleteness.missingAspects.length === 0;
+  }
+  const specialistRejectionReasons = [
+    ...(specialistFactCheck && !specialistFactCheck.isValid ? specialistFactCheck.rejectedReasons : []),
+    ...(specialistCompleteness && !specialistCompleteness.isComplete ? specialistCompleteness.missingAspects : []),
+  ];
+  const specialistResponseAccepted = specialistCandidate !== undefined && specialistRejectionReasons.length === 0;
+  if (invokedAgentResult && !specialistResponseAccepted) {
+    athenaObservabilityJournal.record({
+      category: "SYSTEM",
+      type: "SPECIALIST_RESPONSE_REJECTED",
+      status: "BLOCKED",
+      message: "A resposta do especialista foi bloqueada por conflito factual, alegação operacional não autorizada ou incompletude.",
+      sessionId,
+      projectId: resolvedProjectId,
+      capabilityId: invokedAgentResult?.agentId,
+      details: { rejectedReasons: specialistRejectionReasons },
+    });
+  }
+  const responseCandidate = invokedAgentResult
+    ? specialistResponseAccepted
+      ? specialistCompletenessCandidate
+      : parsed.clarificationPrompt || (specialistFactCheck?.isValid
+        ? `${invokedAgentResult.content}${invokedAgentResult.recommendations?.length ? `\n\n**Próximo passo:** ${invokedAgentResult.recommendations[0]}` : ""}`
+        : "Não consegui validar a análise do especialista contra os dados e permissões desta conversa. Posso tentar novamente com um recorte mais específico.")
+    : `${result.text}${projectExperienceGuidance.text}`;
+  const safeResponseCandidate = responseCandidate ?? "Não consegui validar uma resposta para este pedido. Pode reformulá-lo com o resultado esperado?";
+  const finalText = invokedAgentResult && specialistResponseAccepted
+    ? safeResponseCandidate
+    : enforceResponseQuality(prompt, parsed, safeResponseCandidate, sessionId, resolvedProjectId);
 
   // Record in History for future turns / ellipses
   athenaConversationManager.recordAssistantResponse(
@@ -586,6 +628,12 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     metadata: {
       engine: invokedAgentResult ? "specialist-agent" : "deterministic-core",
       ...agentInvocationMetadata(invokedAgentResult),
+      ...(invokedAgentResult ? {
+        specialistResponseValidation: {
+          accepted: specialistResponseAccepted,
+          rejectedReasons: specialistRejectionReasons,
+        },
+      } : {}),
       ...(projectExperienceGuidance.experienceIds.length ? {
         experienceContext: {
           appliedExperienceIds: projectExperienceGuidance.experienceIds,

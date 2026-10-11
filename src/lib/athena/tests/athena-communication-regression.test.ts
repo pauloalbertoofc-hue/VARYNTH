@@ -90,7 +90,7 @@ async function run(): Promise<void> {
     }],
   };
   const projectIdeas = await processAthenaQueryAsync("Me dê ideias para este projeto", "geral", projectContext, "communication-project", "communication-project-experience");
-  assert(projectIdeas.text.includes("Experiência registrada neste projeto") && projectIdeas.text.includes("menos revisões"), "Deterministic Athena should use a positive retained outcome for the exact active project as a method reference");
+  assert(projectIdeas.text.includes("Experiência registrada neste projeto") && projectIdeas.text.includes("menos revisões"), `Deterministic Athena should use a positive retained outcome for the exact active project as a method reference. Got: ${projectIdeas.text}; metadata=${JSON.stringify(projectIdeas.metadata)}`);
   const appliedExperienceIds = ((projectIdeas.metadata?.experienceContext as { appliedExperienceIds?: string[] } | undefined)?.appliedExperienceIds) ?? [];
   assert(appliedExperienceIds.length === 1 && appliedExperienceIds[0] === retainedOutcome.id, "The response trace should identify the exact experience record it used");
 
