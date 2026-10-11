@@ -23,6 +23,7 @@ export default function CameraPage() {
   const captureRecordIdRef = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
   const [storedMediaUrls, setStoredMediaUrls] = useState<Record<string, string>>({});
+  const [openingCaptureId, setOpeningCaptureId] = useState<string | null>(null);
 
   useEffect(() => {
     setCaptures(listCameraCaptures());
@@ -142,6 +143,23 @@ export default function CameraPage() {
     window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
   };
 
+  const openStoredCaptureInImageStudio = async (capture: CameraCaptureRecord) => {
+    const blob = await getCameraMedia(capture.id);
+    if (!blob) { setError("CAMERA_ORIGINAL_NOT_AVAILABLE"); return; }
+    setOpeningCaptureId(capture.id);
+    const result = await imageService.importImage({
+      name: `${capture.id}.${capture.metadata.media === "VIDEO" ? "webm" : "jpg"}`,
+      mimeType: blob.type || "image/jpeg",
+      sizeBytes: blob.size,
+      data: blob,
+      actor: "USER",
+      captureMetadata: { source: "DEVICE_CAMERA", generated: false, capturedAt: capture.capturedAt },
+    });
+    setOpeningCaptureId(null);
+    if (!result.success || !result.image) { setError(result.error ?? "CAMERA_IMPORT_TO_STUDIO_FAILED"); return; }
+    window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+  };
+
   return (
     <PageLayout title="Varynth Camera" subtitle="Captura real, proveniência preservada e capacidades honestas do dispositivo">
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_320px]">
@@ -168,7 +186,7 @@ export default function CameraPage() {
           {captureUrl && <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><img src={captureUrl} alt="Último frame capturado" className="mb-3 w-full rounded-lg" /><div className="flex flex-wrap gap-2"><a href={captureUrl} download="varynth-camera-capture.jpg" className="vly-interactive inline-flex rounded-lg bg-[var(--vly-surface-raised)] px-3 py-2 text-xs font-bold text-[var(--vly-text-primary)]"><Download size={14} className="mr-2" />Baixar original</a><button onClick={() => void openInImageStudio()} disabled={isSendingToStudio} className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)] disabled:opacity-50">{isSendingToStudio ? "Abrindo..." : "Abrir no Image Studio"}</button></div><p className="mt-2 text-[10px] text-[var(--vly-text-muted)]">Origem: DEVICE_CAMERA · generated: false</p></div>}
           {videoUrl && <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><video src={videoUrl} controls playsInline className="mb-3 w-full rounded-lg" /><a href={videoUrl} download="varynth-camera-capture.webm" className="vly-interactive inline-flex rounded-lg bg-[var(--vly-surface-raised)] px-3 py-2 text-xs font-bold text-[var(--vly-text-primary)]"><Download size={14} className="mr-2" />Baixar vídeo original</a><p className="mt-2 text-[10px] text-[var(--vly-text-muted)]">Origem: DEVICE_CAMERA · generated: false · MediaRecorder</p></div>}
           {quality && <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4 text-xs"><h2 className="mb-2 font-bold text-[var(--vly-text-primary)]">Quality Gate</h2><p className="text-[var(--vly-text-secondary)]">Nitidez: {Math.round(quality.sharpness.score * 100)}% · confiança {Math.round(quality.sharpness.confidence * 100)}%</p><p className="text-[var(--vly-text-secondary)]">Luminância média: {Math.round(quality.exposure.meanLuma * 100)}%</p>{quality.warnings.length > 0 ? <ul className="mt-2 list-disc pl-4 text-amber-300">{quality.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : <p className="mt-2 text-emerald-300">Nenhum alerta técnico.</p>}</div>}
-          <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><h2 className="mb-2 text-sm font-bold text-[var(--vly-text-primary)]">Capturas persistidas ({captures.length})</h2>{captures.length === 0 ? <p className="text-xs text-[var(--vly-text-muted)]">Nenhuma captura registrada neste dispositivo.</p> : <div className="space-y-2">{captures.slice(0, 5).map((capture) => <div key={capture.id} className="rounded-lg border border-[var(--vly-border-subtle)] p-2 text-[11px]"><div className="flex justify-between gap-2"><span className="font-mono text-[var(--vly-text-secondary)]">{capture.mode}</span><span className="text-[var(--vly-text-muted)]">{new Date(capture.capturedAt).toLocaleString()}</span></div><p className="mt-1 text-[var(--vly-text-muted)]">{capture.imageArtifactId ? "Vinculada ao Image Studio" : "Original local"}</p>{storedMediaUrls[capture.id] ? <a href={storedMediaUrls[capture.id]} download={capture.metadata.media === "VIDEO" ? "varynth-capture.webm" : "varynth-capture.jpg"} className="mt-2 inline-flex font-bold text-[var(--vly-accent)]">Baixar original persistido →</a> : <span className="mt-2 inline-block text-[10px] text-[var(--vly-text-muted)]">Blob não disponível neste ambiente</span>}</div>)}</div>}</div>
+          <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><h2 className="mb-2 text-sm font-bold text-[var(--vly-text-primary)]">Capturas persistidas ({captures.length})</h2>{captures.length === 0 ? <p className="text-xs text-[var(--vly-text-muted)]">Nenhuma captura registrada neste dispositivo.</p> : <div className="space-y-2">{captures.slice(0, 5).map((capture) => <div key={capture.id} className="rounded-lg border border-[var(--vly-border-subtle)] p-2 text-[11px]"><div className="flex justify-between gap-2"><span className="font-mono text-[var(--vly-text-secondary)]">{capture.mode}</span><span className="text-[var(--vly-text-muted)]">{new Date(capture.capturedAt).toLocaleString()}</span></div><p className="mt-1 text-[var(--vly-text-muted)]">{capture.imageArtifactId ? "Vinculada ao Image Studio" : "Original local"}</p>{storedMediaUrls[capture.id] ? <div className="mt-2 flex flex-wrap gap-3"><a href={storedMediaUrls[capture.id]} download={capture.metadata.media === "VIDEO" ? "varynth-capture.webm" : "varynth-capture.jpg"} className="font-bold text-[var(--vly-accent)]">Baixar original persistido →</a>{capture.metadata.media !== "VIDEO" && <button onClick={() => void openStoredCaptureInImageStudio(capture)} disabled={openingCaptureId === capture.id} className="font-bold text-[var(--vly-accent)] disabled:opacity-50">{openingCaptureId === capture.id ? "Abrindo..." : "Abrir no Image Studio →"}</button>}</div> : <span className="mt-2 inline-block text-[10px] text-[var(--vly-text-muted)]">Blob não disponível neste ambiente</span>}</div>)}</div>}</div>
         </aside>
       </div>
     </PageLayout>
