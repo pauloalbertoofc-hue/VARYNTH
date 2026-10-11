@@ -8,6 +8,7 @@ import { imageService } from "@/lib/studio/image/image-service";
 type VectorObject = { id: string; type: "rect" | "circle" | "text"; x: number; y: number; width: number; height: number; color: string; text?: string };
 const initial: VectorObject[] = [{ id: "background", type: "rect", x: 0, y: 0, width: 1200, height: 700, color: "#111827" }];
 const STORAGE_KEY = "varynth_vector_document_v1";
+const escapeXml = (value: string) => value.replace(/[<>&'\"]/g, (character) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", "\"": "&quot;" }[character] ?? character));
 
 export default function VectorStudioPage() {
   const [objects, setObjects] = useState<VectorObject[]>(initial);
@@ -23,7 +24,7 @@ export default function VectorStudioPage() {
   const update = (field: "x" | "y" | "width" | "height", value: number) => setObjects((items) => items.map((item) => item.id === selectedId ? { ...item, [field]: Math.max(1, value) } : item));
   const add = () => { const id = `vector-${Date.now()}`; const index = objects.length; const item: VectorObject = { id, type, x: 120 + (index % 4) * 180, y: 100 + (index % 3) * 150, width: type === "circle" ? 140 : 260, height: type === "circle" ? 140 : 120, color, ...(type === "text" ? { text } : {}) }; setObjects((items) => [...items, item]); setSelectedId(id); };
   const remove = () => { if (selectedId === "background") return; setObjects((items) => items.filter((item) => item.id !== selectedId)); setSelectedId("background"); };
-  const svg = useMemo(() => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700">${objects.map((item) => item.type === "rect" ? `<rect x="${item.x}" y="${item.y}" width="${item.width}" height="${item.height}" fill="${item.color}"/>` : item.type === "circle" ? `<circle cx="${item.x + item.width / 2}" cy="${item.y + item.height / 2}" r="${Math.min(item.width, item.height) / 2}" fill="${item.color}"/>` : `<text x="${item.x}" y="${item.y + item.height / 2}" fill="${item.color}" font-family="sans-serif" font-size="${Math.max(18, item.height / 2)}">${item.text ?? ""}</text>`).join("")}</svg>`, [objects]);
+  const svg = useMemo(() => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700">${objects.map((item) => item.type === "rect" ? `<rect x="${item.x}" y="${item.y}" width="${item.width}" height="${item.height}" fill="${item.color}"/>` : item.type === "circle" ? `<circle cx="${item.x + item.width / 2}" cy="${item.y + item.height / 2}" r="${Math.min(item.width, item.height) / 2}" fill="${item.color}"/>` : `<text x="${item.x}" y="${item.y + item.height / 2}" fill="${item.color}" font-family="sans-serif" font-size="${Math.max(18, item.height / 2)}">${escapeXml(item.text ?? "")}</text>`).join("")}</svg>`, [objects]);
   const download = () => { const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })); const link = document.createElement("a"); link.download = "varynth-vector.svg"; link.href = url; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 0); };
   const saveDraft = () => { const timestamp = new Date().toISOString(); window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ objects, savedAt: timestamp })); setSavedAt(timestamp); };
   const clearDraft = () => { window.localStorage.removeItem(STORAGE_KEY); setObjects(initial); setSelectedId("background"); setSavedAt(null); };
