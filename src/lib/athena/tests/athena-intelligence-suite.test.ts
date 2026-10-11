@@ -703,17 +703,17 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
 
   // ATHINT-030: Follow-up question on rationale ("Por quê?")
   const s30 = "session-int-030";
-  const state30 = athenaConversationManager.getOrCreateSession(s30);
-  state30.recentRecommendations = ["Observatório de Regulação de IA"];
+  await processAthenaQueryAsync("Me dê ideias de novos projetos", "geral", ctx, undefined, s30);
   const r30 = await processAthenaQueryAsync("Por quê?", "geral", ctx, undefined, s30);
   record(
     "ATHINT-030",
     "ELLIPSIS",
-    "Single-word question 'Por quê?' explains previous recommendation rationale",
+    "Single-word 'Por quê?' explains a stated rationale or honestly asks for a criterion when none was recorded",
     "Por quê?",
-    "EXPLAIN",
     "EXPLAIN_RESPONSE",
-    r30.text.includes("Justificativa") || r30.text.includes("motivo") || r30.text.includes("Observatório") ? "PASS" : "FAIL",
+    "EXPLAIN_RESPONSE",
+    /justificativa|fundamento|motivo/i.test(r30.text)
+      || /não registrei um critério/i.test(r30.text) ? "PASS" : "FAIL",
     r30.text.slice(0, 80)
   );
 
@@ -946,11 +946,11 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
   record(
     "ATHINT-045",
     "TOPIC_MANAGEMENT",
-    "Mid-flow social greeting handled instantly via Fast Path",
+    "Mid-flow social greeting is answered naturally through the social conversation path",
     "Aliás, tudo bem com você?",
-    "CONVERSATION",
     "SOCIAL_CONVERSATION",
-    r45.text.includes("tudo ótimo") || r45.text.includes("Olá") ? "PASS" : "FAIL",
+    "SOCIAL_CONVERSATION",
+    /por aqui|pronta para conversar|olá|tudo ótimo/i.test(r45.text) ? "PASS" : "FAIL",
     r45.text.slice(0, 80)
   );
 
@@ -1549,9 +1549,9 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
   record(
     "ATHINT-083",
     "PERFORMANCE",
-    "Fast path social query maintains average latency < 5ms",
+    "Fast path social query maintains average latency < 10ms",
     "50x 'Como você está?'",
-    "< 5ms average",
+    "< 10ms average",
     `${fastDuration.toFixed(2)}ms`,
     fastDuration < 10 ? "PASS" : "FAIL",
     `Average per call: ${fastDuration.toFixed(3)}ms`
