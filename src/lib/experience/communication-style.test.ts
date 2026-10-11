@@ -19,6 +19,7 @@ function pref(overrides: Partial<Preference> = {}): Preference {
 assert.equal(applyConfirmedCommunicationStyle(intent, [pref()], "Explique isso").verbosity, "SHORT");
 assert.equal(applyConfirmedCommunicationStyle(intent, [], "Cê pode me dar uma força nisso?").tone, "WARM", "current informal register should affect Athena's response intent even without saved preferences");
 assert.equal(applyConfirmedCommunicationStyle(intent, [], "Poderia revisar, por gentileza?").tone, "TECHNICAL", "current formal register should affect Athena's response intent even without saved preferences");
+assert.equal(applyConfirmedCommunicationStyle({ ...intent, tone: "TECHNICAL" }, [pref({ key: "formality", value: "formal" })], "Responda de forma informal, por favor.").tone, "WARM", "explicit informal request should set tone and override saved formality");
 assert.equal(applyConfirmedCommunicationStyle(intent, [], "Pode resumir em poucas palavras?").verbosity, "SHORT", "current natural brevity request should affect Athena's response intent");
 assert.equal(applyConfirmedCommunicationStyle({ ...intent, mode: "CLARIFICATION" }, [], "Responda detalhadamente").verbosity, "MEDIUM", "clarifications stay concise even when style asks for detail");
 assert.equal(applyConfirmedCommunicationStyle({ ...intent, tone: "TECHNICAL" }, [pref({ key: "formality", value: "formal" })], "Cê pode me dar uma força nisso?").tone, "WARM", "a clear informal current register overrides stale confirmed formality");

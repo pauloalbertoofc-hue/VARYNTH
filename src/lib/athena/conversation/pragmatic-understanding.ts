@@ -26,13 +26,18 @@ export function understandPragmatics(prompt: string): PragmaticUnderstanding {
     ? "concise" : /\b(?:detalhado|com detalhes|em detalhes|passo a passo|aprofundado)\b/.test(text) ? "detailed" : undefined;
   const formalScore = (text.match(/\b(?:poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente|agradeco desde ja|encaminho|gostaria de solicitar|por gentileza)\b/g) || []).length;
   const informalScore = (text.match(/\b(?:vc|vcs|ce|pra|pro|ta|to|tava|tavam|blz|valeu|kkk|rsrs|mano|tipo assim|me da uma forca|me ajuda ai|faz pra mim)\b/g) || []).length;
-  const register = formalScore > informalScore ? "formal" : informalScore > formalScore ? "informal" : undefined;
+  const requestsFormal = /\b(?:use|adote|mantenha|responda|fale|escreva)\b.{0,35}\b(?:em\s+)?(?:um\s+)?registro\s+formal\b|\b(?:responda|fale|escreva)\s+(?:de\s+forma\s+)?formalmente\b|\b(?:use|adote|mantenha|responda|fale|escreva)\b.{0,35}\bformal\b/.test(text);
+  const requestsInformal = /\b(?:use|adote|mantenha|responda|fale|escreva)\b.{0,35}\b(?:em\s+)?(?:um\s+)?registro\s+informal\b|\b(?:responda|fale|escreva)\s+(?:de\s+forma\s+)?informalmente\b|\b(?:use|adote|mantenha|responda|fale|escreva)\b.{0,35}\b(?:informal|descontraid[oa]|casual)\b/.test(text);
+  const requestedRegister = requestsFormal !== requestsInformal
+    ? requestsFormal ? "formal" : "informal"
+    : undefined;
+  const register = requestedRegister || (formalScore > informalScore ? "formal" : informalScore > formalScore ? "informal" : undefined);
 
   if (explicitTopicSwitch) return { intent: "TOPIC_SWITCH", confidence: 0.99, register, requestedVerbosity, explicitTopicSwitch: true, likelyFollowUp: false };
   if (CORRECTION.test(text)) return { intent: "CORRECTION", confidence: 0.96, register, requestedVerbosity, explicitTopicSwitch: false, likelyFollowUp: false };
   if (CLARIFICATION.test(text)) return { intent: "CLARIFICATION_REQUEST", confidence: 0.93, register, requestedVerbosity, explicitTopicSwitch: false, likelyFollowUp: true };
   if (FOLLOW_UP.test(text)) return { intent: "FOLLOW_UP", confidence: 0.88, register, requestedVerbosity, explicitTopicSwitch: false, likelyFollowUp: true };
-  if (requestedVerbosity || /\b(?:registro formal|registro informal|de forma formal|de forma informal|responda formalmente|responda informalmente)\b/.test(text)) {
+  if (requestedVerbosity || requestsFormal || requestsInformal || /\b(?:registro formal|registro informal|de forma formal|de forma informal|responda formalmente|responda informalmente)\b/.test(text)) {
     return { intent: "STYLE_REQUEST", confidence: 0.94, register, requestedVerbosity, explicitTopicSwitch: false, likelyFollowUp: false };
   }
   if (!text || text.length < 3 || /^(?:isso|esse|essa|ele|ela|o segundo|a segunda|qual deles|e ai)$/.test(text)) {
