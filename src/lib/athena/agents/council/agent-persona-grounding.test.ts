@@ -65,6 +65,10 @@ void (async () => {
     assert.equal(conversationalResult.metadata?.conversationPresentation, true, `${agent.manifest.id} must use the shared conversational presentation`);
     assert.ok(conversationalResult.content.includes(agent.manifest.name) || conversationalResult.content.includes(agent.manifest.persona.identity), `${agent.manifest.id} must retain its identity in conversation`);
     if (agent.manifest.id === "euterpe") assert.equal((conversationalResult.content.match(/Sou Euterpe/g) ?? []).length, 1, "Euterpe's native voice must not receive a duplicate generic introduction");
+
+    const athenaOwnedResult = await converse.call(agent, task("Explique isso em poucas palavras."), { ...ctx, responseAudience: "ATHENA" });
+    assert.equal(athenaOwnedResult.metadata?.conversationAudience, "ATHENA", `${agent.manifest.id} must honor Athena-owned presentation`);
+    assert.doesNotMatch(athenaOwnedResult.content.split("\n")[0], new RegExp(agent.manifest.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), `${agent.manifest.id} must not introduce a second visible chatbot on Athena surfaces`);
   }
 
   const legal = await justitiaAgent.execute(task("Analise a legislação aplicável"), ctx);

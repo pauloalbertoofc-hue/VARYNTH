@@ -67,6 +67,14 @@ void (async () => {
   assert.equal((nativeDelegation.metadata as { consultedAthena: boolean }).consultedAthena, true);
   assert.equal((nativeDelegation.metadata as { toolAccess: boolean }).toolAccess, false);
 
+  const athenaOwnedDelegation = await euterpeAgent.converse(task("Crie um projeto para divulgar o álbum"), {
+    recentConversation: [],
+    experienceContext: { experiences: [], preferences: [] },
+    responseAudience: "ATHENA",
+  } as never, async () => ({ text: "O plano está pronto para revisão." }));
+  assert.equal(athenaOwnedDelegation.content, "O plano está pronto para revisão.", "Athena-owned surfaces keep Athena as the sole visible speaker");
+  assert.equal(athenaOwnedDelegation.metadata?.conversationAudience, "ATHENA");
+
   let followUpQuery = "";
   let followUpContext: unknown;
   const contextualDelegation = await euterpeAgent.converse(task("Quais os riscos?"), {
@@ -83,7 +91,7 @@ void (async () => {
   });
   assert.equal(followUpQuery, "Quais os riscos?", "keep the user's exact follow-up as the delegated request");
   assert.deepEqual(followUpContext, [], "the test callback defaults context only when AthenaContext carries history");
-  assert.match(contextualDelegation.content, /Voltando ao que conversávamos/);
+  assert.match(contextualDelegation.content, /Retomando o assunto anterior/);
   assert.match(contextualDelegation.content, /validar o interesse gradualmente/);
   assert.equal(contextualDelegation.metadata?.conversationReferenceResolved, true);
 

@@ -74,15 +74,19 @@ function conversationalizeSpecialistResult(
   const lead = alreadyIntroduced ? "" : formality === "formal"
     ? `Sou ${manifest.name}; ${identity}${continuity}`
     : `Sou ${manifest.name} — ${identity}${continuity}`;
-  const nextStep = result.recommendations?.find((item) => item.trim())
-    ?? (result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.");
+  const recommendation = result.recommendations?.find((item) => item.trim());
+  const nextStep = recommendation
+    ? formality === "formal" ? `Como próximo passo, sugiro: ${recommendation}` : recommendation
+    : formality === "formal"
+      ? result.success ? "Caso deseje, posso aprofundar no ponto que considerar mais importante." : "Para prosseguir com precisão, informe qual dado ou trecho devo considerar."
+      : result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.";
   const concise = verbosity === "concise";
   const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
   // Put the domain answer first: identity and conversational scaffolding must
   // never make a short answer feel like a fresh introduction instead of a reply.
   const responseAudience = context.responseAudience ?? "SPECIALIST";
   const content = responseAudience === "ATHENA"
-    ? body
+    ? anonymizeSpecialistLead(body, manifest.name)
     : `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
 
   return {
@@ -96,6 +100,23 @@ function conversationalizeSpecialistResult(
       presentationPreferences: { ...(verbosity ? { verbosity } : {}), ...(formality ? { formality } : {}) },
     },
   };
+}
+
+function anonymizeSpecialistLead(body: string, agentName: string): string {
+  const lineBreak = body.indexOf("\n");
+  const firstLine = lineBreak < 0 ? body : body.slice(0, lineBreak);
+  const remainder = lineBreak < 0 ? "" : body.slice(lineBreak);
+  const escapedName = agentName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parentheticalIdentity = new RegExp(`\\s*\\(\\s*${escapedName}(?:\\s*&[^)]*)?\\s*\\)`, "gi");
+  const inlineIdentity = new RegExp(`\\b${escapedName}\\b`, "gi");
+  const lead = firstLine
+    .replace(parentheticalIdentity, "")
+    .replace(inlineIdentity, "")
+    .replace(/(\*\*)\s*[—–-]\s*/g, "$1")
+    .replace(/\s+:/g, ":")
+    .replace(/\*\*\s*\*\*/g, "")
+    .trim();
+  return `${lead}${remainder}`.trim();
 }
 
 export function prepareAgentConversationHistory(
