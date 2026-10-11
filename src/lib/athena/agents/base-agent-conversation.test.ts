@@ -82,6 +82,16 @@ void (async () => {
   assert.deepEqual(formalRegister.metadata?.presentationPreferences, { formality: "formal" }, "A clear formal register may guide this reply without being persisted as a preference");
   assert.match(formalRegister.content, /Caso deseje, posso aprofundar/);
 
+  const explicitInformal = await converseAsSpecialist(agent, { rawPrompt: "Use um registro informal, por favor.", scope: "pesquisa" } as AthenaTask, context);
+  assert.deepEqual(explicitInformal.metadata?.presentationPreferences, { formality: "informal" }, "A directly requested informal register must not be outweighed by courtesy");
+  const alreadyIntroduced = "Sou Logos, com base nas fontes disponíveis: resposta revisada.";
+  responseBody = alreadyIntroduced;
+  const noDuplicateIdentity = await converseAsSpecialist(agent, { rawPrompt: "Responda de modo direto.", scope: "pesquisa" } as AthenaTask, context);
+  assert.equal((noDuplicateIdentity.content.match(/Sou Logos/g) ?? []).length, 1, "the shared layer must preserve a specialist's own first-person introduction");
+  responseBody = "Resposta revisada";
+  const detailedRequest = await converseAsSpecialist(agent, { rawPrompt: "Explique passo a passo, com detalhes.", scope: "pesquisa" } as AthenaTask, context);
+  assert.doesNotMatch(detailedRequest.content, /Se quiser, posso aprofundar/, "a response that already fulfills an explicit depth request should not append a generic offer");
+
   responseBody = "🔬 **Análise Metodológica & Científica (Logos):**\n\nOs estudos recebidos ainda não permitem uma conclusão firme.";
   const athenaOwned = await converseAsSpecialist(agent, { rawPrompt: "Avalie esta evidência", scope: "pesquisa" } as AthenaTask, {
     ...context,

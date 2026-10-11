@@ -45,6 +45,9 @@ export function inferCurrentConversationRegister(prompt: string): "formal" | "in
   // clear register markers such as "cê" or "poderia/solicito" on its own.
   const formalSignals = /\b(poderia|solicito|prezado|prezada|senhor|senhora|atenciosamente|agradeco desde ja|encaminho|gostaria de solicitar|por gentileza)\b/g;
   const informalSignals = /\b(vc|vcs|c[eê]|pra|pro|t[aá]|t[oô]|tava|tavam|blz|valeu|kkk|rsrs|mano|cara|tipo assim|me da uma forca|me ajuda ai|faz pra mim)\b/g;
+  const explicitFormalRequest = /\b(?:use|mantenha|adote|responda em) (?:um )?registro formal\b/.test(normalized);
+  const explicitInformalRequest = /\b(?:use|mantenha|adote|responda em) (?:um )?registro informal\b/.test(normalized);
+  if (explicitFormalRequest !== explicitInformalRequest) return explicitFormalRequest ? "formal" : "informal";
   const formalCount = [...normalized.matchAll(formalSignals)].length;
   const informalCount = [...normalized.matchAll(informalSignals)].length;
   if (formalCount > informalCount) return "formal";
@@ -81,8 +84,11 @@ function conversationalizeSpecialistResult(
     ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : currentRegister);
   const identity = manifest.persona.identity.replace(/^Sou\s+[^,;:]+[,;:]?\s*/i, "").trim() || manifest.persona.voice;
   const continuity = usedHistory ? (formality === "formal" ? " Retomando o assunto anterior," : " Voltando ao que conversávamos,") : "";
-  const alreadyIntroduced = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").startsWith(`sou ${manifest.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")}`);
-  const lead = alreadyIntroduced ? "" : formality === "formal"
+  const normalizedBody = body.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const normalizedAgentName = manifest.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const alreadyIntroduced = new RegExp(`^(?:sou|aqui e)\\s+${normalizedAgentName}\\b`).test(normalizedBody);
+  const alreadyInCharacter = normalizedBody.startsWith("sou ") || normalizedBody.startsWith("como ") || normalizedBody.startsWith("aqui e ");
+  const lead = alreadyIntroduced || alreadyInCharacter ? "" : formality === "formal"
     ? `Sou ${manifest.name}; ${identity}${continuity}`
     : `Sou ${manifest.name} — ${identity}${continuity}`;
   const recommendation = result.recommendations?.find((item) => item.trim());
@@ -93,12 +99,13 @@ function conversationalizeSpecialistResult(
       : result.success ? "Se quiser, posso aprofundar no ponto que for mais importante para você." : "Para eu continuar com precisão, diga qual informação ou trecho devo considerar.";
   const concise = verbosity === "concise";
   const alreadyInvitesFollowUp = /[?？]|\b(posso|quer|escolha|informe|envie|confirme|revise antes|qual|pe[cç]a)\b/i.test(body);
+  const asksForDepth = /\b(?:detalhad[oa]mente|com (?:mais )?detalhes|passo a passo|aprofunde|desenvolva|explique melhor|analise a fundo|com profundidade)\b/i.test(originalPrompt);
   // Put the domain answer first: identity and conversational scaffolding must
   // never make a short answer feel like a fresh introduction instead of a reply.
   const responseAudience = context.responseAudience ?? "SPECIALIST";
   const content = responseAudience === "ATHENA"
     ? anonymizeSpecialistLead(body, manifest.name)
-    : `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp ? "" : `\n\n${nextStep}`}`;
+    : `${body}${lead ? `\n\n${lead}` : ""}${concise || alreadyInvitesFollowUp || asksForDepth ? "" : `\n\n${nextStep}`}`;
 
   return {
     ...result,

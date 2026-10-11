@@ -65,6 +65,9 @@ assert.equal(inferCurrentConversationRegister("Por favor, analise esta proposta.
 assert.equal(inferCurrentConversationRegister("Poderia dar uma olhada nisso pra mim?"), undefined, "mixed formal and informal markers should preserve a neutral register");
 assert.equal(inferCurrentConversationRegister("Poderia revisar esta proposta, por favor?"), "formal", "formal syntax remains formal when paired with ordinary courtesy");
 assert.equal(inferCurrentConversationRegister("Analise os riscos da proposta."), undefined, "domain vocabulary alone must not imply a communication preference");
+assert.equal(inferCurrentConversationRegister("Poderia revisar isso pra mim?"), undefined, "mixed formal and colloquial signals should stay neutral");
+assert.equal(inferCurrentConversationRegister("Use um registro informal, por favor."), "informal", "an explicit register request must outrank courtesy");
+assert.equal(inferCurrentConversationRegister("Responda em registro formal, sem rodeios."), "formal", "explicit requested register should be recognized even with mixed style constraints");
 
 void (async () => {
   for (const agent of agents.filter((candidate) => candidate.manifest.id !== "athena-generalist")) {
@@ -73,6 +76,7 @@ void (async () => {
     const conversationalResult = await converse.call(agent, task("Explique isso em poucas palavras."), ctx);
     assert.equal(conversationalResult.metadata?.conversationPresentation, true, `${agent.manifest.id} must use the shared conversational presentation`);
     assert.ok(conversationalResult.content.includes(agent.manifest.name) || conversationalResult.content.includes(agent.manifest.persona.identity), `${agent.manifest.id} must retain its identity in conversation`);
+    assert.doesNotMatch(conversationalResult.content, /Sou [^.\n]+ Sou /, `${agent.manifest.id} must not repeat a role introduction after its own first-person opening`);
     if (agent.manifest.id === "euterpe") assert.equal((conversationalResult.content.match(/Sou Euterpe/g) ?? []).length, 1, "Euterpe's native voice must not receive a duplicate generic introduction");
 
     const athenaOwnedResult = await converse.call(agent, task("Explique isso em poucas palavras."), { ...ctx, responseAudience: "ATHENA" });
