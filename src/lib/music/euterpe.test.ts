@@ -82,6 +82,20 @@ const ordinaryBecause = interpretEuterpeRequest("Eu gosto de jazz porque me lemb
 assert.match(ordinaryBecause.response, /Entendi sua preferência/ , "A conjunction because in a statement is not a why follow-up");
 const formalExplain = interpretEuterpeRequest("Poderia explicar?", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "Music DNA registra tags dark." }, { sender: "user", text: "Poderia explicar?" }]);
 assert.match(formalExplain.response, /Music DNA|tags/);
+const groundedExplainWithoutDna = interpretEuterpeRequest("Pode explicar melhor?", { ...context, dna: undefined }, [
+  { sender: "user", text: "O que acha dessa faixa?" },
+  { sender: "curator", text: "A faixa Noite ainda não tem Music DNA; não vou inferir o gênero." },
+  { sender: "user", text: "Pode explicar melhor?" },
+]);
+assert.match(groundedExplainWithoutDna.response, /Na resposta anterior, eu disse: “A faixa Noite ainda não tem Music DNA/);
+assert.match(groundedExplainWithoutDna.response, /não vou inventar uma explicação/);
+assert.doesNotMatch(groundedExplainWithoutDna.response, /Aponte a frase/, "A clarification should identify the actual preceding statement before asking what remains unclear");
+const boundedPriorQuote = interpretEuterpeRequest("Explique melhor", { ...context, dna: undefined }, [
+  { sender: "user", text: "Analise a faixa" },
+  { sender: "curator", text: "x".repeat(500) },
+  { sender: "user", text: "Explique melhor" },
+]);
+assert.equal(boundedPriorQuote.response.match(/“([^”]*)”/)?.[1].length, 180, "Quoted conversational context must remain bounded");
 const expandedContinue = interpretEuterpeRequest("Me conta mais", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "Music DNA registra tags dark." }, { sender: "user", text: "Me conta mais" }]);
 assert.match(expandedContinue.response, /Music DNA|tags/);
 console.log("Euterpe identity, context, structured proposals, and confirmation policy passed.");

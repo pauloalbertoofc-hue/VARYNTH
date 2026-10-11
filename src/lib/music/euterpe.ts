@@ -41,7 +41,8 @@ function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conver
     if (context.dna?.visualTags.length && previousAssistant.includes("Music DNA")) {
       return `Quando mencionei o Music DNA, referia-me às tags já disponíveis para “${context.track?.name ?? context.dna.trackId}”: ${context.dna.visualTags.join(", ")}. Isso não descreve aspectos que não estejam nessas tags.`;
     }
-    return "Posso explicar, mas a resposta anterior não identifica com precisão qual parte ficou ambígua. Aponte a frase ou escolha a opção que quer esclarecer, e eu a destrincho sem acrescentar fatos.";
+    const priorStatement = previousAssistant.replace(/\s+/g, " ").trim().slice(0, 180);
+    return `Na resposta anterior, eu disse: “${priorStatement}”. Não registrei um fundamento além dessa formulação, então não vou inventar uma explicação. Aponte a parte que ficou ambígua e eu a esclareço dentro do contexto disponível.`;
   }
 
   if (context.dna) {
