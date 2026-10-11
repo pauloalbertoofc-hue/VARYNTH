@@ -261,7 +261,7 @@ export async function converseAsSpecialist(
   const resolvedTask = resolution.prompt === correction.prompt ? task : { ...task, rawPrompt: resolution.prompt };
   const executionTask = correction.repaired ? { ...resolvedTask, rawPrompt: correction.prompt } : resolvedTask;
   const result = await agent.execute(executionTask, context);
-  const presented = conversationalizeSpecialistResult(result, agent.manifest, task.rawPrompt, resolution.usedHistory, context);
+  const presented = conversationalizeSpecialistResult(result, agent.manifest, task.rawPrompt, resolution.usedHistory || correction.repaired === true, context);
   const retrievedExperiences = context.experienceContext?.experiences ?? [];
   const experiencesReferencedInResponse = retrievedExperiences.filter((experience) => {
     const recordedAction = experience.action.trim().slice(0, 120);

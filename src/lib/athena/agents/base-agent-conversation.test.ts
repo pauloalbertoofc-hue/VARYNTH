@@ -66,6 +66,17 @@ void (async () => {
   assert.equal(contextual.metadata?.conversationReferenceResolved, true);
   assert.equal(contextual.metadata?.conversationPresentation, true);
 
+  const naturalRepair = await converseAsSpecialist(agent, { rawPrompt: "Não foi isso; eu quis dizer o prazo", title: "Ajuste", scope: "juridico" } as AthenaTask, {
+    ...context,
+    recentConversation: [
+      { role: "user", text: "Analise o contrato" },
+      { role: "athena", text: "A resposta anterior tratou do documento inteiro." },
+    ],
+  } as AthenaContext);
+  assert.equal(receivedPrompt, "Não foi isso; eu quis dizer o prazo", "the specialist should receive the current natural-language correction, not an old stored preference");
+  assert.equal(naturalRepair.metadata?.repairedFromExplicitFeedback, true);
+  assert.equal(naturalRepair.metadata?.conversationReferenceResolved, true);
+
   const informal = await converseAsSpecialist(agent, { rawPrompt: "Explica em poucas palavras", title: "Resumo", scope: "pesquisa" } as AthenaTask, {
     ...context,
     experienceContext: { preferences: [{ key: "verbosity", value: "concise", status: "CONFIRMED", source: "MANUAL", scope: "GLOBAL", domain: "communication" }] },

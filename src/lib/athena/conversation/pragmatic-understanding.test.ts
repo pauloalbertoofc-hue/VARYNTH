@@ -7,6 +7,9 @@ assert.equal(understandPragmatics("Poderia explicar melhor?").intent, "CLARIFICA
 assert.equal(understandPragmatics("Vc pode explicar melhor?").register, "informal");
 assert.equal(understandPragmatics("Poderia, por gentileza, explicar?",).register, "formal");
 assert.equal(understandPragmatics("Não foi isso; eu quis dizer o prazo").intent, "CORRECTION");
+assert.equal(understandPragmatics("Não, eu quis dizer o prazo").intent, "CORRECTION", "natural Portuguese correction phrasing should be recognized");
+assert.equal(understandPragmatics("Não, na verdade eu falei da Pesquisa CNJ").intent, "CORRECTION");
+assert.equal(understandPragmatics("Na verdade, gostei do resultado").intent, "SUBSTANTIVE", "a discourse marker alone should not be mistaken for a correction");
 assert.equal(understandPragmatics("Resuma em poucas palavras").requestedVerbosity, "concise");
 assert.equal(understandPragmatics("Explique passo a passo").requestedVerbosity, "detailed");
 assert.ok(understandPragmatics("isso").confidence < 0.5, "underspecified fragments must remain explicitly uncertain");
