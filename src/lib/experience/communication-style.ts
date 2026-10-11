@@ -1,6 +1,7 @@
 import type { Preference } from "./contracts";
 import type { ResponseIntent } from "@/lib/athena/strategy/types";
 import { normalizeText } from "@/lib/athena/conversation/conversation-manager";
+import { understandPragmatics } from "@/lib/athena/conversation/pragmatic-understanding";
 
 type StyleKey = "verbosity" | "formality";
 type StyleValue = "concise" | "detailed" | "formal" | "informal";
@@ -13,9 +14,11 @@ const styleValues: Record<StyleKey, readonly StyleValue[]> = {
 function currentPromptOverrides(prompt: string, key: StyleKey): boolean {
   const text = normalizeText(prompt);
   if (key === "verbosity") {
+    if (understandPragmatics(prompt).requestedVerbosity) return true;
     return /\b(seja|responda|explique|fale|quero)\b.{0,35}\b(curto|breve|concis[oa]|resumid[oa]|detalhad[oa]|com detalhes|em detalhes|passo a passo)\b/.test(text)
       || /\b(sem detalhes|mais detalhes|mais conciso|mais breve)\b/.test(text);
   }
+  if (understandPragmatics(prompt).register) return true;
   return /\b(seja|fale|responda|escreva)\b.{0,35}\b(formal|informal|descontraid[oa]|casual)\b/.test(text);
 }
 

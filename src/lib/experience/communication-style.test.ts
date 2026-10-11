@@ -17,6 +17,9 @@ function pref(overrides: Partial<Preference> = {}): Preference {
 }
 
 assert.equal(applyConfirmedCommunicationStyle(intent, [pref()], "Explique isso").verbosity, "SHORT");
+assert.equal(applyConfirmedCommunicationStyle({ ...intent, tone: "TECHNICAL" }, [pref({ key: "formality", value: "formal" })], "Cê pode me dar uma força nisso?").tone, "TECHNICAL", "a clear informal current register overrides stale confirmed formality");
+assert.equal(applyConfirmedCommunicationStyle({ ...intent, tone: "WARM" }, [pref({ key: "formality", value: "informal" })], "Poderia revisar, por gentileza?").tone, "WARM", "a clear formal current register overrides stale confirmed informality");
+assert.equal(applyConfirmedCommunicationStyle({ ...intent, verbosity: "DETAILED" }, [pref()], "Pode resumir em poucas palavras?").verbosity, "DETAILED", "current brevity cues override saved verbosity without needing imperative wording");
 assert.equal(applyConfirmedCommunicationStyle(intent, [pref({ value: "detailed" })], "Responda curto").verbosity, "MEDIUM");
 assert.equal(applyConfirmedCommunicationStyle(intent, [pref({ status: "INFERRED", source: "INFERRED" })], "Explique isso").verbosity, "MEDIUM");
 assert.equal(applyConfirmedCommunicationStyle(intent, [pref({ domain: "legal" })], "Explique isso").verbosity, "MEDIUM");
