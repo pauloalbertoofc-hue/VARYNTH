@@ -12,4 +12,5 @@ export * from "./mask-engine";
 export * from "./effects-engine";
 export * from "./provenance-engine";
 export * from "./asset-engine";
+export * from "./studio-catalog";
 

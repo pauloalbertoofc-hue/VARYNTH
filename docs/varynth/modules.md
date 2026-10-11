@@ -12,6 +12,9 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Technical Archive** | 🏛️ | `/modules/technical-archive` | Documentação oficial, ADRs e histórico de engenharia |
 | **Projects** | 📁 | `/projects` | Workspaces, tarefas, notas, arquivos, timeline e Athena contextual |
 | **Studio Hub** | 🎨 | `/modules/studio` | Hub dos studios Document, Web, Image, Audio, Video e Game |
+| **Visual Studio** | 🖼️ | `/modules/visual-studio` | Orquestração visual por Capture, Enhance, Edit, Create, Analyze e Produce |
+| **Visual Handbook** | 📖 | `/modules/visual-handbook` | Documentação contextual das capacidades e limites do ecossistema visual |
+| **Varynth Camera** | 📷 | `/modules/camera` | Captura real, Quality Gate e proveniência preservada |
 | **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |
 | **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
 | **Athena AI** | 🦉 | `/modules/athena` | Centro de comando cognitivo e chat soberano |
