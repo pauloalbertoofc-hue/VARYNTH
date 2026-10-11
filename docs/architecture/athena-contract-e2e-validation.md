@@ -1,6 +1,7 @@
 # Athena — validação ponta a ponta dos contratos
 
-**Data:** 2 de setembro de 2026  
+**Data:** 11 de outubro de 2026
+
 **Escopo:** `ANSWER_SELF`, `USE_AGENT` e `USE_TOOL`  
 **Premissa:** execução local, sem dependência de API de rede.
 
@@ -14,7 +15,7 @@
 
 ## Cenários automatizados
 
-A suíte `interaction-contract-e2e.test.ts` cobre 15 evidências:
+A suíte `interaction-contract-e2e.test.ts` cobre 25 evidências:
 
 1. roteamento real dos três contratos;
 2. ausência de mutação em `ANSWER_SELF` e `USE_AGENT`;
@@ -24,7 +25,10 @@ A suíte `interaction-contract-e2e.test.ts` cobre 15 evidências:
 6. recuperação do plano após reinstanciar o armazenamento;
 7. telemetria local de conclusão por contrato;
 8. presença dos controles de confirmação, retomada e reversão na interface;
-9. ausência de `fetch` e de rota `/api/` no painel de planos.
+9. ausência de `fetch` e de rota `/api/` no painel de planos;
+10. rejeição de alegações factuais e operacionais não sustentadas por um especialista;
+11. ausência de uma segunda geração por modelo local após a resposta real do especialista;
+12. preservação da resposta limitada à evidência e da identidade visível única de Athena.
 
 As suítes complementares de governança e recuperação exercitam DAG, confirmação vinculada, cancelamento, pausa, retomada idempotente, falha parcial, repetição segura e undo concreto.
 

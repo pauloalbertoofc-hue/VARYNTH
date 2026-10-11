@@ -463,7 +463,11 @@ export async function processAthenaQueryAsync(
   }
 
   // 5. COGNITIVE PATH via Local Neural Engine (when Ollama is active on 127.0.0.1:11434)
-  const isOllamaOnline = contractDecision.contract === "USE_AGENT" && await ollamaAdapter.isAvailable();
+  // A specialist's response is already contextualized and evidence-bounded.
+  // FactLock validates structured platform facts, not whether a second model
+  // pass remains entailed by that specialist result, so do not rewrite it.
+  const selectedGeneralist = !capabilitySelection?.selected || capabilitySelection.selected.id === "athena-generalist";
+  const isOllamaOnline = contractDecision.contract === "USE_AGENT" && selectedGeneralist && await ollamaAdapter.isAvailable();
   if (isOllamaOnline && ollamaAdapter.activeModel && contractDecision.contract === "USE_AGENT") {
     try {
       const activeProj = resolvedProjectId ? ctx.projects.find((p) => p.id === resolvedProjectId) : undefined;
@@ -498,21 +502,11 @@ export async function processAthenaQueryAsync(
           priorExperiences: experienceContext.experiences,
           instructionPrecedence: experienceContext.instructionPrecedence,
         },
-        ...(invokedAgentResult ? {
-          specialistResult: {
-            success: invokedAgentResult.success,
-            content: invokedAgentResult.content,
-            confidence: invokedAgentResult.confidence,
-            sources: invokedAgentResult.sources ?? [],
-            limitations: invokedAgentResult.limitations ?? [],
-            experienceTrace: projectAgentExperienceTraces([invokedAgentResult])[0]?.trace,
-          },
-        } : {}),
       };
 
       const systemPrompt = `Você é a Athena, a inteligência artificial cognitiva e copilot digital central do VARYNTH OS.
 Você é perspicaz, empática, articulada, dialética e profunda. Responda em português do Brasil com o Princípio de Resposta Direta (responda primeiro ao que foi pedido sem rodeios).
-Respeite estritamente os fatos fornecidos em keyFacts e no contexto vivo. O bloco recentConversation contém apenas turnos anteriores desta sessão: use-o para resolver referências e continuidade, nunca para inventar fatos ausentes. Quando specialistResult estiver presente, ele é o resultado de uma invocação real do especialista escolhido: sintetize-o com fidelidade, preserve as limitações e o grau de confiança, não acrescente descobertas nem alegue verificação, pesquisa, consulta ou ação que não conste no resultado. Se o especialista não encontrou evidência, diga isso em vez de preencher lacunas com suposições. Sem specialistResult, não afirme que um especialista executou análise.
+Respeite estritamente os fatos fornecidos em keyFacts e no contexto vivo. O bloco recentConversation contém apenas turnos anteriores desta sessão: use-o para resolver referências e continuidade, nunca para inventar fatos ausentes. Não afirme que um especialista foi consultado ou executou uma análise, pois contribuições delegadas são retornadas diretamente pelo fluxo especializado.
 O bloco experience contém preferências e experiências anteriores da conta autenticada, não fatos universais. Trate inferências como incertas, use apenas o que for pertinente e nunca as aplique quando conflitarem com a instrução atual; instrução atual, política do projeto e permissões têm precedência. Adapte formalidade e vocabulário ao usuário e ao pedido. Se a evidência não bastar, diga o que falta e faça uma pergunta objetiva. Não presuma nome, identidade ou relação do usuário.`;
 
       const modelResponse = await athenaInteractionContractGateway.executeAsync(

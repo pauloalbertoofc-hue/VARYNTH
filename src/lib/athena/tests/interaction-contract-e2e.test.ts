@@ -6,6 +6,7 @@ import { athenaConversationManager } from "../conversation/conversation-manager"
 import { athenaInteractionContractGateway } from "../runtime/interaction-contract-gateway";
 import { CapabilityPlanStore } from "../runtime/capability-plan-store";
 import { critiasAgent } from "../agents/council/critias";
+import { ollamaAdapter } from "../models/providers/ollama-adapter";
 
 function check(condition: unknown, id: string, description: string): asserts condition {
   if (!condition) throw new Error(`[${id}] ${description}`);
@@ -75,6 +76,37 @@ async function run(): Promise<void> {
     critiasAgent.execute = originalCritiasExecute;
   }
 
+  const previousOllamaAvailability = ollamaAdapter.isAvailable;
+  const previousOllamaGenerate = ollamaAdapter.generate;
+  const previousOllamaModel = ollamaAdapter.activeModel;
+  let neuralRewriteCalls = 0;
+  try {
+    ollamaAdapter.activeModel = "e2e-hallucination-probe";
+    ollamaAdapter.isAvailable = async () => true;
+    ollamaAdapter.generate = async () => {
+      neuralRewriteCalls += 1;
+      return { content: "Onze vulnerabilidades críticas foram confirmadas por auditoria externa.", provider: "ollama-local", model: "e2e-hallucination-probe", providerType: "local" };
+    };
+    critiasAgent.execute = async () => ({
+      agentId: "critias", agentName: "Critias", role: critiasAgent.manifest.role,
+      success: true,
+      content: "O contexto descreve o Projeto Aurora como arquitetura local. **Ponto de atenção:** sem diagrama ou código, não é possível verificar seus limites; isso é uma lacuna de evidência, não um defeito confirmado. Envie o trecho ou critério que deseja revisar.",
+      confidence: 0.58,
+      sources: ["Descrição do Projeto Aurora fornecida no contexto da tarefa"],
+      limitations: ["Nenhum diagrama, código ou relatório técnico foi fornecido para inspeção."],
+    });
+    const boundedSpecialist = await processAthenaQueryAsync("Analise criticamente a arquitetura do Projeto Aurora", "geral", context, "e2e-project-a", "e2e-agent-no-neural-rewrite");
+    check(neuralRewriteCalls === 0, "E2E-021", "A local model cannot add a second ungrounded generation after a real specialist response");
+    const boundedValidation = boundedSpecialist.metadata?.specialistResponseValidation as { accepted?: boolean } | undefined;
+    check(boundedValidation?.accepted === true && boundedSpecialist.text.includes("lacuna de evidência, não um defeito confirmado") && !boundedSpecialist.text.includes("Onze vulnerabilidades"), "E2E-022", "Athena preserves the validated specialist evidence and excludes fabricated neural claims");
+    check((boundedSpecialist.metadata?.agentExecution as { agentId?: string } | undefined)?.agentId === "critias", "E2E-023", "The bounded response remains attributed to the invoked specialist while Athena stays the visible speaker");
+  } finally {
+    critiasAgent.execute = originalCritiasExecute;
+    ollamaAdapter.isAvailable = previousOllamaAvailability;
+    ollamaAdapter.generate = previousOllamaGenerate;
+    ollamaAdapter.activeModel = previousOllamaModel;
+  }
+
   const tool = await processAthenaQueryAsync("Crie uma tarefa chamada Validar contrato ponta a ponta", "geral", context, "e2e-project-a", "e2e-tool");
   check(tool.metadata?.interactionContract === "USE_TOOL", "E2E-006", "USE_TOOL atravessa planejamento e executor persistente");
   check(tool.metadata?.capabilityPlanStatus === "COMPLETED" && context.tasks.length === initialTasks + 1, "E2E-007", "USE_TOOL apresenta somente a mutação realmente concluída");
@@ -105,7 +137,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 22 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 25 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {
