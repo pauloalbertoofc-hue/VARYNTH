@@ -703,6 +703,22 @@ test("keeps an explicitly removed account cover cleared when another device has 
 test("keeps Euterpe conversations and Athena sessions separate when the signed-in account changes", async ({ page }) => {
   test.setTimeout(60_000);
   let currentUserId = "music-owner-a";
+  await page.addInitScript(() => {
+    class FakeUtterance {
+      text: string; lang = ""; rate = 1; pitch = 1;
+      onstart: (() => void) | null = null; onend: (() => void) | null = null; onerror: (() => void) | null = null;
+      constructor(text: string) { this.text = text; }
+    }
+    Object.defineProperty(window, "SpeechSynthesisUtterance", { configurable: true, value: FakeUtterance });
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
+      cancel() {},
+      speak(utterance: FakeUtterance) {
+        localStorage.setItem("music-euterpe-spoken-response", utterance.text);
+        utterance.onstart?.();
+        queueMicrotask(() => utterance.onend?.());
+      },
+    } });
+  });
   await page.route("**/api/auth/session", async (route) => route.fulfill({ json: { user: { id: currentUserId } } }));
   await page.route("**/api/music/library", async (route) => route.fulfill({ json: { uploadPrefix: `music/${currentUserId}/tracks`, storageMode: "account", tracks: [] } }));
   await page.goto("/modules/music");
@@ -712,6 +728,15 @@ test("keeps Euterpe conversations and Athena sessions separate when the signed-i
   }));
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.session)).toBeTruthy();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ownerA.chat)).toContain("Euterpe online");
+  await page.locator('[data-testid="euterpe-presence"] button').click();
+  await page.getByRole("button", { name: "Conversar", exact: true }).click();
+  const autoVoice = page.getByRole("button", { name: "Ativar respostas faladas da Euterpe" });
+  await autoVoice.click();
+  await expect(page.getByRole("button", { name: "Desativar respostas faladas da Euterpe" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate((key) => localStorage.getItem(`${key}:auto_speak`), ownerA.chat)).toBe("true");
+  await page.getByLabel("Mensagem para Euterpe").fill("Oi!");
+  await page.getByRole("button", { name: "Enviar para Euterpe" }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("music-euterpe-spoken-response"))).toBeTruthy();
   await page.evaluate(({ chat, session }) => {
     localStorage.setItem(chat, JSON.stringify([{ id: "private-a", sender: "user", text: "conversa privada da conta A", createdAt: new Date().toISOString() }]));
     localStorage.setItem(session, "athena-session-account-a");
@@ -722,6 +747,9 @@ test("keeps Euterpe conversations and Athena sessions separate when the signed-i
   currentUserId = "music-owner-b";
   await page.reload();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("varynth_music_curator_chat_v1:account:music-owner-b"))).toContain("Euterpe online");
+  await page.locator('[data-testid="euterpe-presence"] button').click();
+  await page.getByRole("button", { name: "Conversar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ativar respostas faladas da Euterpe" })).toHaveAttribute("aria-pressed", "false");
   const ownerB = await page.evaluate(() => ({
     chat: localStorage.getItem("varynth_music_curator_chat_v1:account:music-owner-b"),
     session: localStorage.getItem("varynth_music_curator_athena_session_v1:account:music-owner-b"),
@@ -734,6 +762,8 @@ test("keeps Euterpe conversations and Athena sessions separate when the signed-i
   expect(ownerB.session).toBeTruthy();
   expect(ownerB.session).not.toBe("athena-session-account-a");
   expect(ownerB.ownerAChat).toContain("conversa privada da conta A");
+  expect(await page.evaluate((key) => localStorage.getItem(`${key}:auto_speak`), ownerA.chat)).toBe("true");
+  expect(await page.evaluate(() => localStorage.getItem("varynth_music_curator_chat_v1:account:music-owner-b:auto_speak"))).toBe("false");
   expect(ownerB.ownerASession).toBe("athena-session-account-a");
   expect(ownerB.legacyChat).toContain("histórico antigo sem identidade");
   expect(ownerB.legacySession).toBe("legacy-athena-session");
