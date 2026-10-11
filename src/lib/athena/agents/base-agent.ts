@@ -164,10 +164,24 @@ export async function converseAsSpecialist(
   const executionTask = correction.repaired ? { ...resolvedTask, rawPrompt: correction.prompt } : resolvedTask;
   const result = await agent.execute(executionTask, context);
   const presented = conversationalizeSpecialistResult(result, agent.manifest, task.rawPrompt, resolution.usedHistory, context);
+  const retrievedExperiences = context.experienceContext?.experiences ?? [];
+  const experiencesReferencedInResponse = retrievedExperiences.filter((experience) => {
+    const recordedAction = experience.action.trim().slice(0, 120);
+    return recordedAction.length > 0 && presented.content.includes(recordedAction);
+  });
+  const experienceTrace = {
+    agentId: agent.manifest.id,
+    retrievedPreferenceIds: (context.experienceContext?.preferences ?? []).map((preference) => preference.id),
+    retrievedExperienceIds: retrievedExperiences.map((experience) => experience.id),
+    experienceIdsReferencedInResponse: experiencesReferencedInResponse.map((experience) => experience.id),
+    evidenceEventIdsReferencedInResponse: [...new Set(experiencesReferencedInResponse.flatMap((experience) => experience.evidence.map((evidence) => evidence.eventId)))],
+    instructionPrecedence: context.experienceContext?.instructionPrecedence ?? "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION",
+  };
   return {
     ...presented,
     metadata: {
       ...presented.metadata,
+      experienceTrace,
       ...(correction.repaired ? { conversationRepair: true, repairedFromExplicitFeedback: true } : {}),
     },
   };

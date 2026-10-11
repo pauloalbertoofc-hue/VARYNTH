@@ -13,6 +13,7 @@ void (async () => {
   let receivedPrompt = "";
   let receivedTitle = "";
   let receivedScope = "";
+  let responseBody = "Resposta revisada";
   const agent: AthenaAgent = {
     manifest,
     canHandle: () => true,
@@ -20,7 +21,7 @@ void (async () => {
       receivedPrompt = task.rawPrompt;
       receivedTitle = task.title;
       receivedScope = task.scope;
-      return { agentId: "logos", agentName: "Logos", role: manifest.role, success: true, content: "Resposta revisada", confidence: 0.6 };
+      return { agentId: "logos", agentName: "Logos", role: manifest.role, success: true, content: responseBody, confidence: 0.6 };
     },
   };
   const context = { scope: "pesquisa", recentConversation: [], conversationSessionId: sessionId, experienceContext: { experiences: [], preferences: [] } } as unknown as AthenaContext;
@@ -56,6 +57,25 @@ void (async () => {
   assert.match(informal.content, /^Sou Logos — avalio como uma afirmação é sustentada/);
   assert.doesNotMatch(informal.content, /Se quiser, posso aprofundar/);
   assert.match(informal.content, /Resposta revisada/);
+
+  const priorOutcome = {
+    id: "trace-experience", domain: "research", context: {}, situation: "Uma síntese misturava camadas",
+    action: "separar premissas e evidências", outcome: "a revisão ficou auditável", usefulness: 1, confidence: 0.5,
+    evidence: [{ eventId: "trace-event", weight: "VERY_HIGH" as const, reason: "revisão manual" }],
+    scope: "PROJECT" as const, scopeId: "trace-project", createdAt: new Date(0).toISOString(),
+  };
+  responseBody = "Resposta revisada: separar premissas e evidências antes da conclusão.";
+  const traced = await converseAsSpecialist(agent, { rawPrompt: "Avalie a análise", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    activeProject: { id: "trace-project", title: "Projeto de teste", description: "", category: "pesquisa", status: "ativo", priority: "media", tags: [], createdAt: "", updatedAt: "" },
+    experienceContext: { preferences: [], experiences: [priorOutcome], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
+  } as unknown as AthenaContext);
+  const trace = traced.metadata?.experienceTrace as { retrievedExperienceIds: string[]; experienceIdsReferencedInResponse: string[]; evidenceEventIdsReferencedInResponse: string[]; instructionPrecedence: string };
+  assert.deepEqual(trace.retrievedExperienceIds, ["trace-experience"]);
+  assert.deepEqual(trace.experienceIdsReferencedInResponse, ["trace-experience"]);
+  assert.deepEqual(trace.evidenceEventIdsReferencedInResponse, ["trace-event"]);
+  assert.equal(trace.instructionPrecedence, "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION");
+  responseBody = "Resposta revisada";
 
   athenaConversationFeedback.record({ sessionId, messageId: "response-2", agentId: "logos", category: "WRONG_ACTION" });
   receivedPrompt = "";

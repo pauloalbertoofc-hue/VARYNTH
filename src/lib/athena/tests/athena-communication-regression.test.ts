@@ -2,9 +2,13 @@ import type { AthenaEngineContext } from "../engine";
 import { processAthenaQueryAsync } from "../engine";
 import { athenaConversationManager } from "../conversation/conversation-manager";
 import { athenaConversationStore } from "../conversation/conversation-store";
-import { experienceEventRepository, experienceRepository } from "@/lib/persistence/repositories";
+import { experienceEventRepository, experienceRepository, learningExclusionRepository } from "@/lib/persistence/repositories";
 import { experienceService } from "@/lib/experience/experience-service";
-import { retainExperience } from "@/lib/experience/outcome-service";
+import { recordReviewedProjectOutcome } from "@/lib/experience/reviewed-outcome-service";
+import { prepareAgentExperienceContext } from "@/lib/athena/runtime/agent-experience-context";
+import { musaAgent } from "@/lib/athena/agents/council/musa";
+import type { AthenaTask } from "@/lib/athena/domain/task";
+import type { AthenaContext } from "@/lib/athena/domain/context";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -17,7 +21,7 @@ const context: AthenaEngineContext = {
 };
 
 async function run(): Promise<void> {
-  await Promise.all([experienceEventRepository.clear(), experienceRepository.clear()]);
+  await Promise.all([experienceEventRepository.clear(), experienceRepository.clear(), learningExclusionRepository.clear()]);
   for (const [index, question] of [
     "Quais tarefas eu tenho?",
     "Tem coisa pendente?",
@@ -69,14 +73,13 @@ async function run(): Promise<void> {
   assert(!greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural without leaking another account name");
 
   const outcomeEvent = await experienceService.record({
-    ownerId: "local-owner", actor: "USER", actionType: "OUTCOME_RECORDED", metadata: { reviewed: true },
-    source: "project-retrospective", privacyScope: "PROJECT_SHARED", learningEligible: true, projectId: "communication-project",
+    ownerId: "local-owner", actor: "USER", actionType: "MANUAL_EDIT", domain: "creativity", metadata: { field: "visual-direction" },
+    source: "labs", privacyScope: "PROJECT_SHARED", learningEligible: true, projectId: "communication-project",
   });
-  await retainExperience({
-    ownerId: "local-owner", domain: "creativity", context: {}, situation: "As primeiras propostas estavam genéricas",
+  const retainedOutcome = await recordReviewedProjectOutcome({
+    ownerId: "local-owner", projectId: "communication-project", situation: "As primeiras propostas estavam genéricas",
     action: "Relacionar cada proposta ao objetivo visual do projeto", outcome: "A direção foi escolhida com menos revisões",
-    usefulness: 0.9, evidence: [{ eventId: outcomeEvent.id, weight: "HIGH", reason: "retrospectiva confirmada" }],
-    scope: "PROJECT", scopeId: "communication-project",
+    evidenceEventIds: [outcomeEvent.id], confirmsUseful: true,
   });
   const projectContext: AthenaEngineContext = {
     ...context,
@@ -89,7 +92,22 @@ async function run(): Promise<void> {
   const projectIdeas = await processAthenaQueryAsync("Me dê ideias para este projeto", "geral", projectContext, "communication-project", "communication-project-experience");
   assert(projectIdeas.text.includes("Experiência registrada neste projeto") && projectIdeas.text.includes("menos revisões"), "Deterministic Athena should use a positive retained outcome for the exact active project as a method reference");
   const appliedExperienceIds = ((projectIdeas.metadata?.experienceContext as { appliedExperienceIds?: string[] } | undefined)?.appliedExperienceIds) ?? [];
-  assert(appliedExperienceIds.length === 1, "The response trace should identify the exact experience record it used");
+  assert(appliedExperienceIds.length === 1 && appliedExperienceIds[0] === retainedOutcome.id, "The response trace should identify the exact experience record it used");
+
+  const agentTask: AthenaTask = {
+    id: "reviewed-outcome-agent-task", title: "Ideias para identidade visual", rawPrompt: "Me dê ideias para uma exposição",
+    type: "CREATIVE_IDEATION", priority: "media", status: "CREATED", scope: "geral", targetProjectId: "communication-project",
+    entities: {}, metadata: { sessionId: "reviewed-outcome-agent-session" }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  const activeProject = projectContext.projects[0];
+  const agentContext: AthenaContext = {
+    scope: "geral", activeProject, relevantProjects: [activeProject], relevantTasks: [], relevantVaultItems: [],
+    relevantChronosEvents: [], relevantTheses: [], relevantEvidences: [], relevantOpportunities: [], systemTime: new Date().toISOString(),
+  };
+  const musaExperience = await prepareAgentExperienceContext("musa", agentTask, agentContext, "local-owner");
+  assert(musaExperience?.experiences.length === 1 && musaExperience.experiences[0]?.id === retainedOutcome.id, "The reviewed outcome should retrieve for Musa inside the matching creativity/project scope");
+  const musaReply = await musaAgent.execute(agentTask, { ...agentContext, experienceContext: musaExperience });
+  assert(musaReply.content.includes("Relacionar cada proposta ao objetivo visual do projeto"), "Musa should use the authored outcome as a methodological hint");
 
   const suppressedIdeas = await processAthenaQueryAsync("Me dê ideias para este projeto sem usar experiências anteriores", "geral", projectContext, "communication-project", "communication-project-no-history");
   assert(!suppressedIdeas.text.includes("Experiência registrada neste projeto"), "Explicit current instruction must suppress historical guidance");
@@ -97,7 +115,7 @@ async function run(): Promise<void> {
   const otherProjectIdeas = await processAthenaQueryAsync("Me dê ideias para outro projeto", "geral", projectContext, "another-project", "communication-other-project");
   assert(!otherProjectIdeas.text.includes("Experiência registrada neste projeto"), "Project outcome must not cross into another project");
 
-  console.log("✓ Athena colloquial conversation, real project-outcome retrieval, instruction override and project isolation passed");
+  console.log("✓ Reviewed retrospective outcomes reach Athena and Musa with evidence, project isolation and instruction precedence");
 }
 
 run().catch((error) => {
