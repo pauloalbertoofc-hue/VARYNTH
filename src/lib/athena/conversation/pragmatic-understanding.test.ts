@@ -4,6 +4,12 @@ import { understandPragmatics } from "./pragmatic-understanding";
 assert.equal(understandPragmatics("Voltando ao projeto, revise a tese").intent, "SUBSTANTIVE", "returning to a topic is not the same as switching away");
 assert.equal(understandPragmatics("Mudando de assunto: e essa proposta?").intent, "TOPIC_SWITCH");
 assert.equal(understandPragmatics("Poderia explicar melhor?").intent, "CLARIFICATION_REQUEST");
+for (const followUp of ["E aí?", "Mas como?", "Desenvolve", "Pode detalhar?", "Detalhe melhor", "Expanda isso"]) {
+  const understood = understandPragmatics(followUp);
+  assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should be identified as a contextual continuation`);
+  assert.equal(understood.likelyFollowUp, true);
+}
+assert.equal(understandPragmatics("E aí, tudo bem?").intent, "SUBSTANTIVE", "a greeting must not be mistaken for a contextual continuation");
 assert.equal(understandPragmatics("Vc pode explicar melhor?").register, "informal");
 assert.equal(understandPragmatics("Poderia, por gentileza, explicar?",).register, "formal");
 assert.equal(understandPragmatics("Responda em registro formal.").register, "formal", "an explicit formal style request must set the requested register");

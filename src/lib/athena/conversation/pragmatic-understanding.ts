@@ -21,6 +21,9 @@ const FOLLOW_UP = /^(?:(?:e|mas e|quanto a)\s+(?:isso|essa|esse|ele|ela|eles|ela
 
 export function understandPragmatics(prompt: string): PragmaticUnderstanding {
   const text = normalize(prompt);
+  if (/^(?:e ai|mas como|desenvolve|desenvolva|detalhe melhor|expanda isso|pode detalhar|poderia detalhar)$/.test(text)) {
+    return { intent: "FOLLOW_UP", confidence: 0.88, ...(text === "e ai" ? { register: "informal" as const } : {}), explicitTopicSwitch: false, likelyFollowUp: true };
+  }
   const explicitTopicSwitch = TOPIC_SWITCH.test(text);
   const requestedVerbosity = /\b(?:curto|breve|conciso|resumido|em poucas palavras|sem rodeios)\b/.test(text)
     ? "concise" : /\b(?:detalhado|com detalhes|em detalhes|passo a passo|aprofundado)\b/.test(text) ? "detailed" : undefined;
