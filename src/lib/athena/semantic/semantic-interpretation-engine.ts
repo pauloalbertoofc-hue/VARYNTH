@@ -17,6 +17,7 @@ import { PragmaticsAnalyzer } from "./pragmatics-analyzer";
 import { SlotExtractor } from "./slot-extractor";
 import { LocalSimilarityEngine } from "./similarity-engine";
 import { LocalSemanticLMAdapter } from "./adapters/local-semantic-lm";
+import { understandPragmatics } from "../conversation/pragmatic-understanding";
 
 export interface SemanticContextInfo {
   hasPendingPlan?: boolean;
@@ -37,6 +38,7 @@ export class SemanticInterpretationEngine {
     context: SemanticContextInfo = {}
   ): SemanticInterpretation {
     const timestamp = new Date().toISOString();
+    const pragmaticUnderstanding = understandPragmatics(rawPrompt);
     const deterministicSignals: string[] = [];
     const pragmaticFlags: string[] = [];
 
@@ -143,6 +145,20 @@ export class SemanticInterpretationEngine {
       finalConfidence = 0.95;
       semanticSource = "DETERMINISTIC";
       deterministicSignals.push("PRIMARY_NEGATION_ACTION_BLOCKED");
+    }
+    // Explicit repair and clarification speech acts outrank lexical similarity;
+    // they ask about the current conversation, not for a fresh domain answer.
+    else if (pragmaticUnderstanding.intent === "CORRECTION") {
+      selectedIntent = "CORRECTION";
+      finalConfidence = pragmaticUnderstanding.confidence;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("PRAGMATIC_EXPLICIT_CORRECTION");
+    }
+    else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST") {
+      selectedIntent = "EPISTEMIC_QUERY";
+      finalConfidence = pragmaticUnderstanding.confidence;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("PRAGMATIC_EXPLICIT_CLARIFICATION");
     }
     // Rule E: Capability Inquiry
     else if (pragRes.isCapabilityQuestion) {

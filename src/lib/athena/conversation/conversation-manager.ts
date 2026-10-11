@@ -11,6 +11,7 @@ import { sessionSummarizer } from "./session-summarizer";
 import { AthenaMessage } from "../domain/response";
 import { Project } from "@/lib/types";
 import { SemanticInterpretationEngine } from "../semantic/semantic-interpretation-engine";
+import { understandPragmatics } from "./pragmatic-understanding";
 
 export function normalizeText(text: string): string {
   return text
@@ -97,6 +98,7 @@ export class ConversationManager {
       : this.sessionHistories.get(sessionId) || [];
     const prompt = rawPrompt.trim();
     const clean = normalizeText(prompt);
+    const pragmaticUnderstanding = understandPragmatics(prompt);
 
     state.messageCount += 1;
     state.lastInteractionAt = new Date().toISOString();
@@ -222,6 +224,17 @@ export class ConversationManager {
     let isEllipsis = false;
     let originalReferent: string | undefined;
     let resolvedMeaning: string | undefined;
+    let clarificationPrompt: string | undefined;
+
+    if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST") {
+      if (lastAthenaTurn?.text.trim()) {
+        isEllipsis = true;
+        originalReferent = lastAthenaTurn.text.slice(0, 500);
+        resolvedMeaning = `Esclarecer ou reformular a resposta imediatamente anterior da Athena, sem acrescentar fatos além do contexto disponível`;
+      } else {
+        clarificationPrompt = "Ainda não há uma resposta anterior nesta conversa para esclarecer. Qual trecho ou assunto você quer que eu explique?";
+      }
+    }
 
     // Ellipsis Case A: "o segundo", "o primeiro", "esse", "essa"
     if (
@@ -309,6 +322,20 @@ export class ConversationManager {
       recentEntities: state.recentEntities,
       hasPendingSlot: Boolean(state.pendingQuestion),
     });
+    if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST" && !lastAthenaTurn?.text.trim()) {
+      semantic.intent = "UNKNOWN_INPUT";
+      semantic.confidence = 0.35;
+      semantic.confidenceLevel = "LOW";
+      semantic.ambiguity = "REFERENCE";
+      semantic.requiresClarification = true;
+      semantic.clarificationPrompt = "Ainda não há uma resposta anterior nesta conversa para esclarecer. Qual trecho ou assunto você quer que eu explique?";
+      semantic.comprehensionStatus = "AMBIGUOUS";
+      semantic.missingInformation = ["previousAnswerOrTopic"];
+      semantic.trace.selectedIntent = "UNKNOWN_INPUT";
+      semantic.trace.confidenceScore = 0.35;
+      semantic.trace.confidenceBucket = "LOW";
+      semantic.trace.deterministicSignals.push("CLARIFICATION_WITHOUT_PREVIOUS_ASSISTANT_TURN");
+    }
 
     const candidateProject = state.pendingQuestion
       ? allProjects.find((project) => normalizeText(project.title) === clean)
@@ -346,7 +373,7 @@ export class ConversationManager {
     let requiresAction = false;
     let subject = "GENERAL";
     let isAmbiguous = semantic.isNoise || semantic.requiresClarification;
-    let clarificationPrompt = semantic.clarificationPrompt;
+    clarificationPrompt = semantic.clarificationPrompt;
 
     const isSocialCheckIn =
       clean.includes("como voce esta") ||
@@ -423,6 +450,8 @@ export class ConversationManager {
       !/\b(projeto|maluco|cansado|dificil)\b/.test(clean) &&
       /\b(esse|essa|isso|aquele|aquela|negocio la|coisa la)\b/.test(clean);
     const hasSupportedConversationSignal =
+      pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST" ||
+      pragmaticUnderstanding.intent === "CORRECTION" ||
       isSocialCheckIn ||
       isAthenaSelfDiagnostic ||
       isComparisonStatement ||
@@ -440,7 +469,8 @@ export class ConversationManager {
       isAmbiguousSlangFeedback ||
       isEllipsis;
 
-    if (hasSupportedConversationSignal && !semantic.isNoise) {
+    const clarificationHasReferent = pragmaticUnderstanding.intent !== "CLARIFICATION_REQUEST" || Boolean(lastAthenaTurn?.text.trim());
+    if (hasSupportedConversationSignal && clarificationHasReferent && !semantic.isNoise) {
       isAmbiguous = false;
       clarificationPrompt = undefined;
     }
@@ -566,6 +596,19 @@ export class ConversationManager {
       confidence = "HIGH";
       requiresContext = true;
       subject = "SELECTED_RECOMMENDATION";
+    }
+    else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST" && lastAthenaTurn?.text.trim()) {
+      interactionType = "CONVERSATION";
+      intents.push("EXPLAIN");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = "PREVIOUS_ANSWER_CLARIFICATION";
+    }
+    else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST") {
+      interactionType = "CONVERSATION";
+      intents.push("CLARIFICATION_REQUIRED");
+      confidence = "HIGH";
+      requiresContext = false;
     }
     else if (isEllipsis && (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))) {
       interactionType = "COGNITIVE_REQUEST";

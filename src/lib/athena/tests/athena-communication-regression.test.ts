@@ -72,6 +72,18 @@ async function run(): Promise<void> {
   const greeting = await processAthenaQueryAsync("Oi Athena", "geral", context, undefined, "communication-greeting");
   assert(!greeting.text.includes("Paulo") && !greeting.text.includes("ficado incompleta"), "Real greetings must remain natural without leaking another account name");
 
+  const clarificationSession = "communication-clarify-previous-answer";
+  const priorAnswer = "A revisão encontrou duas premissas sem fonte e recomendou separar hipótese de evidência antes da conclusão.";
+  athenaConversationManager.updateSessionWithHistory(clarificationSession, [
+    { id: "prior-answer", sender: "athena", text: priorAnswer, timestamp: new Date().toISOString(), scope: "geral" },
+  ]);
+  const clarification = await processAthenaQueryAsync("Poderia explicar melhor?", "geral", context, undefined, clarificationSession);
+  assert(clarification.text.includes(priorAnswer), `A formal clarification request must resolve against the immediately preceding Athena answer without inventing details. Got: ${clarification.text}`);
+  assert((clarification.metadata?.debug as Record<string, unknown> | undefined)?.interactionContract === "ANSWER_SELF", "Clarifying Athena's own prior answer must not invoke a specialist or tool");
+
+  const noReferent = await processAthenaQueryAsync("Me explica melhor?", "geral", context, undefined, "communication-clarify-without-history");
+  assert(noReferent.text.includes("Ainda não há uma resposta anterior"), "Without a prior answer, Athena must ask what to clarify instead of inventing a referent");
+
   const outcomeEvent = await experienceService.record({
     ownerId: "local-owner", actor: "USER", actionType: "MANUAL_EDIT", domain: "creativity", metadata: { field: "visual-direction" },
     source: "labs", privacyScope: "PROJECT_SHARED", learningEligible: true, projectId: "communication-project",

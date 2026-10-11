@@ -6,6 +6,7 @@ import { athenaConversationFeedback } from "../conversation/quality-feedback";
 import { agentGuidanceInstruction, confirmedAgentGuidance, formatExperienceMethodHints, specialistExperienceGuidance } from "./experience-guidance";
 import { recordExperienceDecisionTrace } from "@/lib/experience/decision-trace";
 import { experienceDomainForAgent } from "../runtime/agent-experience-context";
+import { understandPragmatics } from "../conversation/pragmatic-understanding";
 
 export interface AgentManifest {
   id: string;
@@ -59,6 +60,8 @@ export function renderAgentPersona(manifest: AgentManifest): string {
 }
 
 export function inferCurrentConversationRegister(prompt: string): "formal" | "informal" | undefined {
+  const pragmaticRegister = understandPragmatics(prompt).register;
+  if (pragmaticRegister) return pragmaticRegister;
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   // Courtesy is common in informal Brazilian Portuguese; it must not outweigh
   // clear register markers such as "cê" or "poderia/solicito" on its own.
@@ -79,8 +82,7 @@ function normalizeFollowUpText(value: string): string {
 }
 
 function isExplicitTopicSwitch(value: string): boolean {
-  const normalized = normalizeFollowUpText(value);
-  return /^(?:mudando de assunto|mudando de tema|outra coisa|falando de outra coisa|sobre outro assunto|(?:e\s+)?agora\s+(?:sobre|quanto a))\b/.test(normalized);
+  return understandPragmatics(value).explicitTopicSwitch;
 }
 
 /** Resolves only clear follow-up references from the active session's user turns.
@@ -100,7 +102,7 @@ export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { 
     }
   }
   if (isExplicitTopicSwitch(prompt)) return { prompt, usedHistory: false };
-  const followUp = /^(?:(?:e|mas\s+e|quanto\s+a)\s+(?:isso|essa|esse|ele|ela|eles|elas|os\s+riscos|as\s+consequências|o\s+argumento|a\s+ideia|a\s+tese|a\s+proposta|o\s+tema|esse\s+ponto|essa\s+resposta|essa\s+parte|esse\s+detalhe|o\s+exemplo|o\s+resultado|o\s+plano|o\s+texto|o\s+rascunho|a\s+análise|o\s+trecho|a\s+segunda\s+opção|as\s+fontes|essa\s+obra|no\s+cap[ií]tulo)\b[^.!?]{0,90}|(?:continue|desenvolva\s+(?:isso|essa\s+ideia|essa\s+proposta)|explique\s+(?:isso|essa\s+parte|essa\s+resposta|melhor)|fale\s+mais(?:\s+sobre\s+isso)?|escreva\s+mais\s+sobre\s+isso|redija\s+mais\s+sobre\s+isso|e\s+agora|o\s+que\s+mais|pode\s+(?:explicar\s+(?:isso|essa\s+parte)|detalhar\s+isso|desenvolver\s+isso)|me\s+explica(?:r)?\s+(?:isso|essa\s+parte)|qual\s+(?:delas|deles|das\s+opções)|isso\s+(?:funciona|serve|resolve))\b[^.!?]{0,90}|o\s+que\s+(?:isso|essa|esse)\s+tem\s+a\s+ver[^.!?]{0,90}|(?:por\s+que|quais\s+(?:são\s+)?(?:os\s+)?riscos|quais\s+as\s+consequências))\s*[.!?]?$/i.test(prompt.trim()) || /^por\s+quê\s*[.!?]?$/i.test(prompt.trim());
+  const followUp = understandPragmatics(prompt).likelyFollowUp;
   if (!followUp) return { prompt, usedHistory: false };
   const previousUserTurn = [...turns].reverse().find((turn) => turn.role === "user" && turn.text.trim());
   if (!previousUserTurn) return { prompt, usedHistory: false };
@@ -118,10 +120,11 @@ function conversationalizeSpecialistResult(
   if (!body || result.metadata?.conversationPresentation === true) return result;
 
   const explicitStyle = originalPrompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const pragmatic = understandPragmatics(originalPrompt);
   const learnedStyle = agentGuidanceInstruction(context, manifest.id, originalPrompt).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const currentRegister = inferCurrentConversationRegister(originalPrompt);
   const verbosity = confirmedAgentGuidance(context, manifest.id, "verbosity", originalPrompt)
-    ?? (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined);
+    ?? (pragmatic.requestedVerbosity || (/\b(curto|breve|concis[oa]|resumid[oa]|em poucas palavras|sem rodeios)\b/.test(explicitStyle) ? "concise" : /\b(detalhad[oa]|com detalhes|passo a passo)\b/.test(explicitStyle) ? "detailed" : /prefira uma resposta concisa/.test(learnedStyle) ? "concise" : /desenvolva a resposta/.test(learnedStyle) ? "detailed" : undefined));
   const formality = confirmedAgentGuidance(context, manifest.id, "formality", originalPrompt)
     ?? (/\b(formal|formalidade)\b/.test(explicitStyle) ? "formal" : /\b(informal|descontraid[oa]|casual)\b/.test(explicitStyle) ? "informal" : /registro formal/.test(learnedStyle) ? "formal" : /registro informal/.test(learnedStyle) ? "informal" : currentRegister);
   const identity = manifest.persona.identity.replace(/^Sou\s+[^,;:]+[,;:]?\s*/i, "").trim() || manifest.persona.voice;

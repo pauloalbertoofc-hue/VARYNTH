@@ -275,6 +275,15 @@ export class AthenaPersonaEngine {
     return `Eu recomendei **${target}** como possibilidade. Na resposta anterior, o motivo que registrei foi: “${statedBasis}”. Esse é um critério geral da ideia, não uma verificação de que ela combina com seu acervo, agenda ou prioridades. Quer que eu compare as opções por interesse, esforço ou fontes disponíveis?`;
   }
 
+  private explainPreviousAnswer(previousAssistantText?: string): string {
+    const previous = (previousAssistantText || "").trim();
+    if (!previous) return "Ainda não há uma resposta anterior nesta conversa para esclarecer. Qual trecho ou assunto você quer que eu explique?";
+    const clean = previous.replace(/^\s*(?:athena\s*:\s*)/i, "").slice(0, 1_200);
+    const firstSubstantiveLine = clean.split(/\r?\n/).map((line) => line.trim()).find((line) => line && !/^#{1,6}\s/.test(line));
+    if (!firstSubstantiveLine) return "Minha resposta anterior não contém um trecho substantivo legível para explicar. Pode indicar o ponto que ficou confuso?";
+    return `Na resposta anterior, o ponto foi: “${firstSubstantiveLine.slice(0, 500)}”\n\nEsse é o conteúdo que consigo confirmar pelo histórico desta conversa. Se você queria uma explicação de uma frase ou termo específico, indique qual; não vou acrescentar uma justificativa que não estava registrada.`;
+  }
+
   /**
    * Generates a concrete critique (Critias).
    */
@@ -334,6 +343,10 @@ export class AthenaPersonaEngine {
           ? `Entendi: você está falando de **${activeProjectTitle}**. Vou usar esse projeto como contexto daqui em diante. O que você gostaria de saber ou fazer em relação a ele?`
           : `Entendi: “${prompt.trim()}”. Obrigada por esclarecer. Qual é o próximo ponto que você quer tratar?`,
       };
+    }
+
+    if (parsed.subject === "PREVIOUS_ANSWER_CLARIFICATION") {
+      return { text: this.explainPreviousAnswer(parsed.ellipsisResolved?.previousAssistantText) };
     }
 
     // 0. Misunderstanding Repair / User Frustration (Concise & Non-Defensive)

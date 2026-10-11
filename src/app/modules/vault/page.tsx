@@ -34,6 +34,7 @@ import { upload as uploadBlob } from "@vercel/blob/client";
 import { LITERARY_CATEGORIES, PRIMARY_SUBJECTS, VAULT_FORMATS, WORK_TYPES, suggestTaxonomy } from "@/lib/vault/taxonomy";
 import { revokeVaultKnowledgeItem, syncVaultKnowledgeItem } from "@/lib/knowledge";
 import { usePlatformPreferences } from "@/components/customization/CustomizationProvider";
+import { recordKnowledgeGovernanceDecision } from "@/lib/experience/knowledge-governance-feedback";
 
 const TYPE_CONFIG: Record<VaultItemType, { label: string; icon: React.ElementType; color: string }> = {
   artigo: { label: "Artigo", icon: FileText, color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
@@ -80,12 +81,24 @@ export default function VaultPage() {
   const [selectedSubject, setSelectedSubject] = useState("Todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<VaultItem | null>(null);
+  const [experienceAuditWarning, setExperienceAuditWarning] = useState("");
 
   const confirmVaultDeletion = async () => {
     if (!itemToDelete) return;
+    const deletedId = itemToDelete.id;
     await syncVaultKnowledgeItem(itemToDelete);
     await revokeVaultKnowledgeItem(itemToDelete.id);
     deleteVaultItem(itemToDelete.id);
+    try { await recordKnowledgeGovernanceDecision({ action: "VAULT_DELETE", itemId: deletedId }); setExperienceAuditWarning(""); }
+    catch { setExperienceAuditWarning("O item foi movido para a Lixeira, mas a auditoria da Experience não foi associada."); }
+  };
+
+  const updateReadingStatus = (item: VaultItem, status: ReadingStatus) => {
+    if (item.readingStatus === status) return;
+    updateVaultItem(item.id, { readingStatus: status });
+    void recordKnowledgeGovernanceDecision({ action: "VAULT_READING_STATUS", itemId: item.id, lifecycleState: status })
+      .then(() => setExperienceAuditWarning(""))
+      .catch(() => setExperienceAuditWarning("Status de leitura atualizado; a auditoria da Experience não foi associada."));
   };
 
   // Form states
@@ -281,6 +294,7 @@ export default function VaultPage() {
   return (
     <PageLayout title="Vault" subtitle="Biblioteca pessoal e segundo cérebro relacional">
       <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
+        {experienceAuditWarning && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">{experienceAuditWarning}</p>}
         {/* Header & Metrics */}
         {preferences.vault.header && <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -419,9 +433,7 @@ export default function VaultPage() {
                         <div className="flex items-center gap-1.5">
                           <select
                             value={item.readingStatus}
-                            onChange={(e) =>
-                              updateVaultItem(item.id, { readingStatus: e.target.value as ReadingStatus })
-                            }
+                            onChange={(e) => updateReadingStatus(item, e.target.value as ReadingStatus)}
                             className={cn(
                               "text-[10px] px-2 py-0.5 rounded border font-medium bg-transparent cursor-pointer focus:outline-none",
                               statusInfo.color

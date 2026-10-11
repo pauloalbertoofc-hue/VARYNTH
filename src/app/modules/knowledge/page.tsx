@@ -14,6 +14,7 @@ import type { DomainKnowledgePolicyConfig } from "@/lib/knowledge/domain-registr
 import { DomainKnowledgePolicyControl } from "./DomainKnowledgePolicyControl";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { KnowledgeGovernanceControl } from "./KnowledgeGovernanceControl";
+import { recordKnowledgeGovernanceDecision } from "@/lib/experience/knowledge-governance-feedback";
 
 export default function KnowledgePage() {
   const { isLoaded: vaultLoaded, vaultItems, updateVaultItem } = useVarynthStore();
@@ -39,6 +40,10 @@ export default function KnowledgePage() {
   const [classificationTargets, setClassificationTargets] = useState<Record<string, string>>({});
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState("");
+  async function recordGovernanceAudit(input: Parameters<typeof recordKnowledgeGovernanceDecision>[0]): Promise<boolean> {
+    try { await recordKnowledgeGovernanceDecision(input); return true; }
+    catch { return false; }
+  }
   useEffect(() => {
     let active = true;
     void fetch("/api/knowledge/domains", { cache: "no-store" }).then(async (response) => {
@@ -109,7 +114,8 @@ export default function KnowledgePage() {
         updated = await storeKnowledge(result.item);
       }
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...updated, content: item.content } : candidate));
-      setActionMessage("Classificação salva.");
+      const auditRecorded = await recordGovernanceAudit({ action: "CLASSIFY", itemId: item.id, domain: classified.primaryDomain });
+      setActionMessage(auditRecorded ? "Classificação salva." : "Classificação salva; o registro de auditoria da Experience não foi associado.");
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao classificar."); }
     finally { setBusyItem(null); }
   }
@@ -122,7 +128,8 @@ export default function KnowledgePage() {
       if (!response.ok) throw new Error(result.error || "Não foi possível persistir a publicação entre agentes.");
       const published = await publishKnowledge(item.id, "system");
       setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...published, content: item.content } : candidate));
-      setActionMessage("Conhecimento publicado entre agentes.");
+      const auditRecorded = await recordGovernanceAudit({ action: "PUBLISH", itemId: item.id, domain: item.primaryDomain });
+      setActionMessage(auditRecorded ? "Conhecimento publicado entre agentes." : "Conhecimento publicado; o registro de auditoria da Experience não foi associado.");
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao publicar."); }
     finally { setBusyItem(null); }
   }
@@ -136,7 +143,8 @@ export default function KnowledgePage() {
       if (!response.ok) throw new Error(result.error || "Não foi possível persistir a revogação entre agentes.");
       await revokeKnowledge(item.id);
       setItems((current) => current.filter((candidate) => candidate.id !== item.id));
-      setActionMessage("Conhecimento revogado do retrieval.");
+      const auditRecorded = await recordGovernanceAudit({ action: "REVOKE", itemId: item.id, domain: item.primaryDomain });
+      setActionMessage(auditRecorded ? "Conhecimento revogado do retrieval." : "Conhecimento revogado; o registro de auditoria da Experience não foi associado.");
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao revogar."); }
     finally { setBusyItem(null); }
   }
@@ -159,7 +167,8 @@ export default function KnowledgePage() {
       const inventoryResponse = await fetch("/api/knowledge/items?view=lifecycle", { cache: "no-store" });
       const inventory = await inventoryResponse.json().catch(() => ({})) as { items?: KnowledgeItem[] };
       if (inventoryResponse.ok && Array.isArray(inventory.items)) setLifecycleItems(inventory.items);
-      setActionMessage(`Estado de ${item.title} atualizado para ${nextState}.`);
+      const auditRecorded = await recordGovernanceAudit({ action: "LIFECYCLE", itemId: item.id, domain: item.primaryDomain, lifecycleState: nextState });
+      setActionMessage(auditRecorded ? `Estado de ${item.title} atualizado para ${nextState}.` : `Estado de ${item.title} atualizado; o registro de auditoria da Experience não foi associado.`);
     } catch (error) { setActionMessage(error instanceof Error ? error.message : "Falha ao atualizar lifecycle."); }
     finally { setBusyItem(null); }
   }
