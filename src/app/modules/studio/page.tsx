@@ -109,6 +109,7 @@ import { athenaGameActions } from "@/lib/studio/game/athena-game-actions";
 import { GameItem, GameDocumentState, GameEntity, GameComponent, GameScene, GameRule, GameVariable, ComponentType } from "@/lib/studio/game/types";
 import { StudioAssetPanel } from "@/components/studio/common/StudioAssetPanel";
 import { StudioRelationsPanel } from "@/components/studio/common/StudioRelationsPanel";
+import { StudioExperienceFeedback } from "@/components/studio/common/StudioExperienceFeedback";
 import { CreativeOrchestrationModal } from "@/components/studio/common/CreativeOrchestrationModal";
 import { STUDIO_DEFINITIONS, StudioType, isValidStudioType, getStudioDefinition } from "@/lib/studio/studio-registry";
 import { artifactStore } from "@/lib/artifacts/artifact-store";
@@ -1891,6 +1892,7 @@ export default function StudioPage() {
             }
           }}
           onExport={() => setIsGameBuildOpen(true)}
+          bottomContent={<StudioExperienceFeedback artifactId={activeGame.artifact.id} moduleId="game" projectId={activeGame.artifact.projectId} createdByAthena={activeGame.artifact.provenance.creator === "ATHENA"} saveState={gameSaveState} />}
           onDelete={() => {
             if (confirm("Mover este projeto de jogo para a Lixeira de 10 dias?")) {
               gameService.saveDocumentState(activeGame.artifact.id, activeGame.documentState, "USER");
@@ -2262,6 +2264,7 @@ export default function StudioPage() {
             }
           }}
           onExport={() => setIsVideoExportOpen(true)}
+          bottomContent={<StudioExperienceFeedback artifactId={activeVideo.artifact.id} moduleId="video" projectId={activeVideo.artifact.projectId} createdByAthena={activeVideo.artifact.provenance.creator === "ATHENA"} saveState={videoSaveState} />}
           onDelete={() => {
             if (confirm("Mover este projeto de vídeo para a Lixeira de 10 dias?")) {
               videoService.saveDocumentState(activeVideo.artifact.id, activeVideo.documentState, "USER");
@@ -2651,6 +2654,7 @@ export default function StudioPage() {
             }
           }}
           onExport={() => setIsAudioExportOpen(true)}
+          bottomContent={<StudioExperienceFeedback artifactId={activeAudio.artifact.id} moduleId="audio" projectId={activeAudio.artifact.projectId} createdByAthena={activeAudio.artifact.provenance.creator === "ATHENA"} saveState={audioSaveState} />}
           onDelete={() => {
             if (confirm("Mover este projeto de áudio para a Lixeira de 10 dias?")) {
               audioService.saveDocumentState(activeAudio.artifact.id, activeAudio.documentState, "USER");
@@ -3061,6 +3065,7 @@ export default function StudioPage() {
             }
           }}
           onExport={() => setIsDocExportOpen(true)}
+          bottomContent={<StudioExperienceFeedback artifactId={activeDoc.artifact.id} moduleId="document" projectId={activeDoc.artifact.projectId} createdByAthena={activeDoc.artifact.provenance.creator === "ATHENA"} saveState={docSaveState} />}
           onDelete={() => {
             if (confirm("Mover este documento para a Lixeira de 10 dias?")) {
               documentService.saveDocumentContent(activeDoc.artifact.id, activeDoc.content, {}, "USER");
@@ -3182,6 +3187,7 @@ export default function StudioPage() {
             }
           }}
           onExport={() => setIsWebExportOpen(true)}
+          bottomContent={<StudioExperienceFeedback artifactId={activeWebsite.artifact.id} moduleId="web" projectId={activeWebsite.artifact.projectId} createdByAthena={activeWebsite.artifact.provenance.creator === "ATHENA"} saveState={webSaveState} />}
           onDelete={() => {
             if (confirm("Mover este website para a Lixeira de 10 dias?")) {
               webService.saveFiles(activeWebsite.artifact.id, activeWebsite.files, "USER");
@@ -3364,6 +3370,7 @@ export default function StudioPage() {
           }
         }}
         onExport={() => setIsImageExportOpen(true)}
+        bottomContent={<StudioExperienceFeedback artifactId={activeImage!.artifact.id} moduleId="image" projectId={activeImage!.artifact.projectId} createdByAthena={activeImage!.artifact.provenance.creator === "ATHENA"} saveState={imageSaveState} />}
         onDelete={() => {
           if (confirm("Mover esta imagem para a Lixeira de 10 dias?")) {
             imageService.saveDocumentState(activeImage!.artifact.id, activeImage!.documentState, "USER");

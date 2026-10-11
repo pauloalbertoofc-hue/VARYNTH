@@ -15,8 +15,10 @@ for (const [studio, prompt] of cases) {
   assert.match(response.actionCard?.link || "", new RegExp(`studio=${studio}.*id=`), `${studio} link must target the created artifact`);
   assert.ok(artifactStore.getById(response.metadata?.artifactId as string), `${studio} artifact must be persisted`);
 }
-athenaConversationFeedback.record({ sessionId: "feedback-repair", messageId: "bad", category: "MISUNDERSTOOD", prompt: "pedido anterior", response: "resposta ruim", correction: "crie um documento chamado Memória Corrigida" });
-const repaired = await processAthenaQueryAsync("corrija a resposta", "geral", context, undefined, "feedback-repair");
+const feedbackSession = "feedback-repair";
+const ratedMessage = await processAthenaQueryAsync("Explique em uma frase o que você pode fazer", "geral", context, undefined, feedbackSession);
+athenaConversationFeedback.record({ sessionId: feedbackSession, messageId: ratedMessage.id, category: "MISUNDERSTOOD", prompt: "pedido anterior", response: "resposta ruim", correction: "crie um documento chamado Memória Corrigida" });
+const repaired = await processAthenaQueryAsync("corrija a resposta", "geral", context, undefined, feedbackSession);
 assert.equal(repaired.actionCard?.type, "studio_criado", "Explicit feedback correction must be executable on the next turn");
 const domainCommand = await processAthenaQueryAsync("crie uma tarefa para revisar a imagem", "geral", context, undefined, "studio-domain-guard");
 assert.notEqual(domainCommand.actionCard?.type, "studio_criado", "A task mentioning an image must not be diverted into Image Studio");
