@@ -16,6 +16,7 @@ import { buildProjectRetrospective, type ProjectRetrospective } from "@/lib/expe
 import { recordReviewedProjectOutcome } from "@/lib/experience/reviewed-outcome-service";
 import { resolveExperienceFeatureFlags } from "@/lib/experience/feature-flags";
 import { buildExperienceEventLineage } from "@/lib/experience/inspector";
+import { ExperienceLearningSandbox } from "@/components/experience/ExperienceLearningSandbox";
 
 export default function ExperiencePage() {
   const featureFlags = resolveExperienceFeatureFlags();
@@ -130,6 +131,7 @@ export default function ExperiencePage() {
   ] : [];
   return <PageLayout title="Experience Layer" subtitle="Evidência, preferências e adaptação controlável">
     <main className="p-6 space-y-6 animate-fade-in">
+      <ExperienceLearningSandbox />
       {(!featureFlags.enabled || !featureFlags.preferenceInferenceEnabled || !featureFlags.projectRetrospectivesEnabled) && <section role="status" className="rounded-xl border border-amber-300/25 bg-amber-500/[0.04] p-4 text-xs text-amber-100"><p className="font-semibold">Controles de implantação da Experience Layer</p><p className="mt-1 text-amber-100/80">{!featureFlags.enabled ? "A camada está desativada: contexto e inferência estão suspensos." : "A camada está ativa."} {!featureFlags.preferenceInferenceEnabled && "A inferência de preferências está suspensa."} {!featureFlags.projectRetrospectivesEnabled && "Retrospectivas de projeto estão suspensas."} Os registros locais não foram apagados; estes controles vêm da configuração de implantação.</p></section>}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[['Eventos', events.length], ['Preferências', preferences.length], ['Confirmadas', preferences.filter((p) => p.status === "CONFIRMED").length], ['Inferidas', preferences.filter((p) => p.status === "INFERRED").length]].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.03] p-4"><p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-white">{value}</p></div>)}

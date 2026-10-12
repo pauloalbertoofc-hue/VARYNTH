@@ -27,6 +27,7 @@ jobs:
         run: |
           npm run test:experience:inspector
           npm run test:experience:tasks
+          npm run test:experience:sandbox
           npm run test:athena-system
           npm run test:athena-response-quality
           npm run test:athena-intelligence

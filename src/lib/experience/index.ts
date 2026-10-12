@@ -26,3 +26,4 @@ export * from "./knowledge-governance-feedback";
 export * from "./project-learning-adapter";
 export * from "./artifact-learning-adapter";
 export * from "./studio-export-adapter";
+export * from "./learning-sandbox";
