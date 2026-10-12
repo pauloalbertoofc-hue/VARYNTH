@@ -42,7 +42,7 @@ export function derivePreferenceCandidates(events: ExperienceEvent[], subject: s
     if (event.ownerId !== subject) continue;
     if (!event.domain || (domain && !domainRegistry.isWithinDomain(domain, event.domain))) continue;
     const signal = extractSignal(event);
-    if (!signal?.eligible) continue;
+    if (!signal?.eligible || signal.polarity === "NEGATIVE") continue;
     const declared = readCandidateSignal(event);
     if (!declared) continue;
     const key = `${event.domain}\u0000${declared.key}`;

@@ -11,6 +11,8 @@ export interface LearningSandboxObservation {
   actor?: ExperienceEvent["actor"];
   learningEligible?: boolean;
   generatedAutomatically?: boolean;
+  actionType?: Extract<ExperienceEventType, "MANUAL_EDIT" | "PROPOSAL_ACCEPTED" | "PROPOSAL_REJECTED" | "PREFERENCE_CONFIRMED" | "PREFERENCE_REJECTED" | "FEEDBACK_SUBMITTED">;
+  feedbackType?: "LIKE" | "DISLIKE" | "ACCEPT" | "REJECT" | "CORRECTION" | "CONFIRM_PREFERENCE" | "REJECT_PREFERENCE";
 }
 
 export interface LearningSandboxResult {
@@ -48,7 +50,7 @@ export function simulateLearningPipeline(observations: LearningSandboxObservatio
     }
     const actor = observation.actor ?? "USER";
     const learningEligible = observation.learningEligible ?? actor === "USER";
-    const actionType: ExperienceEventType = "MANUAL_EDIT";
+    const actionType: ExperienceEventType = observation.actionType ?? "MANUAL_EDIT";
     return {
       id: `sandbox-event-${index + 1}`,
       ownerId: SYNTHETIC_OWNER,
@@ -62,6 +64,7 @@ export function simulateLearningPipeline(observations: LearningSandboxObservatio
         preferenceSignal: { key: observation.key, value: observation.value },
         generatedAutomatically: observation.generatedAutomatically === true,
         simulationOnly: true,
+        ...(observation.feedbackType ? { feedbackType: observation.feedbackType } : {}),
       },
       source: "experience-learning-sandbox",
       privacyScope: "USER_SHARED",

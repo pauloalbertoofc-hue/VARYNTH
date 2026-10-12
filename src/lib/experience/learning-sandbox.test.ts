@@ -16,6 +16,10 @@ assert.equal(consistent.candidates[0].domain, "audio");
 assert.equal(consistent.candidates[0].key, "tempoDirection");
 assert.equal(consistent.candidates[0].value, "increase");
 assert.equal(consistent.persistentWrites, 0);
+const rejected = simulateLearningPipeline(repeated.map((item) => ({ ...item, actionType: "PROPOSAL_REJECTED" as const })));
+assert.ok(rejected.signals.every((signal) => signal.polarity === "NEGATIVE"));
+assert.equal(rejected.candidates.length, 0, "simulated rejections must not be promoted into positive candidates");
+assert.equal(rejected.persistentWrites, 0, "negative simulations must remain non-persistent");
 assert.ok(consistent.events.every((event) => event.ownerId === "experience-sandbox-only" && event.metadata.simulationOnly === true));
 
 assert.equal(simulateLearningPipeline(repeated.slice(0, 2)).candidates.length, 0, "one or two events do not cross the real evidence threshold");

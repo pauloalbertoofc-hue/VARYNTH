@@ -25,6 +25,10 @@ assert.equal(candidates[0].subject, subject);
 
 assert.equal(derivePreferenceCandidates([...repeated, event("contradiction", 142, "artifact-c")], subject).length, 0, "conflicting values must not become a candidate");
 assert.equal(derivePreferenceCandidates(repeated, "").length, 0, "candidate needs an explicit subject");
+const rejectedEvidence = ["a", "b", "c"].map((artifactId, index) => event(`rejected-${index}`, 120, artifactId, { actionType: "PROPOSAL_REJECTED" }));
+assert.equal(derivePreferenceCandidates(rejectedEvidence, subject).length, 0, "rejected proposals must never become positive preference candidates");
+const dislikedEvidence = ["a", "b", "c"].map((artifactId, index) => event(`disliked-${index}`, 120, artifactId, { actionType: "FEEDBACK_SUBMITTED", metadata: { feedbackType: "DISLIKE", preferenceSignal: { key: "tempoBpm", value: 120 } } }));
+assert.equal(derivePreferenceCandidates(dislikedEvidence, subject).length, 0, "negative feedback must never become positive preference candidates");
 assert.equal(derivePreferenceCandidates([
   event("auto-1", 120, "a", { metadata: { preferenceSignal: { key: "tempoBpm", value: 120 }, generatedAutomatically: true } }),
   event("auto-2", 120, "b", { metadata: { preferenceSignal: { key: "tempoBpm", value: 120 }, generatedAutomatically: true } }),

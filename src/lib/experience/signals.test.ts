@@ -3,6 +3,14 @@ const event = { id: "e", ownerId: "local-owner", timestamp: new Date().toISOStri
 if (extractSignal(event)?.strength !== "HIGH") throw new Error("undo strength failed");
 if (extractSignal({ ...event, actionType: "DELAYED_UNDO" })?.strength !== "LOW") throw new Error("delayed undo must remain weak evidence");
 if (extractSignal({ ...event, actionType: "REDO" })?.kind !== "REDO") throw new Error("redo must be represented as its own signal");
+const rejectedProposal = extractSignal({ ...event, actionType: "PROPOSAL_REJECTED" });
+if (rejectedProposal?.kind !== "PROPOSAL_REJECTED" || rejectedProposal.polarity !== "NEGATIVE" || rejectedProposal.strength !== "HIGH") throw new Error("proposal rejection must remain explicit negative evidence");
+const confirmedPreference = extractSignal({ ...event, actionType: "PREFERENCE_CONFIRMED" });
+if (confirmedPreference?.polarity !== "POSITIVE" || confirmedPreference.strength !== "VERY_HIGH") throw new Error("confirmed preferences must be strong positive evidence");
+const rejectedPreference = extractSignal({ ...event, actionType: "PREFERENCE_REJECTED" });
+if (rejectedPreference?.polarity !== "NEGATIVE" || rejectedPreference.strength !== "VERY_HIGH") throw new Error("rejected preferences must be strong negative evidence");
+if (extractSignal({ ...event, actionType: "FEEDBACK_SUBMITTED", metadata: { feedbackType: "DISLIKE" } })?.polarity !== "NEGATIVE") throw new Error("dislike feedback must remain negative");
+if (extractSignal({ ...event, actionType: "FEEDBACK_SUBMITTED", metadata: { feedbackType: "LIKE" } })?.polarity !== "POSITIVE") throw new Error("like feedback must remain positive");
 if (extractSignal({ ...event, actor: "AGENT", learningEligible: false })?.eligible !== false) throw new Error("agent signal leaked");
 if (extractSignal({ ...event, metadata: { generatedAutomatically: true } })?.eligible !== false) throw new Error("automated loop signal leaked");
 if (extractSignal({ ...event, ownerId: undefined })?.eligible !== false) throw new Error("unassigned legacy event was eligible");
