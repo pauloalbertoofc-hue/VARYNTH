@@ -9,7 +9,6 @@ export interface PragmaticUnderstanding {
   explicitTopicSwitch: boolean;
   likelyFollowUp: boolean;
 }
-
 function normalize(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[.,!?;:()]/g, " ").replace(/\s+/g, " ").trim();
 }
