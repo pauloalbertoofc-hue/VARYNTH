@@ -201,7 +201,7 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 ## Euterpe proposal acceptance to Experience (2026-10-12; Music/Experience)
 
 - After the local save succeeds, accepting a visual directive or playlist records a `PROPOSAL_ACCEPTED` event; confirming a music preference records `PREFERENCE_CONFIRMED`. Rejected or unconfirmed proposals do not enter this producer.
-- Events contain bounded action categories, track/playlist correlation identifiers, and only a coarse music-style preference category; free-form preference values and audio bytes are not copied to Experience.
+- Events contain bounded action categories, distinct artifact and target identifiers, track/playlist correlation identifiers, and only a coarse music-style preference category; free-form preference values and audio bytes are not copied to Experience.
 - The adapter has unit coverage for actor, scope, action type, correlation, and value minimization. Authenticated acceptance/Experience Center walkthrough is scenario 57 and remains pending.
 
 ## Next implementation sequence

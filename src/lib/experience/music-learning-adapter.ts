@@ -6,6 +6,7 @@ export type MusicLearningAction = "VISUAL_MOTION_CHANGED" | "VISUAL_EFFECT_CHANG
 export interface MusicLearningInput {
   action: MusicLearningAction;
   trackId?: string;
+  targetId?: string;
   projectId?: string;
   sessionId?: string;
   before?: unknown;
@@ -28,7 +29,7 @@ export class MusicLearningAdapter {
       projectId: input.projectId,
       sessionId: input.sessionId,
       artifactId: input.trackId,
-      targetId: input.trackId,
+      targetId: input.targetId ?? input.trackId,
       before: input.action === "TRACK_RATED" ? undefined : safeChoice(input.before),
       after: input.action === "TRACK_RATED" ? undefined : safeChoice(input.after),
       correlationId: input.correlationId,
