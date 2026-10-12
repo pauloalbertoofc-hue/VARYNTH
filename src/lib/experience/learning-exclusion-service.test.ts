@@ -36,6 +36,14 @@ async function run() {
   if (!allowed.learningEligible) throw new Error("project exclusion leaked into another project");
 
   await learningExclusionService.disable("GLOBAL", undefined, "pausa global");
+  await learningExclusionRepository.save({ id: "learning-exclusion-legacy-domain-audio", scope: "DOMAIN", scopeId: "audio", reason: "legado sem proprietário", createdAt: new Date().toISOString() });
+  await learningExclusionService.disable("DOMAIN", "audio", "conta A", "account-a");
+  await learningExclusionService.disable("DOMAIN", "music", "conta B", "account-b");
+  const accountAExclusions = await learningExclusionService.list("account-a");
+  if (!accountAExclusions.some((item) => !item.ownerId)) throw new Error("legacy exclusion must remain visible for fail-closed learning policy");
+  const accountAExportExclusions = accountAExclusions.filter((item) => item.ownerId === "account-a");
+  if (accountAExportExclusions.some((item) => item.ownerId !== "account-a") || accountAExportExclusions.length !== 1) throw new Error("account export exclusion set contains legacy or another account's data");
+
   const globallyExcluded = await experienceService.record({
     actor: "USER", actionType: "MANUAL_EDIT", metadata: {}, source: "editor",
     privacyScope: "USER_SHARED", learningEligible: true,

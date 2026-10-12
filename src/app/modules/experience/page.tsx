@@ -75,7 +75,10 @@ export default function ExperiencePage() {
   }
   async function exportData() {
     const currentOwnerId = await getExperienceOwnerId();
-    const [allEvents, allPreferences, allExperiences, allExclusions] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), experienceRepository.getAll((experience) => experience.ownerId === currentOwnerId), learningExclusionService.list(currentOwnerId)]);
+    const [allEvents, allPreferences, allExperiences, visibleExclusions] = await Promise.all([experienceService.list(undefined, currentOwnerId), preferenceService.exportAll(currentOwnerId), experienceRepository.getAll((experience) => experience.ownerId === currentOwnerId), learningExclusionService.list(currentOwnerId)]);
+    // Legacy exclusions without an owner remain active fail-closed, but cannot
+    // be attributed to this account in a portable account-specific export.
+    const allExclusions = visibleExclusions.filter((exclusion) => exclusion.ownerId === currentOwnerId);
     const file = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), storage: "local-device", events: allEvents, preferences: allPreferences, experiences: allExperiences, learningExclusions: allExclusions }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(file); const link = document.createElement("a"); link.href = url; link.download = `varynth-experience-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url);
   }
