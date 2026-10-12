@@ -41,13 +41,29 @@ export class JustitiaAgent implements AthenaAgent {
   async execute(task: AthenaTask, context: AthenaContext): Promise<AgentResult> {
     const resolved = resolveAgentFollowUp(task.rawPrompt.trim(), context);
     const priorOutcomes = relevantExperienceGuidance(context, this.manifest.id);
-    const thesis = context.relevantTheses[0];
+    const thesisCandidates = context.relevantTheses || [];
+    if (thesisCandidates.length > 1) {
+      const candidateTitles = thesisCandidates.map((candidate) => `“${candidate.title}” (${candidate.area})`);
+      return {
+        agentId: this.manifest.id,
+        agentName: this.manifest.name,
+        role: this.manifest.role,
+        success: true,
+        content: `Encontrei mais de uma tese candidata: ${candidateTitles.join("; ")}. Ainda não escolhi nem analisei nenhuma delas. Qual título corresponde à sua pergunta?`,
+        confidence: 0.2,
+        sources: candidateTitles,
+        limitations: ["A solicitação corresponde a mais de uma tese candidata; nenhuma foi selecionada ou analisada."],
+        metadata: { thesisSelectionRequired: true, conversationReferenceResolved: resolved.usedHistory },
+        recommendations: ["Indique o título da tese que deseja analisar."],
+      };
+    }
+    const thesis = thesisCandidates[0];
     const vaultLegal = context.relevantVaultItems.filter((v) => v.type === "jurisprudencia" || v.type === "lei");
 
     let content = `⚖️ **Leitura jurídica preliminar da tese registrada**\n\n`;
 
     if (thesis) {
-      content += `Com base na tese ativa **"${thesis.title}"** (Área: ${thesis.area}):\n`;
+      content += `A correspondência temática identificou a tese candidata **"${thesis.title}"** (Área: ${thesis.area}); isso não confirma pertinência jurídica.\n`;
       content += `• **Controvérsia:** *"${thesis.question}"*\n`;
       if (thesis.pros.length > 0) {
         content += `• **Fundamentação Favorável:** ${thesis.pros.map((p) => p.statement).join("; ")}\n`;

@@ -180,6 +180,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Registered precedents are identified as unverified for currency, content, binding force, and relevance; an absent thesis in the supplied context is not reported as absent from the entire product.
 - Automated tests cover empty-context and populated-thesis cases. Authenticated legal UI walkthrough is scenario 54 and remains pending.
 
+## Thesis-to-request context selection (2026-10-12; Athena/Justitia)
+
+- Argument Arena theses are selected for a request by explicit title or meaningful topical overlap across title, area, question, and tags; unrelated requests do not inherit the first stored thesis.
+- Generic thesis requests with multiple candidates ask the user to choose before Justitia or the central council analyzes any thesis. A lexical match is only a candidate and does not establish legal pertinence.
+- Automated tests cover topical selection, unrelated prompts, and ambiguity. Authenticated legal UI walkthrough remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

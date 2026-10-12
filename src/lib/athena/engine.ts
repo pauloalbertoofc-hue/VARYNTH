@@ -938,10 +938,9 @@ function processDeterministicWorkflow(
 
   let deliberationResult: any = undefined;
   if (task.type === "LEGAL_ANALYSIS") {
-    const thesis = ctx.theses[0];
     deliberationResult = {
       participatingAgents: ["justitia", "critias"],
-      consensusSummary: buildLegalDeliberationSummary(thesis),
+      consensusSummary: buildLegalDeliberationSummary(context.relevantTheses),
     };
   } else if (task.type === "RESEARCH_SYNTHESIS") {
     deliberationResult = {

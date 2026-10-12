@@ -1,6 +1,7 @@
 import { AthenaTask } from "../domain/task";
 import { AthenaContext, AthenaScope } from "../domain/context";
 import { AthenaEngineContext } from "@/lib/athena/engine";
+import { selectRelevantTheses } from "./thesis-context-relevance";
 
 export class ContextBuilder {
   buildContext(
@@ -60,11 +61,9 @@ export class ContextBuilder {
       .filter((e) => !e.completed)
       .slice(0, 10);
 
-    // 5. Theses (Codex): relevant if scope is legal or matches query
-    const relevantTheses =
-      scope === "juridico" || rawLower.includes("tese") || rawLower.includes("direito")
-        ? theses
-        : theses.slice(0, 2);
+    // 5. Theses (Codex): include only topical candidates; generic legal scope
+    // alone must not cause the first stored thesis to stand in for the request.
+    const relevantTheses = selectRelevantTheses(theses, task.rawPrompt);
 
     // 6. Evidences (Research): relevant if scope is research or matches query
     const relevantEvidences =

@@ -19,6 +19,7 @@ import type { AthenaAgent } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
 import type { EvidenceItem } from "@/lib/types/research";
+import type { ArgumentThesis } from "@/lib/types/codex";
 
 const agents: AthenaAgent[] = [athenaGeneralistAgent, justitiaAgent, logosAgent, sophiaAgent, musaAgent, strategosAgent, critiasAgent, archivistAgent, mnemosyneAgent, bibliotecarioAgent, curadorPesquisaAgent, euterpeAgent];
 const personas = agents.map((agent) => agent.manifest.persona);
@@ -148,16 +149,22 @@ assert.match(populatedResearchSummary, /pertinência de cada registro.*não fora
 assert.match(populatedResearchSummary, /natureza primária das fontes não foram verificadas/i);
 assert.doesNotMatch(populatedResearchSummary, /Fontes primárias verificadas/i);
 const emptyLegalSummary = buildLegalDeliberationSummary();
-assert.match(emptyLegalSummary, /contexto desta execução não trouxe uma tese/i);
+assert.match(emptyLegalSummary, /não identifiquei uma tese.*corresponda à solicitação/i);
 assert.doesNotMatch(emptyLegalSummary, /Nenhuma tese formal está cadastrada/i);
-const legalSummaryWithNoRecordedRisks = buildLegalDeliberationSummary({
+const thesisWithoutRisks: ArgumentThesis = {
   id: "thesis-test", title: "Responsabilidade digital", area: "Direito Civil", question: "Quem responde pelo dano?",
   pros: [{ id: "pro-1", statement: "Há argumento favorável cadastrado" }], cons: [], precedents: ["REsp 12345"], doctrine: [], counterArguments: [],
   conclusion: "", tags: [], status: "consolidada", createdAt: "2026-09-01", updatedAt: "2026-09-01",
-});
+};
+const legalSummaryWithNoRecordedRisks = buildLegalDeliberationSummary(thesisWithoutRisks);
 assert.match(legalSummaryWithNoRecordedRisks, /nenhum nesta tese; isso não equivale a uma avaliação completa de riscos/i);
 assert.match(legalSummaryWithNoRecordedRisks, /Vigência, teor, força vinculante e pertinência não foram verificados/i);
 assert.doesNotMatch(legalSummaryWithNoRecordedRisks, /Nenhum risco apontado|precedentes verificados/i);
+const legalAmbiguitySummary = buildLegalDeliberationSummary([thesisWithoutRisks, { ...thesisWithoutRisks, id: "thesis-labor", title: "Jornada em teletrabalho", area: "Direito do Trabalho" }]);
+assert.match(legalAmbiguitySummary, /mais de uma tese candidata/i);
+assert.match(legalAmbiguitySummary, /Responsabilidade digital/);
+assert.match(legalAmbiguitySummary, /Jornada em teletrabalho/);
+assert.doesNotMatch(legalAmbiguitySummary, /Quem responde pelo dano/);
 
 assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí, por favor."), "informal", "courtesy alone must not override clear colloquial register markers");
 assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí."), "informal");
@@ -287,6 +294,13 @@ void (async () => {
   assert.doesNotMatch(thesisBackedLegal.content, /Precedentes Vinculantes/);
   assert.equal(thesisBackedLegal.metadata?.currentLawVerified, false);
   assert.equal(thesisBackedLegal.confidence, 0.68);
+  const ambiguousLegal = await justitiaAgent.execute(task("Analise a tese registrada"), {
+    ...ctx,
+    relevantTheses: [thesisWithoutRisks, { ...thesisWithoutRisks, id: "thesis-labor", title: "Jornada em teletrabalho", area: "Direito do Trabalho" }],
+  } as unknown as AthenaContext);
+  assert.equal(ambiguousLegal.metadata?.thesisSelectionRequired, true);
+  assert.match(ambiguousLegal.content, /Qual título corresponde à sua pergunta/);
+  assert.doesNotMatch(ambiguousLegal.content, /Quem responde pelo dano/);
   const contextualResearch = await logosAgent.execute(task("Explique isso melhor"), { ...ctx, ...followUpContext });
   assert.match(contextualResearch.content, /preservação de rios/i);
   assert.equal(contextualResearch.metadata?.conversationReferenceResolved, true);

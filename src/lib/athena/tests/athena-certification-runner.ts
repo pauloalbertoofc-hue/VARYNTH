@@ -10,6 +10,7 @@ const checks = [
   "src/lib/athena/tests/interaction-contract-e2e.test.ts",
   "src/lib/athena/tests/capability-selection.test.ts",
   "src/lib/athena/agents/council/agent-persona-grounding.test.ts",
+  "src/lib/athena/memory/thesis-context-relevance.test.ts",
   "src/lib/athena/agents/base-agent-conversation.test.ts",
   "src/lib/athena/runtime/experience-trace-projection.test.ts",
   "src/lib/athena/runtime/agent-evidence-disclosure.test.ts",
