@@ -75,7 +75,7 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 - O módulo visível `/modules/camera` foi incluído no catálogo do VARYNTH; suas limitações de hardware permanecem explícitas.
 - Foram adicionados os módulos locais `Visual Studio`, `Visual Handbook`, `Visual Compare`, `Digital Painting` e `Vector Studio`, com rotas reais, persistência quando aplicável, exportação e integração incremental com Image Studio.
 - Camera agora cobre os seis perfis AUTO, SMART, PRO, DOCUMENT, VIDEO e STUDIO; VIDEO usa `MediaRecorder` quando suportado e a mídia original é persistida em IndexedDB.
-- Pictor foi integrado ao registro Athena como agente consultivo parcial: recebe somente contexto visual fornecido, pode interpretar relatórios de qualidade/proveniência e permanece sem acesso a arquivos ou ferramentas.
+- Pictor foi integrado ao registro Athena como agente consultivo parcial: recebe somente texto e métricas locais do Quality Gate, pode interpretar relatórios de qualidade/proveniência e permanece sem acesso a blobs, arquivos ou ferramentas. O Visual Studio preserva até 20 consultas localmente, com recuperação após reload e limpeza explícita pelo usuário. Isso não equivale ainda à autonomia espacial, personalidade durável ou edição autorizada descritas na especificação.
 
 ## Lacunas ainda abertas
 
