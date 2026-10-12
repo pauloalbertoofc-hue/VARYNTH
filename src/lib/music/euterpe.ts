@@ -99,10 +99,9 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   const currentContext = context.track && context.dna?.trackId !== context.track.id
     ? { ...context, dna: undefined }
     : context;
-  const explicitInformal = /\b(informal|casual|descontraid[oa])\b/.test(normalized);
-  const explicitFormal = /\b(senhor|senhora|gostaria|poderia|por favor|por gentileza|formal(?:mente)?)\b/.test(normalized) && !/\b(?:nao|não)\s+(?:quero|precisa|precise|seja|ser)\s+(?:ser\s+)?formal\b/.test(normalized);
+  const currentRegister = understandPragmatics(text).register;
   const savedFormality = confirmedAgentGuidance({ experienceContext: currentContext.experienceContext }, "euterpe", "formality", text);
-  const formal = explicitFormal || (!explicitInformal && savedFormality === "formal");
+  const formal = currentRegister ? currentRegister === "formal" : savedFormality === "formal";
   const followUpResponse = resolveEuterpeFollowUp(text, currentContext, conversation);
   if (followUpResponse) return { response: followUpResponse, proposal: undefined };
   const match = text.match(/(?:visual(?:mente)?|capa|fundo|tema|apar[eê]ncia|atmosfera|clima).{0,48}(?:escur[oa]|clar[oa]|urban[oa]|calm[oa]|agressiv[oa]|chuva|estrelas|sem movimento|noturn[oa]|minimalista|quente|fri[oa]|cinematogr[aá]fic[oa]|suave|dram[aá]tic[oa])/i)

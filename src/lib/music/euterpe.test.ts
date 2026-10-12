@@ -79,6 +79,9 @@ const euterpeFormalityContext = { ...context, track: undefined, dna: undefined, 
 } };
 assert.match(interpretEuterpeRequest("O que acha dessa faixa?", euterpeFormalityContext).response, /Não há uma faixa selecionada nesta conversa/, "confirmed Euterpe-only formality should adapt her direct Music response");
 assert.match(interpretEuterpeRequest("Fale de forma informal. O que acha dessa faixa?", euterpeFormalityContext).response, /Ainda não tenho uma faixa selecionada/, "the current informal instruction must override saved formality");
+const noSavedFormalityContext = { ...context, track: undefined, dna: undefined, experienceContext: undefined };
+assert.match(interpretEuterpeRequest("Por favor, o que acha dessa faixa?", noSavedFormalityContext).response, /Ainda não tenho uma faixa selecionada/, "courtesy alone should not switch Euterpe into a formal register");
+assert.match(interpretEuterpeRequest("Cê me fala dessa faixa?", noSavedFormalityContext).response, /Ainda não tenho uma faixa selecionada/, "clear colloquial Portuguese should guide Euterpe's current reply");
 const savedTaste = interpretEuterpeRequest("Que estilo combina comigo?", { ...context, preferences: [{ id: "p1", key: "style", value: "jazz", confidence: 1, source: "explicit", updatedAt: "2026-09-22" }], memories: [{ id: "m1", kind: "favorite", value: "trilhas instrumentais", createdAt: "2026-09-22" }] });
 assert.match(savedTaste.response, /jazz, trilhas instrumentais/);
 assert.match(savedTaste.response, /não como certeza/);
