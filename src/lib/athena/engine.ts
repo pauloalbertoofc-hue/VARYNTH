@@ -20,6 +20,7 @@ import { athenaPersonaEngine } from "./persona/persona-engine";
 import { ollamaAdapter } from "./models/providers/ollama-adapter";
 import { athenaToolManager } from "./tools/tool-manager";
 import { responseCompletenessValidator } from "./conversation/completeness-validator";
+import type { ResponseAspectEvidence } from "./conversation/completeness-validator";
 import { InteractionDebugInfo } from "./domain/conversation";
 import { AthenaResponseStrategyEngine } from "./strategy/response-strategy-engine";
 import { FactLockValidator } from "./strategy/fact-lock-validator";
@@ -125,9 +126,10 @@ function enforceResponseQuality(
   parsed: import("./domain/conversation").ParsedCognitiveContext,
   candidate: string,
   sessionId: string,
-  projectId?: string
+  projectId?: string,
+  requiredAspects: readonly ResponseAspectEvidence[] = [],
 ): string {
-  const validation = responseCompletenessValidator.validate(parsed, candidate);
+  const validation = responseCompletenessValidator.validate(parsed, candidate, { prompt, aspects: requiredAspects });
   if (validation.isComplete) return candidate;
 
   athenaObservabilityJournal.record({
@@ -144,6 +146,9 @@ function enforceResponseQuality(
     },
   });
 
+  if (validation.missingAspects.some((aspect) => aspect.startsWith("REQUESTED_ASPECT:"))) {
+    return `${candidate}\n\nA resposta não cobriu explicitamente todos os pontos pedidos (${validation.missingAspects.filter((aspect) => aspect.startsWith("REQUESTED_ASPECT:")).map((aspect) => aspect.slice("REQUESTED_ASPECT:".length)).join(", " )}). Posso aprofundar esses pontos em seguida, sem presumir dados que não foram fornecidos.`;
+  }
   if (parsed.clarificationPrompt) return parsed.clarificationPrompt;
   if ((parsed.missingInformation ?? []).length > 0) {
     return `Entendi a direção do pedido, mas ainda falta **${(parsed.missingInformation ?? []).join(", ")}**. Pode informar esse dado para eu continuar sem adivinhar?`;
@@ -420,6 +425,16 @@ export async function processAthenaQueryAsync(
   } catch {
     // Personalization is optional; retain the deterministic baseline on storage errors.
   }
+  const explicitRequestAspects: readonly ResponseAspectEvidence[] = [
+    { aspect: "testes", cues: ["testes", "tests", "verificações"] },
+    { aspect: "typecheck", cues: ["typecheck", "tipagem", "typescript"] },
+    { aspect: "documentação", cues: ["documentação", "documentacao", "docs"] },
+    { aspect: "build", cues: ["build", "compilação", "compilacao"] },
+    { aspect: "publicação", cues: ["publica", "publique", "publicar", "publicação", "publicacao", "deploy"] },
+    { aspect: "análise", cues: ["análise", "analise"], aliases: ["auditoria", "audite"] },
+    { aspect: "implementação", cues: ["implementar", "implemente", "implementação", "implementacao", "corrigir", "corrija", "correção", "correcao"] },
+    { aspect: "GitHub", cues: ["github", "push", "branch"] },
+  ];
 
   // 3. Ambiguity & Clarification Handling
   if (responseIntent.mode === "CLARIFICATION" || (parsed.isAmbiguous && parsed.clarificationPrompt)) {
@@ -543,7 +558,7 @@ O bloco experience contém preferências e experiências anteriores da conta aut
         const factLockCheck = FactLockValidator.validate(candidateReply, responseIntent);
 
         if (factLockCheck.isValid) {
-          const finalReply = enforceResponseQuality(prompt, parsed, candidateReply, sessionId, resolvedProjectId);
+          const finalReply = enforceResponseQuality(prompt, parsed, candidateReply, sessionId, resolvedProjectId, explicitRequestAspects);
           const responseId = "ath-" + Date.now();
           athenaConversationManager.recordAssistantResponse(sessionId, finalReply, undefined, undefined, responseId);
 
@@ -651,7 +666,7 @@ O bloco experience contém preferências e experiências anteriores da conta aut
   // it cannot satisfy the original cognitive task's completeness checklist.
   const finalText = invokedAgentResult && (specialistResponseAccepted || invokedAgentResult.success === false)
     ? safeResponseCandidate
-    : enforceResponseQuality(prompt, parsed, safeResponseCandidate, sessionId, resolvedProjectId);
+    : enforceResponseQuality(prompt, parsed, safeResponseCandidate, sessionId, resolvedProjectId, explicitRequestAspects);
 
   // Record in History for future turns / ellipses
   const responseId = "ath-" + Date.now();

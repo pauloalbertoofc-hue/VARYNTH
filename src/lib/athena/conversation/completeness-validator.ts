@@ -7,17 +7,51 @@ export interface CompletenessValidationResult {
   isGeneric: boolean;
 }
 
+export interface ResponseAspectEvidence {
+  aspect: string;
+  cues: readonly string[];
+  aliases?: readonly string[];
+}
+
+function containsCue(text: string, cue: string): boolean {
+  const normalizedCue = cue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  if (!normalizedCue) return false;
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${normalizedCue.replace(/[.*+?^${}()|[\]\\\\]/g, "\\\\$&")}(?=$|[^\\p{L}\\p{N}])`, "u").test(text);
+}
+
+/** Small, language-aware contract cues for explicit multi-part user requests. */
+export function findUnaddressedResponseAspects(
+  prompt: string,
+  response: string,
+  aspects: readonly ResponseAspectEvidence[],
+): string[] {
+  const normalizedResponse = response.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const normalizedPrompt = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return aspects
+    .filter(({ cues, aliases = [] }) => {
+      const requested = cues.some((cue) => containsCue(normalizedPrompt, cue));
+      const covered = [...cues, ...aliases].some((cue) => containsCue(normalizedResponse, cue));
+      return requested && !covered;
+    })
+    .map(({ aspect }) => `REQUESTED_ASPECT:${aspect}`);
+}
+
 export class ResponseCompletenessValidator {
   /**
    * Validates if the generated response actually addresses the user's compound cognitive requests.
    */
   validate(
     parsed: ParsedCognitiveContext,
-    responseText: string
+    responseText: string,
+    request?: { prompt: string; aspects?: readonly ResponseAspectEvidence[] },
   ): CompletenessValidationResult {
     const text = responseText.trim();
     const lower = text.toLowerCase();
     const missingAspects: string[] = [];
+
+    if (request?.aspects?.length) {
+      missingAspects.push(...findUnaddressedResponseAspects(request.prompt, text, request.aspects));
+    }
 
     const genericMarkers = [
       "conectada ao seu ecossistema",

@@ -420,6 +420,16 @@ export async function runSemanticRegressionSuite(): Promise<{ total: number; pas
   const r38 = SemanticInterpretationEngine.interpretSync(normalizeText(p38), p38);
   record("SEM-REG-038", "Analysis request remains cognitive", r38.intent === "EPISTEMIC_QUERY" && !r38.trace.pragmaticFlags.includes("POLITE_INDIRECT_REQUEST"), `Intent: ${r38.intent}`);
 
+  const compoundColloquial = "Faz a auditoria, implementa a correção, roda os testes, confere o typecheck, atualiza a documentação e publica no GitHub.";
+  const compoundInterpretation = SemanticInterpretationEngine.interpretSync(normalizeText(compoundColloquial), compoundColloquial);
+  const compoundConversation = athenaConversationManager.processMessage("semantic-compound-colloquial", compoundColloquial, ctx.projects);
+  record(
+    "SEM-REG-039",
+    "Multi-step informal operational requests remain governed actions rather than unknown input",
+    compoundInterpretation.intent === "EXECUTION_REQUEST" && compoundConversation.interactionType === "OPERATIONAL_REQUEST" && compoundConversation.requiresAction && !compoundConversation.isAmbiguous,
+    `Semantic: ${compoundInterpretation.intent}; conversation: ${compoundConversation.interactionType}; ambiguity: ${compoundConversation.isAmbiguous}`
+  );
+
   console.log("\n===============================================================");
   const passed = results.filter((r) => r.status === "PASS").length;
   const failed = results.filter((r) => r.status === "FAIL").length;

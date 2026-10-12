@@ -176,6 +176,14 @@ export class SemanticInterpretationEngine {
     }
     // Rule F: explicit cognitive speech acts are meaningful even when their
     // subject is new and therefore absent from the local similarity corpus.
+    else if (/\b(?:faca|faz|realize|realiza|conduza|conduz|execute|executa|implemente|implementa|corrija|corrige|rode|roda|confira|confere|atualize|atualiza|publique|publica|publique|envie|envia|suba|faca\s+o\s+push)\b/.test(cleanText)) {
+      selectedIntent = "EXECUTION_REQUEST";
+      finalConfidence = 0.9;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("EXPLICIT_OPERATIONAL_SPEECH_ACT");
+    }
+    // Explicit cognitive speech acts are meaningful even when their subject
+    // is new and therefore absent from the local similarity corpus.
     else if (/\b(analise|analisar|examine|explique|explica|explicar|critique|compare|comparar|resuma|resumir|sintetize|avaliar|avalie)\b/.test(cleanText)) {
       selectedIntent = "EPISTEMIC_QUERY";
       finalConfidence = 0.9;

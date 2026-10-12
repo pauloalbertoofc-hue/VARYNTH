@@ -15,6 +15,7 @@ import { createMockContext } from "./athena-intelligence-suite.test";
 import { SystemInvariantValidator } from "../../hardening/system-invariant-validator";
 import { CreativeOrchestrator } from "../../orchestration/creative-orchestrator";
 import { CreativeExecutionController } from "../../orchestration/creative-execution-controller";
+import { findUnaddressedResponseAspects, responseCompletenessValidator } from "../conversation/completeness-validator";
 
 interface ResponseQualityTestRecord {
   id: string;
@@ -362,6 +363,28 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
     "Neural factual match passes Fact Lock while contradiction triggers deterministic fallback",
     validCheck.isValid === true,
     `Valid check: ${validCheck.isValid}`
+  );
+
+  // RESP-REG-031: compound requests expose uncovered deliverables without discarding useful work.
+  const compoundPrompt = "Faz a auditoria, implementa a correção, roda os testes, confere o typecheck, atualiza a documentação e publica no GitHub.";
+  const compoundAspects = [
+    { aspect: "testes", cues: ["testes", "tests", "verificações"] },
+    { aspect: "typecheck", cues: ["typecheck", "tipagem", "typescript"] },
+    { aspect: "documentação", cues: ["documentação", "documentacao", "docs"] },
+    { aspect: "publicação", cues: ["publica", "publique", "publicar", "publicação", "publicacao", "deploy"] },
+    { aspect: "análise", cues: ["análise", "analise"], aliases: ["auditoria", "audite"] },
+    { aspect: "implementação", cues: ["implementar", "implemente", "implementação", "implementacao", "corrigir", "corrija", "correção", "correcao"] },
+    { aspect: "GitHub", cues: ["github", "push", "branch"] },
+  ] as const;
+  const partialCompoundAnswer = "Analisei o problema e apliquei a correção no código.";
+  const uncovered = findUnaddressedResponseAspects(compoundPrompt, partialCompoundAnswer, compoundAspects);
+  const compoundParsed = athenaConversationManager.processMessage("s-resp-031", compoundPrompt, ctx.projects);
+  const compoundValidation = responseCompletenessValidator.validate(compoundParsed, partialCompoundAnswer, { prompt: compoundPrompt, aspects: compoundAspects });
+  record(
+    "RESP-REG-031",
+    "Compound request detects uncovered deliverables while preserving useful partial work",
+    uncovered.includes("REQUESTED_ASPECT:testes") && uncovered.includes("REQUESTED_ASPECT:publicação") && !uncovered.includes("REQUESTED_ASPECT:análise") && compoundValidation.missingAspects.includes("REQUESTED_ASPECT:GitHub"),
+    `Uncovered: ${uncovered.join(", ")}`
   );
 
   console.log("\n===============================================================");
