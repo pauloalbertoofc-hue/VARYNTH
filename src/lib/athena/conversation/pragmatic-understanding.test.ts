@@ -3,6 +3,20 @@ import { understandPragmatics } from "./pragmatic-understanding";
 
 assert.equal(understandPragmatics("Voltando ao projeto, revise a tese").intent, "SUBSTANTIVE", "returning to a topic is not the same as switching away");
 assert.equal(understandPragmatics("Mudando de assunto: e essa proposta?").intent, "TOPIC_SWITCH");
+for (const switchPhrase of [
+  "Deixa eu mudar de assunto: como funciona o Music?",
+  "Vamos mudar de assunto rapidinho: preciso revisar um contrato",
+  "Passando para outro assunto, explique o projeto VARYNTH",
+  "Tratemos de outro tema: literatura brasileira",
+  "Agora vamos falar de planejamento semanal",
+  "Mudando de tópico: quero entender o Vault",
+]) {
+  const understood = understandPragmatics(switchPhrase);
+  assert.equal(understood.intent, "TOPIC_SWITCH", `${switchPhrase} should explicitly detach the new request from the prior topic`);
+  assert.equal(understood.explicitTopicSwitch, true);
+  assert.equal(understood.likelyFollowUp, false);
+}
+assert.equal(understandPragmatics("Falando nisso, quais os riscos?").intent, "SUBSTANTIVE", "a related transition must not be mistaken for an explicit topic switch");
 assert.equal(understandPragmatics("Poderia explicar melhor?").intent, "CLARIFICATION_REQUEST");
 for (const followUp of ["E aí?", "Mas como?", "Desenvolve", "Pode detalhar?", "Detalhe melhor", "Expanda isso"]) {
   const understood = understandPragmatics(followUp);
