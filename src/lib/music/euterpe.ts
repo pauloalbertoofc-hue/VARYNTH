@@ -92,6 +92,14 @@ function describeSelectedTrack(context: EuterpeContext, formal: boolean, asksPer
   return `${tasteBoundary}${opening} “${context.track.name}”, de ${context.track.artist}. No Music DNA ${context.dna.status === "COMPLETE" ? "marcado como completo" : "ainda parcial"}, há as tags “${tags}” e estimativas de intensidade (${intensity}%) e calmaria (${calmness}%). São medidas do áudio amostrado durante a reprodução — não identificam, por si sós, gênero, instrumentos, letra ou qualidade artística. O que chamou sua atenção nela?`;
 }
 
+function visualInstructionIsNegated(message: string, matchIndex: number): boolean {
+  const before = message.slice(Math.max(0, matchIndex - 100), matchIndex)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const clause = before.split(/[,;.!?]|\b(?:mas|porem|contudo|todavia)\b/).at(-1) ?? before;
+  if (/\bnao\s+(?:so|apenas|somente)\s+(?:\p{L}+\s+){0,2}$/u.test(clause)) return false;
+  return /\b(?:nao|nunca|jamais|sem|evite|evitar)\b(?:\s+\p{L}+){0,5}\s*$/u.test(clause);
+}
+
 /** Domain intent parser returns reviewable drafts; it never writes to the library or plays audio. */
 export function interpretEuterpeRequest(message: string, context: EuterpeContext, conversation: EuterpeConversationTurn[] = []) {
   const text = message.trim();
@@ -104,9 +112,16 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   const formal = currentRegister ? currentRegister === "formal" : savedFormality === "formal";
   const followUpResponse = resolveEuterpeFollowUp(text, currentContext, conversation);
   if (followUpResponse) return { response: followUpResponse, proposal: undefined };
-  const match = text.match(/(?:visual(?:mente)?|capa|fundo|tema|apar[eê]ncia|atmosfera|clima).{0,48}(?:escur[oa]|clar[oa]|urban[oa]|calm[oa]|agressiv[oa]|chuva|estrelas|sem movimento|noturn[oa]|minimalista|quente|fri[oa]|cinematogr[aá]fic[oa]|suave|dram[aá]tic[oa])/i)
-    ?? text.match(/(?:deixe|deixa|quero|fa[cç]a|fazer|coloque|coloca).{0,32}(?:escuro|claro|urbano|calmo|agressivo|chuva|estrelas|noturno|minimalista|quente|frio|cinematogr[aá]fico|suave|dram[aá]tico|est[aá]tico)/i);
+  const visualPatterns = [
+    /(?:visual(?:mente)?|capa|fundo|tema|apar[eê]ncia|atmosfera|clima)[^,;.!?]{0,48}(?:escur[oa]|clar[oa]|urban[oa]|calm[oa]|agressiv[oa]|chuva|estrelas|sem movimento|noturn[oa]|minimalista|quente|fri[oa]|cinematogr[aá]fic[oa]|suave|dram[aá]tic[oa])/i,
+    /(?:deixe|deixa|quero|fa[cç]a|fazer|coloque|coloca)[^,;.!?]{0,32}(?:escur[oa]|clar[oa]|urban[oa]|calm[oa]|agressiv[oa]|chuva|estrelas|noturn[oa]|minimalista|quente|fri[oa]|cinematogr[aá]fic[oa]|suave|dram[aá]tic[oa]|est[aá]tic[oa])/i,
+  ];
+  const visualMatches = visualPatterns.flatMap((pattern, patternIndex) =>
+    [...text.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))].map((candidate) => ({ candidate, patternIndex })),
+  ).sort((left, right) => left.patternIndex - right.patternIndex || (left.candidate.index ?? 0) - (right.candidate.index ?? 0));
+  const match = visualMatches.find(({ candidate }) => !visualInstructionIsNegated(text, candidate.index ?? 0))?.candidate;
   if (match && currentContext.track) return { response: `Posso preparar um perfil visual ${match[0].trim()} para “${currentContext.track.name}”.`, proposal: { kind: "visual-profile", trackId: currentContext.track.id, instruction: match[0].trim() } satisfies EuterpeProposal };
+  if (visualMatches.length && !match) return { response: "Entendi que você quer evitar essa direção visual, então não vou transformá-la em proposta. Qual alternativa prefere — por exemplo, uma capa clara, mais colorida ou outra referência?", proposal: undefined };
   const playlist = text.match(/playlist(?: chamada| com nome)?\s+["“]?([^"”.,!?]+)["”]?/i);
   if (playlist) return { response: `Preparei um rascunho de playlist “${playlist[1].trim()}”. Revise antes de aplicar.`, proposal: { kind: "playlist", name: playlist[1].trim(), trackIds: currentContext.track ? [currentContext.track.id] : [] } satisfies EuterpeProposal };
   const declinesRetention = /\b(?:(?:nao|nunca|jamais)\s+(?:(?:quero|gostaria|prefiro|preciso)\s+)?(?:que\s+)?(?:voce\s+)?(?:guard\w*|salv\w*|registr\w*|memoriz\w*|armazen\w*)|(?:prefiro|quero|gostaria|peco|prefira)\s+(?:que\s+)?(?:voce\s+)?(?:nao|nunca|jamais)\s+(?:guard\w*|salv\w*|registr\w*|memoriz\w*|armazen\w*))\b/.test(normalized);
