@@ -372,7 +372,7 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
     { aspect: "typecheck", cues: ["typecheck", "tipagem", "typescript"] },
     { aspect: "documentação", cues: ["documentação", "documentacao", "docs"] },
     { aspect: "publicação", cues: ["publica", "publique", "publicar", "publicação", "publicacao", "deploy"] },
-    { aspect: "análise", cues: ["análise", "analise"], aliases: ["auditoria", "audite"] },
+    { aspect: "análise", cues: ["análise", "analise"], aliases: ["auditoria", "audite", "analisei", "analisou", "analisamos"] },
     { aspect: "implementação", cues: ["implementar", "implemente", "implementação", "implementacao", "corrigir", "corrija", "correção", "correcao"] },
     { aspect: "GitHub", cues: ["github", "push", "branch"] },
   ] as const;

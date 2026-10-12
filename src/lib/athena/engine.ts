@@ -19,7 +19,7 @@ import { athenaConversationManager } from "./conversation/conversation-manager";
 import { athenaPersonaEngine } from "./persona/persona-engine";
 import { ollamaAdapter } from "./models/providers/ollama-adapter";
 import { athenaToolManager } from "./tools/tool-manager";
-import { responseCompletenessValidator } from "./conversation/completeness-validator";
+import { findUnaddressedResponseAspects, responseCompletenessValidator } from "./conversation/completeness-validator";
 import type { ResponseAspectEvidence } from "./conversation/completeness-validator";
 import { InteractionDebugInfo } from "./domain/conversation";
 import { AthenaResponseStrategyEngine } from "./strategy/response-strategy-engine";
@@ -46,6 +46,17 @@ import { buildExperienceContext } from "@/lib/experience/context-builder";
 import { applyConfirmedCommunicationStyle } from "@/lib/experience/communication-style";
 import type { ExperienceContext } from "@/lib/experience/context-builder";
 import { buildProjectExperienceGuidance } from "./persona/project-experience-guidance";
+
+const explicitRequestAspects: readonly ResponseAspectEvidence[] = [
+  { aspect: "testes", cues: ["testes", "tests", "verificações"] },
+  { aspect: "typecheck", cues: ["typecheck", "tipagem", "typescript"] },
+  { aspect: "documentação", cues: ["documentação", "documentacao", "docs"] },
+  { aspect: "build", cues: ["build", "compilação", "compilacao"] },
+  { aspect: "publicação", cues: ["publica", "publique", "publicar", "publicação", "publicacao", "deploy"] },
+  { aspect: "análise", cues: ["análise", "analise"], aliases: ["auditoria", "audite", "analisei", "analisou", "analisamos"] },
+  { aspect: "implementação", cues: ["implementar", "implemente", "implementação", "implementacao", "corrigir", "corrija", "correção", "correcao"] },
+  { aspect: "GitHub", cues: ["github", "push", "branch"] },
+];
 
 export interface AthenaEngineContext {
   experienceOwnerId?: string;
@@ -425,17 +436,6 @@ export async function processAthenaQueryAsync(
   } catch {
     // Personalization is optional; retain the deterministic baseline on storage errors.
   }
-  const explicitRequestAspects: readonly ResponseAspectEvidence[] = [
-    { aspect: "testes", cues: ["testes", "tests", "verificações"] },
-    { aspect: "typecheck", cues: ["typecheck", "tipagem", "typescript"] },
-    { aspect: "documentação", cues: ["documentação", "documentacao", "docs"] },
-    { aspect: "build", cues: ["build", "compilação", "compilacao"] },
-    { aspect: "publicação", cues: ["publica", "publique", "publicar", "publicação", "publicacao", "deploy"] },
-    { aspect: "análise", cues: ["análise", "analise"], aliases: ["auditoria", "audite"] },
-    { aspect: "implementação", cues: ["implementar", "implemente", "implementação", "implementacao", "corrigir", "corrija", "correção", "correcao"] },
-    { aspect: "GitHub", cues: ["github", "push", "branch"] },
-  ];
-
   // 3. Ambiguity & Clarification Handling
   if (responseIntent.mode === "CLARIFICATION" || (parsed.isAmbiguous && parsed.clarificationPrompt)) {
     const clarResult = athenaPersonaEngine.generateDialogueResponse(
@@ -638,6 +638,9 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     ...(specialistCompleteness && !specialistCompleteness.isComplete ? specialistCompleteness.missingAspects : []),
   ];
   const specialistResponseAccepted = invokedAgentResult?.success === true && specialistCandidate !== undefined && specialistRejectionReasons.length === 0;
+  const uncoveredSpecialistAspects = specialistResponseAccepted
+    ? findUnaddressedResponseAspects(prompt, specialistCompletenessCandidate ?? "", explicitRequestAspects)
+    : [];
   if (invokedAgentResult && !specialistResponseAccepted) {
     athenaObservabilityJournal.record({
       category: "SYSTEM",
@@ -665,7 +668,9 @@ O bloco experience contém preferências e experiências anteriores da conta aut
   // An explicit abstention after a failed invocation is truthful even though
   // it cannot satisfy the original cognitive task's completeness checklist.
   const finalText = invokedAgentResult && (specialistResponseAccepted || invokedAgentResult.success === false)
-    ? safeResponseCandidate
+    ? uncoveredSpecialistAspects.length
+      ? `${safeResponseCandidate}\n\nCobertura parcial: ainda não respondi explicitamente a ${uncoveredSpecialistAspects.map((aspect) => aspect.slice("REQUESTED_ASPECT:".length)).join(", ")}. Não vou dar essas etapas como concluídas; posso continuar por elas.`
+      : safeResponseCandidate
     : enforceResponseQuality(prompt, parsed, safeResponseCandidate, sessionId, resolvedProjectId, explicitRequestAspects);
 
   // Record in History for future turns / ellipses
@@ -698,6 +703,7 @@ O bloco experience contém preferências e experiências anteriores da conta aut
         specialistResponseValidation: {
           accepted: specialistResponseAccepted,
           rejectedReasons: specialistRejectionReasons,
+          ...(uncoveredSpecialistAspects.length ? { coverage: "PARTIAL", uncoveredAspects: uncoveredSpecialistAspects.map((aspect) => aspect.slice("REQUESTED_ASPECT:".length)) } : { coverage: "COMPLETE" }),
         },
       } : {}),
       ...(projectExperienceGuidance.experienceIds.length ? {

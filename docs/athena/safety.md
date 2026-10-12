@@ -28,6 +28,9 @@ Antes de liberar qualquer resposta de requisição cognitiva (`COGNITIVE_REQUEST
 2. Se o usuário solicitou **Recomendação** (`RECOMMEND`), confere se há indicação clara da melhor opção de início.
 3. Se o usuário solicitou **Crítica** (`CRITIQUE`), confere se foram apontados riscos e pontos cegos.
 4. Se o texto contiver frases de evasão ou tiver menos de 30 caracteres para uma análise densa, a resposta é reprovada e re-sintetizada.
+5. Em pedidos compostos, pistas explícitas de entregáveis (por exemplo, documentação, testes, typecheck, build, publicação e GitHub) são conferidas também no resultado de especialistas. Se a análise especializada for válida, seu conteúdo é preservado e os itens não cobertos são nomeados como cobertura parcial; não se afirma que foram executados. Essa checagem lexical é uma salvaguarda de transparência, não uma prova de completude semântica.
+
+Uma resposta parcial de especialista não é automaticamente rejeitada apenas por deixar etapas secundárias sem cobertura. Conflitos factuais, alegações de execução sem autorização, falha de execução e incompletude do núcleo cognitivo continuam sujeitos aos bloqueios existentes.
 
 ---
 

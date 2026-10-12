@@ -6,6 +6,7 @@ import { athenaConversationManager } from "../conversation/conversation-manager"
 import { athenaInteractionContractGateway } from "../runtime/interaction-contract-gateway";
 import { CapabilityPlanStore } from "../runtime/capability-plan-store";
 import { critiasAgent } from "../agents/council/critias";
+import { archivistAgent } from "../agents/council/archivist";
 import { ollamaAdapter } from "../models/providers/ollama-adapter";
 
 function check(condition: unknown, id: string, description: string): asserts condition {
@@ -86,6 +87,7 @@ async function run(): Promise<void> {
   check(!/^Sou Critias\b/m.test(invokedAgent.text), "E2E-019", "Athena remains the visible speaker while retaining the selected specialist's findings");
 
   const originalCritiasExecute = critiasAgent.execute;
+  const originalArchivistExecute = archivistAgent.execute;
   try {
     critiasAgent.execute = async () => ({
       agentId: "critias", agentName: "Critias", role: critiasAgent.manifest.role,
@@ -96,6 +98,32 @@ async function run(): Promise<void> {
     check(validation?.accepted === false && validation.rejectedReasons?.length && !rejectedAgentResult.text.includes("já criei a tarefa"), "E2E-020", "FactLock rejects a delegated specialist's false execution and structured-fact claims before display");
   } finally {
     critiasAgent.execute = originalCritiasExecute;
+  }
+
+  try {
+    archivistAgent.execute = async () => ({
+      agentId: "archivist", agentName: "Archivist", role: archivistAgent.manifest.role,
+      success: true,
+      content: "Minha análise aponta um risco: o inventário local informa que a arquitetura é local, mas a documentação deste recorte não contém diagrama ou código para verificar isolamento e limites de confiança. É uma lacuna documental, não uma confirmação de defeito.",
+      confidence: 0.58,
+    });
+    const compoundSpecialist = await processAthenaQueryAsync(
+      "Analise criticamente a arquitetura do Projeto Aurora, revise a documentação, rode os testes e publique no GitHub.",
+      "geral", context, "e2e-project-a", "e2e-agent-compound-coverage",
+    );
+    const compoundValidation = compoundSpecialist.metadata?.specialistResponseValidation as { accepted?: boolean; coverage?: string; uncoveredAspects?: string[] } | undefined;
+    check(
+      compoundValidation?.accepted === true && compoundValidation.coverage === "PARTIAL"
+        && !compoundValidation.uncoveredAspects?.includes("documentação")
+        && compoundValidation.uncoveredAspects?.includes("testes")
+        && compoundValidation.uncoveredAspects.includes("publicação")
+        && compoundSpecialist.text.includes("lacuna documental, não uma confirmação de defeito")
+        && compoundSpecialist.text.includes("Cobertura parcial"),
+      "E2E-035",
+      "A valid specialist answer is preserved while uncovered explicit work is disclosed, not presented as complete",
+    );
+  } finally {
+    archivistAgent.execute = originalArchivistExecute;
   }
 
   const previousOllamaAvailability = ollamaAdapter.isAvailable;

@@ -29,7 +29,7 @@ export function findUnaddressedResponseAspects(
   const normalizedPrompt = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   return aspects
     .filter(({ cues, aliases = [] }) => {
-      const requested = cues.some((cue) => containsCue(normalizedPrompt, cue));
+      const requested = [...cues, ...aliases].some((cue) => containsCue(normalizedPrompt, cue));
       const covered = [...cues, ...aliases].some((cue) => containsCue(normalizedResponse, cue));
       return requested && !covered;
     })
