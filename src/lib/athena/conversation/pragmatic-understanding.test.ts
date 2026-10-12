@@ -9,6 +9,14 @@ for (const followUp of ["E aí?", "Mas como?", "Desenvolve", "Pode detalhar?", "
   assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should be identified as a contextual continuation`);
   assert.equal(understood.likelyFollowUp, true);
 }
+for (const followUp of ["E os riscos?", "Mas e o custo estimado?", "E os critérios de avaliação?"]) {
+  const understood = understandPragmatics(followUp);
+  assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should preserve the prior subject while introducing an elliptical detail question`);
+  assert.equal(understood.likelyFollowUp, true);
+}
+for (const newTopic of ["E literatura brasileira?", "E o projeto Rios Vivos?", "Mas e Athena?", "E a música clássica?"]) {
+  assert.equal(understandPragmatics(newTopic).intent, "SUBSTANTIVE", `${newTopic} names a new subject and must not inherit the previous topic`);
+}
 assert.equal(understandPragmatics("E aí, tudo bem?").intent, "SUBSTANTIVE", "a greeting must not be mistaken for a contextual continuation");
 assert.equal(understandPragmatics("Vc pode explicar melhor?").register, "informal");
 assert.equal(understandPragmatics("Poderia, por gentileza, explicar?",).register, "formal");
