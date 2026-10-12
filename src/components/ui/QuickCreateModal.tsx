@@ -39,6 +39,7 @@ import { audioService } from "@/lib/studio/audio/audio-service";
 import { videoService } from "@/lib/studio/video/video-service";
 import { gameService } from "@/lib/studio/game/game-service";
 import { STUDIO_DEFINITIONS, StudioType } from "@/lib/studio/studio-registry";
+import { recordProjectCreated } from "@/lib/experience/project-learning-adapter";
 
 type QuickCreateTab =
   | "studio"
@@ -275,6 +276,9 @@ export function QuickCreateModal() {
       deadline: projectDeadline || undefined,
       tags: [],
       progress: 0,
+    });
+    void recordProjectCreated({ projectId: project.id, category: project.category }).catch(() => {
+      // Experience telemetry is optional; a successfully saved project remains authoritative.
     });
 
     setProjectTitle("");

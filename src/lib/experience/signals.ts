@@ -2,7 +2,7 @@ import { ExperienceEvent, EvidenceRef } from "./contracts";
 import { evaluateLearningEligibility } from "./learning-policy";
 
 export interface ExperienceSignal {
-  kind: "EXPLICIT_FEEDBACK" | "DIRECT_EDIT" | "IMMEDIATE_UNDO" | "DELAYED_UNDO" | "REDO" | "PROPOSAL_ACCEPTED" | "PROPOSAL_MODIFIED" | "OUTCOME";
+  kind: "EXPLICIT_FEEDBACK" | "DIRECT_EDIT" | "IMMEDIATE_UNDO" | "DELAYED_UNDO" | "REDO" | "PROPOSAL_ACCEPTED" | "PROPOSAL_MODIFIED" | "PROJECT_CREATED" | "OUTCOME";
   strength: EvidenceRef["weight"];
   eventId: string;
   context: { projectId?: string; moduleId?: string; agentId?: string; correlationId?: string };
@@ -12,12 +12,13 @@ export interface ExperienceSignal {
 const signalMap: Partial<Record<ExperienceEvent["actionType"], ExperienceSignal["kind"]>> = {
   FEEDBACK_SUBMITTED: "EXPLICIT_FEEDBACK", IMMEDIATE_UNDO: "IMMEDIATE_UNDO", DELAYED_UNDO: "DELAYED_UNDO", REDO: "REDO", PROPOSAL_ACCEPTED: "PROPOSAL_ACCEPTED",
   USER_ACTION: "DIRECT_EDIT", MANUAL_EDIT: "DIRECT_EDIT", PROPOSAL_MODIFIED: "PROPOSAL_MODIFIED", OUTCOME_RECORDED: "OUTCOME",
+  PROJECT_CREATED: "PROJECT_CREATED",
 };
 
 export function extractSignal(event: ExperienceEvent): ExperienceSignal | null {
   const kind = signalMap[event.actionType];
   if (!kind) return null;
-  const strength = kind === "EXPLICIT_FEEDBACK" ? "VERY_HIGH" : kind === "IMMEDIATE_UNDO" || kind === "PROPOSAL_ACCEPTED" ? "HIGH" : kind === "PROPOSAL_MODIFIED" || kind === "DIRECT_EDIT" ? "MEDIUM" : "LOW";
+  const strength = kind === "EXPLICIT_FEEDBACK" ? "VERY_HIGH" : kind === "IMMEDIATE_UNDO" || kind === "PROPOSAL_ACCEPTED" ? "HIGH" : kind === "PROPOSAL_MODIFIED" || kind === "DIRECT_EDIT" || kind === "PROJECT_CREATED" ? "MEDIUM" : "LOW";
   const eligibility = evaluateLearningEligibility(event);
   return { kind, strength, eventId: event.id, context: { projectId: event.projectId, moduleId: event.moduleId, agentId: event.agentId, correlationId: event.correlationId }, eligible: eligibility.eligible };
 }

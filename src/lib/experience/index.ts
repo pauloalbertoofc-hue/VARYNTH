@@ -23,3 +23,4 @@ export * from "./feature-flags";
 export * from "./decision-trace";
 export * from "./inspector";
 export * from "./knowledge-governance-feedback";
+export * from "./project-learning-adapter";
