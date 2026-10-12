@@ -23,7 +23,7 @@ export const visualCapabilities: VisualStudioCapability[] = [
   { id: "painting", name: "Digital Painting Studio", workflow: "CREATE", description: "Canvas local com pincel, borracha, limpeza, PNG e abertura no Image Studio.", status: "READY", href: "/modules/digital-painting", evidence: "Canvas 2D + PNG export + Image Studio import" },
   { id: "vector", name: "Vector Studio", workflow: "CREATE", description: "Objetos SVG editáveis, inspector, rascunho local, exportação e abertura no Image Studio.", status: "READY", href: "/modules/vector-studio", evidence: "SVG editor + localStorage draft + Image Studio import" },
   { id: "shader", name: "Shader Forge", workflow: "CREATE", description: "Preview procedural determinístico com parâmetros locais e exportação PNG, sem execução arbitrária.", status: "PARTIAL", href: "/modules/shader-forge", evidence: "Canvas procedural + localStorage parameters + PNG export" },
-  { id: "pictor", name: "Pictor", workflow: "ANALYZE", description: "Agente visual com assistência contextual e operações autorizadas.", status: "PARTIAL", evidence: "Contratos de integração ainda não expõem agente visual" },
+  { id: "pictor", name: "Pictor", workflow: "ANALYZE", description: "Agente consultivo que analisa contexto visual fornecido, qualidade e proveniência sem acesso direto à mídia.", status: "PARTIAL", href: "/modules/visual-studio", evidence: "PictorAgent + relatório visual fornecido + fronteira advisory-only" },
 ];
 
 export const visualWorkflows: Array<{ id: VisualWorkflow; name: string; description: string }> = [
