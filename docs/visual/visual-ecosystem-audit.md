@@ -77,6 +77,7 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 - Camera agora cobre os seis perfis AUTO, SMART, PRO, DOCUMENT, VIDEO e STUDIO; VIDEO usa `MediaRecorder` quando suportado e a mídia original é persistida em IndexedDB.
 - Pictor foi integrado ao registro Athena como agente consultivo parcial: recebe somente texto e métricas locais do Quality Gate, pode interpretar relatórios de qualidade/proveniência e permanece sem acesso a blobs, arquivos ou ferramentas. O Visual Studio preserva até 20 consultas localmente, com recuperação após reload e limpeza explícita pelo usuário. Isso não equivale ainda à autonomia espacial, personalidade durável ou edição autorizada descritas na especificação.
 - Vector Studio agora suporta formas, texto e curvas Bézier parametrizadas com persistência local, exportação SVG e encaminhamento ao Image Studio. Edição individual de nós, gradientes, clipping paths e operações booleanas permanecem explicitamente fora do escopo implementado.
+- Vector Studio também oferece histórico de edição local limitado a 50 estados por `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y` e `Ctrl/Cmd+Shift+Z`; o histórico não substitui ainda um versionamento persistente de documentos.
 
 ## Lacunas ainda abertas
 
