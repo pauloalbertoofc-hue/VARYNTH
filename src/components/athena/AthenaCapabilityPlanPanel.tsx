@@ -21,6 +21,7 @@ import { athenaContextBuilder } from "@/lib/athena/memory/context-builder";
 import { capabilityPlanBuilder } from "@/lib/athena/runtime/capability-plan-builder";
 import { capabilityPlanRuntime } from "@/lib/athena/runtime/capability-plan-runtime";
 import { capabilityPlanStore } from "@/lib/athena/runtime/capability-plan-store";
+import { recordCapabilityPlanFeedback } from "@/lib/experience/capability-plan-feedback";
 import type { AthenaScope } from "@/lib/types";
 import { useVarynthStore } from "@/lib/store/useVarynthStore";
 import { cn } from "@/lib/utils";
@@ -66,8 +67,11 @@ export function AthenaCapabilityPlanPanel({ store, compact = false, planId }: Pr
   const [selectedId, setSelectedId] = useState<string>();
   const [feedback, setFeedback] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [planFeedback, setPlanFeedback] = useState<Record<string, { helpful: boolean; correction: string; saving: boolean; saved: boolean }>>({});
   const plans = useMemo(() => capabilityPlanStore.list().filter((plan) => !planId || plan.id === planId), [revision, planId]);
   const selected = plans.find((plan) => plan.id === selectedId) || plans[0];
+  const selectedFeedbackKey = selected ? `${selected.id}:${selected.revision}` : "";
+  const selectedPlanFeedback = selectedFeedbackKey ? planFeedback[selectedFeedbackKey] : undefined;
 
   useEffect(() => {
     const refresh = () => setRevision((value) => value + 1);
@@ -78,6 +82,26 @@ export function AthenaCapabilityPlanPanel({ store, compact = false, planId }: Pr
   const refresh = (message?: string) => {
     setFeedback(message);
     setRevision((value) => value + 1);
+  };
+
+  const savePlanFeedback = async (helpful: boolean, correction?: string) => {
+    if (!selected || !selectedFeedbackKey || selectedPlanFeedback?.saving) return;
+    setPlanFeedback((current) => ({ ...current, [selectedFeedbackKey]: { helpful, correction: correction ?? current[selectedFeedbackKey]?.correction ?? "", saving: true, saved: false } }));
+    try {
+      await recordCapabilityPlanFeedback({
+        planId: selected.id,
+        projectId: selected.projectId,
+        sessionId: selected.sessionId,
+        revision: selected.revision,
+        status: selected.status,
+        helpful,
+        ...(correction?.trim() ? { correction: correction.trim() } : {}),
+      });
+      setPlanFeedback((current) => ({ ...current, [selectedFeedbackKey]: { ...current[selectedFeedbackKey], helpful, saving: false, saved: true } }));
+    } catch {
+      setPlanFeedback((current) => ({ ...current, [selectedFeedbackKey]: { ...current[selectedFeedbackKey], helpful, saving: false, saved: false } }));
+      setFeedback("Não foi possível associar a avaliação à Experience desta conta. O plano não foi alterado.");
+    }
   };
 
   const execute = async (plan: CapabilityExecutionPlan) => {
@@ -204,6 +228,18 @@ export function AthenaCapabilityPlanPanel({ store, compact = false, planId }: Pr
 
               {selected.steps.some((step) => step.status === "COMPLETED" && step.authority === "MUTATE_GOVERNED") && <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 text-[10px] text-amber-200"><AlertTriangle size={13} className="mt-0.5 shrink-0" /><span>{selected.steps.filter((step) => step.status === "COMPLETED" && step.authority === "MUTATE_GOVERNED").every((step) => step.supportsUndo && step.mutationRecord) ? "As alterações concluídas possuem registro anterior/posterior e operação concreta de restauração." : "Há mutações concluídas sem contrato concreto de undo; reversão automática está indisponível."}</span></div>}
               {selected.steps.some((step) => step.status === "COMPLETED" && step.authority === "MUTATE_GOVERNED") && (selected.steps.filter((step) => step.status === "COMPLETED" && step.authority === "MUTATE_GOVERNED").every((step) => step.supportsUndo && step.mutationRecord) ? <button disabled={busy} onClick={() => revert(selected)} className="mt-2 min-h-11 rounded-lg border border-cyan-500/30 px-3 text-[11px] text-cyan-300 disabled:opacity-50"><RotateCcw size={13} className="mr-1 inline" /> Reverter alterações</button> : <button disabled aria-disabled="true" title="Requer executor de undo concreto" className="mt-2 min-h-11 cursor-not-allowed rounded-lg border border-slate-700 px-3 text-[11px] text-slate-600"><RotateCcw size={13} className="mr-1 inline" /> Reverter indisponível com segurança</button>)}
+
+              <section className="mt-4 rounded-xl border border-[#25253a] bg-[#0a0a0f] p-3" aria-label="Feedback sobre a qualidade do plano">
+                <p className="text-[10px] font-bold text-slate-300">Este plano ajudou?</p>
+                <p className="mt-1 text-[9px] text-slate-500">A avaliação fica associada ao ID e à revisão; objetivo, etapas e resultados não são copiados. Ela não vira preferência automaticamente.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" disabled={selectedPlanFeedback?.saving} aria-pressed={selectedPlanFeedback?.saved && selectedPlanFeedback.helpful} onClick={() => { void savePlanFeedback(true); }} className="min-h-9 rounded-lg border border-emerald-500/30 px-3 text-[10px] text-emerald-300 disabled:opacity-50">Ajudou</button>
+                  <button type="button" disabled={selectedPlanFeedback?.saving} aria-pressed={selectedPlanFeedback?.saved && !selectedPlanFeedback.helpful} onClick={() => { void savePlanFeedback(false); }} className="min-h-9 rounded-lg border border-rose-500/30 px-3 text-[10px] text-rose-300 disabled:opacity-50">Não ajudou</button>
+                </div>
+                {selectedPlanFeedback && !selectedPlanFeedback.helpful && <div className="mt-2 space-y-1.5"><textarea aria-label="Como o plano deveria melhorar" maxLength={500} value={selectedPlanFeedback.correction} onChange={(event) => setPlanFeedback((current) => ({ ...current, [selectedFeedbackKey]: { ...current[selectedFeedbackKey], correction: event.target.value, saved: false } }))} placeholder="O que deveria mudar? (opcional)" className="w-full rounded-lg border border-white/10 bg-black/20 p-2 text-[10px] text-slate-200" /><button type="button" disabled={!selectedPlanFeedback.correction.trim() || selectedPlanFeedback.saving} onClick={() => { void savePlanFeedback(false, selectedPlanFeedback.correction); }} className="text-[10px] text-violet-300 disabled:opacity-50">Salvar correção explícita</button></div>}
+                {selectedPlanFeedback?.saving && <p role="status" className="mt-2 text-[9px] text-slate-400">Associando feedback à Experience desta conta…</p>}
+                {selectedPlanFeedback?.saved && <p role="status" className="mt-2 text-[9px] text-slate-400">Feedback registrado como evidência; nenhuma preferência foi criada.</p>}
+              </section>
 
               <details className="mt-4 rounded-xl border border-[#25253a] bg-[#0a0a0f] p-3"><summary className="flex cursor-pointer items-center gap-2 text-[10px] font-bold text-slate-400"><History size={12} /> Journal, checkpoints e métricas</summary><div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="space-y-1.5">{selected.events.slice().reverse().map((event) => <div key={event.id} className="flex gap-2 text-[9px] text-slate-500"><Clock3 size={10} className="mt-0.5 shrink-0" /><span>{new Date(event.timestamp).toLocaleString("pt-BR")}: {event.message}</span></div>)}</div><div className="rounded-lg bg-[#11111b] p-2.5 text-[9px] text-slate-500"><p>Capacidades: {selected.metrics.selectedCapabilityIds.join(", ")}</p><p className="mt-1">Confirmações: {selected.metrics.confirmationCount}</p><p>Falhas: {selected.metrics.failureCount} · bloqueios: {selected.metrics.blockedCount}</p><p>Retries: {selected.metrics.retryCount} · reversões: {selected.metrics.reversalCount}</p><p>Duração: {selected.metrics.durationMs ?? 0} ms</p><p className="mt-1">Checkpoint: {selected.checkpoint?.completedStepIds.join(", ") || "ainda não criado"}</p></div></div></details>
             </div>

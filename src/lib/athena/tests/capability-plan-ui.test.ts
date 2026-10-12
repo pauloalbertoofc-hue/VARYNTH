@@ -22,6 +22,9 @@ assert(panel.includes("Journal, checkpoints e métricas"), "Journal and checkpoi
 assert(panel.includes("capabilityPlanRuntime.pause") && panel.includes("capabilityPlanRuntime.resume"), "Pause and resume controls must use the runtime");
 assert(panel.includes("capabilityPlanRuntime.cancel") && panel.includes("capabilityPlanRuntime.retryStep"), "Cancel and retry controls must use the runtime");
 assert(panel.includes("Reverter indisponível com segurança"), "Unsafe undo must be visibly unavailable rather than simulated");
+assert(panel.includes("recordCapabilityPlanFeedback") && panel.includes("aria-label=\"Feedback sobre a qualidade do plano\""), "Plan quality feedback must use the real Experience service and an accessible surface");
+assert(panel.includes("revision: selected.revision") && panel.includes("selected.planHash"), "Feedback must stay bound to the selected immutable plan revision");
+assert(panel.includes("O plano não foi alterado"), "Feedback persistence failure must not be reported as plan mutation");
 assert(hub.includes("<AthenaCapabilityPlanPanel store={store} />"), "Full panel must be integrated into Athena Hub");
 assert(sidecar.includes("<AthenaCapabilityPlanPanel store={store} compact />"), "Compact plan status must be integrated into Sidecar");
 
