@@ -29,11 +29,21 @@ function safeConfidence(value: unknown): number | undefined {
 }
 
 /** Small, bounded, content-free projection for Athena's user-visible evidence disclosure. */
-export function projectAgentEvidenceDisclosure(result: Pick<AgentResult, "confidence" | "sources" | "limitations">) {
+function safePersonaDisclosure(value: unknown) {
+  if (!value || typeof value !== "object") return undefined;
+  const persona = value as Record<string, unknown>;
+  const [identity, approach, evidenceBoundary, authorityBoundary] = [persona.identity, persona.approach, persona.evidenceBoundary, persona.authorityBoundary].map((item) => safeTextList([item])[0]);
+  if (!identity || !approach || !evidenceBoundary || !authorityBoundary) return undefined;
+  return { identity, approach, evidenceBoundary, authorityBoundary };
+}
+
+export function projectAgentEvidenceDisclosure(result: Pick<AgentResult, "confidence" | "sources" | "limitations"> & { personaDisclosure?: unknown }) {
+  const persona = safePersonaDisclosure(result.personaDisclosure);
   return {
     confidence: safeConfidence(result.confidence),
     sources: safeTextList(result.sources),
     limitations: safeTextList(result.limitations),
+    ...(persona ? { persona } : {}),
   };
 }
 
@@ -44,6 +54,7 @@ export interface ReadAgentEvidenceDisclosure {
   confidence?: number;
   sources: string[];
   limitations: string[];
+  persona?: { identity: string; approach: string; evidenceBoundary: string; authorityBoundary: string };
 }
 
 /** Validates stored message metadata before displaying the disclosure in the UI. */
@@ -58,6 +69,7 @@ export function readAgentEvidenceDisclosure(metadata: unknown): ReadAgentEvidenc
   const accepted = validation && typeof validation === "object" && typeof (validation as Record<string, unknown>).accepted === "boolean"
     ? (validation as Record<string, unknown>).accepted as boolean
     : undefined;
+  const persona = safePersonaDisclosure(agent.persona);
   return {
     agentName: agent.agentName.trim().slice(0, 80),
     success: agent.success,
@@ -65,5 +77,6 @@ export function readAgentEvidenceDisclosure(metadata: unknown): ReadAgentEvidenc
     ...(safeConfidence(agent.confidence) !== undefined ? { confidence: safeConfidence(agent.confidence) } : {}),
     sources: safeTextList(agent.sources),
     limitations: safeTextList(agent.limitations),
+    ...(persona ? { persona } : {}),
   };
 }

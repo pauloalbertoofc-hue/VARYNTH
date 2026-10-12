@@ -12,6 +12,14 @@ export function AthenaAgentEvidence({ metadata }: { metadata?: unknown }) {
       </summary>
       {resultWasDisplayed ? (
         <div className="mt-2 space-y-2 text-slate-300">
+          {evidence.persona && (
+            <section>
+              <p className="font-semibold text-slate-200">Como este agente trabalha</p>
+              <p className="mt-1">{evidence.persona.identity} Método: {evidence.persona.approach}</p>
+              <p className="mt-1 text-slate-400">Limite de evidência: {evidence.persona.evidenceBoundary}</p>
+              <p className="mt-1 text-slate-400">Limite de autoridade: {evidence.persona.authorityBoundary}</p>
+            </section>
+          )}
           <section>
             <p className="font-semibold text-slate-200">Fontes e contexto indicados</p>
             {evidence.sources.length ? (

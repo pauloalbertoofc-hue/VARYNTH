@@ -145,6 +145,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Pragmatic-understanding, specialist-correction, BaseAgent conversation, Athena semantic regression (41 scenarios), Athena communication regression, TypeScript, and production build passed; Athena certification passed 22/22 and the build generated 62 static pages.
 - Manual authenticated UI walkthrough and production deployment remain unverified.
 
+## Verified validation snapshot (2026-10-12; specialist identity and evidence boundaries)
+
+- The shared specialist conversation adapter carries each selected agent's own manifest identity, method, evidence boundary, and authority boundary into Athena's structured execution metadata.
+- The bounded evidence disclosure projects and sanitizes those fields; the “Base e limites” panel shows them only when the specialist response passed validation. Rejected/partial response claims remain hidden.
+- BaseAgent conversation, disclosure projection/UI, interaction-contract E2E (36 checks), TypeScript, and `git diff --check` passed. Authenticated product walkthrough and production deployment remain unverified.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

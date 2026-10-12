@@ -108,7 +108,10 @@ function resolveAthenaInteractionContract(
 function agentInvocationMetadata(result?: AgentResult): Record<string, unknown> {
   if (!result) return {};
   const traces = projectAgentExperienceTraces([result]);
-  const evidenceDisclosure = projectAgentEvidenceDisclosure(result);
+  const evidenceDisclosure = projectAgentEvidenceDisclosure({
+    ...result,
+    personaDisclosure: result.metadata?.agentPersonaDisclosure,
+  });
   return {
     agentExecution: {
       agentId: result.agentId,

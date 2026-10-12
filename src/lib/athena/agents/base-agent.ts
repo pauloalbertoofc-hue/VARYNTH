@@ -298,6 +298,12 @@ export async function converseAsSpecialist(
     ...presented,
     metadata: {
       ...presented.metadata,
+      agentPersonaDisclosure: {
+        identity: agent.manifest.persona.identity,
+        approach: agent.manifest.persona.approach,
+        evidenceBoundary: agent.manifest.persona.evidenceBoundary,
+        authorityBoundary: agent.manifest.persona.authorityBoundary,
+      },
       experienceTrace,
       ...(correction.repaired ? { conversationRepair: true, repairedFromExplicitFeedback: true } : {}),
     },
