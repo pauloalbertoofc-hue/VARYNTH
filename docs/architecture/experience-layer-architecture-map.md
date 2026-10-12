@@ -186,6 +186,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Generic thesis requests with multiple candidates ask the user to choose before Justitia or the central council analyzes any thesis. A lexical match is only a candidate and does not establish legal pertinence.
 - Automated tests cover topical selection, unrelated prompts, and ambiguity. Authenticated legal UI walkthrough remains pending.
 
+## Conversational request polarity and coverage (2026-10-12; Athena and specialists)
+
+- Explicit deliverable coverage now normalizes both the request and response consistently, including Portuguese diacritics, before checking aspect cues.
+- Negated actions such as “analise sem implementar” and “não publique” are excluded from required deliverables; affirmative double-negative requests such as “não deixe de implementar” remain required.
+- The existing response-quality suite covers these polarity and accent cases. Manual conversational walkthrough is scenario 55 and remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

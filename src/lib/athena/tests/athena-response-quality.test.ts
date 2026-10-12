@@ -384,13 +384,31 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
   ] as const;
   const partialCompoundAnswer = "Analisei o problema e apliquei a correção no código.";
   const uncovered = findUnaddressedResponseAspects(compoundPrompt, partialCompoundAnswer, compoundAspects);
+  const excludedWork = findUnaddressedResponseAspects(
+    "Analise o problema sem implementar a correção e não publique no GitHub.",
+    "Analisei o problema.",
+    compoundAspects,
+  );
+  const explicitlyRequiredWork = findUnaddressedResponseAspects(
+    "Não deixe de implementar a correção; não publique ainda.",
+    "A análise está pronta.",
+    compoundAspects,
+  );
+  const accentedCoverage = findUnaddressedResponseAspects(
+    "Atualize a documentação e publique.",
+    "Atualizei a documentação.",
+    compoundAspects,
+  );
   const compoundParsed = athenaConversationManager.processMessage("s-resp-031", compoundPrompt, ctx.projects);
   const compoundValidation = responseCompletenessValidator.validate(compoundParsed, partialCompoundAnswer, { prompt: compoundPrompt, aspects: compoundAspects });
   record(
     "RESP-REG-031",
     "Compound request detects uncovered deliverables while preserving useful partial work",
-    uncovered.includes("REQUESTED_ASPECT:testes") && uncovered.includes("REQUESTED_ASPECT:publicação") && !uncovered.includes("REQUESTED_ASPECT:análise") && compoundValidation.missingAspects.includes("REQUESTED_ASPECT:GitHub"),
-    `Uncovered: ${uncovered.join(", ")}`
+    uncovered.includes("REQUESTED_ASPECT:testes") && uncovered.includes("REQUESTED_ASPECT:publicação") && !uncovered.includes("REQUESTED_ASPECT:análise") && compoundValidation.missingAspects.includes("REQUESTED_ASPECT:GitHub")
+      && !excludedWork.includes("REQUESTED_ASPECT:implementação") && !excludedWork.includes("REQUESTED_ASPECT:publicação")
+      && explicitlyRequiredWork.includes("REQUESTED_ASPECT:implementação") && !explicitlyRequiredWork.includes("REQUESTED_ASPECT:publicação")
+      && accentedCoverage.length === 1 && accentedCoverage[0] === "REQUESTED_ASPECT:publicação",
+    `Uncovered: ${uncovered.join(", ")}; excluded: ${excludedWork.join(", ")}; double-negative: ${explicitlyRequiredWork.join(", ")}; accented: ${accentedCoverage.join(", ")}`
   );
 
   console.log("\n===============================================================");

@@ -13,10 +13,29 @@ export interface ResponseAspectEvidence {
   aliases?: readonly string[];
 }
 
+function normalizeCueText(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+}
+
 function containsCue(text: string, cue: string): boolean {
-  const normalizedCue = cue.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  const normalizedCue = normalizeCueText(cue).trim();
   if (!normalizedCue) return false;
   return new RegExp(`(?:^|[^\\p{L}\\p{N}])${normalizedCue.replace(/[.*+?^${}()|[\]\\\\]/g, "\\\\$&")}(?=$|[^\\p{L}\\p{N}])`, "u").test(text);
+}
+
+function cueIsRequested(text: string, cue: string): boolean {
+  const normalizedCue = normalizeCueText(cue).trim();
+  if (!normalizedCue) return false;
+  const escapedCue = normalizedCue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const expression = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapedCue}(?=$|[^\\p{L}\\p{N}])`, "gu");
+  for (const match of text.matchAll(expression)) {
+    const start = (match.index ?? 0) + match[0].length - normalizedCue.length;
+    const prefix = text.slice(Math.max(0, start - 100), start);
+    if (/\bnao\s+(?:deixe|deixem|deixar)\s+de\s+(?:\p{L}+\s+){0,2}$/u.test(prefix)) return true;
+    if (/\b(?:nao|nunca|jamais|nem|sem|dispenso|dispense)\b(?:\s+\p{L}+){0,4}\s*$/u.test(prefix)) continue;
+    return true;
+  }
+  return false;
 }
 
 /** Small, language-aware contract cues for explicit multi-part user requests. */
@@ -25,11 +44,11 @@ export function findUnaddressedResponseAspects(
   response: string,
   aspects: readonly ResponseAspectEvidence[],
 ): string[] {
-  const normalizedResponse = response.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  const normalizedPrompt = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const normalizedResponse = normalizeCueText(response);
+  const normalizedPrompt = normalizeCueText(prompt);
   return aspects
     .filter(({ cues, aliases = [] }) => {
-      const requested = [...cues, ...aliases].some((cue) => containsCue(normalizedPrompt, cue));
+      const requested = [...cues, ...aliases].some((cue) => cueIsRequested(normalizedPrompt, cue));
       const covered = [...cues, ...aliases].some((cue) => containsCue(normalizedResponse, cue));
       return requested && !covered;
     })
