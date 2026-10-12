@@ -47,6 +47,7 @@ import { applyConfirmedCommunicationStyle } from "@/lib/experience/communication
 import type { ExperienceContext } from "@/lib/experience/context-builder";
 import { buildProjectExperienceGuidance } from "./persona/project-experience-guidance";
 import { buildResearchEvidenceSummary } from "./agents/council/research-evidence-summary";
+import { buildLegalDeliberationSummary } from "./agents/council/legal-deliberation-summary";
 
 const explicitRequestAspects: readonly ResponseAspectEvidence[] = [
   { aspect: "testes", cues: ["testes", "tests", "verificações"] },
@@ -940,9 +941,7 @@ function processDeterministicWorkflow(
     const thesis = ctx.theses[0];
     deliberationResult = {
       participatingAgents: ["justitia", "critias"],
-      consensusSummary: thesis
-        ? `⚖️ **Deliberação Jurídica do Conselho (Justitia + Critias):**\n\nNa tese **"${thesis.title}"** (Área: ${thesis.area}):\n> Controvérsia: *"${thesis.question}"*\n\n• **Fundamentação Pró:** ${thesis.pros.map((p) => p.statement).join("; ") || "Aguardando cadastro"}\n• **Objeções & Riscos (Critias):** ${thesis.cons.map((c) => c.statement).join("; ") || "Nenhum risco apontado"}\n• **Precedentes STF/STJ:** ${thesis.precedents.join(", ") || "Nenhum precedente vinculado"}`
-        : `⚖️ **Conselho Jurídico (Justitia):** Nenhuma tese formal está cadastrada na Argument Arena no momento. Cadastre a controvérsia jurídica para iniciarmos a análise dialética de precedentes.`,
+      consensusSummary: buildLegalDeliberationSummary(thesis),
     };
   } else if (task.type === "RESEARCH_SYNTHESIS") {
     deliberationResult = {

@@ -174,6 +174,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Logos and Lumen now label supplied entries as candidates for triage, distinguish board-recorded strength from independent evaluation, and recommend checking relevance/source/method before synthesis. Their structured limitations and metadata explicitly keep query relevance and primary-source verification false.
 - Automated tests include an unrelated research query against populated evidence context and empty/populated central-summary cases. Manual authenticated flow is scenario 53 and remains pending.
 
+## Legal record-versus-validation boundary (2026-10-12; Justitia/Critias Council)
+
+- The central legal deliberation now describes thesis fields as Argument Arena records, never as a complete current-law analysis. An empty objections list is explicitly not equivalent to an absence of risks.
+- Registered precedents are identified as unverified for currency, content, binding force, and relevance; an absent thesis in the supplied context is not reported as absent from the entire product.
+- Automated tests cover empty-context and populated-thesis cases. Authenticated legal UI walkthrough is scenario 54 and remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

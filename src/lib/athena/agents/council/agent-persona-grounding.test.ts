@@ -12,6 +12,7 @@ import { mnemosyneAgent } from "./mnemosyne";
 import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
 import { buildResearchEvidenceSummary } from "./research-evidence-summary";
+import { buildLegalDeliberationSummary } from "./legal-deliberation-summary";
 import { euterpeAgent } from "./music-curator";
 import { inferCurrentConversationRegister, prepareAgentConversationHistory, renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import type { AthenaAgent } from "../base-agent";
@@ -146,6 +147,17 @@ const populatedResearchSummary = buildResearchEvidenceSummary([sampleEvidence]);
 assert.match(populatedResearchSummary, /pertinência de cada registro.*não foram verificadas/i);
 assert.match(populatedResearchSummary, /natureza primária das fontes não foram verificadas/i);
 assert.doesNotMatch(populatedResearchSummary, /Fontes primárias verificadas/i);
+const emptyLegalSummary = buildLegalDeliberationSummary();
+assert.match(emptyLegalSummary, /contexto desta execução não trouxe uma tese/i);
+assert.doesNotMatch(emptyLegalSummary, /Nenhuma tese formal está cadastrada/i);
+const legalSummaryWithNoRecordedRisks = buildLegalDeliberationSummary({
+  id: "thesis-test", title: "Responsabilidade digital", area: "Direito Civil", question: "Quem responde pelo dano?",
+  pros: [{ id: "pro-1", statement: "Há argumento favorável cadastrado" }], cons: [], precedents: ["REsp 12345"], doctrine: [], counterArguments: [],
+  conclusion: "", tags: [], status: "consolidada", createdAt: "2026-09-01", updatedAt: "2026-09-01",
+});
+assert.match(legalSummaryWithNoRecordedRisks, /nenhum nesta tese; isso não equivale a uma avaliação completa de riscos/i);
+assert.match(legalSummaryWithNoRecordedRisks, /Vigência, teor, força vinculante e pertinência não foram verificados/i);
+assert.doesNotMatch(legalSummaryWithNoRecordedRisks, /Nenhum risco apontado|precedentes verificados/i);
 
 assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí, por favor."), "informal", "courtesy alone must not override clear colloquial register markers");
 assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí."), "informal");
