@@ -1,5 +1,6 @@
 import { Artifact, ArtifactVersion, ArtifactActor } from "./types";
 import { athenaEventBus } from "../athena/events/event-bus";
+import { recordArtifactVersionCreated } from "../experience/artifact-learning-adapter";
 
 export class VersionManager {
   public createSnapshot(
@@ -40,9 +41,22 @@ export class VersionManager {
 
     athenaEventBus.emit("ARTIFACT_VERSION_CREATED", {
       artifactId: artifact.id,
+      artifactType: artifact.type,
+      projectId: artifact.projectId,
+      versionId,
       versionNumber: nextVersionNumber,
       changeSummary,
       createdBy,
+    });
+    void recordArtifactVersionCreated({
+      artifactId: artifact.id,
+      artifactType: artifact.type,
+      projectId: artifact.projectId,
+      versionId,
+      versionNumber: nextVersionNumber,
+      actor: createdBy,
+    }).catch(() => {
+      // Experience is optional and must never affect snapshot persistence.
     });
 
     return JSON.parse(JSON.stringify(newVersion));
