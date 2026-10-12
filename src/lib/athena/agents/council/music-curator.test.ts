@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { AthenaTask } from "../../domain/task";
 import { agentRegistry } from "../registry";
-import { euterpeAgent } from "./music-curator";
+import { euterpeAgent, musicAgentShouldConsultAthena } from "./music-curator";
 
 const task = (rawPrompt: string, metadata?: Record<string, unknown>) => ({ rawPrompt, metadata } as AthenaTask);
 assert.equal(agentRegistry.getAgent("euterpe"), euterpeAgent);
@@ -10,6 +10,8 @@ assert.match(euterpeAgent.personalityPrompt, /artística, sensorial e curiosa/);
 assert.match(euterpeAgent.personalityPrompt, /nunca se apresente como “curadora musical”/);
 assert.equal(euterpeAgent.canHandle(task("Me ajude com esta playlist de música")), true);
 assert.equal(euterpeAgent.canHandle(task("Como está o clima hoje?")), false);
+assert.equal(musicAgentShouldConsultAthena("E se a faixa fosse mais lenta?"), false, "music-specific hypotheses remain with Euterpe");
+assert.equal(musicAgentShouldConsultAthena("E se o prazo mudar?"), true, "general project conditions are delegated to Athena");
 
 void (async () => {
   const result = await euterpeAgent.execute(task("Sugestão musical?"), {} as never);
@@ -118,5 +120,18 @@ void (async () => {
   } as never, async () => { throw new Error("Euterpe-owned music questions stay in her own executor"); });
   assert.equal(directEuterpe.metadata?.consultedAthena, undefined);
   assert.equal(directEuterpe.metadata?.conversationPresentation, true);
+
+  const musicalHypothesis = await euterpeAgent.converse(task("E se a faixa fosse mais lenta?", {
+    musicTrack: { id: "t1", name: "Demo", artist: "Artista" },
+    musicDNA: { trackId: "t1", schemaVersion: 2, status: "PARTIAL", visualTags: ["dark"], intensity: 0.2, calmness: 0.8 },
+    musicConversation: [
+      { sender: "user", text: "O que acha dessa faixa?" },
+      { sender: "curator", text: "O Music DNA registra tags dark, intensidade 20% e calmaria 80%." },
+      { sender: "user", text: "E se a faixa fosse mais lenta?" },
+    ],
+  }), { experienceContext: { experiences: [], preferences: [] } } as never, async () => { throw new Error("Music-specific hypothetical must stay with Euterpe"); });
+  assert.match(musicalHypothesis.content, /como hipótese, não como algo que observei ou testei/i);
+  assert.match(musicalHypothesis.content, /intensidade 20% e calmaria 80%/i);
+  assert.equal(musicalHypothesis.metadata?.consultedAthena, undefined);
   console.log("Athena music curator registry and authority-boundary regression passed.");
 })();

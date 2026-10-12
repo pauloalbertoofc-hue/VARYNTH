@@ -3,6 +3,7 @@ import type { MusicDNA, MusicAgentMemory, MusicPreferenceMemory } from "./music-
 import type { MusicTrack } from "./types";
 import type { ExperienceContext } from "@/lib/experience/context-builder";
 import { confirmedAgentGuidance } from "@/lib/athena/agents/experience-guidance";
+import { understandPragmatics } from "@/lib/athena/conversation/pragmatic-understanding";
 
 export type EuterpeProposal =
   | { kind: "visual-profile"; trackId: string; instruction: string }
@@ -19,13 +20,24 @@ function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conver
   const isWhy = shortTurn && /^(?:(?:mas|e)\s+)?(?:por que|porque|qual o motivo|qual a razao)\b/.test(normalized);
   const isExplain = shortTurn && /\b(como assim|mas como|e ai|(?:me )?explica(?:r)?(?: melhor)?|poderia explicar|explique melhor|o que quis dizer|qual delas|me conta mais)\b/.test(normalized);
   const isContinue = shortTurn && /\b(continua|continue|fala mais|me fala mais|aprofunda|detalha mais|desenvolve|desenvolva|pode desenvolver|pode detalhar|me da mais detalhes)\b/.test(normalized);
-  if (!isWhy && !isExplain && !isContinue) return undefined;
+  const musicHypothetical = understandPragmatics(message).likelyFollowUp
+    && /^(?:e|mas e)\s+se\s+(?:a faixa|essa faixa|a musica|essa musica|ela|o ritmo|o andamento|a intensidade|o visual|a atmosfera)\b/.test(normalized);
+  if (!isWhy && !isExplain && !isContinue && !musicHypothetical) return undefined;
 
   const currentUserIndex = conversation.map((turn) => turn.sender).lastIndexOf("user");
   if (currentUserIndex < 0) return "Posso continuar, mas não encontrei a mensagem anterior a que você está se referindo. Pode apontar o trecho?";
   const previousAssistant = conversation.slice(0, currentUserIndex).reverse().find((turn) => turn.sender === "curator")?.text;
   const previousUser = conversation.slice(0, currentUserIndex).reverse().find((turn) => turn.sender === "user")?.text;
   if (!previousAssistant) return "Não tenho uma resposta anterior nesta conversa para explicar. Diga qual faixa ou aspecto musical quer explorar.";
+
+  if (musicHypothetical) {
+    const currentObservation = context.track
+      ? context.dna?.trackId === context.track.id
+        ? `Para “${context.track.name}”, os dados atuais registram ${context.dna.visualTags.length ? `as tags ${context.dna.visualTags.join(", ")}` : "nenhuma tag visual"}, intensidade ${Math.round(context.dna.intensity * 100)}% e calmaria ${Math.round(context.dna.calmness * 100)}%.`
+        : `Só tenho o título da faixa selecionada, “${context.track.name}”; não recebi Music DNA correspondente.`
+      : "Não há uma faixa selecionada nem Music DNA correspondente nesta conversa.";
+    return `Posso explorar esse cenário como hipótese, não como algo que observei ou testei. ${currentObservation} Ainda não tenho uma versão alterada para comparar; qualquer efeito seria uma previsão, não um resultado da faixa. O que você gostaria de imaginar especificamente nessa mudança?`;
+  }
 
   if (isWhy) {
     if (previousUser && context.track && /\b(visual|capa|fundo|tema|aparencia|atmosfera|clima|escuro|claro|urbano|calmo|chuva|estrelas)\b/i.test(previousUser)) {

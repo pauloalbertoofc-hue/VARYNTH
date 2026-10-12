@@ -19,6 +19,14 @@ assert.match(memoryAware.response, /jazz, trilhas instrumentais/, "Euterpe shoul
 const conversational = interpretEuterpeRequest("Por quê?", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "A faixa Noite tem tags dark no Music DNA." }, { sender: "user", text: "Por quê?" }]);
 assert.match(conversational.response, /retomando|Music DNA/, "Follow-ups should use the immediate conversation rather than generic boilerplate");
 assert.doesNotMatch(conversational.response, /A faixa Noite tem tags dark no Music DNA\./, "A follow-up must explain rather than repeat the prior answer");
+const hypotheticalTrackFollowUp = interpretEuterpeRequest("E se a faixa fosse mais lenta?", context, [
+  { sender: "user", text: "O que acha dessa faixa?" },
+  { sender: "curator", text: "O Music DNA registra tags dark, intensidade 20% e calmaria 80%." },
+  { sender: "user", text: "E se a faixa fosse mais lenta?" },
+]);
+assert.match(hypotheticalTrackFollowUp.response, /como hipótese, não como algo que observei ou testei/i);
+assert.match(hypotheticalTrackFollowUp.response, /intensidade 20% e calmaria 80%/i, "A hypothetical must preserve the actual current-track evidence separately");
+assert.match(hypotheticalTrackFollowUp.response, /previsão, não um resultado/i, "An untested musical change must not be presented as an observed outcome");
 const whyVisual = interpretEuterpeRequest("Por quê?", context, [{ sender: "user", text: "Faça uma capa escura" }, { sender: "curator", text: "Posso preparar uma proposta visual." }, { sender: "user", text: "Por quê?" }]);
 assert.match(whyVisual.response, /Faça uma capa escura/, "Why questions should cite the preceding user request, not themselves");
 assert.doesNotMatch(whyVisual.response, /Por quê\?/i);
