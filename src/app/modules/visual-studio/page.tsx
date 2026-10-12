@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, CircleDashed, FlaskConical, Lightbulb } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { getCameraMedia, listCameraCaptures, visualCapabilities, visualWorkflows, type CameraCaptureRecord, type VisualCapabilityStatus } from "@/lib/visual-core";
+import { appendPictorConsultation, parsePictorHistory, type PictorConsultation } from "@/lib/visual-core/pictor-history";
 
 const statusLabel: Record<VisualCapabilityStatus, string> = { READY: "Operacional", PARTIAL: "Parcial", PLANNED: "Planejado" };
 const statusClass: Record<VisualCapabilityStatus, string> = { READY: "text-emerald-300", PARTIAL: "text-amber-300", PLANNED: "text-[var(--vly-text-muted)]" };
 const PICTOR_HISTORY_KEY = "varynth_pictor_consultations_v1";
-type PictorConsultation = { id: string; prompt: string; response: string; captureId?: string; createdAt: string };
 
 export default function VisualStudioPage() {
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
@@ -27,11 +27,12 @@ export default function VisualStudioPage() {
     setPictorResponse(text);
     if (response.ok) {
       const entry: PictorConsultation = { id: `pictor-${Date.now()}`, prompt: pictorPrompt, response: text, captureId: selected?.id, createdAt: new Date().toISOString() };
-      setPictorHistory((current) => { const next = [entry, ...current].slice(0, 20); try { window.localStorage.setItem(PICTOR_HISTORY_KEY, JSON.stringify(next)); } catch { /* armazenamento local é opcional */ } return next; });
+      setPictorHistory((current) => { const next = appendPictorConsultation(current, entry); try { window.localStorage.setItem(PICTOR_HISTORY_KEY, JSON.stringify(next)); } catch { /* armazenamento local é opcional */ } return next; });
     }
   };
   useEffect(() => {
-    try { const saved = JSON.parse(window.localStorage.getItem(PICTOR_HISTORY_KEY) ?? "[]") as PictorConsultation[]; if (Array.isArray(saved)) { setPictorHistory(saved); if (saved[0]) setPictorResponse(saved[0].response); } } catch { /* histórico inválido é ignorado */ }
+    const saved = parsePictorHistory(window.localStorage.getItem(PICTOR_HISTORY_KEY));
+    if (saved[0]) { setPictorHistory(saved); setPictorResponse(saved[0].response); }
     let cancelled = false;
     const records = listCameraCaptures().slice(0, 12);
     setCaptures(records);
