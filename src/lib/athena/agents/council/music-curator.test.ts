@@ -49,6 +49,8 @@ void (async () => {
   const negatedVisualProposal = await euterpeAgent.execute(task("Não deixe a capa escura", { musicTrack: { id: "t1", name: "Demo" } }), {} as never);
   assert.doesNotMatch(negatedVisualProposal.content, /perfil visual.*capa escura/i, "The registered Euterpe agent must not turn a negated visual instruction into an affirmative proposal");
   assert.equal((negatedVisualProposal.metadata as { proposal?: unknown }).proposal, undefined);
+  const negatedPlaylistProposal = await euterpeAgent.execute(task("Não crie uma playlist chamada Jazz"), {} as never);
+  assert.equal((negatedPlaylistProposal.metadata as { proposal?: unknown }).proposal, undefined, "The registered agent must honor explicit playlist-name rejection too");
   const visualWithExperience = await euterpeAgent.execute(task("Faça uma capa escura", { musicTrack: { id: "t1", name: "Demo" } }), musicalExperienceContext);
   assert.doesNotMatch(visualWithExperience.content, /abordagem musical que pode valer testar/i, "proposal content is not displaced by experience guidance");
   assert.deepEqual((visualWithExperience.metadata as { proposal: unknown }).proposal, { kind: "visual-profile", trackId: "t1", instruction: "capa escura" });

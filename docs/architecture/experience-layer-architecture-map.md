@@ -192,10 +192,10 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Negated actions such as “analise sem implementar” and “não publique” are excluded from required deliverables; affirmative constructions such as “não deixe de implementar” and “não só implemente, mas também publique” remain required, with adversative clause boundaries respected.
 - The existing response-quality suite covers these polarity and accent cases. Manual conversational walkthrough is scenario 55 and remains pending.
 
-## Euterpe visual-intent polarity (2026-10-12; Music specialist)
+## Euterpe proposal polarity (2026-10-12; Music specialist)
 
-- Euterpe's shared native/registered parser no longer turns a rejected direction such as “não deixe a capa escura” into an affirmative proposal. If no positive replacement is present, it asks for the intended alternative; a clear contrastive replacement such as “deixe clara” remains actionable.
-- Visual matching is bounded by clause punctuation so a negative clause cannot absorb the following positive replacement. Proposal wording retains the most specific matching instruction.
+- Euterpe's shared native/registered parser no longer turns a rejected direction such as “não deixe a capa escura” or “não crie uma playlist chamada Jazz” into an affirmative proposal. If no positive replacement is present, it asks for the intended alternative; explicit positive alternatives remain actionable.
+- Visual and playlist matching respect negative polarity and clause boundaries so a rejected clause cannot absorb a following positive replacement. Visual proposal wording retains the most specific matching instruction.
 - Native Euterpe and the Athena agent registry have regression coverage. Authenticated Music UI walkthrough is scenario 56 and remains pending.
 
 ## Next implementation sequence

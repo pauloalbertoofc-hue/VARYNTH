@@ -20,6 +20,11 @@ assert.match(negatedVisual.response, /quer evitar essa direção visual.*qual al
 const correctedVisual = interpretEuterpeRequest("Não deixe a capa escura; deixe clara", context);
 assert.equal(correctedVisual.proposal?.kind, "visual-profile", "A positive replacement after a contrastive negation should remain actionable");
 assert.match(correctedVisual.proposal?.kind === "visual-profile" ? correctedVisual.proposal.instruction : "", /deixe clara/i);
+const negatedPlaylist = interpretEuterpeRequest("Não crie uma playlist chamada Jazz", context);
+assert.equal(negatedPlaylist.proposal, undefined, "A rejected playlist name must not become a draft proposal");
+assert.match(negatedPlaylist.response, /quer evitar essa playlist/i);
+const replacementPlaylist = interpretEuterpeRequest("Não quero playlist chamada Jazz, mas faça uma playlist Chill", context);
+assert.deepEqual(replacementPlaylist.proposal, { kind: "playlist", name: "Chill", trackIds: ["t1"] }, "Only the positively requested replacement playlist should be proposed");
 const memoryAware = interpretEuterpeRequest("Que estilo combina comigo?", { ...context, preferences: [{ id: "p1", key: "style", value: "jazz", confidence: 1, source: "explicit", updatedAt: "2026-09-22" }], memories: [{ id: "m1", kind: "favorite", value: "trilhas instrumentais", createdAt: "2026-09-22" }] });
 assert.match(memoryAware.response, /jazz, trilhas instrumentais/, "Euterpe should use both scoped preference and music-memory context");
 const conversational = interpretEuterpeRequest("Por quê?", context, [{ sender: "user", text: "Analise a faixa" }, { sender: "curator", text: "A faixa Noite tem tags dark no Music DNA." }, { sender: "user", text: "Por quê?" }]);

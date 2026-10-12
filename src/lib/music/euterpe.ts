@@ -92,7 +92,7 @@ function describeSelectedTrack(context: EuterpeContext, formal: boolean, asksPer
   return `${tasteBoundary}${opening} “${context.track.name}”, de ${context.track.artist}. No Music DNA ${context.dna.status === "COMPLETE" ? "marcado como completo" : "ainda parcial"}, há as tags “${tags}” e estimativas de intensidade (${intensity}%) e calmaria (${calmness}%). São medidas do áudio amostrado durante a reprodução — não identificam, por si sós, gênero, instrumentos, letra ou qualidade artística. O que chamou sua atenção nela?`;
 }
 
-function visualInstructionIsNegated(message: string, matchIndex: number): boolean {
+function instructionIsNegated(message: string, matchIndex: number): boolean {
   const before = message.slice(Math.max(0, matchIndex - 100), matchIndex)
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const clause = before.split(/[,;.!?]|\b(?:mas|porem|contudo|todavia)\b/).at(-1) ?? before;
@@ -119,11 +119,13 @@ export function interpretEuterpeRequest(message: string, context: EuterpeContext
   const visualMatches = visualPatterns.flatMap((pattern, patternIndex) =>
     [...text.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))].map((candidate) => ({ candidate, patternIndex })),
   ).sort((left, right) => left.patternIndex - right.patternIndex || (left.candidate.index ?? 0) - (right.candidate.index ?? 0));
-  const match = visualMatches.find(({ candidate }) => !visualInstructionIsNegated(text, candidate.index ?? 0))?.candidate;
+  const match = visualMatches.find(({ candidate }) => !instructionIsNegated(text, candidate.index ?? 0))?.candidate;
   if (match && currentContext.track) return { response: `Posso preparar um perfil visual ${match[0].trim()} para “${currentContext.track.name}”.`, proposal: { kind: "visual-profile", trackId: currentContext.track.id, instruction: match[0].trim() } satisfies EuterpeProposal };
   if (visualMatches.length && !match) return { response: "Entendi que você quer evitar essa direção visual, então não vou transformá-la em proposta. Qual alternativa prefere — por exemplo, uma capa clara, mais colorida ou outra referência?", proposal: undefined };
-  const playlist = text.match(/playlist(?: chamada| com nome)?\s+["“]?([^"”.,!?]+)["”]?/i);
+  const playlistMatches = [...text.matchAll(/playlist(?: chamada| com nome)?\s+["“]?([^"”.,!?]+)["”]?/gi)];
+  const playlist = playlistMatches.find((candidate) => !instructionIsNegated(text, candidate.index ?? 0));
   if (playlist) return { response: `Preparei um rascunho de playlist “${playlist[1].trim()}”. Revise antes de aplicar.`, proposal: { kind: "playlist", name: playlist[1].trim(), trackIds: currentContext.track ? [currentContext.track.id] : [] } satisfies EuterpeProposal };
+  if (playlistMatches.length) return { response: "Entendi que você quer evitar essa playlist, então não vou criar um rascunho com esse nome. Se quiser outra opção, diga o nome que prefere.", proposal: undefined };
   const declinesRetention = /\b(?:(?:nao|nunca|jamais)\s+(?:(?:quero|gostaria|prefiro|preciso)\s+)?(?:que\s+)?(?:voce\s+)?(?:guard\w*|salv\w*|registr\w*|memoriz\w*|armazen\w*)|(?:prefiro|quero|gostaria|peco|prefira)\s+(?:que\s+)?(?:voce\s+)?(?:nao|nunca|jamais)\s+(?:guard\w*|salv\w*|registr\w*|memoriz\w*|armazen\w*))\b/.test(normalized);
   if (declinesRetention) return { response: "Entendido. Não vou propor guardar essa informação na memória musical. Se quiser remover algo que já esteja salvo, indique qual registro.", proposal: undefined };
 
