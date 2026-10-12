@@ -1916,7 +1916,10 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
 }
 
 if (process.argv[1]?.includes("athena-intelligence-suite")) {
-  runBehavioralIntelligenceAudit().catch((err) => {
+  runBehavioralIntelligenceAudit().then(({ results }) => {
+    const failures = results.filter((result) => result.status === "FAIL");
+    if (failures.length > 0) process.exitCode = 1;
+  }).catch((err) => {
     console.error("Audit failed with error:", err);
     process.exit(1);
   });

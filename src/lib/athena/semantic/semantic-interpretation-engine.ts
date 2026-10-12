@@ -19,6 +19,9 @@ import { LocalSimilarityEngine } from "./similarity-engine";
 import { LocalSemanticLMAdapter } from "./adapters/local-semantic-lm";
 import { understandPragmatics } from "../conversation/pragmatic-understanding";
 
+const REPORTED_UNTRUSTED_INSTRUCTION = /^(?:o\s+texto\b.{0,60}\b(?:diz|afirma|manda|instrui|ordena)\b|a\s+(?:nota|mensagem|p[aá]gina)\b.{0,60}\b(?:diz|afirma|manda|instrui|ordena|cont[eé]m)\b|o\s+documento\b.{0,60}\b(?:diz|afirma|manda|instrui|ordena|cont[eé]m)\b|o\s+conte[uú]do\b.{0,60}\b(?:diz|afirma|manda|instrui|ordena)\b)/;
+const EXPLICITLY_ADOPTED_INSTRUCTION = /\b(?:fa[cç]a|execute|siga|aplique|obede[cç]a)\s+(?:isso|essa instru[cç][aã]o|o que (?:ela|o texto|a nota) diz)\b/;
+
 export interface SemanticContextInfo {
   hasPendingPlan?: boolean;
   hasPendingSlot?: boolean;
@@ -165,6 +168,15 @@ export class SemanticInterpretationEngine {
       selectedIntent = "SOCIAL_CONVERSATION";
       finalConfidence = 0.85;
       semanticSource = "DETERMINISTIC";
+    }
+    // A command quoted or reported as note/document content is data, not user
+    // authority. Only a separate explicit adoption of that instruction proceeds
+    // to the governed operational classifier below.
+    else if (REPORTED_UNTRUSTED_INSTRUCTION.test(cleanText) && !EXPLICITLY_ADOPTED_INSTRUCTION.test(cleanText)) {
+      selectedIntent = "SOCIAL_CONVERSATION";
+      finalConfidence = 0.96;
+      semanticSource = "DETERMINISTIC";
+      deterministicSignals.push("REPORTED_UNTRUSTED_INSTRUCTION_IS_DATA");
     }
     // Common colloquial workload questions should not depend on statistical
     // similarity or optional model enrichment to reach the task repository.

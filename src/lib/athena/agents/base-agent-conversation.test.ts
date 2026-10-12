@@ -66,6 +66,27 @@ void (async () => {
   assert.equal(contextual.metadata?.conversationReferenceResolved, true);
   assert.equal(contextual.metadata?.conversationPresentation, true);
 
+  const conditionalFollowUp = await converseAsSpecialist(agent, { rawPrompt: "E se o prazo mudar?", title: "Condição", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    recentConversation: [
+      { role: "user", text: "Explique o prazo de revisão deste estudo" },
+      { role: "athena", text: "O prazo informado é de trinta dias." },
+    ],
+  } as AthenaContext);
+  assert.match(receivedPrompt, /Explique o prazo de revisão deste estudo/);
+  assert.match(receivedPrompt, /Continuação solicitada agora: E se o prazo mudar\?/);
+  assert.equal(conditionalFollowUp.metadata?.conversationReferenceResolved, true);
+
+  const namedTopicRemainsIndependent = await converseAsSpecialist(agent, { rawPrompt: "E se falarmos de literatura brasileira?", title: "Novo assunto", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    recentConversation: [
+      { role: "user", text: "Explique o prazo de revisão deste estudo" },
+      { role: "athena", text: "O prazo informado é de trinta dias." },
+    ],
+  } as AthenaContext);
+  assert.equal(receivedPrompt, "E se falarmos de literatura brasileira?", "a fully named new subject should not inherit a prior request");
+  assert.equal(namedTopicRemainsIndependent.metadata?.conversationReferenceResolved, false);
+
   const naturalRepair = await converseAsSpecialist(agent, { rawPrompt: "Não foi isso; eu quis dizer o prazo", title: "Ajuste", scope: "juridico" } as AthenaTask, {
     ...context,
     recentConversation: [
