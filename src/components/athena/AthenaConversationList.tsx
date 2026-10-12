@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Archive, MessageSquare, Plus, Search, Trash2, X } from "lucide-react";
 import type { AthenaConversation } from "@/lib/athena/conversation/conversation-store";
 import { StatePanel } from "@/components/ui/StatePanel";
@@ -17,6 +18,9 @@ interface Props {
 }
 
 export function AthenaConversationList({ conversations, activeConversationId, query, onQueryChange, onCreate, onSelect, onArchive, onTrash, onCloseMobile }: Props) {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const renderedConversations = hydrated ? conversations : [];
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-r border-[var(--vly-border-subtle)] bg-[var(--vly-world)]" aria-label="Conversas da Athena">
       <div className="flex items-center gap-2 border-b border-[var(--vly-border-subtle)] p-3">
@@ -31,8 +35,8 @@ export function AthenaConversationList({ conversations, activeConversationId, qu
         </label>
       </div>
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-3">
-        {!conversations.length && <StatePanel tone="empty" title="Nenhuma conversa encontrada" className="m-2 border-0 bg-transparent px-2 py-6" />}
-        {conversations.map((conversation) => {
+        {!renderedConversations.length && <StatePanel tone="empty" title="Nenhuma conversa encontrada" className="m-2 border-0 bg-transparent px-2 py-6" />}
+        {renderedConversations.map((conversation) => {
           const active = conversation.id === activeConversationId;
           return <div key={conversation.id} className={`group rounded-xl border p-2 ${active ? "border-[var(--vly-border-accent)] bg-[var(--vly-surface-active)]" : "border-transparent hover:border-[var(--vly-border-default)] hover:bg-[var(--vly-surface-raised)]"}`}>
             <button onClick={() => onSelect(conversation.id)} className="vly-interactive block w-full text-left">
