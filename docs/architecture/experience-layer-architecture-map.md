@@ -168,6 +168,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Removed fixed recommendations to prioritize urgent tasks and synchronize Chronos deadlines when the received context does not support those actions. Recommendations remain advisory; no schedule mutation occurs.
 - Agent-persona grounding tests cover empty, urgent-task, and ordinary-open-task contexts; the manual plan scenario 52 adds the upcoming-events UI case. Authenticated walkthrough remains pending.
 
+## Evidence relevance and source-verification boundary (2026-10-12; Logos/Lumen/Research Council)
+
+- Removed the unsupported “Fontes primárias verificadas” claim from the central Research Council synthesis. A populated Evidence Board context no longer implies that records are relevant to the current question or that sources are primary.
+- Logos and Lumen now label supplied entries as candidates for triage, distinguish board-recorded strength from independent evaluation, and recommend checking relevance/source/method before synthesis. Their structured limitations and metadata explicitly keep query relevance and primary-source verification false.
+- Automated tests include an unrelated research query against populated evidence context and empty/populated central-summary cases. Manual authenticated flow is scenario 53 and remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

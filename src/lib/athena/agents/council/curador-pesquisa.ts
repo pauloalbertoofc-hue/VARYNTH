@@ -32,10 +32,22 @@ export class CuradorPesquisaAgent implements AthenaAgent {
     const sources = evidence.map((item) => item.source);
     const strengths = evidence.reduce<Record<string, number>>((counts, item) => { counts[item.strength] = (counts[item.strength] || 0) + 1; return counts; }, {});
     const content = evidence.length
-      ? `🔎 **Evidências recebidas para “${resolved.prompt}”**\n\nEncontrei ${evidence.length} registro(s) no contexto do Research. A classificação de força é a já atribuída no acervo e não foi reavaliada independentemente.\n\n${evidence.map((item) => `- **${item.source}** (${item.strength}${item.page ? `, p. ${item.page}` : ""}): ${item.claim}\n  Trecho: “${item.quote}”`).join("\n")}\n\nNão realizei pesquisa externa nem registrei novos achados.`
+      ? `🔎 **Registros de evidência recebidos**\n\nO contexto do Research trouxe ${evidence.length} registro(s). A pertinência de cada item à pergunta “${resolved.prompt}” não foi verificada; as classificações de força são as atribuídas no acervo e não foram reavaliadas independentemente. Considere a lista como material para triagem, não como achados já confirmados para esta pergunta.\n\n${evidence.map((item) => `- **${item.source}** (${item.strength}${item.page ? `, p. ${item.page}` : ""}): ${item.claim}\n  Trecho cadastrado: “${item.quote}”`).join("\n")}\n\nNão realizei pesquisa externa nem registrei novos achados.`
       : `🔎 **A pergunta ainda precisa de fontes**\n\nNão recebi evidências catalogadas para “${resolved.prompt}”. Isso não significa que não existam estudos: esta execução não pesquisou a web. Posso ajudar a definir uma busca com bases, termos, recorte temporal e critérios de inclusão.`;
     const groundedContent = content + formatExperienceMethodHints(priorOutcomes);
-    return { agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true, confidence: evidence.length ? 0.62 : 0.28, content: groundedContent, sources, metadata: { evidenceCount: evidence.length, recordedStrengths: strengths, externalSearchPerformed: false, writesPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length }, recommendations: evidence.length ? ["Conferir método e contexto de cada fonte antes de sintetizar resultados"] : ["Delimitar bases, termos e período de busca"] };
+    return {
+      agentId: this.manifest.id, agentName: this.manifest.name, role: this.manifest.role, success: true,
+      confidence: evidence.length ? 0.42 : 0.28,
+      content: groundedContent,
+      sources,
+      limitations: evidence.length
+        ? ["A pertinência dos registros à pergunta atual não foi verificada.", "As classificações de força são as registradas no acervo, não uma avaliação independente.", "Não houve busca externa nem novos registros."]
+        : ["Nenhuma evidência foi recebida no contexto desta execução.", "Não houve pesquisa externa nem novos registros."],
+      metadata: { evidenceCount: evidence.length, recordedStrengths: strengths, queryRelevanceVerified: false, externalSearchPerformed: false, writesPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
+      recommendations: evidence.length
+        ? ["Confirme quais registros respondem diretamente à pergunta e confira fonte original, método e contexto antes de sintetizar."]
+        : ["Delimite bases, termos e período para uma busca futura; esta execução não consultou a web."],
+    };
   }
 }
 

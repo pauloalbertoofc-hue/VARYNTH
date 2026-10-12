@@ -46,6 +46,7 @@ import { buildExperienceContext } from "@/lib/experience/context-builder";
 import { applyConfirmedCommunicationStyle } from "@/lib/experience/communication-style";
 import type { ExperienceContext } from "@/lib/experience/context-builder";
 import { buildProjectExperienceGuidance } from "./persona/project-experience-guidance";
+import { buildResearchEvidenceSummary } from "./agents/council/research-evidence-summary";
 
 const explicitRequestAspects: readonly ResponseAspectEvidence[] = [
   { aspect: "testes", cues: ["testes", "tests", "verificações"] },
@@ -944,14 +945,9 @@ function processDeterministicWorkflow(
         : `⚖️ **Conselho Jurídico (Justitia):** Nenhuma tese formal está cadastrada na Argument Arena no momento. Cadastre a controvérsia jurídica para iniciarmos a análise dialética de precedentes.`,
     };
   } else if (task.type === "RESEARCH_SYNTHESIS") {
-    const evCount = ctx.evidences.length;
-    const strongEvs = ctx.evidences.filter((e) => e.strength === "forte");
     deliberationResult = {
       participatingAgents: ["logos", "critias"],
-      consensusSummary:
-        evCount > 0
-          ? `🔬 **Investigação Científica do Conselho (Logos + Critias):**\n\nLocalizamos **${evCount} evidências empíricas** no Evidence Board (${strongEvs.length} de alta força probatória).\n\n${strongEvs.length > 0 ? `📌 Evidência Principal:\n> *"${strongEvs[0].claim}"*\n> *(Fonte: ${strongEvs[0].source})*\n\n` : ""}• **Diretriz de Validação (Critias):** Fontes primárias verificadas. Recomenda-se triangular os dados com o acervo do Vault.`
-          : `🔬 **Conselho Científico (Logos):** Nenhuma evidência bibliográfica cadastrada ainda no Evidence Board. Cadastre fontes no módulo Research para validação empírica.`,
+      consensusSummary: buildResearchEvidenceSummary(ctx.evidences),
     };
   }
 

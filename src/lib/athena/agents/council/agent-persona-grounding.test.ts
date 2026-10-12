@@ -11,11 +11,13 @@ import { archivistAgent } from "./archivist";
 import { mnemosyneAgent } from "./mnemosyne";
 import { bibliotecarioAgent } from "./bibliotecario";
 import { curadorPesquisaAgent } from "./curador-pesquisa";
+import { buildResearchEvidenceSummary } from "./research-evidence-summary";
 import { euterpeAgent } from "./music-curator";
 import { inferCurrentConversationRegister, prepareAgentConversationHistory, renderAgentPersona, resolveAgentFollowUp } from "../base-agent";
 import type { AthenaAgent } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AthenaTask } from "../../domain/task";
+import type { EvidenceItem } from "@/lib/types/research";
 
 const agents: AthenaAgent[] = [athenaGeneralistAgent, justitiaAgent, logosAgent, sophiaAgent, musaAgent, strategosAgent, critiasAgent, archivistAgent, mnemosyneAgent, bibliotecarioAgent, curadorPesquisaAgent, euterpeAgent];
 const personas = agents.map((agent) => agent.manifest.persona);
@@ -136,6 +138,14 @@ assert.match(suppliedHistory[0].text, /preservação de rios/i);
 
 const ctx = { scope: "geral", relevantProjects: [], relevantTasks: [], relevantVaultItems: [], relevantChronosEvents: [], relevantTheses: [], relevantEvidences: [], relevantOpportunities: [], systemTime: "2026-09-23T12:00:00.000Z" } as unknown as AthenaContext;
 const task = (rawPrompt: string): AthenaTask => ({ id: "agent-grounding", title: rawPrompt, rawPrompt, type: "GENERAL_DELIBERATION", priority: "media", status: "CREATED", scope: "geral", entities: {}, createdAt: "", updatedAt: "" });
+const sampleEvidence = { id: "evidence-1", claim: "A restauração aumentou a cobertura vegetal", source: "Estudo inventariado", quote: "A cobertura aumentou", strength: "forte", section: "resultados", tags: ["restauração"], createdAt: "2026-09-01" } as EvidenceItem;
+const emptyResearchSummary = buildResearchEvidenceSummary([]);
+assert.match(emptyResearchSummary, /não demonstra que não existam estudos/i);
+assert.doesNotMatch(emptyResearchSummary, /Fontes primárias verificadas/i);
+const populatedResearchSummary = buildResearchEvidenceSummary([sampleEvidence]);
+assert.match(populatedResearchSummary, /pertinência de cada registro.*não foram verificadas/i);
+assert.match(populatedResearchSummary, /natureza primária das fontes não foram verificadas/i);
+assert.doesNotMatch(populatedResearchSummary, /Fontes primárias verificadas/i);
 
 assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí, por favor."), "informal", "courtesy alone must not override clear colloquial register markers");
 assert.equal(inferCurrentConversationRegister("Cê tá livre? Me ajuda aí."), "informal");
@@ -271,6 +281,16 @@ void (async () => {
   const contextualCurator = await curadorPesquisaAgent.execute(task("E as fontes?"), { ...ctx, ...followUpContext });
   assert.match(contextualCurator.content, /preservação de rios/i);
   assert.equal(contextualCurator.metadata?.conversationReferenceResolved, true);
+  const unrelatedContextEvidence = { ...ctx, relevantEvidences: [sampleEvidence] } as unknown as AthenaContext;
+  const researchOnUnrelatedTopic = await logosAgent.execute(task("Qual prazo do edital?"), unrelatedContextEvidence);
+  assert.equal(researchOnUnrelatedTopic.metadata?.queryRelevanceVerified, false);
+  assert.match(researchOnUnrelatedTopic.content, /pertinência.*não foram verificadas/i);
+  assert.doesNotMatch(researchOnUnrelatedTopic.content, /Evidência Central em Destaque/);
+  assert.match(researchOnUnrelatedTopic.recommendations?.[0] || "", /Confirme quais registros respondem diretamente/);
+  const curatedUnrelatedEvidence = await curadorPesquisaAgent.execute(task("Qual prazo do edital?"), unrelatedContextEvidence);
+  assert.equal(curatedUnrelatedEvidence.metadata?.queryRelevanceVerified, false);
+  assert.match(curatedUnrelatedEvidence.content, /lista como material para triagem/i);
+  assert.match(curatedUnrelatedEvidence.limitations?.join(" ") || "", /pertinência.*não foi verificada/i);
   const contextualStrategy = await strategosAgent.execute(task("Continue"), { ...ctx, ...followUpContext });
   assert.equal(contextualStrategy.metadata?.conversationReferenceResolved, true);
   const memory = await mnemosyneAgent.execute(task("O que você lembra sobre um projeto ausente?"), ctx);

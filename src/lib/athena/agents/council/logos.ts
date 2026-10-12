@@ -48,12 +48,13 @@ export class LogosAgent implements AthenaAgent {
     let content = `🔬 **Análise Metodológica & Científica (Logos):**\n\n`;
 
     if (evidences.length > 0) {
-      content += `Para “${resolved.prompt}”, o contexto contém **${evidences.length} registros**: ${strongEvs.length} fortes, ${moderateEvs.length} moderados, ${preliminaryEvs.length} preliminares e ${refutedEvs.length} refutados. A classificação é a registrada no Evidence Board, não uma replicação independente.\n\n`;
+      content += `O pacote recebido contém **${evidences.length} registros**: ${strongEvs.length} classificados como fortes, ${moderateEvs.length} moderados, ${preliminaryEvs.length} preliminares e ${refutedEvs.length} refutados. Essas classes são as registradas no Evidence Board, não uma replicação independente.\n\n`;
+      content += `A pertinência de cada registro à pergunta “${resolved.prompt}” e a natureza primária das fontes não foram verificadas nesta execução. Trate os itens abaixo como candidatos a triagem, não como resposta já validada.\n\n`;
       if (strongEvs.length > 0) {
-        content += `📌 **Evidência Central em Destaque:**\n> *"${strongEvs[0].claim}"*\n> *(Fonte: ${strongEvs[0].source})*\n\n`;
+        content += `📌 **Exemplo de registro classificado como forte no acervo** (isso não confirma que seja central ou pertinente à pergunta):\n> *"${strongEvs[0].claim}"*\n> *(Fonte registrada: ${strongEvs[0].source})*\n\n`;
       }
-      if (refutedEvs.length) content += `⚠️ **Contraponto registrado:** ${refutedEvs.slice(0, 2).map((item) => `“${item.claim}” (${item.source})`).join("; ")}\n\n`;
-      content += `• **Leitura:** a força registrada indica o suporte atribuído, mas não resolve validade, viés, desenho ou replicabilidade. Para uma conclusão causal, faltam desenho e método de análise explícitos.`;
+      if (refutedEvs.length) content += `⚠️ **Registros marcados como refutados no acervo** (pertinência à pergunta não verificada): ${refutedEvs.slice(0, 2).map((item) => `“${item.claim}” (${item.source})`).join("; ")}\n\n`;
+      content += `• **Leitura:** a classificação do acervo não resolve pertinência temática, validade, viés, desenho ou replicabilidade. Antes de sintetizar, confirme quais registros respondem à pergunta e confira método e fonte original.`;
     } else {
       content += `Ainda não recebi evidências catalogadas para “${resolved.prompt}”; isso não demonstra que não existam estudos. Posso ajudar a formular a pergunta e o protocolo de busca, mas não alegar achados sem fontes.`;
     }
@@ -65,13 +66,15 @@ export class LogosAgent implements AthenaAgent {
       role: this.manifest.role,
       success: true,
       content,
-      confidence: evidences.length ? 0.68 : 0.25,
-      metadata: { evidenceCount: evidences.length, strengthCounts: { strong: strongEvs.length, moderate: moderateEvs.length, preliminary: preliminaryEvs.length, refuted: refutedEvs.length }, externalSearchPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
+      confidence: evidences.length ? 0.42 : 0.25,
+      limitations: evidences.length
+        ? ["A pertinência dos registros à pergunta atual não foi verificada.", "A natureza primária das fontes não foi verificada.", "As classes de força são as cadastradas no Evidence Board; não houve replicação independente nem busca externa."]
+        : ["Nenhuma evidência foi recebida no contexto desta execução.", "Não houve pesquisa externa nem verificação de fontes primárias."],
+      metadata: { evidenceCount: evidences.length, strengthCounts: { strong: strongEvs.length, moderate: moderateEvs.length, preliminary: preliminaryEvs.length, refuted: refutedEvs.length }, queryRelevanceVerified: false, primarySourcesVerified: false, externalSearchPerformed: false, conversationReferenceResolved: resolved.usedHistory, priorOutcomeHints: priorOutcomes.length },
       sources: evidences.map((e) => e.source),
-      recommendations: [
-        "Indexar novas referências no Vault",
-        "Confrontar hipótese nula antes da conclusão",
-      ],
+      recommendations: evidences.length
+        ? ["Confirme quais registros respondem diretamente à pergunta e confira fonte original, método e contexto antes de sintetizar."]
+        : ["Delimite a pergunta e indique fontes ou bases para análise; esta execução não pesquisou a web nem cadastrou evidências."],
     };
   }
 }
