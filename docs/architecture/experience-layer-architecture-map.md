@@ -157,6 +157,11 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - The shared specialist resolver preserves the original user question and adds the preceding assistant response only as bounded referential context, explicitly labeled unverified and non-authoritative; ordinary follow-ups and explicit topic switches keep their existing behavior.
 - Scenario 51 in the manual plan covers the authenticated UI path. Automated checks validate intent classification and the exact context passed to the specialist; this does not establish that claims in a prior answer are true or verified.
 
+## Conversational boundary regression (2026-10-12; topic after “e agora”)
+
+- The pragmatic parser no longer treats every phrase beginning “e agora” as a follow-up. The bare prompt remains context-dependent, explicit question forms remain follow-ups, and a newly named subject such as “E agora, literatura brasileira?” is independent.
+- Automated pragmatic coverage passes for the contrastive set. Scenario 45 now includes this topic-switch boundary; authenticated Athena/specialist walkthrough remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

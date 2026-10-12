@@ -18,7 +18,7 @@ for (const switchPhrase of [
 }
 assert.equal(understandPragmatics("Falando nisso, quais os riscos?").intent, "SUBSTANTIVE", "a related transition must not be mistaken for an explicit topic switch");
 assert.equal(understandPragmatics("Poderia explicar melhor?").intent, "CLARIFICATION_REQUEST");
-for (const followUp of ["E aí?", "Mas como?", "Desenvolve", "Pode detalhar?", "Detalhe melhor", "Expanda isso"]) {
+for (const followUp of ["E aí?", "E agora?", "Mas como?", "Desenvolve", "Pode detalhar?", "Detalhe melhor", "Expanda isso"]) {
   const understood = understandPragmatics(followUp);
   assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should be identified as a contextual continuation`);
   assert.equal(understood.likelyFollowUp, true);
@@ -43,9 +43,13 @@ for (const followUp of ["E se o prazo mudar?", "Mas e se houver atraso?", "No ca
   assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should be recognized as a conditional or applicability continuation`);
   assert.equal(understood.likelyFollowUp, true);
 }
+for (const followUp of ["E agora, o que faço com essa ideia?", "E agora, como organizo o próximo passo?", "E agora, qual opção faz sentido?"]) {
+  assert.equal(understandPragmatics(followUp).intent, "FOLLOW_UP", `${followUp} contains an explicit contextual question after 'e agora'`);
+}
 for (const newTopic of ["E literatura brasileira?", "E o projeto Rios Vivos?", "Mas e Athena?", "E a música clássica?"]) {
   assert.equal(understandPragmatics(newTopic).intent, "SUBSTANTIVE", `${newTopic} names a new subject and must not inherit the previous topic`);
 }
+assert.equal(understandPragmatics("E agora, literatura brasileira?").intent, "SUBSTANTIVE", "a named topic after 'e agora' is not a follow-up without a contextual predicate");
 assert.equal(understandPragmatics("E aí, tudo bem?").intent, "SUBSTANTIVE", "a greeting must not be mistaken for a contextual continuation");
 assert.equal(understandPragmatics("Vc pode explicar melhor?").register, "informal");
 assert.equal(understandPragmatics("Poderia, por gentileza, explicar?",).register, "formal");
