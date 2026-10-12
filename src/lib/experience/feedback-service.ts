@@ -1,5 +1,6 @@
 import { experienceService } from "./experience-service";
 import { FeedbackInput, ExperienceEvent } from "./contracts";
+import { getExperienceOwnerId } from "./identity";
 
 const actionByFeedback: Record<FeedbackInput["type"], ExperienceEvent["actionType"]> = {
   LIKE: "FEEDBACK_SUBMITTED", DISLIKE: "FEEDBACK_SUBMITTED", ACCEPT: "PROPOSAL_ACCEPTED", REJECT: "PROPOSAL_REJECTED",
@@ -9,8 +10,9 @@ const actionByFeedback: Record<FeedbackInput["type"], ExperienceEvent["actionTyp
 
 export async function submitFeedback(input: FeedbackInput): Promise<ExperienceEvent> {
   if (!input.targetType.trim() || !input.targetId.trim()) throw new Error("[FEEDBACK_INVALID] alvo obrigatório.");
+  const ownerId = await getExperienceOwnerId(input.ownerId);
   const event = await experienceService.record({
-    actor: "USER", actionType: actionByFeedback[input.type], targetType: input.targetType, targetId: input.targetId,
+    ownerId, actor: "USER", actionType: actionByFeedback[input.type], targetType: input.targetType, targetId: input.targetId,
     projectId: input.projectId, moduleId: input.moduleId, agentId: input.agentId, sessionId: input.sessionId,
     metadata: { feedbackType: input.type, context: input.context || {}, reason: input.reason?.trim().slice(0, 500), strength: input.strength || "MEDIUM" },
     source: "experience-feedback", privacyScope: input.projectId ? "PROJECT_SHARED" : "USER_SHARED", learningEligible: true,

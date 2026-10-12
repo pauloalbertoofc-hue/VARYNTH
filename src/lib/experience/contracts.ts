@@ -86,6 +86,8 @@ export interface PreferenceCandidate {
 export type FeedbackType = "LIKE" | "DISLIKE" | "ACCEPT" | "REJECT" | "RATING" | "PREFER_A" | "PREFER_B" | "CORRECTION" | "COMMENT" | "CONFIRM_PREFERENCE" | "REJECT_PREFERENCE";
 
 export interface FeedbackInput {
+  /** Explicit account owner when the caller already has an authenticated identity. */
+  ownerId?: string;
   type: FeedbackType;
   targetType: string;
   targetId: string;
