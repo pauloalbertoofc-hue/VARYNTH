@@ -162,6 +162,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - The pragmatic parser no longer treats every phrase beginning “e agora” as a follow-up. The bare prompt remains context-dependent, explicit question forms remain follow-ups, and a newly named subject such as “E agora, literatura brasileira?” is independent.
 - Automated pragmatic coverage passes for the contrastive set. Scenario 45 now includes this topic-switch boundary; authenticated Athena/specialist walkthrough remains pending.
 
+## Specialist recommendation grounding (2026-10-12; Strategos)
+
+- Strategos' next-step recommendation is now derived from received planning evidence: urgent task, non-urgent open tasks, upcoming events without full availability, or no actionable data in the provided window.
+- Removed fixed recommendations to prioritize urgent tasks and synchronize Chronos deadlines when the received context does not support those actions. Recommendations remain advisory; no schedule mutation occurs.
+- Agent-persona grounding tests cover empty, urgent-task, and ordinary-open-task contexts; the manual plan scenario 52 adds the upcoming-events UI case. Authenticated walkthrough remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

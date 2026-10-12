@@ -223,6 +223,27 @@ void (async () => {
   assert.equal(contextualIdeas.metadata?.conversationReferenceResolved, true);
   const strategy = await strategosAgent.execute(task("Como está minha produtividade?"), ctx);
   assert.match(strategy.content, /não recebi tarefas/i);
+  assert.match(strategy.recommendations?.[0] || "", /não há tarefas abertas nem compromissos futuros/i, "Strategos must not recommend generic urgent-task actions when no actionable planning data was received");
+  assert.doesNotMatch(strategy.recommendations?.join(" ") || "", /sincronizar prazos no Chronos/i, "a recommendation must not imply an unrequested calendar mutation");
+  const urgentStrategy = await strategosAgent.execute(task("Ajude a priorizar"), {
+    ...ctx,
+    relevantTasks: [{ id: "urgent-1", title: "Entregar relatório", status: "a_fazer", priority: "urgente", createdAt: "2026-10-12" }],
+  } as unknown as AthenaContext);
+  assert.match(urgentStrategy.recommendations?.[0] || "", /Entregar relatório/);
+  assert.match(urgentStrategy.recommendations?.[0] || "", /esforço estimado e as dependências/);
+  assert.equal(urgentStrategy.metadata?.scheduleMutated, false, "planning guidance remains consultative and does not alter Chronos");
+  const regularStrategy = await strategosAgent.execute(task("Ajude a planejar"), {
+    ...ctx,
+    relevantTasks: [{ id: "open-1", title: "Revisar proposta", status: "a_fazer", priority: "media", createdAt: "2026-10-12" }],
+  } as unknown as AthenaContext);
+  assert.match(regularStrategy.recommendations?.[0] || "", /tarefa aberta recebida/);
+  assert.doesNotMatch(regularStrategy.recommendations?.[0] || "", /urgentes/i);
+  const eventOnlyStrategy = await strategosAgent.execute(task("Ajude a encaixar meu objetivo"), {
+    ...ctx,
+    relevantChronosEvents: [{ id: "event-1", title: "Reunião", date: "2026-10-01", startTime: "10:00", type: "reuniao", createdAt: "2026-09-23" }],
+  } as unknown as AthenaContext);
+  assert.match(eventOnlyStrategy.recommendations?.[0] || "", /objetivo e a janela disponível/);
+  assert.match(eventOnlyStrategy.recommendations?.[0] || "", /não confirmam todos os horários ocupados/);
   const critique = await critiasAgent.execute(task("Critique minha ideia"), ctx);
   assert.match(critique.content, /falta o objeto/i);
   assert.equal(critique.metadata?.verifiedDefect, false);

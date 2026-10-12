@@ -62,6 +62,16 @@ export class StrategosAgent implements AthenaAgent {
       : `• **Próximo passo sugerido:** informe seu objetivo e disponibilidade para eu montar uma sequência realista, sem inventar blocos ou prazos.${planningDetail === "stepwise" ? "\n1. Defina o resultado desejado.\n2. Informe a janela de tempo disponível.\n3. Indique restrições ou compromissos fixos." : ""}`;
     content += formatExperienceMethodHints(priorOutcomes);
 
+    const recommendations = urgentTasks.length
+      ? [`Para priorizar “${urgentTasks[0].title}”, informe o esforço estimado e as dependências antes de reservar horário.`]
+      : openTasks.length
+        ? [openTasks.length === 1
+          ? "Decida se a tarefa aberta recebida deve ser o foco; não recebi esforço estimado para prever sua duração."
+          : `Escolha qual das ${openTasks.length} tarefas abertas recebidas deve ser o foco; não recebi esforço estimado para ordená-las por duração.`]
+        : upcomingEvents.length
+          ? ["Informe o objetivo e a janela disponível; os compromissos próximos deste recorte não confirmam todos os horários ocupados."]
+          : ["Não há tarefas abertas nem compromissos futuros neste recorte. Compartilhe objetivo, prazo e disponibilidade para montarmos um cronograma."];
+
     return {
       agentId: this.manifest.id,
       agentName: this.manifest.name,
@@ -70,7 +80,7 @@ export class StrategosAgent implements AthenaAgent {
       content,
       confidence: context.relevantTasks.length || upcomingEvents.length ? 0.68 : 0.3,
       metadata: { receivedTaskCount: context.relevantTasks.length, openTaskCount: openTasks.length, upcomingEventCount: upcomingEvents.length, scheduleMutated: false, conversationReferenceResolved: resolved.usedHistory, appliedExperienceGuidance: { confirmedPreferences: agentGuidanceInstruction(context, this.manifest.id, resolved.prompt), priorOutcomes }, planningDetail },
-      recommendations: ["Priorizar tarefas urgentes primeiro", "Sincronizar prazos no Chronos"],
+      recommendations,
     };
   }
 }
