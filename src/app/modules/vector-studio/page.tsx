@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, Plus, Trash2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
+import { cubicBezierPath } from "@/lib/visual-core/vector-geometry";
+const bezierPath = cubicBezierPath;
 
 type VectorType = "rect" | "circle" | "text" | "bezier";
 type VectorObject = { id: string; type: VectorType; x: number; y: number; width: number; height: number; color: string; text?: string };
 const STORAGE_KEY = "varynth_vector_document_v1";
 const initial: VectorObject[] = [{ id: "background", type: "rect", x: 0, y: 0, width: 1200, height: 700, color: "#111827" }];
 const escapeXml = (value: string) => value.replace(/[<>&'\"]/g, (character) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", "\"": "&quot;" }[character] ?? character));
-const bezierPath = (item: VectorObject) => `M ${item.x} ${item.y + item.height} C ${item.x + item.width * 0.25} ${item.y - item.height * 0.2}, ${item.x + item.width * 0.75} ${item.y + item.height * 1.2}, ${item.x + item.width} ${item.y}`;
 
 export default function VectorStudioPage() {
   const [objects, setObjects] = useState<VectorObject[]>(initial);
