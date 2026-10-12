@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, CircleDashed, FlaskConical, Lightbulb } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { getCameraMedia, listCameraCaptures, visualCapabilities, visualWorkflows, type CameraCaptureRecord, type VisualCapabilityStatus } from "@/lib/visual-core";
-import { pictorAgent } from "@/lib/athena/agents/council/pictor";
 
 const statusLabel: Record<VisualCapabilityStatus, string> = { READY: "Operacional", PARTIAL: "Parcial", PLANNED: "Planejado" };
 const statusClass: Record<VisualCapabilityStatus, string> = { READY: "text-emerald-300", PARTIAL: "text-amber-300", PLANNED: "text-[var(--vly-text-muted)]" };
@@ -16,8 +15,9 @@ export default function VisualStudioPage() {
   const [pictorPrompt, setPictorPrompt] = useState("Analise este contexto visual e indique o próximo cuidado técnico.");
   const [pictorResponse, setPictorResponse] = useState<string | null>(null);
   const consultPictor = async () => {
-    const result = await pictorAgent.execute({ id: `visual-${Date.now()}`, title: "Consulta visual", rawPrompt: pictorPrompt, type: "GENERAL_DELIBERATION", priority: "media", status: "CREATED", scope: "visual", entities: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, {} as never);
-    setPictorResponse(`${result.content} ${result.recommendations?.join(" ") ?? ""}`);
+    const response = await fetch("/api/visual/pictor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt: pictorPrompt }) });
+    const result = await response.json() as { content?: string; recommendations?: string[]; error?: string };
+    setPictorResponse(response.ok ? `${result.content ?? ""} ${result.recommendations?.join(" ") ?? ""}` : result.error ?? "Não foi possível consultar o Pictor.");
   };
   useEffect(() => {
     let cancelled = false;

@@ -15,7 +15,7 @@ Esta auditoria inicia a especificação `VARYNTH VISUAL ECOSYSTEM`. O checkout f
 - `artifactService`, `assetManager`, `versionManager` e os serviços por estúdio formam a infraestrutura reutilizável para artefatos, assets, versões e integração entre módulos.
 - A persistência visual existente é híbrida: estado de composição de imagem em `localStorage` e blobs de assets em IndexedDB, com artefatos/versionamento no subsistema de artifacts.
 - Athena já possui ações visuais e change sets; a fronteira correta é proposta auditável e aceite explícito, não mutação silenciosa.
-- Existem 43 route handlers em `src/app/**/route.ts` no checkout auditado. Esse número é uma fotografia do estado atual e não deve virar constante fixa em documentação.
+- Existem 44 route handlers em `src/app/**/route.ts` no checkout auditado. Esse número é uma fotografia do estado atual e não deve virar constante fixa em documentação.
 
 ## Componentes reutilizáveis
 
