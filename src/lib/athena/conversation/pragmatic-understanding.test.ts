@@ -33,6 +33,10 @@ for (const followUp of ["E aí, como ficou?", "E aí, como saiu?", "E no meu cas
   assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should preserve the active task as its referent`);
   assert.equal(understood.likelyFollowUp, true);
 }
+for (const followUp of ["E o segundo ponto?", "Pode explicar o exemplo que você deu?", "Desenvolva sua recomendação", "Essa explicação ficou clara, mas detalhe melhor"]) {
+  assert.equal(understandPragmatics(followUp).intent, "FOLLOW_UP", `${followUp} should anchor to a specific part of the previous answer`);
+  assert.equal(understandPragmatics(followUp).likelyFollowUp, true);
+}
 assert.equal(understandPragmatics("E se falarmos de literatura brasileira?").likelyFollowUp, false, "a named new subject introduced after 'E se' remains independent");
 for (const followUp of ["E se o prazo mudar?", "Mas e se houver atraso?", "No caso de uma revisão, o que muda?", "Como fica no caso de dados incompletos?", "Isso também se aplica ao segundo cenário?", "Isso vale para os outros módulos?"]) {
   const understood = understandPragmatics(followUp);

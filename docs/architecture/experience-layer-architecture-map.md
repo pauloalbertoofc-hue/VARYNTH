@@ -151,6 +151,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - The bounded evidence disclosure projects and sanitizes those fields; the “Base e limites” panel shows them only when the specialist response passed validation. Rejected/partial response claims remain hidden.
 - BaseAgent conversation, disclosure projection/UI, interaction-contract E2E (36 checks), TypeScript, and `git diff --check` passed. Authenticated product walkthrough and production deployment remain unverified.
 
+## Follow-up resolution extension (2026-10-12; specific prior-answer references)
+
+- Pragmatic understanding now recognizes explicit references to an earlier answer's numbered point, example, recommendation, or argument as follow-ups.
+- The shared specialist resolver preserves the original user question and adds the preceding assistant response only as bounded referential context, explicitly labeled unverified and non-authoritative; ordinary follow-ups and explicit topic switches keep their existing behavior.
+- Scenario 51 in the manual plan covers the authenticated UI path. Automated checks validate intent classification and the exact context passed to the specialist; this does not establish that claims in a prior answer are true or verified.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

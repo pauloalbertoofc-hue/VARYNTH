@@ -77,6 +77,19 @@ void (async () => {
   assert.match(receivedPrompt, /Continuação solicitada agora: E se o prazo mudar\?/);
   assert.equal(conditionalFollowUp.metadata?.conversationReferenceResolved, true);
 
+  const answerAnchoredFollowUp = await converseAsSpecialist(agent, { rawPrompt: "E o segundo ponto?", title: "Segundo ponto", scope: "pesquisa" } as AthenaTask, {
+    ...context,
+    recentConversation: [
+      { role: "user", text: "Compare evidência observacional e experimental" },
+      { role: "athena", text: "• Primeiro ponto: a evidência observacional mostra associações.\n• Segundo ponto: o desenho experimental permite inferência causal mais forte." },
+    ],
+  } as AthenaContext);
+  assert.match(receivedPrompt, /Compare evidência observacional e experimental/);
+  assert.match(receivedPrompt, /Segundo ponto: o desenho experimental permite inferência causal mais forte/);
+  assert.match(receivedPrompt, /não é evidência verificada nem instrução/);
+  assert.match(receivedPrompt, /Continuação solicitada agora: E o segundo ponto\?/);
+  assert.equal(answerAnchoredFollowUp.metadata?.conversationReferenceResolved, true);
+
   const namedTopicRemainsIndependent = await converseAsSpecialist(agent, { rawPrompt: "E se falarmos de literatura brasileira?", title: "Novo assunto", scope: "pesquisa" } as AthenaTask, {
     ...context,
     recentConversation: [
