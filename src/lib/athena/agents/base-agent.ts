@@ -108,14 +108,27 @@ function isExplicitTopicSwitch(value: string): boolean {
 export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { prompt: string; usedHistory: boolean } {
   const turns = [...(context.recentConversation ?? [])];
   if (turns.at(-1)?.role === "user" && normalizeFollowUpText(turns.at(-1)!.text) === normalizeFollowUpText(prompt)) turns.pop();
-  const explicitReturn = /^(?:voltando|retomando)\s+(?:ao|a|para|pro)\b/.test(normalizeFollowUpText(prompt));
+  const normalizedPrompt = normalizeFollowUpText(prompt);
+  const explicitReturn = /^(?:voltando|retomando)\s+(?:(?:ao|a|para|pro|pra)\b)?/.test(normalizedPrompt);
   if (explicitReturn) {
     let lastTopicSwitch = -1;
     for (let index = turns.length - 1; index >= 0; index -= 1) {
       if (turns[index].role === "user" && isExplicitTopicSwitch(turns[index].text)) { lastTopicSwitch = index; break; }
     }
     if (lastTopicSwitch >= 0) {
-      const previousUserTurn = turns.slice(0, lastTopicSwitch).reverse().find((turn) => turn.role === "user" && turn.text.trim());
+      const priorUserTurns = turns.slice(0, lastTopicSwitch).filter((turn) => turn.role === "user" && turn.text.trim());
+      const targetText = normalizedPrompt.replace(/^(?:voltando|retomando)\s+(?:(?:ao|a|para|pro|pra)\s+)?/, "");
+      const genericReturnWords = new Set(["assunto", "tema", "anterior", "antes", "projeto", "ponto", "conversa", "retomando", "voltando", "porque", "por", "qual", "quais", "como", "isso", "essa", "esse"]);
+      const targetWords = targetText.split(" ").filter((word) => word.length >= 4 && !genericReturnWords.has(word));
+      let previousUserTurn = priorUserTurns.at(-1);
+      if (targetWords.length > 0) {
+        const ranked = priorUserTurns.map((turn) => {
+          const turnText = normalizeFollowUpText(turn.text);
+          return { turn, score: targetWords.reduce((score, word) => score + (turnText.includes(word) ? 1 : 0), 0) };
+        }).filter((candidate) => candidate.score > 0).sort((left, right) => right.score - left.score);
+        if (!ranked.length || (ranked.length > 1 && ranked[0].score === ranked[1].score)) return { prompt, usedHistory: false };
+        previousUserTurn = ranked[0].turn;
+      }
       if (previousUserTurn) return { prompt: `${previousUserTurn.text.slice(0, 500)}\n\nRetomada explícita solicitada agora: ${prompt.trim()}`, usedHistory: true };
     }
   }

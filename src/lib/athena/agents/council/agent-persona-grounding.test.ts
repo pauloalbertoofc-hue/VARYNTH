@@ -89,6 +89,23 @@ const explicitReturn = resolveAgentFollowUp("Voltando ao assunto anterior, por q
 ] } as unknown as AthenaContext);
 assert.match(explicitReturn.prompt, /^Quero um texto sobre preservação de rios\./);
 assert.match(explicitReturn.prompt, /Retomada explícita solicitada agora/);
+const namedOlderReturn = resolveAgentFollowUp("Voltando ao projeto Rios Vivos, por quê?", { recentConversation: [
+  { role: "user" as const, text: "Quero um texto sobre preservação dos rios e áreas úmidas." },
+  { role: "athena" as const, text: "Posso ajudar com um rascunho." },
+  { role: "user" as const, text: "Mudando de assunto: quero aprender a fazer café." },
+  { role: "athena" as const, text: "Podemos começar pelo método coado." },
+  { role: "user" as const, text: "Agora outro assunto: revise o contrato de aluguel." },
+  { role: "athena" as const, text: "Posso separar cláusulas e riscos." },
+] } as unknown as AthenaContext);
+assert.equal(namedOlderReturn.usedHistory, true);
+assert.match(namedOlderReturn.prompt, /^Quero um texto sobre preservação dos rios/ , "a named return should recover the matching older subject, not the most recently interrupted one");
+const unmatchedNamedReturn = resolveAgentFollowUp("Voltando ao projeto Atlas Boreal, por quê?", { recentConversation: [
+  { role: "user" as const, text: "Quero um texto sobre preservação dos rios." },
+  { role: "athena" as const, text: "Posso ajudar." },
+  { role: "user" as const, text: "Mudando de assunto: quero aprender a fazer café." },
+  { role: "athena" as const, text: "Podemos começar pelo método coado." },
+] } as unknown as AthenaContext);
+assert.equal(unmatchedNamedReturn.usedHistory, false, "an unmatched named return must not silently bind to a different prior topic");
 const suppliedHistory = prepareAgentConversationHistory([
   { role: "user", text: "Quero um texto sobre preservação de rios." },
   { role: "athena", text: "Posso ajudar com um rascunho." },
