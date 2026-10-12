@@ -116,20 +116,20 @@ void (async () => {
     evidence: [{ eventId: "method-event", weight: "VERY_HIGH" as const, reason: "confirmado pelo usuário" }],
     scope: "AGENT" as const, scopeId: "logos", createdAt: new Date(0).toISOString(),
   };
-  const specialistMethodHint = await converseAsSpecialist(agent, { rawPrompt: "Avalie a evidência", scope: "pesquisa" } as AthenaTask, {
+  const specialistMethodHint = await converseAsSpecialist(agent, { rawPrompt: "Sugira um método para avaliar a evidência", scope: "pesquisa" } as AthenaTask, {
     ...context,
     experienceContext: { preferences: [], experiences: [scopedMethodHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
   } as unknown as AthenaContext);
   assert.match(specialistMethodHint.content, /Em experiências anteriores, mostrou-se útil: separar achados de hipóteses/);
   assert.equal(specialistMethodHint.metadata?.sharedExperienceHints, 1);
-  const suppressedMethodHint = await converseAsSpecialist(agent, { rawPrompt: "Avalie a evidência sem usar experiências anteriores.", scope: "pesquisa" } as AthenaTask, {
+  const suppressedMethodHint = await converseAsSpecialist(agent, { rawPrompt: "Sugira um método sem usar experiências anteriores.", scope: "pesquisa" } as AthenaTask, {
     ...context,
     experienceContext: { preferences: [], experiences: [scopedMethodHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
   } as unknown as AthenaContext);
   assert.doesNotMatch(suppressedMethodHint.content, /Em experiências anteriores, mostrou-se útil/);
   assert.equal(suppressedMethodHint.metadata?.sharedExperienceHints, 0);
   const unrelatedDomainHint = { ...scopedMethodHint, id: "unrelated-domain", scope: "DOMAIN" as const, scopeId: "legal", domain: "legal", action: "considerar apenas casos jurídicos" };
-  const noDomainLeak = await converseAsSpecialist(agent, { rawPrompt: "Avalie a evidência", scope: "pesquisa" } as AthenaTask, {
+  const noDomainLeak = await converseAsSpecialist(agent, { rawPrompt: "Sugira um método para avaliar a evidência", scope: "pesquisa" } as AthenaTask, {
     ...context,
     experienceContext: { preferences: [], experiences: [unrelatedDomainHint], instructionPrecedence: "CURRENT_INSTRUCTION_OVERRIDES_PERSONALIZATION", generatedAt: "now", truncated: false },
   } as unknown as AthenaContext);

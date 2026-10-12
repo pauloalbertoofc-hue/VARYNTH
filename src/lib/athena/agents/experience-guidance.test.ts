@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { ExperienceRecord, Preference } from "@/lib/experience/contracts";
 import type { AthenaContext } from "../domain/context";
 import type { AthenaTask } from "../domain/task";
-import { confirmedAgentGuidance, relevantExperienceGuidance } from "./experience-guidance";
+import { confirmedAgentGuidance, relevantExperienceGuidance, specialistExperienceGuidance } from "./experience-guidance";
 import { sophiaAgent } from "./council/sophia";
 import { musaAgent } from "./council/musa";
 import { strategosAgent } from "./council/strategos";
@@ -51,6 +51,9 @@ async function main() {
   assert.equal(experienceHints.length, 1);
   assert.match(experienceHints[0], /não é fato sobre este caso/i);
   assert.match(experienceHints[0], /prototipar um/);
+  assert.deepEqual(specialistExperienceGuidance(experienceContext, "musa", "O que é uma exposição?"), [], "historical outcomes are not injected into factual questions");
+  assert.equal(specialistExperienceGuidance(experienceContext, "musa", "Me dê ideias para uma exposição").length, 1, "relevant positive precedent may guide a current ideation request");
+  assert.deepEqual(specialistExperienceGuidance(experienceContext, "musa", "Planeje a proposta sem consultar experiências anteriores"), [], "a current instruction not to consult history wins over a planning trigger");
   assert.deepEqual(relevantExperienceGuidance(experienceContext, "musa", undefined, undefined, "Não use experiências anteriores"), [], "a direct instruction not to use history suppresses retained outcomes");
   assert.deepEqual(relevantExperienceGuidance(experienceContext, "sophia"), [], "agent-scoped precedent cannot leak to other specialists");
   assert.deepEqual(relevantExperienceGuidance({ ...experienceContext, activeProject: { id: "different-project", title: "Outro projeto", description: "", category: "pessoal", status: "ativo", priority: "media", tags: [], createdAt: "", updatedAt: "" } }, "strategos"), [], "project precedent cannot leave its project");

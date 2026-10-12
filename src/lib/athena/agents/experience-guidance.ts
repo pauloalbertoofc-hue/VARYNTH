@@ -128,7 +128,15 @@ export function specialistExperienceGuidance(
   agentId: string,
   currentInstruction: string,
 ): string[] {
+  if (!isExperienceSeekingRequest(currentInstruction)) return [];
   return relevantExperienceGuidance(context, agentId, undefined, agentId, currentInstruction).slice(0, 2);
+}
+
+/** Past outcomes are useful as method precedents, never as unsolicited facts. */
+export function isExperienceSeekingRequest(prompt: string): boolean {
+  const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (suppressHistoricalGuidance(prompt)) return false;
+  return /\b(ideia|ideias|brainstorm|sugira|sugestao|sugestoes|recomende|recomendacao|recomendacoes|planeje|planejamento|estrategia|proponha|crie uma proposta|como posso|como poderiamos)\b/.test(normalized);
 }
 
 /** Read only explicit confirmed communication preferences for this agent. */
