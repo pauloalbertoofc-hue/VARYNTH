@@ -123,8 +123,8 @@ export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { 
       let previousUserTurn = priorUserTurns.at(-1);
       if (targetWords.length > 0) {
         const ranked = priorUserTurns.map((turn) => {
-          const turnText = normalizeFollowUpText(turn.text);
-          return { turn, score: targetWords.reduce((score, word) => score + (turnText.includes(word) ? 1 : 0), 0) };
+          const turnWords = new Set(normalizeFollowUpText(turn.text).split(" "));
+          return { turn, score: targetWords.reduce((score, word) => score + (turnWords.has(word) ? 1 : 0), 0) };
         }).filter((candidate) => candidate.score > 0).sort((left, right) => right.score - left.score);
         if (!ranked.length || (ranked.length > 1 && ranked[0].score === ranked[1].score)) return { prompt, usedHistory: false };
         previousUserTurn = ranked[0].turn;

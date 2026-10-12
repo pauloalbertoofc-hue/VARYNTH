@@ -106,6 +106,22 @@ const unmatchedNamedReturn = resolveAgentFollowUp("Voltando ao projeto Atlas Bor
   { role: "athena" as const, text: "Podemos começar pelo método coado." },
 ] } as unknown as AthenaContext);
 assert.equal(unmatchedNamedReturn.usedHistory, false, "an unmatched named return must not silently bind to a different prior topic");
+const substringOnlyReturn = resolveAgentFollowUp("Voltando ao assunto da arte, por quê?", { recentConversation: [
+  { role: "user" as const, text: "Quero revisar a parte jurídica deste contrato." },
+  { role: "athena" as const, text: "Posso separar as cláusulas." },
+  { role: "user" as const, text: "Mudando de assunto: vamos falar do café." },
+  { role: "athena" as const, text: "Podemos falar do método coado." },
+] } as unknown as AthenaContext);
+assert.equal(substringOnlyReturn.usedHistory, false, "a named topic word must match a complete token, not a substring inside an unrelated word");
+const ambiguousNamedReturn = resolveAgentFollowUp("Voltando ao assunto dos rios, por quê?", { recentConversation: [
+  { role: "user" as const, text: "Explique os riscos dos rios urbanos." },
+  { role: "athena" as const, text: "Há riscos de drenagem." },
+  { role: "user" as const, text: "Mudando de assunto: fale sobre rios e literatura." },
+  { role: "athena" as const, text: "Há várias obras relevantes." },
+  { role: "user" as const, text: "Tratemos de outro tema: música." },
+  { role: "athena" as const, text: "Posso comentar a faixa." },
+] } as unknown as AthenaContext);
+assert.equal(ambiguousNamedReturn.usedHistory, false, "equally matching historical topics require clarification rather than arbitrary selection");
 const suppliedHistory = prepareAgentConversationHistory([
   { role: "user", text: "Quero um texto sobre preservação de rios." },
   { role: "athena", text: "Posso ajudar com um rascunho." },
