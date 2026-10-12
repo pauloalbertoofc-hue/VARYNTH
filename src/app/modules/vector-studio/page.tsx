@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Plus, Trash2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
@@ -22,6 +22,10 @@ export default function VectorStudioPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const undoStack = useRef<VectorObject[][]>([]);
+  const redoStack = useRef<VectorObject[][]>([]);
+  const previousObjects = useRef<VectorObject[]>(initial);
+  const historyAction = useRef(false);
   const selected = objects.find((item) => item.id === selectedId) ?? objects[0];
 
   useEffect(() => {
@@ -31,6 +35,9 @@ export default function VectorStudioPage() {
     } catch { /* rascunho inválido é ignorado */ } finally { setHydrated(true); }
   }, []);
   useEffect(() => { if (!hydrated) return; const timestamp = new Date().toISOString(); try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ objects, savedAt: timestamp })); setSavedAt(timestamp); } catch { /* armazenamento opcional */ } }, [objects, hydrated]);
+  useEffect(() => { if (!hydrated) return; if (historyAction.current) { historyAction.current = false; previousObjects.current = objects; return; } if (previousObjects.current !== objects) { undoStack.current = [...undoStack.current.slice(-49), previousObjects.current]; redoStack.current = []; previousObjects.current = objects; } }, [objects, hydrated]);
+  useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "z") return; event.preventDefault(); const stack = event.shiftKey ? redoStack.current : undoStack.current; const target = stack.pop(); if (!target) return; const current = objects; (event.shiftKey ? undoStack.current : redoStack.current).push(current); historyAction.current = true; setObjects(target); }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, [objects]);
+  useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "y") return; event.preventDefault(); const target = redoStack.current.pop(); if (!target) return; undoStack.current.push(objects); historyAction.current = true; setObjects(target); }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, [objects]);
 
   const update = (field: "x" | "y" | "width" | "height", value: number) => setObjects((items) => items.map((item) => item.id === selectedId ? { ...item, [field]: Math.max(1, value) } : item));
   const add = () => { const id = `vector-${Date.now()}`; const index = objects.length; const item: VectorObject = { id, type, x: 120 + (index % 4) * 180, y: 100 + (index % 3) * 150, width: type === "circle" ? 140 : 260, height: type === "circle" ? 140 : 120, color, ...(type === "text" ? { text } : {}) }; setObjects((items) => [...items, item]); setSelectedId(id); };
