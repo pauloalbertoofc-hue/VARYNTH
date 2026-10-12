@@ -30,8 +30,11 @@ function cueIsRequested(text: string, cue: string): boolean {
   const expression = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapedCue}(?=$|[^\\p{L}\\p{N}])`, "gu");
   for (const match of text.matchAll(expression)) {
     const start = (match.index ?? 0) + match[0].length - normalizedCue.length;
-    const prefix = text.slice(Math.max(0, start - 100), start);
+    const rawPrefix = text.slice(Math.max(0, start - 100), start);
+    const clausePrefix = rawPrefix.split(/[,;.!?]|\b(?:mas|por[eé]m|contudo|todavia)\b/u).at(-1) ?? rawPrefix;
+    const prefix = clausePrefix;
     if (/\bnao\s+(?:deixe|deixem|deixar)\s+de\s+(?:\p{L}+\s+){0,2}$/u.test(prefix)) return true;
+    if (/\bnao\s+(?:so|apenas|somente)\s+(?:\p{L}+\s+){0,2}$/u.test(prefix)) return true;
     if (/\b(?:nao|nunca|jamais|nem|sem|dispenso|dispense)\b(?:\s+\p{L}+){0,4}\s*$/u.test(prefix)) continue;
     return true;
   }

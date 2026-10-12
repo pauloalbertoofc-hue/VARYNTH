@@ -394,6 +394,11 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
     "A análise está pronta.",
     compoundAspects,
   );
+  const additiveNegation = findUnaddressedResponseAspects(
+    "Não só implemente, mas também publique a correção.",
+    "",
+    compoundAspects,
+  );
   const accentedCoverage = findUnaddressedResponseAspects(
     "Atualize a documentação e publique.",
     "Atualizei a documentação.",
@@ -407,8 +412,9 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
     uncovered.includes("REQUESTED_ASPECT:testes") && uncovered.includes("REQUESTED_ASPECT:publicação") && !uncovered.includes("REQUESTED_ASPECT:análise") && compoundValidation.missingAspects.includes("REQUESTED_ASPECT:GitHub")
       && !excludedWork.includes("REQUESTED_ASPECT:implementação") && !excludedWork.includes("REQUESTED_ASPECT:publicação")
       && explicitlyRequiredWork.includes("REQUESTED_ASPECT:implementação") && !explicitlyRequiredWork.includes("REQUESTED_ASPECT:publicação")
+      && additiveNegation.includes("REQUESTED_ASPECT:implementação") && additiveNegation.includes("REQUESTED_ASPECT:publicação")
       && accentedCoverage.length === 1 && accentedCoverage[0] === "REQUESTED_ASPECT:publicação",
-    `Uncovered: ${uncovered.join(", ")}; excluded: ${excludedWork.join(", ")}; double-negative: ${explicitlyRequiredWork.join(", ")}; accented: ${accentedCoverage.join(", ")}`
+    `Uncovered: ${uncovered.join(", ")}; excluded: ${excludedWork.join(", ")}; double-negative: ${explicitlyRequiredWork.join(", ")}; additive: ${additiveNegation.join(", ")}; accented: ${accentedCoverage.join(", ")}`
   );
 
   console.log("\n===============================================================");
