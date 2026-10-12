@@ -49,6 +49,15 @@ assert.equal(understandPragmatics("Responda em registro formal.").register, "for
 assert.equal(understandPragmatics("Responda de forma informal, por favor.").register, "informal", "an explicit informal style request must set the requested register despite courtesy");
 assert.equal(understandPragmatics("Responda em registro formal e informal.").register, undefined, "conflicting explicit register requests remain neutral");
 assert.equal(understandPragmatics("Não foi isso; eu quis dizer o prazo").intent, "CORRECTION");
+for (const correction of [
+  "Não pedi para você executar; pedi uma análise",
+  "Não quero que edite o arquivo, só explique o que mudaria",
+  "Não foi isso, eu queria saber o prazo, mas você respondeu sobre o custo",
+  "Não solicitei uma revisão; solicitei uma comparação",
+]) assert.equal(understandPragmatics(correction).intent, "CORRECTION", `${correction} should be recognized as an explicit contrastive correction`);
+for (const negation of ["Não quero que você execute", "Não, obrigado", "Não gostei do resultado"]) {
+  assert.notEqual(understandPragmatics(negation).intent, "CORRECTION", `${negation} is not by itself a correction with a replacement intent`);
+}
 assert.equal(understandPragmatics("Não, eu quis dizer o prazo").intent, "CORRECTION", "natural Portuguese correction phrasing should be recognized");
 assert.equal(understandPragmatics("Não, na verdade eu falei da Pesquisa CNJ").intent, "CORRECTION");
 for (const correctionText of [

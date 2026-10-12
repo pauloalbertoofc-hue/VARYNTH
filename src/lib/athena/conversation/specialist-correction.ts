@@ -1,5 +1,5 @@
 import type { AthenaConversationFeedback } from "./quality-feedback";
-import { understandPragmatics } from "./pragmatic-understanding";
+import { isExplicitConversationalCorrection, understandPragmatics } from "./pragmatic-understanding";
 
 type RepairTurn = { role: "user" | "athena"; text: string };
 type RepairFeedback = Pick<AthenaConversationFeedback, "category" | "correction">;
@@ -19,9 +19,8 @@ export function resolveSpecialistCorrection(
   const normalizedMessage = message.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const pragmatic = understandPragmatics(message);
   const hasPriorAssistantTurn = conversation.some((turn) => turn.role === "athena" && turn.text.trim());
-  const explicitCorrectionLead = /^(?:(?:nao|na verdade)\b[^.!?]{0,72}\b(?:quis dizer|queria dizer|me referia|estava falando|estou falando|me refiro|falei|falava|era sobre|falava sobre)|(?:voce|vc|o senhor|a senhora)\s+(?:entendeu|interpretou|leu|tomou)\b|(?:isso|essa parte|esse trecho|a resposta)\s+(?:ficou|foi)\s+(?:errad[oa]|invertid[oa])\b|nao foi isso|nao e isso|voce entendeu errado|corrigindo|quis dizer|eu quis dizer|me refiro a|estou falando de)\b/;
   const isRetryCommand = retryPattern.test(normalizedMessage);
-  if (!isRetryCommand && pragmatic.intent === "CORRECTION" && explicitCorrectionLead.test(normalizedMessage) && hasPriorAssistantTurn) {
+  if (!isRetryCommand && pragmatic.intent === "CORRECTION" && isExplicitConversationalCorrection(message) && hasPriorAssistantTurn) {
     const correctionDetails = normalizedMessage
       .replace(/^(?:(?:nao|na verdade)\b[^.!?]{0,72}\b(?:quis dizer|queria dizer|me referia|estava falando|estou falando|me refiro|falei|falava|era sobre|falava sobre)|(?:voce|vc|o senhor|a senhora)\s+(?:entendeu|interpretou|leu|tomou)\b|(?:isso|essa parte|esse trecho|a resposta)\s+(?:ficou|foi)\s+(?:errad[oa]|invertid[oa]|confus[oa])\b|nao foi isso|nao e isso|voce entendeu errado|corrigindo|na verdade|quis dizer|eu quis dizer|me refiro a|estou falando de)\s*[,;:—–-]?\s*/, "")
       .replace(/^(?:eu\s+)?(?:quis dizer|me referia(?:\s+a)?|estava falando(?:\s+de)?|estou falando(?:\s+de)?|me refiro(?:\s+a)?)\s*/, "")

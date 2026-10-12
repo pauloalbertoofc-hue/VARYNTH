@@ -138,6 +138,13 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - The sandbox is reachable from `/modules/experience`; authenticated visual/manual interaction remains pending.
 - The sandbox only creates synthetic in-memory observations and calls the production signal extraction and candidate derivation functions. It does not invoke persistence, preference proposal, or account identity services.
 
+## Verified validation snapshot (2026-10-12; contrastive conversational repair)
+
+- Athena's shared pragmatic layer and specialist correction adapter now share one explicit-correction predicate. Contrastive messages such as “Não pedi para executar; pedi uma análise” and “Não quero que edite; só explique” reach the selected specialist intact as corrections.
+- Negative controls verify that “Não quero que você execute” without a replacement is not treated as a correction with an invented intent.
+- Pragmatic-understanding, specialist-correction, BaseAgent conversation, Athena semantic regression (41 scenarios), Athena communication regression, TypeScript, and production build passed; Athena certification passed 22/22 and the build generated 62 static pages.
+- Manual authenticated UI walkthrough and production deployment remain unverified.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

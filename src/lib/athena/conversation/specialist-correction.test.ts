@@ -19,6 +19,17 @@ for (const correctionText of [
     `A clear user correction should be forwarded intact, not reduced to a generic retry: ${correctionText}`,
   );
 }
+for (const correctionText of [
+  "Não pedi para você executar; pedi uma análise",
+  "Não quero que edite o arquivo, só explique o que mudaria",
+  "Não foi isso, eu queria saber o prazo, mas você respondeu sobre o custo",
+]) {
+  assert.deepEqual(
+    resolveSpecialistCorrection(correctionText, turns, "strategos"),
+    { kind: "continue", prompt: correctionText, repaired: true },
+    "Contrastive correction must reach the specialist intact so it can honor the replacement intent.",
+  );
+}
 assert.equal(resolveSpecialistCorrection("A resposta ficou confusa", turns, "justitia").kind, "clarify", "a correction without the intended meaning must ask what to fix");
 assert.deepEqual(resolveSpecialistCorrection("A resposta ficou confusa; eu falava sobre o projeto Rios Vivos", turns, "justitia"), { kind: "continue", prompt: "A resposta ficou confusa; eu falava sobre o projeto Rios Vivos", repaired: true }, "a complaint followed by the intended meaning should be applied as a correction");
 assert.equal(resolveSpecialistCorrection("Corrigindo", turns, "justitia").kind, "clarify", "a correction marker without its corrected content must ask a focused question");
