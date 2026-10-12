@@ -198,6 +198,12 @@ Chronos task lifecycle now has a focused producer at `src/lib/experience/task-le
 - Visual and playlist matching respect negative polarity and clause boundaries so a rejected clause cannot absorb a following positive replacement. Visual proposal wording retains the most specific matching instruction.
 - Native Euterpe and the Athena agent registry have regression coverage. Authenticated Music UI walkthrough is scenario 56 and remains pending.
 
+## Euterpe proposal acceptance to Experience (2026-10-12; Music/Experience)
+
+- After the local save succeeds, accepting a visual directive or playlist records a `PROPOSAL_ACCEPTED` event; confirming a music preference records `PREFERENCE_CONFIRMED`. Rejected or unconfirmed proposals do not enter this producer.
+- Events contain bounded action categories, track/playlist correlation identifiers, and only a coarse music-style preference category; free-form preference values and audio bytes are not copied to Experience.
+- The adapter has unit coverage for actor, scope, action type, correlation, and value minimization. Authenticated acceptance/Experience Center walkthrough is scenario 57 and remains pending.
+
 ## Next implementation sequence
 
 1. Audit and add real, scoped Experience producers to remaining non-Studio modules and governed action lifecycles; Knowledge classification/publish/revoke/lifecycle decisions now have non-learning audit producers, while deliberate feedback and well-attributed edits remain the only learning-eligible paths.

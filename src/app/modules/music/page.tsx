@@ -833,14 +833,20 @@ export default function MusicPage() {
         const directed = applyVisualDirective(base, proposal.instruction);
         const art = await visualProvider.generate({ prompt: proposal.instruction, title: selectedTrack.name, artist: selectedTrack.artist, style: directed.mood, palette: directed.palette, createdAt: new Date().toISOString() });
         const updated = { ...directed, coverDataUrl: art.coverDataUrl, backgroundDataUrl: art.backgroundDataUrl };
-        await musicStudio.saveVisualProfile(updated); setVisualProfile(updated); setMessage("Perfil visual aplicado após sua confirmação.");
+        await musicStudio.saveVisualProfile(updated); setVisualProfile(updated);
+        const recorded = await recordMusicExperience({ action: "VISUAL_DIRECTIVE_APPLIED", trackId: selectedTrack.id, sessionId: athenaSessionIdRef.current || "music-curator-session", before: base.mood, after: directed.mood, correlationId: `euterpe-visual:${selectedTrack.id}:${Date.now()}`, userInitiated: true });
+        setMessage(recorded ? "Perfil visual aplicado após sua confirmação e registrado como evidência de experiência." : "Perfil visual aplicado após sua confirmação; não foi possível registrar essa decisão na Experience Layer.");
       } else if (proposal.kind === "playlist") {
         const playlist = { id: crypto.randomUUID(), name: proposal.name, color: colors[playlists.length % colors.length], trackIds: proposal.trackIds, updatedAt: new Date().toISOString() };
-        await musicStudio.savePlaylist(playlist); setPlaylists(await musicStudio.listPlaylists()); setMessage("Playlist criada após sua confirmação.");
+        await musicStudio.savePlaylist(playlist); setPlaylists(await musicStudio.listPlaylists());
+        const recorded = await recordMusicExperience({ action: "PLAYLIST_CREATED", trackId: proposal.trackIds[0], sessionId: athenaSessionIdRef.current || "music-curator-session", after: proposal.trackIds.length, correlationId: playlist.id, userInitiated: true });
+        setMessage(recorded ? "Playlist criada após sua confirmação e registrada como evidência de experiência." : "Playlist criada após sua confirmação; não foi possível registrar essa decisão na Experience Layer.");
       } else {
         const scopeId = musicLibrary.getIdentityNamespace();
         const item = { id: `${scopeId}:${proposal.key}`, scopeId, key: proposal.key, value: proposal.value, confidence: 1, source: "explicit" as const, updatedAt: new Date().toISOString() };
-        await musicStudio.savePreference(item); await musicStudio.saveAgentMemory({ id: crypto.randomUUID(), scopeId, kind: "favorite", value: proposal.value, createdAt: new Date().toISOString() }); setMessage("Preferência salva na memória musical deste dispositivo e isolada para a conta ativa.");
+        await musicStudio.savePreference(item); await musicStudio.saveAgentMemory({ id: crypto.randomUUID(), scopeId, kind: "favorite", value: proposal.value, createdAt: new Date().toISOString() });
+        const recorded = await recordMusicExperience({ action: "PREFERENCE_CONFIRMED", trackId: selectedId || undefined, sessionId: athenaSessionIdRef.current || "music-curator-session", after: "music-style", correlationId: item.id, userInitiated: true });
+        setMessage(recorded ? "Preferência salva na memória musical local da conta e registrada como confirmação explícita na Experience Layer." : "Preferência salva na memória musical local da conta; não foi possível registrar essa confirmação na Experience Layer.");
       }
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível aplicar a proposta."); }
   };

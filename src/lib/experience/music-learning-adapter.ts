@@ -1,7 +1,7 @@
 import { experienceService } from "./experience-service";
 import type { ExperienceEvent } from "./contracts";
 
-export type MusicLearningAction = "VISUAL_MOTION_CHANGED" | "VISUAL_EFFECT_CHANGED" | "VISUAL_DIRECTIVE_APPLIED" | "TRACK_RATED" | "PLAYLIST_CREATED";
+export type MusicLearningAction = "VISUAL_MOTION_CHANGED" | "VISUAL_EFFECT_CHANGED" | "VISUAL_DIRECTIVE_APPLIED" | "TRACK_RATED" | "PLAYLIST_CREATED" | "PREFERENCE_CONFIRMED";
 
 export interface MusicLearningInput {
   action: MusicLearningAction;
@@ -19,9 +19,10 @@ export interface MusicLearningInput {
 export class MusicLearningAdapter {
   async record(input: MusicLearningInput): Promise<ExperienceEvent> {
     const outcome = input.action === "TRACK_RATED";
+    const proposalAccepted = input.action === "VISUAL_DIRECTIVE_APPLIED" || input.action === "PLAYLIST_CREATED";
     return experienceService.record({
       actor: input.userInitiated === true ? "USER" : "SYSTEM",
-      actionType: outcome ? "FEEDBACK_SUBMITTED" : input.action === "PLAYLIST_CREATED" ? "PROJECT_CREATED" : "MANUAL_EDIT",
+      actionType: outcome ? "FEEDBACK_SUBMITTED" : input.action === "PREFERENCE_CONFIRMED" ? "PREFERENCE_CONFIRMED" : proposalAccepted ? "PROPOSAL_ACCEPTED" : "MANUAL_EDIT",
       moduleId: "music",
       domain: "music",
       projectId: input.projectId,
@@ -34,6 +35,7 @@ export class MusicLearningAdapter {
       metadata: {
         musicAction: input.action,
         ...(outcome && typeof input.after === "number" ? { explicitRating: Math.max(1, Math.min(5, Math.round(input.after))) } : {}),
+        ...(input.action === "PREFERENCE_CONFIRMED" ? { preferenceCategory: "music-style" } : {}),
         generatedAutomatically: input.userInitiated !== true,
       },
       source: "music-learning-adapter",
