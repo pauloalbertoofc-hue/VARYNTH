@@ -66,7 +66,7 @@ Experience Center (/modules/experience)
 | L — forget, export, retention | PARTIAL | Forget cascade and local JSON export exist; forgetting an evidence event also deletes ID-only decision traces that cite affected preference/experience records. Scheduled retention and sync-aware deletion are not implemented. |
 | M — observability and developer inspector | PARTIAL, EXPERIENCE-LINEAGE PATH IMPLEMENTED | ID-only decision events and `/modules/experience` join source event, derived signal, evidence-backed candidate/preference/experience, and specialist retrieval. Trace tests cover privacy, idempotency, non-learning, owner boundaries, and forget. Other action decisions/providers and authenticated manual UI walkthrough remain gaps. |
 | N/O — performance, automated and adversarial tests | PARTIAL, CORE TESTS PASS | Experience, ownership, exclusion, conflict, forgetting, and candidate adversarial tests pass; production event-volume and cross-module E2E coverage remain. |
-| P — docs, migration, production validation | PARTIAL, MANUAL PLAN ADDED | `experience-manual-test-plan.md` now specifies 46 acceptance scenarios and marks implemented/partial/gap without claiming they were executed. Run evidence, dedicated privacy/integration/limitations/changelog deliverables and authenticated production walkthrough remain. |
+| P — docs, migration, production validation | PARTIAL, MANUAL PLAN ADDED | `experience-manual-test-plan.md` now specifies 47 acceptance scenarios and marks implemented/partial/gap without claiming they were executed. Run evidence, dedicated privacy/integration/limitations/changelog deliverables and authenticated production walkthrough remain. |
 
 ## Verified validation snapshot (2026-10-05; prior snapshot)
 
@@ -107,6 +107,13 @@ Experience Center (/modules/experience)
 - `npm run test:athena-intelligence` passed 102 scenarios with no failures after the audit runner was corrected to return a nonzero status when any case fails.
 - `npm run build` passed: documentation inventory 44 routes / 36 tools / 12 agents / 18 modules, Athena certification 22/22, and Next.js 16.3.3 generated 62 static pages.
 - Authenticated UI walkthrough and production deployment remain unverified for this incremental revision.
+
+## Verified validation snapshot (2026-10-12; outcome and applicability follow-ups)
+
+- `npx tsx src/lib/athena/conversation/pragmatic-understanding.test.ts`, `npx tsx src/lib/athena/agents/council/agent-persona-grounding.test.ts`, `npx tsx src/lib/music/euterpe.test.ts`, `npx tsx src/lib/athena/agents/council/music-curator.test.ts`, and `npx tsx src/lib/music/music-agent-bridge.test.ts` passed.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run build` passed: documentation inventory 44 routes / 36 tools / 12 agents / 18 modules, Athena certification 22/22, and Next.js 16.3.3 generated 62 static pages.
+- Manual authenticated UI walkthrough and production publication remain pending for this revision.
 
 ## Verified validation snapshot (2026-10-12; Euterpe hypothetical follow-up)
 

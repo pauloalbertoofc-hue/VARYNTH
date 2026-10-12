@@ -66,6 +66,10 @@ assert.equal(resolveAgentFollowUp("Isso funciona?", followUpContext).usedHistory
 assert.equal(resolveAgentFollowUp("Qual delas você recomenda?", followUpContext).usedHistory, true, "Choice follow-ups should inherit the user topic");
 assert.equal(resolveAgentFollowUp("E literatura brasileira?", followUpContext).usedHistory, false, "A new explicit topic must not inherit history even when introduced by 'e'");
 assert.equal(resolveAgentFollowUp("Por quê?", followUpContext).usedHistory, true, "Short why follow-ups should inherit the prior user subject");
+assert.equal(resolveAgentFollowUp("E aí, como ficou?", followUpContext).usedHistory, true, "Outcome questions should retain the active user request");
+assert.equal(resolveAgentFollowUp("E no meu caso?", followUpContext).usedHistory, true, "Personal applicability follow-ups should retain the active user request");
+assert.equal(resolveAgentFollowUp("Na prática, como fica isso?", followUpContext).usedHistory, true, "Practical application follow-ups should retain the active user request");
+assert.equal(resolveAgentFollowUp("E aí, tudo bem?", followUpContext).usedHistory, false, "A greeting remains a social turn rather than borrowing the prior task");
 assert.equal(resolveAgentFollowUp("E literatura brasileira?", { recentConversation: [...(followUpContext.recentConversation ?? []), { role: "user", text: "E literatura brasileira?" }] } as unknown as AthenaContext).usedHistory, false, "The current message must not become its own historical referent");
 assert.equal(resolveAgentFollowUp("E agora, sobre literatura brasileira?", followUpContext).usedHistory, false, "an explicit new-topic phrase must override a follow-up-shaped opening");
 const currentTurnIncluded = resolveAgentFollowUp("Isso funciona?", { recentConversation: [

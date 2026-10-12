@@ -19,7 +19,8 @@ export function musicAgentShouldConsultAthena(message: string, conversation: Eut
   if (/\b(?:athena|athenas|inteligencia principal)\b/.test(text)) return true;
   if (/^(oi|ola|bom dia|boa tarde|boa noite|tudo bem|quem e voce|o que voce faz)[!.?\s]*$/.test(text)) return false;
 
-  const contextualFollowUp = /^(?:e\s+)?(?:por que|porque|como assim|explica(?: melhor)?|me explica|fala mais|me conta mais|continua|continue|pode desenvolver|e depois|faz isso|faca isso|pode fazer isso)[!.?\s]*$/.test(text);
+  const contextualFollowUp = /^(?:e\s+)?(?:por que|porque|como assim|como ficou|como saiu|deu certo|qual foi o resultado|explica(?: melhor)?|me explica|fala mais|me conta mais|continua|continue|pode desenvolver|e depois|faz isso|faca isso|pode fazer isso)[!.?\s]*$/.test(text)
+    || /^(?:e ai,?\s+)?como\s+(?:ficou|saiu|esta|ta)[!.?\s]*$/.test(text);
   if (contextualFollowUp) {
     const previousCuratorTurn = [...conversation].reverse().find((turn) => turn.sender === "curator");
     if (previousCuratorTurn?.consultedAthena) return true;
@@ -38,7 +39,7 @@ export function musicAgentShouldConsultAthena(message: string, conversation: Eut
   const asksGeneralQuestion = /\b(o que|quem|quando|onde|como|por que|porque|qual|quais|quanto|quantos|explique|defina|significa|me conta)\b/.test(text);
   const clearlyNonMusicTopic = /\b(clima|tempo|gravidade|contrato|lei|legislacao|justica|tarefa|projeto|arquivo|documento|agenda|reuniao|prazo|codigo|programacao|conta|athena)\b/.test(text);
   if (asksGeneralQuestion && clearlyNonMusicTopic) return true;
-  const conversationalMusicFollowUp = /\b(o que voce acha|o que achou|e essa|e esse|e ela|e ele|por que|porque|como assim|me conta mais|fala mais|continua|continue|qual a vibe|que sensacao|o que percebeu|tudo bem|como voce esta)\b/.test(text);
+  const conversationalMusicFollowUp = /\b(o que voce acha|o que achou|e essa|e esse|e ela|e ele|por que|porque|como assim|como ficou|como saiu|deu certo|qual foi o resultado|no meu caso|para mim|pra mim|me conta mais|fala mais|continua|continue|qual a vibe|que sensacao|o que percebeu|tudo bem|como voce esta)\b/.test(text);
   if (asksGeneralQuestion && !musicTerms.test(text) && !conversationalMusicFollowUp) return true;
 
   if (musicOnlyRequest.test(text)) return false;

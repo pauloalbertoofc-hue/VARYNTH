@@ -27,6 +27,15 @@ const hypotheticalTrackFollowUp = interpretEuterpeRequest("E se a faixa fosse ma
 assert.match(hypotheticalTrackFollowUp.response, /como hipótese, não como algo que observei ou testei/i);
 assert.match(hypotheticalTrackFollowUp.response, /intensidade 20% e calmaria 80%/i, "A hypothetical must preserve the actual current-track evidence separately");
 assert.match(hypotheticalTrackFollowUp.response, /previsão, não um resultado/i, "An untested musical change must not be presented as an observed outcome");
+for (const question of ["E aí, como ficou?", "Deu certo?"]) {
+  const outcome = interpretEuterpeRequest(question, context, [
+    { sender: "user", text: "Faça uma capa escura" },
+    { sender: "curator", text: "Posso preparar uma proposta visual revisável." },
+    { sender: "user", text: question },
+  ]);
+  assert.match(outcome.response, /não consigo confirmar.*proposta anterior foi aplicada/i, `${question} must not imply a proposal was applied`);
+  assert.match(outcome.response, /não são uma comparação antes\/depois/i, "Current DNA must not be presented as causal evidence");
+}
 const whyVisual = interpretEuterpeRequest("Por quê?", context, [{ sender: "user", text: "Faça uma capa escura" }, { sender: "curator", text: "Posso preparar uma proposta visual." }, { sender: "user", text: "Por quê?" }]);
 assert.match(whyVisual.response, /Faça uma capa escura/, "Why questions should cite the preceding user request, not themselves");
 assert.doesNotMatch(whyVisual.response, /Por quê\?/i);

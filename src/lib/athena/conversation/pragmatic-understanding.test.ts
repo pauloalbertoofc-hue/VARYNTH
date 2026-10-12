@@ -28,6 +28,11 @@ for (const followUp of ["E os riscos?", "Mas e o custo estimado?", "E os critér
   assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should preserve the prior subject while introducing an elliptical detail question`);
   assert.equal(understood.likelyFollowUp, true);
 }
+for (const followUp of ["E aí, como ficou?", "E aí, como saiu?", "E no meu caso?", "Como ficaria isso para mim?", "Na prática, como fica isso?", "Deu certo?"]) {
+  const understood = understandPragmatics(followUp);
+  assert.equal(understood.intent, "FOLLOW_UP", `${followUp} should preserve the active task as its referent`);
+  assert.equal(understood.likelyFollowUp, true);
+}
 assert.equal(understandPragmatics("E se falarmos de literatura brasileira?").likelyFollowUp, false, "a named new subject introduced after 'E se' remains independent");
 for (const followUp of ["E se o prazo mudar?", "Mas e se houver atraso?", "No caso de uma revisão, o que muda?", "Como fica no caso de dados incompletos?", "Isso também se aplica ao segundo cenário?", "Isso vale para os outros módulos?"]) {
   const understood = understandPragmatics(followUp);

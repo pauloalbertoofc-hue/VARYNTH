@@ -18,17 +18,27 @@ function resolveEuterpeFollowUp(message: string, context: EuterpeContext, conver
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const shortTurn = normalized.split(/\s+/).length <= 10;
   const isWhy = shortTurn && /^(?:(?:mas|e)\s+)?(?:por que|porque|qual o motivo|qual a razao)\b/.test(normalized);
-  const isExplain = shortTurn && /\b(como assim|mas como|e ai|(?:me )?explica(?:r)?(?: melhor)?|poderia explicar|explique melhor|o que quis dizer|qual delas|me conta mais)\b/.test(normalized);
+  const isOutcomeCheck = shortTurn && /^(?:(?:e\s+ai,?\s+)?como\s+(?:ficou|saiu|esta|ta)|deu\s+certo|qual\s+foi\s+o\s+resultado)\b/.test(normalized);
+  const isExplain = !isOutcomeCheck && shortTurn && /\b(como assim|mas como|e ai|(?:me )?explica(?:r)?(?: melhor)?|poderia explicar|explique melhor|o que quis dizer|qual delas|me conta mais)\b/.test(normalized);
   const isContinue = shortTurn && /\b(continua|continue|fala mais|me fala mais|aprofunda|detalha mais|desenvolve|desenvolva|pode desenvolver|pode detalhar|me da mais detalhes)\b/.test(normalized);
   const musicHypothetical = understandPragmatics(message).likelyFollowUp
     && /^(?:e|mas e)\s+se\s+(?:a faixa|essa faixa|a musica|essa musica|ela|o ritmo|o andamento|a intensidade|o visual|a atmosfera)\b/.test(normalized);
-  if (!isWhy && !isExplain && !isContinue && !musicHypothetical) return undefined;
+  if (!isWhy && !isOutcomeCheck && !isExplain && !isContinue && !musicHypothetical) return undefined;
 
   const currentUserIndex = conversation.map((turn) => turn.sender).lastIndexOf("user");
   if (currentUserIndex < 0) return "Posso continuar, mas não encontrei a mensagem anterior a que você está se referindo. Pode apontar o trecho?";
   const previousAssistant = conversation.slice(0, currentUserIndex).reverse().find((turn) => turn.sender === "curator")?.text;
   const previousUser = conversation.slice(0, currentUserIndex).reverse().find((turn) => turn.sender === "user")?.text;
   if (!previousAssistant) return "Não tenho uma resposta anterior nesta conversa para explicar. Diga qual faixa ou aspecto musical quer explorar.";
+
+  if (isOutcomeCheck) {
+    const observation = context.track
+      ? context.dna?.trackId === context.track.id
+        ? `O Music DNA atual de “${context.track.name}” registra ${context.dna.visualTags.length ? `as tags ${context.dna.visualTags.join(", ")}` : "nenhuma tag visual"}, intensidade ${Math.round(context.dna.intensity * 100)}% e calmaria ${Math.round(context.dna.calmness * 100)}%.`
+        : `A faixa atual é “${context.track.name}”, mas não recebi Music DNA atualizado correspondente.`
+      : "Não recebi uma faixa selecionada nem dados atuais para verificar o resultado.";
+    return `Não consigo confirmar que a proposta anterior foi aplicada nem que ela causou um resultado. ${observation} Esses dados descrevem o estado fornecido agora; não são uma comparação antes/depois. Se você aplicou a mudança, envie a versão ou uma nova análise para compararmos.`;
+  }
 
   if (musicHypothetical) {
     const currentObservation = context.track

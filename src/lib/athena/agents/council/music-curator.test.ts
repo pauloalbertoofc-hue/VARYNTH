@@ -12,6 +12,8 @@ assert.equal(euterpeAgent.canHandle(task("Me ajude com esta playlist de música"
 assert.equal(euterpeAgent.canHandle(task("Como está o clima hoje?")), false);
 assert.equal(musicAgentShouldConsultAthena("E se a faixa fosse mais lenta?"), false, "music-specific hypotheses remain with Euterpe");
 assert.equal(musicAgentShouldConsultAthena("E se o prazo mudar?"), true, "general project conditions are delegated to Athena");
+assert.equal(musicAgentShouldConsultAthena("E aí, como ficou?", [{ sender: "curator", text: "Posso preparar um perfil visual." }]), false, "a musical outcome follow-up remains with Euterpe");
+assert.equal(musicAgentShouldConsultAthena("E aí, como ficou?", [{ sender: "curator", text: "A plataforma enviou o projeto para revisão.", consultedAthena: true }]), true, "a follow-up to Athena's delegated platform answer returns to Athena");
 
 void (async () => {
   const result = await euterpeAgent.execute(task("Sugestão musical?"), {} as never);
