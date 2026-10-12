@@ -246,6 +246,14 @@ export class AthenaPersonaEngine {
       if (previous.includes("prefiro nao inventar") || previous.includes("novidade especifica")) {
         return "Porque eu não tinha uma novidade verificada nos dados disponíveis. Inventar uma atualização pareceria útil, mas criaria informação falsa. Posso consultar projetos, tarefas e prazos e dizer apenas o que estiver realmente registrado.";
       }
+      const recommendationMarker = (previousAssistantText || "").replace(/\*\*/g, "").split(/\r?\n/)
+        .find((line) => /^\s*(?:próximo passo recomendado|minha recomendação(?: para hoje)?)\s*:/i.test(line));
+      const priorRecommendation = recommendationMarker?.replace(/^\s*(?:próximo passo recomendado|minha recomendação(?: para hoje)?)\s*:?\s*/i, "").trim();
+      if (priorRecommendation) {
+        const statedReason = priorRecommendation.match(/\b(?:porque|pois|já que|uma vez que)\s+(.+?)(?:[.!?]|$)/i)?.[1]?.trim();
+        if (statedReason) return `Na resposta anterior, o passo sugerido foi: “${priorRecommendation}”. O motivo que registrei foi: “${statedReason}”. Não vou acrescentar razões que não apareceram ali.`;
+        return `Na resposta anterior, o próximo passo sugerido foi: “${priorRecommendation}”. Não registrei ali um critério explícito para essa escolha, então não vou inventar um. Posso avaliar agora se ela faz sentido para o que você quer.`;
+      }
       if (/\b(?:dados registrados|status(?: do projeto)?|tarefas pendentes|prazo(?: registrado| do projeto)?|registros? disponíveis)\b/.test(previous)) {
         return "Porque respondi com os dados registrados que estavam disponíveis — como status, prazo e tarefas do projeto. Esses registros descrevem a situação, mas não explicam as razões por trás dela nem registram um critério de escolha. Se você quis perguntar por que o projeto está nesse estado ou por que recomendo determinada decisão, diga qual desses pontos e eu separo fato de hipótese.";
       }

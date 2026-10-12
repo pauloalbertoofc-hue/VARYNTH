@@ -39,6 +39,8 @@ Experience Center (/modules/experience)
 | Experience trace disclosures and inspector | `src/components/athena/AthenaExperienceTrace.tsx`, `src/lib/experience/decision-trace.ts`, `inspector.ts`, rendered in Athena Hub, Sidecar, and `/modules/experience` | Per-response disclosures show bounded IDs and non-causal limits. When retrieved context is non-empty, the specialist records an account-owned, agent-private, non-learning ID-only event. The Experience Center joins explicit source-event evidence to derived signals, candidates, preferences, experiences, and retrieval traces. Forget cascades remove decision traces that reference invalidated records; at most 200 retrieval traces are retained per account. This is an inspectable local lineage, not proof that history caused the answer; other providers and all non-Experience decisions are not traced. |
 | Rollout and rollback | `src/lib/experience/feature-flags.ts` | Three build-environment flags default to enabled to preserve behavior: `NEXT_PUBLIC_VARYNTH_EXPERIENCE_ENABLED`, `NEXT_PUBLIC_VARYNTH_EXPERIENCE_PREFERENCE_INFERENCE_ENABLED`, and `NEXT_PUBLIC_VARYNTH_EXPERIENCE_PROJECT_RETROSPECTIVES_ENABLED`. Global disable returns an empty retrieval context and blocks candidate derivation/retrospective writes; narrower flags independently pause inference or retrospectives. The Experience Center reports active pauses. These are deployment/build-time controls, not live user toggles; disabling does not erase local records or bypass account ownership, exclusions, or explicit confirmation. |
 
+Chronos task lifecycle now has a focused producer at `src/lib/experience/task-learning-adapter.ts`, called only after successful store writes for creation, status transitions, and priority changes. It retains task/project IDs, status, and priority—never title or description—and correlates events per task. Explicit user actions may contribute a bounded direct-edit signal; Athena/system actions remain non-learning. Deletion, arbitrary text edits, and passive reads are intentionally not treated as learning evidence.
+
 ## Non-negotiable boundaries
 
 - No online model training, fine-tuning, embedding-as-source-of-truth, or automatic personality rewriting.
@@ -66,7 +68,7 @@ Experience Center (/modules/experience)
 | L — forget, export, retention | PARTIAL | Forget cascade and local JSON export exist; forgetting an evidence event also deletes ID-only decision traces that cite affected preference/experience records. Scheduled retention and sync-aware deletion are not implemented. |
 | M — observability and developer inspector | PARTIAL, EXPERIENCE-LINEAGE PATH IMPLEMENTED | ID-only decision events and `/modules/experience` join source event, derived signal, evidence-backed candidate/preference/experience, and specialist retrieval. Trace tests cover privacy, idempotency, non-learning, owner boundaries, and forget. Other action decisions/providers and authenticated manual UI walkthrough remain gaps. |
 | N/O — performance, automated and adversarial tests | PARTIAL, CORE TESTS PASS | Experience, ownership, exclusion, conflict, forgetting, and candidate adversarial tests pass; production event-volume and cross-module E2E coverage remain. |
-| P — docs, migration, production validation | PARTIAL, MANUAL PLAN ADDED | `experience-manual-test-plan.md` now specifies 47 acceptance scenarios and marks implemented/partial/gap without claiming they were executed. Run evidence, dedicated privacy/integration/limitations/changelog deliverables and authenticated production walkthrough remain. |
+| P — docs, migration, production validation | PARTIAL, MANUAL PLAN ADDED | `experience-manual-test-plan.md` now specifies 48 acceptance scenarios and marks implemented/partial/gap without claiming they were executed. Run evidence, dedicated privacy/integration/limitations/changelog deliverables and authenticated production walkthrough remain. |
 
 ## Verified validation snapshot (2026-10-05; prior snapshot)
 
@@ -122,6 +124,13 @@ Experience Center (/modules/experience)
 - `npx tsx src/lib/music/music-agent-bridge.test.ts` passed; the standard pragmatic-understanding suite passed as well.
 - `npm run build` passed: documentation inventory 44 routes / 36 tools / 12 agents / 18 modules, Athena certification 22/22, and Next.js 16.3.3 generated 62 static pages.
 - Authenticated UI walkthrough and production deployment remain unverified for this incremental revision.
+
+## Verified validation snapshot (2026-10-12; Chronos task lifecycle producer)
+
+- `npx tsx src/lib/experience/task-learning-adapter.test.ts` passed for account ownership, project/task correlation, minimal payload, user eligibility, and Athena/system non-learning behavior.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run build` passed: documentation inventory 44 routes / 36 tools / 12 agents / 18 modules, Athena certification 22/22, and Next.js 16.3.3 generated 62 static pages.
+- The authenticated UI walkthrough has not been performed; automated checks do not prove the Chronos screen path end to end.
 
 ## Next implementation sequence
 

@@ -713,7 +713,7 @@ export async function runBehavioralIntelligenceAudit(): Promise<{
     "EXPLAIN_RESPONSE",
     "EXPLAIN_RESPONSE",
     /justificativa|fundamento|motivo/i.test(r30.text)
-      || /não registrei um critério/i.test(r30.text) ? "PASS" : "FAIL",
+      || /não registrei (?:ali )?um critério/i.test(r30.text) ? "PASS" : "FAIL",
     r30.text.slice(0, 80)
   );
 

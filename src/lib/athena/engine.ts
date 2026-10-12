@@ -618,7 +618,8 @@ O bloco experience contém preferências e experiências anteriores da conta aut
   const specialistCandidate = invokedAgentResult
     ? `${invokedAgentResult.content}${projectExperienceGuidance.text}`
     : undefined;
-  const specialistRecommendation = invokedAgentResult?.recommendations?.find((recommendation) => recommendation.trim());
+  const specialistRecommendation = invokedAgentResult?.recommendations?.find((recommendation) => recommendation.trim())
+    || (!invokedAgentResult ? result.recommendations?.find((recommendation) => recommendation.trim()) : undefined);
   const specialistCompletenessCandidate = specialistCandidate !== undefined
     ? `${specialistCandidate}\n\n${specialistRecommendation ? `**Próximo passo recomendado:** ${specialistRecommendation}` : ""}`
     : undefined;
@@ -676,7 +677,7 @@ O bloco experience contém preferências e experiências anteriores da conta aut
   // Record in History for future turns / ellipses
   const responseId = "ath-" + Date.now();
   const recordedRecommendations = invokedAgentResult
-    ? invokedAgentResult.success ? invokedAgentResult.recommendations : []
+    ? invokedAgentResult.success ? [...(invokedAgentResult.recommendations || []), ...(!specialistResponseAccepted ? result.recommendations || [] : [])] : []
     : result.recommendations;
   const recordedCritiques = invokedAgentResult
     ? invokedAgentResult.success ? invokedAgentResult.criticism : []

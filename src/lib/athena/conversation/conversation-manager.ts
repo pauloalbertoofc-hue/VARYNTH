@@ -24,7 +24,7 @@ export function normalizeText(text: string): string {
 }
 
 function explicitlyHighlightedRecommendation(text: string, recommendations: string[] | undefined): string | undefined {
-  const highlighted = text.match(/(?:possível ponto de partida|opção recomendada):\*\*\s*([^\n]+)/i)?.[1]?.trim();
+  const highlighted = text.match(/(?:possível ponto de partida|opção recomendada|próximo passo recomendado|minha recomendação(?: para hoje)?)\s*:?\s*(?:\*\*)?\s*([^\n]+)/i)?.[1]?.replace(/\*\*/g, "").trim();
   if (!highlighted) return undefined;
   return recommendations?.find((recommendation) => normalizeText(recommendation) === normalizeText(highlighted))
     || recommendations?.find((recommendation) => normalizeText(highlighted).includes(normalizeText(recommendation)))
@@ -622,9 +622,10 @@ export class ConversationManager {
       confidence = "HIGH";
       requiresContext = true;
       const highlightedRecommendation = explicitlyHighlightedRecommendation(lastAthenaTurn.text, state.recentRecommendations);
-      subject = highlightedRecommendation || state.recentRecommendations?.some((recommendation) =>
+      const priorAnswerHasProjectFacts = /\b(?:dados registrados|status(?: do projeto)?|tarefas pendentes|prazo(?: registrado| do projeto)?|registros? disponíveis)\b/i.test(lastAthenaTurn.text);
+      subject = (highlightedRecommendation || state.recentRecommendations?.some((recommendation) =>
         normalizeText(lastAthenaTurn.text).includes(normalizeText(recommendation))
-      )
+      )) && !priorAnswerHasProjectFacts
         ? "PREVIOUS_RECOMMENDATION"
         : "PREVIOUS_ANSWER_CLARIFICATION";
       if (highlightedRecommendation) originalReferent = highlightedRecommendation;
@@ -964,6 +965,10 @@ export class ConversationManager {
     state.recentRecommendations = recommendations && recommendations.length > 0
       ? [...recommendations]
       : [];
+    const highlightedRecommendation = explicitlyHighlightedRecommendation(text, recommendations);
+    if (highlightedRecommendation && !state.recentRecommendations.some((recommendation) => normalizeText(recommendation) === normalizeText(highlightedRecommendation))) {
+      state.recentRecommendations.unshift(highlightedRecommendation);
+    }
     if (critiques && critiques.length > 0) {
       state.recentCritiques = critiques;
     }

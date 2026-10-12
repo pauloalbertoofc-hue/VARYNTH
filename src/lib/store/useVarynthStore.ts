@@ -29,6 +29,7 @@ import {
 } from "../types";
 import { showUndoToast } from "@/components/ui/UndoToast";
 import { migrateVaultItem } from "@/lib/vault/taxonomy";
+import { recordTaskExperience } from "@/lib/experience/task-learning-adapter";
 
 const STORAGE_KEYS = {
   PROJECTS: "varynth_os_projects",
@@ -517,6 +518,7 @@ export function useVarynthStore() {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
       const updated = [newTask, ...current];
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
+      void recordTaskExperience({ task: newTask, actorType, signal: "TASK_CREATED" }).catch(() => undefined);
       logActivity("criou", "tarefa", newTask.id, newTask.title, actorType, undefined, newTask.projectId);
       triggerStoreUpdate();
       return newTask;
@@ -527,6 +529,7 @@ export function useVarynthStore() {
   const toggleTask = useCallback(
     (id: string, actorType: ActorType = "user") => {
       const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
+      const previous = current.find((task) => task.id === id);
       const updated = current.map((t) => {
         if (t.id === id) {
           const isDone = t.status === "concluida";
@@ -541,6 +544,9 @@ export function useVarynthStore() {
       localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
       const target = updated.find((t) => t.id === id);
       if (target) {
+        if (previous && previous.status !== target.status) {
+          void recordTaskExperience({ task: target, actorType, signal: "TASK_STATUS_CHANGED", before: { status: previous.status } }).catch(() => undefined);
+        }
         logActivity(
           target.status === "concluida" ? "concluiu" : "atualizou",
           "tarefa",
@@ -558,10 +564,17 @@ export function useVarynthStore() {
 
   const updateTask = useCallback((id: string, updates: Partial<Task>, actorType: ActorType = "user") => {
     const current: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || "[]");
+    const previous = current.find((task) => task.id === id);
     const updated = current.map((t) => (t.id === id ? { ...t, ...updates } : t));
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
     const target = updated.find((t) => t.id === id);
     if (target) {
+      if (previous?.status !== target.status) {
+        void recordTaskExperience({ task: target, actorType, signal: "TASK_STATUS_CHANGED", before: { status: previous?.status } }).catch(() => undefined);
+      }
+      if (previous?.priority !== target.priority) {
+        void recordTaskExperience({ task: target, actorType, signal: "TASK_PRIORITY_CHANGED", before: { priority: previous?.priority } }).catch(() => undefined);
+      }
       logActivity("atualizou", "tarefa", id, target.title, actorType, undefined, target.projectId);
     }
     triggerStoreUpdate();

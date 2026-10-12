@@ -287,12 +287,14 @@ export async function runAthenaSystemSuite(): Promise<void> {
 
   // ATHSYS-011: Follow-up clarification ("Por quê?") explains previous reasoning
   const s11 = "session-sys-011";
-  await processAthenaQueryAsync("Me dê ideias de novos projetos", "geral", ctx, undefined, s11);
+  const firstR11 = await processAthenaQueryAsync("Me dê ideias de novos projetos", "geral", ctx, undefined, s11);
+  assert(firstR11.text.includes("Próximo passo recomendado"), "ATHSYS-011-PRECONDITION", "The prior response must actually contain the recommendation discussed next");
   const r11 = await processAthenaQueryAsync("Por quê?", "geral", ctx, undefined, s11);
+  const followUpR11 = r11.text.toLocaleLowerCase("pt-BR");
   assert(
-    Boolean(r11.text && (r11.text.includes("recomendei") || r11.text.includes("razões") || r11.text.includes("fundamentos") || r11.text.includes("não registrei um critério"))),
+    Boolean(r11.text && followUpR11.includes("mencionei") && followUpR11.includes("não registrei um critério")),
     "ATHSYS-011",
-    "Follow-up 'Por quê?' explains previous recommendation rationale"
+    "Follow-up 'Por quê?' identifies the actual prior recommendation and honestly states when no rationale was recorded"
   );
 
   // ATHSYS-012: Cancel intent cancels pending operation

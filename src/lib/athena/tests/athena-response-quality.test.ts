@@ -162,11 +162,17 @@ export async function runResponseQualitySuite(): Promise<{ total: number; passed
 
   // RESP-REG-012: Follow-up answer avoids repeating already-known context
   const s12 = "s-resp-012";
-  await processAthenaQueryAsync("Explique o projeto VARYNTH OS", "geral", ctx, undefined, s12);
+  const prior12 = await processAthenaQueryAsync("Como está o projeto VARYNTH OS?", "geral", ctx, undefined, s12);
+  record(
+    "RESP-REG-012-PRECONDITION",
+    "Follow-up fixture must first answer with recorded project facts",
+    prior12.text.includes("dados registrados") || prior12.text.includes("está em"),
+    prior12.text.slice(0, 80)
+  );
   const r12 = await processAthenaQueryAsync("Por quê?", "geral", ctx, undefined, s12);
   record(
     "RESP-REG-012",
-    "Follow-up answer avoids repeating already-known context",
+    "Follow-up explains the recorded project facts without inventing their causes",
     Boolean(r12.text) && r12.text.includes("dados registrados") && r12.text.includes("não explicam as razões"),
     r12.text.slice(0, 80)
   );
