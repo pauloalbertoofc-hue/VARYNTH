@@ -8,6 +8,7 @@ export * from "./processing-graph";
 export * from "./processing-runtime";
 export * from "./color-engine";
 export * from "./geometry-engine";
+export * from "./vector-geometry";
 export * from "./mask-engine";
 export * from "./effects-engine";
 export * from "./provenance-engine";
