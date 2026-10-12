@@ -23,6 +23,14 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
+function explicitlyHighlightedRecommendation(text: string, recommendations: string[] | undefined): string | undefined {
+  const highlighted = text.match(/(?:possível ponto de partida|opção recomendada):\*\*\s*([^\n]+)/i)?.[1]?.trim();
+  if (!highlighted) return undefined;
+  return recommendations?.find((recommendation) => normalizeText(recommendation) === normalizeText(highlighted))
+    || recommendations?.find((recommendation) => normalizeText(highlighted).includes(normalizeText(recommendation)))
+    || highlighted;
+}
+
 function candidateClarificationSubject(question: string | undefined): string {
   const normalized = normalizeText(question || "");
   if (/projeto/.test(normalized)) return "PROJECT";
@@ -613,11 +621,13 @@ export class ConversationManager {
       intents.push("EXPLAIN");
       confidence = "HIGH";
       requiresContext = true;
-      subject = state.recentRecommendations?.some((recommendation) =>
+      const highlightedRecommendation = explicitlyHighlightedRecommendation(lastAthenaTurn.text, state.recentRecommendations);
+      subject = highlightedRecommendation || state.recentRecommendations?.some((recommendation) =>
         normalizeText(lastAthenaTurn.text).includes(normalizeText(recommendation))
       )
         ? "PREVIOUS_RECOMMENDATION"
         : "PREVIOUS_ANSWER_CLARIFICATION";
+      if (highlightedRecommendation) originalReferent = highlightedRecommendation;
     }
     else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST" && lastAthenaTurn?.text.trim()) {
       interactionType = "CONVERSATION";
@@ -625,9 +635,11 @@ export class ConversationManager {
       confidence = "HIGH";
       requiresContext = true;
       subject = (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))
-        && state.recentRecommendations?.some((recommendation) => normalizeText(lastAthenaTurn.text).includes(normalizeText(recommendation)))
+        && (explicitlyHighlightedRecommendation(lastAthenaTurn.text, state.recentRecommendations)
+          || state.recentRecommendations?.some((recommendation) => normalizeText(lastAthenaTurn.text).includes(normalizeText(recommendation))))
         ? "PREVIOUS_RECOMMENDATION"
         : "PREVIOUS_ANSWER_CLARIFICATION";
+      if (subject === "PREVIOUS_RECOMMENDATION") originalReferent = explicitlyHighlightedRecommendation(lastAthenaTurn.text, state.recentRecommendations);
     }
     else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST") {
       interactionType = "CONVERSATION";

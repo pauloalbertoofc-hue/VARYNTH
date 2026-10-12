@@ -354,7 +354,7 @@ export class AthenaPersonaEngine {
     }
 
     if (parsed.subject === "PREVIOUS_RECOMMENDATION") {
-      return { text: this.generateFollowUpExplanation(undefined, parsed.ellipsisResolved?.previousAssistantText) };
+      return { text: this.generateFollowUpExplanation(parsed.ellipsisResolved?.originalReferent, parsed.ellipsisResolved?.previousAssistantText) };
     }
 
     // 0. Misunderstanding Repair / User Frustration (Concise & Non-Defensive)
