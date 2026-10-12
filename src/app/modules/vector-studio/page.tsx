@@ -31,7 +31,7 @@ export default function VectorStudioPage() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) { const draft = JSON.parse(raw) as { objects?: VectorObject[]; savedAt?: string }; if (Array.isArray(draft.objects) && draft.objects.length) setObjects(draft.objects); setSavedAt(draft.savedAt ?? null); }
+      if (raw) { const draft = JSON.parse(raw) as { objects?: VectorObject[]; savedAt?: string }; if (Array.isArray(draft.objects) && draft.objects.length) { previousObjects.current = draft.objects; setObjects(draft.objects); } setSavedAt(draft.savedAt ?? null); }
     } catch { /* rascunho inválido é ignorado */ } finally { setHydrated(true); }
   }, []);
   useEffect(() => { if (!hydrated) return; const timestamp = new Date().toISOString(); try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ objects, savedAt: timestamp })); setSavedAt(timestamp); } catch { /* armazenamento opcional */ } }, [objects, hydrated]);
