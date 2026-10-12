@@ -21,6 +21,7 @@ import { athenaEventBus } from "../../athena/events/event-bus";
 import { ArtifactActor } from "../../artifacts/types";
 import { VIDEO_TEMPLATES, VideoTemplate } from "./video-templates";
 import { validateClipRange, validateTimeRange, FPS_30 } from "../temporal/temporal-core";
+import { recordStudioExport } from "../../experience/studio-export-adapter";
 
 const VIDEO_STATE_STORAGE_PREFIX = "varynth_video_state_";
 const MAX_UNDO_STACK_SIZE = 50;
@@ -935,7 +936,9 @@ export class VideoService {
       };
     }
 
-    return await videoRenderEngine.renderTimeline(video.documentState, options, actor);
+    const result = await videoRenderEngine.renderTimeline(video.documentState, options, actor);
+    if (result.success) void recordStudioExport({ moduleId: "video", artifactId, projectId: video.artifact.projectId, format: result.format, actor, sizeBytes: result.sizeBytes, durationMs: result.durationMs }).catch(() => undefined);
+    return result;
   }
 }
 

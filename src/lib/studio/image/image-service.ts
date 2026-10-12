@@ -16,6 +16,7 @@ import { imageRenderEngine } from "./image-render-engine";
 import { athenaEventBus } from "../../athena/events/event-bus";
 import { ArtifactActor } from "../../artifacts/types";
 import { IMAGE_TEMPLATES, ImageTemplate } from "./image-templates";
+import { recordStudioExport } from "../../experience/studio-export-adapter";
 
 const IMAGE_STATE_STORAGE_PREFIX = "varynth_image_state_";
 const MAX_UNDO_STACK_SIZE = 50;
@@ -595,7 +596,9 @@ export class ImageService {
       };
     }
 
-    return await imageRenderEngine.renderComposition(img.documentState, options, actor);
+    const result = await imageRenderEngine.renderComposition(img.documentState, options, actor);
+    if (result.success) void recordStudioExport({ moduleId: "image", artifactId, projectId: img.artifact.projectId, format: result.format, actor, sizeBytes: result.sizeBytes }).catch(() => undefined);
+    return result;
   }
 }
 

@@ -16,6 +16,7 @@ import { athenaEventBus } from "../../athena/events/event-bus";
 import { notificationStore } from "../../notifications/notification-store";
 import { ArtifactActor, ArtifactStatus } from "../../artifacts/types";
 import { webBuildEngine } from "./web-build-engine";
+import { recordStudioExport } from "../../experience/studio-export-adapter";
 
 const WEB_FILES_STORAGE_PREFIX = "varynth_web_files_";
 
@@ -466,7 +467,7 @@ export class WebService {
       content: f.content.replace(/(API_KEY|TOKEN|SECRET|PASSWORD)\s*=\s*['"][^'"]+['"]/gi, "$1=[REDACTED]"),
     }));
 
-    return {
+    const exported: WebExportPackage = {
       websiteId,
       websiteName: website.artifact.name,
       version: website.artifact.currentVersionNumber,
@@ -481,6 +482,8 @@ export class WebService {
         sanitized: true,
       },
     };
+    void recordStudioExport({ moduleId: "web", artifactId: website.artifact.id, projectId: website.artifact.projectId, format: packageType }).catch(() => undefined);
+    return exported;
   }
 
   /**

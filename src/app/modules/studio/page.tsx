@@ -13,6 +13,7 @@ import { DocumentExportModal } from "@/components/studio/document/DocumentExport
 import { DocumentTemplatesModal } from "@/components/studio/document/DocumentTemplatesModal";
 import { documentService } from "@/lib/studio/document/document-service";
 import { DocumentItem, DocumentSaveState, DocumentTemplate } from "@/lib/studio/document/types";
+import { recordStudioExport } from "@/lib/experience/studio-export-adapter";
 
 // Web Studio Imports
 import { WebFileExplorer } from "@/components/studio/web/WebFileExplorer";
@@ -3156,6 +3157,7 @@ export default function StudioPage() {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            void recordStudioExport({ moduleId: "document", artifactId: activeDoc.artifact.id, projectId: activeDoc.artifact.projectId, format: opts.format, sizeBytes: blob.size }).catch(() => undefined);
             setIsDocExportOpen(false);
           }}
         />

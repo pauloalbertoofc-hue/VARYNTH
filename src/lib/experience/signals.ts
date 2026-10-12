@@ -2,7 +2,7 @@ import { ExperienceEvent, EvidenceRef } from "./contracts";
 import { evaluateLearningEligibility } from "./learning-policy";
 
 export interface ExperienceSignal {
-  kind: "EXPLICIT_FEEDBACK" | "DIRECT_EDIT" | "IMMEDIATE_UNDO" | "DELAYED_UNDO" | "REDO" | "PROPOSAL_ACCEPTED" | "PROPOSAL_MODIFIED" | "PROJECT_CREATED" | "VERSION_CREATED" | "OUTCOME";
+  kind: "EXPLICIT_FEEDBACK" | "DIRECT_EDIT" | "IMMEDIATE_UNDO" | "DELAYED_UNDO" | "REDO" | "PROPOSAL_ACCEPTED" | "PROPOSAL_MODIFIED" | "PROJECT_CREATED" | "VERSION_CREATED" | "EXPORT_CREATED" | "OUTCOME";
   strength: EvidenceRef["weight"];
   eventId: string;
   context: { projectId?: string; moduleId?: string; agentId?: string; correlationId?: string };
@@ -14,6 +14,7 @@ const signalMap: Partial<Record<ExperienceEvent["actionType"], ExperienceSignal[
   USER_ACTION: "DIRECT_EDIT", MANUAL_EDIT: "DIRECT_EDIT", PROPOSAL_MODIFIED: "PROPOSAL_MODIFIED", OUTCOME_RECORDED: "OUTCOME",
   PROJECT_CREATED: "PROJECT_CREATED",
   VERSION_CREATED: "VERSION_CREATED",
+  EXPORT_CREATED: "EXPORT_CREATED",
 };
 
 export function extractSignal(event: ExperienceEvent): ExperienceSignal | null {

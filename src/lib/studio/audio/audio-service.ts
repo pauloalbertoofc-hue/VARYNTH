@@ -25,6 +25,7 @@ import { migrateAudioProject, CURRENT_AUDIO_SCHEMA_VERSION } from "./audio-migra
 import { defaultMusicProject } from "./music-domain";
 import { validateLoop } from "./game-audio-domain";
 import { probeAudioDurationMs, readWavAudioMetadata } from "./audio-metadata";
+import { recordStudioExport } from "../../experience/studio-export-adapter";
 
 const AUDIO_STATE_STORAGE_PREFIX = "varynth_audio_state_";
 const AUDIO_HISTORY_STORAGE_PREFIX = "varynth_audio_history_";
@@ -962,13 +963,17 @@ export class AudioService {
       };
     }
 
-    return await audioRenderEngine.renderTimeline(audio.documentState, options, actor);
+    const result = await audioRenderEngine.renderTimeline(audio.documentState, options, actor);
+    if (result.success) void recordStudioExport({ moduleId: "audio", artifactId, projectId: audio.artifact.projectId, format: result.format, actor, sizeBytes: result.sizeBytes }).catch(() => undefined);
+    return result;
   }
 
   public async exportStems(artifactId: string, options: AudioExportOptions, actor: ArtifactActor = "USER"): Promise<AudioStemsExportResult> {
     const audio = this.getAudio(artifactId);
     if (!audio) return { success: false, stems: [], error: "Projeto de áudio não encontrado." };
-    return audioRenderEngine.renderStems(audio.documentState, options, actor);
+    const result = await audioRenderEngine.renderStems(audio.documentState, options, actor);
+    if (result.success) void recordStudioExport({ moduleId: "audio", artifactId, projectId: audio.artifact.projectId, format: "stems", actor }).catch(() => undefined);
+    return result;
   }
 }
 
