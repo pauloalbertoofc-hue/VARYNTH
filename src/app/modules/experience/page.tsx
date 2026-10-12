@@ -227,7 +227,7 @@ export default function ExperiencePage() {
                   <p>Experiências com ação citada literalmente na resposta: {Array.isArray(event.metadata.experienceIdsReferencedInResponse) ? (event.metadata.experienceIdsReferencedInResponse as unknown[]).filter((id): id is string => typeof id === "string").join(", ") || "nenhuma" : "nenhuma"}</p>
                   <p>Instrução atual prevalece sobre a personalização. Correspondência literal não prova influência causal nem aprovação do usuário.</p>
                 </> : <>
-                  <p>Sinal derivado: {lineage?.signal ? `${lineage.signal.kind} · força ${lineage.signal.strength} · ${lineage.signal.eligible ? "elegível" : "não elegível"}` : "nenhum sinal de aprendizado mapeado"}</p>
+                  <p>Sinal derivado: {lineage?.signal ? `${lineage.signal.kind} · polaridade ${lineage.signal.polarity === "POSITIVE" ? "positiva" : lineage.signal.polarity === "NEGATIVE" ? "negativa" : "observacional"} · força ${lineage.signal.strength} · ${lineage.signal.eligible ? "elegível" : "não elegível"}` : "nenhum sinal de aprendizado mapeado"}</p>
                   <p>Candidatos: {lineage?.candidates.map((item) => `${item.key}=${String(item.value)}`).join("; ") || "nenhum"}</p>
                   <p>Preferências com este evento como evidência: {lineage?.preferences.map((item) => `${item.id} (${item.key}=${String(item.value)}, ${item.status})`).join("; ") || "nenhuma"}</p>
                   <p>Experiências com este evento como evidência: {lineage?.experiences.map((item) => `${item.id} (${item.situation} → ${item.action} → ${item.outcome})`).join("; ") || "nenhuma"}</p>
