@@ -53,10 +53,32 @@ async function run(): Promise<void> {
 
   const invokedAgent = await processAthenaQueryAsync("Analise criticamente a arquitetura do Projeto Aurora", "geral", context, "e2e-project-a", "e2e-agent-invoked");
   const agentExecution = invokedAgent.metadata?.agentExecution as { agentId?: string; success?: boolean } | undefined;
+  const invokedValidation = invokedAgent.metadata?.specialistResponseValidation as { accepted?: boolean } | undefined;
   const traceEntries = invokedAgent.metadata?.agentExperienceTraces as Array<{ agentId: string; trace: { retrievedExperienceIds: string[]; evidenceEventIdsReferencedInResponse: string[] } }> | undefined;
   const invokedDebug = invokedAgent.metadata?.debug as { interactionContract?: string; selectedCapability?: string } | undefined;
   check(invokedDebug?.interactionContract === "USE_AGENT", "E2E-014", "Async cognitive request preserves the USE_AGENT contract");
   check(Boolean(agentExecution?.agentId && agentExecution.success && agentExecution.agentId === invokedDebug?.selectedCapability), "E2E-015", "The selected registered specialist is actually invoked and attributed");
+  check(invokedValidation?.accepted === true, "E2E-029", "Only a validated specialist response may establish conversational attribution");
+  const specialistFollowUp = await processAthenaQueryAsync("Desenvolve", "geral", context, "e2e-project-a", "e2e-agent-invoked");
+  const followUpDebug = specialistFollowUp.metadata?.debug as { interactionContract?: string; selectedCapability?: string } | undefined;
+  const followUpExecution = specialistFollowUp.metadata?.agentExecution as { agentId?: string; success?: boolean } | undefined;
+  check(followUpDebug?.interactionContract === "USE_AGENT" && followUpDebug.selectedCapability === agentExecution?.agentId, "E2E-030", "A contextual follow-up remains with the specialist that produced the preceding validated answer");
+  check(followUpExecution?.agentId === agentExecution?.agentId, "E2E-031", "The retained specialist actually receives and answers the follow-up");
+  const restoredAgentSession = "e2e-agent-restored-follow-up";
+  athenaConversationManager.updateSessionWithHistory(restoredAgentSession, [
+    { id: "restored-user", sender: "user", text: "Analise criticamente a arquitetura do Projeto Aurora", timestamp: "10:00", scope: "geral" },
+    invokedAgent,
+  ]);
+  check(athenaConversationManager.getRecentTurns(restoredAgentSession).at(-1)?.agentId === agentExecution?.agentId, "E2E-032", "Only validated specialist attribution is restored from persisted conversation metadata");
+  const restoredFollowUp = await processAthenaQueryAsync("Desenvolve", "geral", context, "e2e-project-a", restoredAgentSession);
+  const restoredFollowUpDebug = restoredFollowUp.metadata?.debug as { selectedCapability?: string } | undefined;
+  check(restoredFollowUpDebug?.selectedCapability === agentExecution?.agentId, "E2E-033", "Specialist continuity survives conversation reload");
+  const rejectedAgentSession = "e2e-agent-rejected-attribution";
+  athenaConversationManager.updateSessionWithHistory(rejectedAgentSession, [
+    { id: "rejected-user", sender: "user", text: "Analise criticamente a arquitetura do Projeto Aurora", timestamp: "10:00", scope: "geral" },
+    { ...invokedAgent, metadata: { ...invokedAgent.metadata, specialistResponseValidation: { accepted: false } } },
+  ]);
+  check(!athenaConversationManager.getRecentTurns(rejectedAgentSession).at(-1)?.agentId, "E2E-034", "A rejected specialist response cannot claim future conversation turns");
   check(traceEntries?.[0]?.agentId === agentExecution?.agentId && Array.isArray(traceEntries?.[0]?.trace.retrievedExperienceIds), "E2E-016", "The response carries a structured ID-only Experience trace for the invoked specialist");
   const traceKeys = Object.keys(traceEntries?.[0]?.trace ?? {}).sort().join(",");
   check(traceKeys === "agentId,evidenceEventIdsReferencedInResponse,experienceIdsReferencedInResponse,instructionPrecedence,retrievedExperienceIds,retrievedPreferenceIds", "E2E-017", "The trace projection exposes only the documented identifier fields, not stored Experience contents");
@@ -156,7 +178,7 @@ async function run(): Promise<void> {
   check(panel.includes("Confirmar {step.name}") && panel.includes("Reverter alterações") && panel.includes("Reconciliar e retomar"), "E2E-012", "Interface expõe confirmação, retomada e reversão governadas");
   check(!panel.includes("fetch(") && !panel.includes("/api/"), "E2E-013", "Interface de planos permanece local e sem API de rede");
 
-  console.log("\n✓ Fase 8: 30 evidências ponta a ponta aprovadas");
+  console.log("\n✓ Fase 8: 36 evidências ponta a ponta aprovadas");
 }
 
 run().catch((error) => {

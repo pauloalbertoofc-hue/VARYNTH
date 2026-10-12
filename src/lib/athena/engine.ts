@@ -208,11 +208,24 @@ function selectAgentCapability(
   prompt: string,
   scope: AthenaScope,
   ctx: AthenaEngineContext,
-  targetProjectId?: string
+  targetProjectId?: string,
+  continuation?: { originalReferent?: string; agentId?: string },
 ): CapabilitySelectionResult {
-  const task = athenaPerceptionEngine.perceive(prompt, scope, targetProjectId);
+  const hasTrustedContinuation = Boolean(continuation?.agentId && continuation.originalReferent?.trim());
+  // A short follow-up may change deterministic task classification (e.g. "Por quê?"
+  // turns creative ideation into general deliberation). Use the trusted referent
+  // only for competence/routing; the actual invocation still receives the current prompt.
+  const routingPrompt = hasTrustedContinuation
+    ? continuation?.originalReferent?.slice(0, 500) || prompt
+    : prompt;
+  const task = athenaPerceptionEngine.perceive(routingPrompt, scope, targetProjectId);
   const context = athenaContextBuilder.buildContext(task, scope, ctx, targetProjectId);
-  return athenaCapabilitySelector.select({ kind: "AGENT", task, context });
+  return athenaCapabilitySelector.select({
+    kind: "AGENT",
+    task,
+    context,
+    ...(hasTrustedContinuation ? { preferredCapabilityId: continuation!.agentId } : {}),
+  });
 }
 
 function capabilityClarification(
@@ -322,7 +335,9 @@ export async function processAthenaQueryAsync(
     targetProjectId,
     externalConversationContext
   );
-  const contractDecision = resolveAthenaInteractionContract(parsed);
+  const contractDecision = parsed.subject === "PREVIOUS_RECOMMENDATION"
+    ? decisionForContract("ANSWER_SELF", "PREVIOUS_RECOMMENDATION: explain only the immediately preceding grounded answer", parsed.confidence)
+    : resolveAthenaInteractionContract(parsed);
 
   const resolvedProjectId = resolveExecutionProjectId(
     prompt,
@@ -330,8 +345,15 @@ export async function processAthenaQueryAsync(
     targetProjectId
   );
   athenaObservabilityJournal.record({ category: "CONTRACT", type: "REQUEST_CONTEXT", status: "ROUTED", contract: contractDecision.contract, message: contractDecision.reason, sessionId, projectId: resolvedProjectId, details: { sourceInteractionType: contractDecision.sourceInteractionType, confidence: contractDecision.confidence, comprehensionStatus: parsed.comprehensionStatus, missingInformation: parsed.missingInformation, intents: parsed.intents, subject: parsed.subject, candidates: parsed.semanticInterpretation?.candidateScores.slice(0, 3) } });
-  const capabilitySelection = contractDecision.contract === "USE_AGENT" && !parsed.intents.includes("CLARIFICATION_RESPONSE")
-    ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId)
+  const canContinueValidatedSpecialist = Boolean(
+    parsed.ellipsisResolved?.agentId &&
+    parsed.ellipsisResolved.isEllipsis &&
+    parsed.subject !== "PREVIOUS_ANSWER_CLARIFICATION" &&
+    parsed.subject !== "PREVIOUS_RECOMMENDATION"
+  );
+  const isPriorAnswerQuestion = parsed.subject === "PREVIOUS_ANSWER_CLARIFICATION" || parsed.subject === "PREVIOUS_RECOMMENDATION";
+  const capabilitySelection = contractDecision.contract === "USE_AGENT" && !parsed.intents.includes("CLARIFICATION_RESPONSE") && !isPriorAnswerQuestion
+    ? selectAgentCapability(prompt, scope, ctx, resolvedProjectId, canContinueValidatedSpecialist ? parsed.ellipsisResolved : undefined)
     : undefined;
   if (capabilitySelection && capabilitySelection.status !== "SELECTED") {
     return capabilityClarification(capabilitySelection, scope, contractDecision);
@@ -644,7 +666,8 @@ O bloco experience contém preferências e experiências anteriores da conta aut
     finalText,
     recordedRecommendations,
     recordedCritiques,
-    responseId
+    responseId,
+    specialistResponseAccepted ? invokedAgentResult?.agentId : undefined,
   );
 
   return {
@@ -748,6 +771,19 @@ export function processAthenaQuery(
   };
 
   const strategySemantic = alignSemanticWithConversationIntent(semantic, parsed);
+  if (parsed.subject === "PREVIOUS_ANSWER_CLARIFICATION" || parsed.subject === "PREVIOUS_RECOMMENDATION") {
+    const explanation = athenaPersonaEngine.generateDialogueResponse(prompt, parsed, undefined, ctx, undefined, sessionId);
+    const responseId = `ath-${Date.now()}`;
+    athenaConversationManager.recordAssistantResponse(sessionId, explanation.text, undefined, undefined, responseId);
+    return {
+      id: responseId,
+      sender: "athena",
+      text: explanation.text,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      scope,
+      metadata: { interactionContract: "ANSWER_SELF", interactionType: parsed.interactionType },
+    };
+  }
   const responseIntent = AthenaResponseStrategyEngine.plan(
     strategySemantic,
     sessionState,

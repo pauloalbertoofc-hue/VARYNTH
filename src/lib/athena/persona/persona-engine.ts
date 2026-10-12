@@ -346,7 +346,15 @@ export class AthenaPersonaEngine {
     }
 
     if (parsed.subject === "PREVIOUS_ANSWER_CLARIFICATION") {
+      const cleanPrompt = normalizeText(prompt);
+      if (cleanPrompt.startsWith("por que") || cleanPrompt.startsWith("porque") || cleanPrompt.includes("razao") || cleanPrompt.includes("motivo") || cleanPrompt.includes("justificativa")) {
+        return { text: this.generateFollowUpExplanation(undefined, parsed.ellipsisResolved?.previousAssistantText) };
+      }
       return { text: this.explainPreviousAnswer(parsed.ellipsisResolved?.previousAssistantText) };
+    }
+
+    if (parsed.subject === "PREVIOUS_RECOMMENDATION") {
+      return { text: this.generateFollowUpExplanation(undefined, parsed.ellipsisResolved?.previousAssistantText) };
     }
 
     // 0. Misunderstanding Repair / User Frustration (Concise & Non-Defensive)

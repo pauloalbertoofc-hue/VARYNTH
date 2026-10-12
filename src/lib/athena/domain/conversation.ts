@@ -55,6 +55,7 @@ export interface ParsedCognitiveContext {
     originalReferent?: string;
     resolvedMeaning?: string;
     previousAssistantText?: string;
+    agentId?: string;
   };
   isAmbiguous: boolean;
   ambiguityType?: "IRRELEVANT" | "RELEVANT" | "DANGEROUS";
@@ -95,6 +96,7 @@ export interface ConversationTurn {
   text: string;
   timestamp: string;
   id: string;
+  agentId?: string;
   intents?: CognitiveIntent[];
   entities?: string[];
   projectReferenced?: string;

@@ -229,7 +229,7 @@ export class ConversationManager {
     if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST") {
       if (lastAthenaTurn?.text.trim()) {
         isEllipsis = true;
-        originalReferent = lastAthenaTurn.text.slice(0, 500);
+        originalReferent = lastUserTurn?.text.slice(0, 500);
         resolvedMeaning = `Esclarecer ou reformular a resposta imediatamente anterior da Athena, sem acrescentar fatos além do contexto disponível`;
       } else {
         clarificationPrompt = "Ainda não há uma resposta anterior nesta conversa para esclarecer. Qual trecho ou assunto você quer que eu explique?";
@@ -262,12 +262,7 @@ export class ConversationManager {
       clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa")
     ) {
       isEllipsis = true;
-      if (state.recentRecommendations && state.recentRecommendations.length > 0) {
-        originalReferent = state.recentRecommendations[0];
-        resolvedMeaning = `Explicar a justificativa e os fundamentos da recomendação anterior ("${state.recentRecommendations[0]}")`;
-      } else if (lastAthenaTurn) {
-        resolvedMeaning = `Explicar as razões e fundamentos da resposta anterior da Athena`;
-      }
+      resolvedMeaning = `Explicar as razões e fundamentos da resposta anterior da Athena`;
     }
 
     // Ellipsis Case C: "continue", "prossiga", "mais", "e depois?"
@@ -610,25 +605,35 @@ export class ConversationManager {
       requiresContext = true;
       subject = "SELECTED_RECOMMENDATION";
     }
+    else if (
+      isEllipsis && lastAthenaTurn?.text.trim() &&
+      (clean.startsWith("por que") || clean.startsWith("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))
+    ) {
+      interactionType = "CONVERSATION";
+      intents.push("EXPLAIN");
+      confidence = "HIGH";
+      requiresContext = true;
+      subject = state.recentRecommendations?.some((recommendation) =>
+        normalizeText(lastAthenaTurn.text).includes(normalizeText(recommendation))
+      )
+        ? "PREVIOUS_RECOMMENDATION"
+        : "PREVIOUS_ANSWER_CLARIFICATION";
+    }
     else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST" && lastAthenaTurn?.text.trim()) {
       interactionType = "CONVERSATION";
       intents.push("EXPLAIN");
       confidence = "HIGH";
       requiresContext = true;
-      subject = "PREVIOUS_ANSWER_CLARIFICATION";
+      subject = (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))
+        && state.recentRecommendations?.some((recommendation) => normalizeText(lastAthenaTurn.text).includes(normalizeText(recommendation)))
+        ? "PREVIOUS_RECOMMENDATION"
+        : "PREVIOUS_ANSWER_CLARIFICATION";
     }
     else if (pragmaticUnderstanding.intent === "CLARIFICATION_REQUEST") {
       interactionType = "CONVERSATION";
       intents.push("CLARIFICATION_REQUIRED");
       confidence = "HIGH";
       requiresContext = false;
-    }
-    else if (isEllipsis && (clean.includes("por que") || clean.includes("porque") || clean.includes("razao") || clean.includes("motivo") || clean.includes("justificativa"))) {
-      interactionType = "COGNITIVE_REQUEST";
-      intents.push("EXPLAIN");
-      confidence = "HIGH";
-      requiresContext = true;
-      subject = "PREVIOUS_RECOMMENDATION";
     }
     else if (isCritiqueRequest) {
       interactionType = "COGNITIVE_REQUEST";
@@ -917,6 +922,7 @@ export class ConversationManager {
             originalReferent,
             resolvedMeaning,
             previousAssistantText: lastAthenaTurn?.text,
+            ...(lastAthenaTurn?.agentId ? { agentId: lastAthenaTurn.agentId } : {}),
           }
         : undefined,
       isAmbiguous,
@@ -927,13 +933,14 @@ export class ConversationManager {
     };
   }
 
-  recordAssistantResponse(sessionId: string, text: string, recommendations?: string[], critiques?: string[], messageId?: string): void {
+  recordAssistantResponse(sessionId: string, text: string, recommendations?: string[], critiques?: string[], messageId?: string, agentId?: string): void {
     const history = this.sessionHistories.get(sessionId) || [];
     history.push({
       role: "athena",
       text,
       id: messageId || `ath-response-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toISOString(),
+      ...(agentId && /^[a-z0-9][a-z0-9-]{0,63}$/i.test(agentId) ? { agentId } : {}),
     });
     if (history.length > 20) history.shift();
     this.sessionHistories.set(sessionId, history);
@@ -965,6 +972,12 @@ export class ConversationManager {
       text: message.text,
       timestamp: message.timestamp,
       id: message.id || `ath-migrated-${index}-${Date.now()}`,
+      ...((message.metadata?.specialistResponseValidation as { accepted?: unknown } | undefined)?.accepted === true
+        && (message.metadata?.agentExecution as { success?: unknown } | undefined)?.success === true
+        && typeof (message.metadata?.agentExecution as { agentId?: unknown } | undefined)?.agentId === "string"
+        && /^[a-z0-9][a-z0-9-]{0,63}$/i.test((message.metadata?.agentExecution as { agentId: string }).agentId)
+        ? { agentId: (message.metadata?.agentExecution as { agentId: string }).agentId }
+        : {}),
     })));
 
     // Restore numbered recommendations after a page reload, device switch, or chat selection.
