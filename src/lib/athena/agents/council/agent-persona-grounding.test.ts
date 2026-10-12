@@ -107,6 +107,14 @@ const namedOlderReturn = resolveAgentFollowUp("Voltando ao projeto Rios Vivos, p
 ] } as unknown as AthenaContext);
 assert.equal(namedOlderReturn.usedHistory, true);
 assert.match(namedOlderReturn.prompt, /^Quero um texto sobre preservação dos rios/ , "a named return should recover the matching older subject, not the most recently interrupted one");
+const namedMostRecentReturn = resolveAgentFollowUp("Voltando ao café, por quê?", { recentConversation: [
+  { role: "user" as const, text: "Quero um texto sobre preservação dos rios e áreas úmidas." },
+  { role: "athena" as const, text: "Posso ajudar com um rascunho." },
+  { role: "user" as const, text: "Mudando de assunto: quero aprender a fazer café." },
+  { role: "athena" as const, text: "Podemos começar pelo método coado." },
+] } as unknown as AthenaContext);
+assert.equal(namedMostRecentReturn.usedHistory, true);
+assert.match(namedMostRecentReturn.prompt, /^Mudando de assunto: quero aprender a fazer café\./, "a named return must be able to resume the topic that was itself introduced by a switch");
 const unmatchedNamedReturn = resolveAgentFollowUp("Voltando ao projeto Atlas Boreal, por quê?", { recentConversation: [
   { role: "user" as const, text: "Quero um texto sobre preservação dos rios." },
   { role: "athena" as const, text: "Posso ajudar." },

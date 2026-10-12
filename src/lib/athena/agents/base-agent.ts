@@ -116,11 +116,13 @@ export function resolveAgentFollowUp(prompt: string, context: AthenaContext): { 
       if (turns[index].role === "user" && isExplicitTopicSwitch(turns[index].text)) { lastTopicSwitch = index; break; }
     }
     if (lastTopicSwitch >= 0) {
-      const priorUserTurns = turns.slice(0, lastTopicSwitch).filter((turn) => turn.role === "user" && turn.text.trim());
+      const priorUserTurns = turns.filter((turn) => turn.role === "user" && turn.text.trim());
       const targetText = normalizedPrompt.replace(/^(?:voltando|retomando)\s+(?:(?:ao|a|para|pro|pra)\s+)?/, "");
       const genericReturnWords = new Set(["assunto", "tema", "anterior", "antes", "projeto", "ponto", "conversa", "retomando", "voltando", "porque", "por", "qual", "quais", "como", "isso", "essa", "esse"]);
       const targetWords = targetText.split(" ").filter((word) => word.length >= 4 && !genericReturnWords.has(word));
-      let previousUserTurn = priorUserTurns.at(-1);
+      let previousUserTurn = targetWords.length === 0
+        ? turns.slice(0, lastTopicSwitch).filter((turn) => turn.role === "user" && turn.text.trim()).at(-1)
+        : undefined;
       if (targetWords.length > 0) {
         const ranked = priorUserTurns.map((turn) => {
           const turnWords = new Set(normalizeFollowUpText(turn.text).split(" "));
