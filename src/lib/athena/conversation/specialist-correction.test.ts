@@ -7,6 +7,20 @@ const naturalCorrection = resolveSpecialistCorrection("Não foi isso; eu quis di
 assert.deepEqual(naturalCorrection, { kind: "continue", prompt: "Não foi isso; eu quis dizer o prazo", repaired: true }, "a detailed natural-language correction should rerun the selected specialist with the user's actual correction");
 const naturalCorrectionWithStoredFeedback = resolveSpecialistCorrection("Não, eu quis dizer o prazo", turns, "justitia", { category: "MISUNDERSTOOD", correction: "Uma correção antiga" });
 assert.deepEqual(naturalCorrectionWithStoredFeedback, { kind: "continue", prompt: "Não, eu quis dizer o prazo", repaired: true }, "the latest explicit correction should outrank a stored correction for the same reply");
+for (const correctionText of [
+  "Você interpretou como prazo; eu estava falando do período de vigência",
+  "Vc leu como uma tarefa, mas era sobre uma recomendação",
+  "O senhor tomou isso como pedido de execução, mas eu queria só uma análise",
+  "Essa parte ficou invertida: compare os dois cenários",
+]) {
+  assert.deepEqual(
+    resolveSpecialistCorrection(correctionText, turns, "justitia"),
+    { kind: "continue", prompt: correctionText, repaired: true },
+    `A clear user correction should be forwarded intact, not reduced to a generic retry: ${correctionText}`,
+  );
+}
+assert.equal(resolveSpecialistCorrection("A resposta ficou confusa", turns, "justitia").kind, "clarify", "a correction without the intended meaning must ask what to fix");
+assert.deepEqual(resolveSpecialistCorrection("A resposta ficou confusa; eu falava sobre o projeto Rios Vivos", turns, "justitia"), { kind: "continue", prompt: "A resposta ficou confusa; eu falava sobre o projeto Rios Vivos", repaired: true }, "a complaint followed by the intended meaning should be applied as a correction");
 assert.equal(resolveSpecialistCorrection("Corrigindo", turns, "justitia").kind, "clarify", "a correction marker without its corrected content must ask a focused question");
 assert.equal(resolveSpecialistCorrection("Não foi isso; eu quis dizer o prazo", [], "justitia").kind, "continue", "a correction-shaped first message must not be treated as feedback about a nonexistent answer");
 assert.equal(resolveSpecialistCorrection("Não foi isso; eu quis dizer o prazo", turns, "strategos", { category: "WRONG_ACTION" }).kind, "clarify", "a correction must not automatically retry after an explicitly wrong action");

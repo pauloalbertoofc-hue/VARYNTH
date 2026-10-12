@@ -18,6 +18,14 @@ assert.equal(understandPragmatics("Responda em registro formal e informal.").reg
 assert.equal(understandPragmatics("Não foi isso; eu quis dizer o prazo").intent, "CORRECTION");
 assert.equal(understandPragmatics("Não, eu quis dizer o prazo").intent, "CORRECTION", "natural Portuguese correction phrasing should be recognized");
 assert.equal(understandPragmatics("Não, na verdade eu falei da Pesquisa CNJ").intent, "CORRECTION");
+for (const correctionText of [
+  "Você interpretou como prazo; eu estava falando do período de vigência",
+  "Vc leu como uma tarefa, mas era sobre uma recomendação",
+  "O senhor tomou isso como pedido de execução, mas eu queria só uma análise",
+  "Essa parte ficou invertida: compare os dois cenários",
+  "A resposta ficou confusa; eu falava sobre o projeto Rios Vivos",
+]) assert.equal(understandPragmatics(correctionText).intent, "CORRECTION", `${correctionText} should be recognized as a correction`);
+assert.equal(understandPragmatics("A resposta ficou confusa").intent, "SUBSTANTIVE", "a complaint without a corrected meaning is not enough to infer the user's intent");
 assert.equal(understandPragmatics("Na verdade, gostei do resultado").intent, "SUBSTANTIVE", "a discourse marker alone should not be mistaken for a correction");
 assert.equal(understandPragmatics("Resuma em poucas palavras").requestedVerbosity, "concise");
 assert.equal(understandPragmatics("Explique passo a passo").requestedVerbosity, "detailed");
