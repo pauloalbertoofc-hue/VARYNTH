@@ -105,7 +105,7 @@ export const visualCapabilities: VisualStudioCapability[] = [
     status: "PARTIAL",
     href: "/modules/vector-studio",
     evidence:
-      "SVG editor + Bézier frame + localStorage draft + Image Studio import; nós/booleanos ainda ausentes",
+      "SVG editor + Bézier frame + gradientes lineares + localStorage draft + Image Studio import; nós/booleanos ainda ausentes",
   },
   {
     id: "shader",

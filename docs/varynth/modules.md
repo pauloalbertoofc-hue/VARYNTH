@@ -17,7 +17,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Varynth Camera** | 📷 | `/modules/camera` | Captura real, Quality Gate e proveniência preservada |
 | **Visual Compare** | ↔️ | `/modules/visual-compare` | Comparação local de imagens com divisão deslizante |
 | **Digital Painting** | 🖌️ | `/modules/digital-painting` | Canvas local com pincel, borracha e exportação PNG |
-| **Vector Studio** | ✒️ | `/modules/vector-studio` | Objetos SVG locais e exportação vetorial |
+| **Vector Studio** | ✒️ | `/modules/vector-studio` | Objetos SVG, gradientes lineares e exportação vetorial |
 | **Shader Forge** | ✨ | `/modules/shader-forge` | Preview procedural determinístico e exportação PNG |
 | **3D & Rendering Studio** | 🧊 | `/modules/rendering-3d` | Cena WebGL2 local com câmera, material e exportação PNG |
 | **Mathematical Art Studio** | ∑ | `/modules/mathematical-art` | Fractais Mandelbrot e Julia com exportação PNG |
