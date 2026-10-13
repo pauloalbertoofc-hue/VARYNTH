@@ -299,6 +299,9 @@ async function runCrossStudioIntegrationSuite() {
   // CROSS-REG-039: Restored blob checksum is validated
   const chk39 = assetManager.calculateChecksum("sample-test-bytes");
   assert(chk39.startsWith("chk-"), "CROSS-REG-039", "Asset checksum calculated deterministically");
+  const strongChk39 = await assetManager.calculateStrongChecksum("sample-test-bytes");
+  const strongChk39Changed = await assetManager.calculateStrongChecksum("sample-test-byteS");
+  assert(strongChk39.startsWith("sha256:") && strongChk39 !== strongChk39Changed, "CROSS-REG-039B", "Novos checksums SHA-256 distinguem conteúdo com o mesmo formato de asset");
 
   // CROSS-REG-040: Source Artifact in Trash with surviving physical Derived Asset is distinguished from ASSET_MISSING
   const srcImg40 = (await artifactService.create({ type: "IMAGE", name: "Src 40" })).artifact!;

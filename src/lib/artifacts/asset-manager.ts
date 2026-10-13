@@ -110,6 +110,12 @@ export class AssetManager {
     return `chk-bin-${byteLength}`;
   }
 
+  public async calculateStrongChecksum(data: Blob | ArrayBuffer | string): Promise<string> {
+    const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data instanceof Blob ? new Uint8Array(await data.arrayBuffer()) : new Uint8Array(data);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return `sha256:${Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  }
+
   public async registerAsset(
     params: {
       name: string;
@@ -142,7 +148,7 @@ export class AssetManager {
       storageType,
       storageKey,
       status: "VALID",
-      checksum: data ? this.calculateChecksum(data) : undefined,
+      checksum: data ? await this.calculateStrongChecksum(data) : undefined,
       createdAt: new Date().toISOString(),
       createdBy: params.createdBy || "USER",
       artifactIds: params.artifactIds || [],
@@ -303,7 +309,7 @@ export class AssetManager {
     }
 
     if (asset.checksum) {
-      const currentChecksum = this.calculateChecksum(data as Blob | ArrayBuffer | string);
+      const currentChecksum = asset.checksum.startsWith("sha256:") ? await this.calculateStrongChecksum(data as Blob | ArrayBuffer | string) : this.calculateChecksum(data as Blob | ArrayBuffer | string);
       if (currentChecksum !== asset.checksum) {
         asset.status = "CORRUPTED";
         this.saveRegistry();
