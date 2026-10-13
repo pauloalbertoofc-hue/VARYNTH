@@ -1,9 +1,25 @@
 import assert from "node:assert/strict";
 import {
   applyRetouchBuffer,
+  applyCloneStamp,
   normalizeRetouchParameters,
   RETOUCH_LOOKS,
 } from "./retouch";
+
+if (typeof globalThis.ImageData === "undefined") {
+  (
+    globalThis as typeof globalThis & { ImageData: typeof ImageData }
+  ).ImageData = class {
+    data: Uint8ClampedArray;
+    width: number;
+    height: number;
+    constructor(data: Uint8ClampedArray, width: number, height: number) {
+      this.data = data;
+      this.width = width;
+      this.height = height;
+    }
+  } as unknown as typeof ImageData;
+}
 assert.deepEqual(
   normalizeRetouchParameters({ brightness: 4, contrast: -4, saturation: 4 }),
   { brightness: 1, contrast: -1, saturation: 2 },
@@ -23,4 +39,19 @@ assert.ok(
     brighter[2] > original[2],
 );
 assert.equal(brighter[3], 255);
+const cloneSource = new ImageData(
+  new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 255, 255]),
+  2,
+  1,
+);
+const cloned = applyCloneStamp(cloneSource, {
+  sourceX: 0,
+  sourceY: 0,
+  destinationX: 1,
+  destinationY: 0,
+  radius: 1,
+  opacity: 1,
+});
+assert.equal(cloned.data[4], 255);
+assert.equal(cloned.data[6], 0);
 console.log("Retouch parameter tests passed.");

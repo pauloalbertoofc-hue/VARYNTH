@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, ImagePlus, RotateCcw } from "lucide-react";
+import { Copy, Download, ImagePlus, RotateCcw } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
 import {
   applyRetouch,
+  applyCloneStamp,
   normalizeRetouchParameters,
   RETOUCH_LOOKS,
   type RetouchLook,
@@ -15,6 +16,7 @@ import {
 export default function RetouchPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalRef = useRef<ImageData | null>(null);
+  const cloneBaseRef = useRef<ImageData | null>(null);
   const [parameters, setParameters] = useState<RetouchParameters>({
     brightness: 0,
     contrast: 0,
@@ -24,9 +26,17 @@ export default function RetouchPage() {
   const [name, setName] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [clone, setClone] = useState({
+    sourceX: 0,
+    sourceY: 0,
+    destinationX: 0,
+    destinationY: 0,
+    radius: 32,
+    opacity: 1,
+  });
   const render = () => {
     const canvas = canvasRef.current;
-    const original = originalRef.current;
+    const original = cloneBaseRef.current ?? originalRef.current;
     const context = canvas?.getContext("2d");
     if (canvas && original && context)
       context.putImageData(applyRetouch(original, parameters), 0, 0);
@@ -57,6 +67,7 @@ export default function RetouchPage() {
         canvas.width,
         canvas.height,
       );
+      cloneBaseRef.current = null;
       setParameters(normalizeRetouchParameters());
       setLook("natural");
       setName(file.name);
@@ -75,6 +86,16 @@ export default function RetouchPage() {
     );
   };
   const reset = () => setParameters(normalizeRetouchParameters());
+  const resetClone = () => {
+    cloneBaseRef.current = null;
+    render();
+  };
+  const applyClone = () => {
+    const original = originalRef.current;
+    if (!original) return;
+    cloneBaseRef.current = applyCloneStamp(original, clone);
+    render();
+  };
   const applyLook = (next: RetouchLook) => {
     setLook(next);
     setParameters(normalizeRetouchParameters(RETOUCH_LOOKS[next].parameters));
@@ -183,6 +204,85 @@ export default function RetouchPage() {
             <RotateCcw size={14} className="mr-2" />
             Restaurar ajustes
           </button>
+          <div className="flex flex-wrap items-center gap-2 border-l border-[var(--vly-border-subtle)] pl-3 text-xs text-[var(--vly-text-secondary)]">
+            <span className="inline-flex items-center gap-1">
+              <Copy size={14} /> Clone
+            </span>
+            {(
+              [
+                ["sourceX", "Origem X"],
+                ["sourceY", "Origem Y"],
+                ["destinationX", "Destino X"],
+                ["destinationY", "Destino Y"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key}>
+                {label}
+                <input
+                  aria-label={label}
+                  type="number"
+                  min="0"
+                  value={clone[key]}
+                  onChange={(event) =>
+                    setClone((current) => ({
+                      ...current,
+                      [key]: Number(event.target.value),
+                    }))
+                  }
+                  className="vly-field ml-1 w-16 rounded px-1 py-0.5"
+                />
+              </label>
+            ))}
+            <label>
+              Raio
+              <input
+                aria-label="Raio do clone"
+                type="number"
+                min="1"
+                max="1000"
+                value={clone.radius}
+                onChange={(event) =>
+                  setClone((current) => ({
+                    ...current,
+                    radius: Number(event.target.value),
+                  }))
+                }
+                className="vly-field ml-1 w-14 rounded px-1 py-0.5"
+              />
+            </label>
+            <label>
+              Opacidade
+              <input
+                aria-label="Opacidade do clone"
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                value={clone.opacity}
+                onChange={(event) =>
+                  setClone((current) => ({
+                    ...current,
+                    opacity: Number(event.target.value),
+                  }))
+                }
+                className="vly-field ml-1 w-14 rounded px-1 py-0.5"
+              />
+            </label>
+            <button
+              onClick={applyClone}
+              disabled={!originalRef.current}
+              className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
+            >
+              Aplicar
+            </button>
+            <button
+              onClick={resetClone}
+              disabled={!cloneBaseRef.current}
+              className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
+            >
+              Desfazer clone
+            </button>
+          </div>
           <button
             onClick={download}
             disabled={!originalRef.current}
@@ -215,9 +315,10 @@ export default function RetouchPage() {
           />
         </div>
         <p className="text-xs text-[var(--vly-text-muted)]">
-          {name || "Nenhuma imagem selecionada"} · Ajustes aplicados localmente
-          sobre uma cópia do buffer original. Healing, clone, remoção de objetos
-          e reconstrução generativa não estão disponíveis.
+          {name || "Nenhuma imagem selecionada"} · Ajustes e Clone Stamp
+          aplicados localmente sobre uma cópia do buffer original. Healing,
+          clone, remoção de objetos e reconstrução generativa não estão
+          disponíveis.
         </p>
       </div>
     </PageLayout>

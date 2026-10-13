@@ -182,7 +182,7 @@ export const visualCapabilities: VisualStudioCapability[] = [
     status: "PARTIAL",
     href: "/modules/retouch",
     evidence:
-      "Pixel adjustment engine + looks determinísticos + original buffer + PNG export + Image Studio import; healing, clone e remoção de objetos ainda ausentes",
+      "Pixel adjustment engine + looks determinísticos + Clone Stamp parametrizado + original buffer + PNG export + Image Studio import; healing e remoção de objetos ainda ausentes",
   },
   {
     id: "cinematic-lighting",

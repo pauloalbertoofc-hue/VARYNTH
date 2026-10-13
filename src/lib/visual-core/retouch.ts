@@ -3,6 +3,14 @@ export type RetouchParameters = {
   contrast: number;
   saturation: number;
 };
+export type CloneStampParameters = {
+  sourceX: number;
+  sourceY: number;
+  destinationX: number;
+  destinationY: number;
+  radius: number;
+  opacity: number;
+};
 export type RetouchLook = "natural" | "editorial" | "noir" | "clean" | "custom";
 export const RETOUCH_LOOKS: Record<
   RetouchLook,
@@ -80,4 +88,53 @@ export function applyRetouch(
 ): ImageData {
   const output = applyRetouchBuffer(data.data, input);
   return new ImageData(output as ImageDataArray, data.width, data.height);
+}
+
+export function applyCloneStamp(
+  data: ImageData,
+  input: Partial<CloneStampParameters>,
+): ImageData {
+  const sourceX = Math.round(finite(input.sourceX, 0));
+  const sourceY = Math.round(finite(input.sourceY, 0));
+  const destinationX = Math.round(finite(input.destinationX, 0));
+  const destinationY = Math.round(finite(input.destinationY, 0));
+  const radius = Math.max(
+    1,
+    Math.min(
+      Math.max(data.width, data.height),
+      Math.round(finite(input.radius, 32)),
+    ),
+  );
+  const opacity = Math.max(0, Math.min(1, finite(input.opacity, 1)));
+  const result = new Uint8ClampedArray(data.data);
+  for (let y = -radius; y <= radius; y += 1) {
+    for (let x = -radius; x <= radius; x += 1) {
+      if (x * x + y * y > radius * radius) continue;
+      const targetX = destinationX + x;
+      const targetY = destinationY + y;
+      const sampleX = sourceX + x;
+      const sampleY = sourceY + y;
+      if (
+        targetX < 0 ||
+        targetY < 0 ||
+        targetX >= data.width ||
+        targetY >= data.height ||
+        sampleX < 0 ||
+        sampleY < 0 ||
+        sampleX >= data.width ||
+        sampleY >= data.height
+      )
+        continue;
+      const target = (targetY * data.width + targetX) * 4;
+      const sample = (sampleY * data.width + sampleX) * 4;
+      result[target] =
+        result[target] * (1 - opacity) + data.data[sample] * opacity;
+      result[target + 1] =
+        result[target + 1] * (1 - opacity) + data.data[sample + 1] * opacity;
+      result[target + 2] =
+        result[target + 2] * (1 - opacity) + data.data[sample + 2] * opacity;
+      result[target + 3] = data.data[sample + 3];
+    }
+  }
+  return new ImageData(result as ImageDataArray, data.width, data.height);
 }
