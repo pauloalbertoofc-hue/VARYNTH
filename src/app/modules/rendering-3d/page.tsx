@@ -7,6 +7,18 @@ import { perspectiveMatrix } from "@/lib/visual-core/rendering-3d";
 
 type Scene = { rotationX: number; rotationY: number; zoom: number; color: string; material: "solid" | "checker" | "bands"; renderMode: "solid" | "wireframe" };
 const STORAGE_KEY = "varynth_rendering_3d_v1";
+const defaultScene: Scene = { rotationX: 25, rotationY: 35, zoom: 1, color: "#7dd3fc", material: "solid", renderMode: "solid" };
+
+function normalizeScene(value: Partial<Scene> | null): Scene {
+  return {
+    rotationX: typeof value?.rotationX === "number" && Number.isFinite(value.rotationX) ? Math.max(-180, Math.min(180, value.rotationX)) : defaultScene.rotationX,
+    rotationY: typeof value?.rotationY === "number" && Number.isFinite(value.rotationY) ? Math.max(-180, Math.min(180, value.rotationY)) : defaultScene.rotationY,
+    zoom: typeof value?.zoom === "number" && Number.isFinite(value.zoom) ? Math.max(.6, Math.min(1.5, value.zoom)) : defaultScene.zoom,
+    color: typeof value?.color === "string" && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : defaultScene.color,
+    material: value?.material === "checker" || value?.material === "bands" ? value.material : "solid",
+    renderMode: value?.renderMode === "wireframe" ? "wireframe" : "solid",
+  };
+}
 
 const vertexSource = `#version 300 es
 in vec3 position; uniform mat4 matrix; out vec3 surfacePosition; void main(){ surfacePosition=position; gl_Position=matrix*vec4(position,1.0); }`;
@@ -27,10 +39,10 @@ function shader(gl: WebGL2RenderingContext, type: number, source: string) {
 
 export default function Rendering3DPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scene, setScene] = useState<Scene>({ rotationX: 25, rotationY: 35, zoom: 1, color: "#7dd3fc", material: "solid", renderMode: "solid" });
+  const [scene, setScene] = useState<Scene>(defaultScene);
   const [diagnostic, setDiagnostic] = useState("Cena 3D local pronta para renderização.");
 
-  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Scene> | null; if (saved) setScene((current) => ({ ...current, ...saved })); } catch { /* draft inválido é ignorado */ } }, []);
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Scene> | null; if (saved) setScene(normalizeScene(saved)); } catch { /* draft inválido é ignorado */ } }, []);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(scene)); const canvas = canvasRef.current; if (!canvas) return; const gl = canvas.getContext("webgl2");
     if (!gl) { setDiagnostic("WebGL2 indisponível neste dispositivo; a cena 3D requer um contexto compatível."); return; }
