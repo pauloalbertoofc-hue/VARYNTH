@@ -14,7 +14,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Studio Hub** | 🎨 | `/modules/studio` | Hub dos studios Document, Web, Image, Audio, Video e Game |
 | **Visual Studio** | 🖼️ | `/modules/visual-studio` | Orquestração visual por Capture, Enhance, Edit, Create, Analyze e Produce |
 | **Visual Handbook** | 📖 | `/modules/visual-handbook` | Documentação contextual das capacidades e limites do ecossistema visual |
-| **Varynth Camera** | 📷 | `/modules/camera` | Captura real, Quality Gate e proveniência preservada |
+| **Varynth Camera** | 📷 | `/modules/camera` | Captura real, câmera traseira/frontal, controles condicionais, Quality Gate e comparação original/correção opcional |
 | **Visual Compare** | ↔️ | `/modules/visual-compare` | Comparação local de imagens com divisão deslizante |
 | **Digital Painting** | 🖌️ | `/modules/digital-painting` | Canvas local com pincel, opacidade, borracha real e exportação PNG |
 | **Vector Studio** | ✒️ | `/modules/vector-studio` | Objetos SVG, gradientes lineares e exportação vetorial |

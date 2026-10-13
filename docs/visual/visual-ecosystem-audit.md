@@ -70,7 +70,7 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 
 - `src/lib/visual-core/index.ts` passou a ser o entrypoint público do Visual Core.
 - O contrato universal ganhou migração legada, proveniência validada e receita opcional de grafo de processamento.
-- Camera possui adapter Web, sessão de captura, modos AUTO/DOCUMENT/VIDEO, Quality Gate local, biblioteca persistente e caminho Camera → Image Studio.
+- Camera possui adapter Web, sessão de captura, seleção traseira/frontal, timer, foco por toque, controles condicionais de zoom/torch, Quality Gate local, comparação original/correção técnica opcional, biblioteca persistente e caminho Camera → Image Studio.
 - Foram adicionados os fundamentos determinísticos de geometria, cor, máscaras, efeitos, proveniência e runtime de processamento.
 - O módulo visível `/modules/camera` foi incluído no catálogo do VARYNTH; suas limitações de hardware permanecem explícitas.
 - Foram adicionados os módulos locais `Visual Studio`, `Visual Handbook`, `Visual Compare`, `Digital Painting` e `Vector Studio`, com rotas reais, persistência quando aplicável, exportação e integração incremental com Image Studio.
