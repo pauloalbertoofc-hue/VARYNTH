@@ -10,6 +10,7 @@ export * from "./color-engine";
 export * from "./geometry-engine";
 export * from "./vector-geometry";
 export * from "./rendering-3d";
+export * from "./mathematical-art";
 export * from "./mask-engine";
 export * from "./effects-engine";
 export * from "./provenance-engine";
