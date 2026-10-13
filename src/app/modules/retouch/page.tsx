@@ -106,6 +106,12 @@ export default function RetouchPage() {
       });
       if (result.success && result.image)
         window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o resultado no Image Studio.",
+      );
     } finally {
       setSending(false);
     }
