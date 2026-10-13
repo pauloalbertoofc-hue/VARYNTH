@@ -71,7 +71,7 @@ export default function CameraPage() {
     return () => {
       cancelled = true;
     };
-  }, [captures.length]);
+  }, [captures]);
 
   useEffect(
     () => () => {
