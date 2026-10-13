@@ -14,6 +14,7 @@ export * from "./mathematical-art";
 export * from "./texture-material";
 export * from "./scientific-imaging";
 export * from "./code-graphics";
+export * from "./retouch";
 export * from "./mask-engine";
 export * from "./effects-engine";
 export * from "./provenance-engine";
