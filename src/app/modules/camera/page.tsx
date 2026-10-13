@@ -35,6 +35,8 @@ export default function CameraPage() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [mode, setMode] = useState<CameraMode>("AUTO");
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [activeFacingMode, setActiveFacingMode] = useState<string | null>(null);
   const captureRecordIdRef = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
   const [storedMediaUrls, setStoredMediaUrls] = useState<
@@ -109,10 +111,16 @@ export default function CameraPage() {
     try {
       const session = new CameraSession();
       const profile = getCameraModeProfile(mode);
-      const constraints: MediaStreamConstraints = profile.constraints;
+      const constraints: MediaStreamConstraints = {
+        ...profile.constraints,
+        video: typeof profile.constraints.video === "object"
+          ? { ...profile.constraints.video, facingMode: { ideal: facingMode } }
+          : { facingMode: { ideal: facingMode } },
+      };
       const detected = await session.start(videoRef.current, constraints);
       sessionRef.current = session;
       setCapabilities(detected);
+      setActiveFacingMode((videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings().facingMode ?? facingMode);
       setActive(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "CAMERA_START_FAILED");
@@ -123,6 +131,7 @@ export default function CameraPage() {
   const stop = () => {
     sessionRef.current?.stop();
     sessionRef.current = null;
+    setActiveFacingMode(null);
     setActive(false);
   };
 
@@ -290,6 +299,17 @@ export default function CameraPage() {
               <option value="VIDEO">VIDEO</option>
               <option value="STUDIO">STUDIO</option>
             </select>
+            <label className="sr-only" htmlFor="camera-facing">Câmera</label>
+            <select
+              id="camera-facing"
+              value={facingMode}
+              onChange={(event) => setFacingMode(event.target.value as "environment" | "user")}
+              disabled={active}
+              className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"
+            >
+              <option value="environment">Traseira</option>
+              <option value="user">Frontal</option>
+            </select>
             {!active ? (
               <button
                 onClick={() => void start()}
@@ -330,6 +350,7 @@ export default function CameraPage() {
             {getCameraModeProfile(mode).requiresHardwareControls
               ? " Controles manuais dependem das capacidades reais do track."
               : ""}
+            {activeFacingMode ? ` Câmera aplicada: ${activeFacingMode === "environment" ? "traseira" : activeFacingMode === "user" ? "frontal" : activeFacingMode}.` : ""}
           </p>
           {error && (
             <p
