@@ -83,7 +83,7 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 - O `Texture & Material Lab` agora oferece preview CPU de texturas Xadrez/Anéis/Ruído, parâmetros locais de roughness/metallic/normal, persistência e exportação PNG/descriptor JSON versionado. PBR físico, mapas reais e exportação direta para Game Studio continuam ausentes.
 - O `Scientific Imaging` agora oferece análise local de luminância, histograma, clipping, alfa e relatório JSON versionado; segmentação, calibração e diagnóstico especializado continuam ausentes.
 - O `Retouch Studio` agora aplica brilho, contraste e saturação sobre uma cópia do buffer original, com exportação PNG e integração ao Image Studio. Healing, clone, remoção de objetos e reconstrução generativa continuam ausentes.
-- O `Procedural Node Studio` agora oferece contrato JSON tipado, normalização, validação de conexões e detecção de ciclos. Execução incremental, subgrafos e preview por nó continuam ausentes.
+- O `Procedural Node Studio` agora oferece contrato JSON tipado, normalização, validação de conexões, detecção de ciclos e avaliação determinística básica de cores (`input`, `color`, `blend`, `output`). Execução incremental completa, subgrafos e preview por nó continuam ausentes.
 
 ## Lacunas ainda abertas
 
