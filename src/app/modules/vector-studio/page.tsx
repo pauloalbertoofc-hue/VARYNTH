@@ -5,6 +5,7 @@ import { Download, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
 import { cubicBezierPath } from "@/lib/visual-core/vector-geometry";
+import { renderVectorSvg } from "@/lib/visual-core/vector-renderer";
 const bezierPath = cubicBezierPath;
 
 type VectorType = "rect" | "circle" | "text" | "bezier";
@@ -191,17 +192,7 @@ export default function VectorStudioPage() {
     setSelectedId("background");
   };
   const svg = useMemo(() => {
-    const defs = objects
-      .filter(
-        (item) =>
-          item.gradient && (item.type === "rect" || item.type === "circle"),
-      )
-      .map(
-        (item) =>
-          `<linearGradient id="gradient-${item.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${item.color}"/><stop offset="100%" stop-color="${item.color2 ?? item.color}"/></linearGradient>`,
-      )
-      .join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700"><defs>${defs}</defs>${objects.map((item) => (item.type === "rect" ? `<rect x="${item.x}" y="${item.y}" width="${item.width}" height="${item.height}" fill="${paint(item)}"/>` : item.type === "circle" ? `<circle cx="${item.x + item.width / 2}" cy="${item.y + item.height / 2}" r="${Math.min(item.width, item.height) / 2}" fill="${paint(item)}"/>` : item.type === "bezier" ? `<path d="${bezierPath(item)}" fill="none" stroke="${item.color}" stroke-width="8" stroke-linecap="round"/>` : `<text x="${item.x}" y="${item.y + item.height / 2}" fill="${item.color}" font-family="sans-serif" font-size="${Math.max(18, item.height / 2)}">${escapeXml(item.text ?? "")}</text>`)).join("")}</svg>`;
+    return renderVectorSvg(objects);
   }, [objects]);
   const download = () => {
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));

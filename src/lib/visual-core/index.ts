@@ -9,6 +9,7 @@ export * from "./processing-runtime";
 export * from "./color-engine";
 export * from "./geometry-engine";
 export * from "./vector-geometry";
+export * from "./vector-renderer";
 export * from "./rendering-3d";
 export * from "./mathematical-art";
 export * from "./texture-material";
