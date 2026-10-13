@@ -1,5 +1,4 @@
 import JSZip from "jszip";
-import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 import { createWorker } from "tesseract.js";
 
@@ -24,6 +23,19 @@ async function epubText(bytes: Buffer) {
   return sections.join("\n");
 }
 
+async function docxText(bytes: Buffer) {
+  const zip = await JSZip.loadAsync(bytes);
+  const documentEntry = zip.file("word/document.xml");
+  if (!documentEntry) return "";
+  const xml = await documentEntry.async("string");
+  return xml
+    .replace(/<w:tab\s*\/>/g, "\t")
+    .replace(/<w:br\s*\/>/g, "\n")
+    .replace(/<\/w:p>/g, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+}
+
 export async function extractVaultDocument(bytes: Buffer, extension: string): Promise<ExtractedDocument> {
   try {
     let text = "";
@@ -44,7 +56,7 @@ export async function extractVaultDocument(bytes: Buffer, extension: string): Pr
       }
       await parser.destroy();
     } else if (extension === "docx") {
-      text = (await mammoth.extractRawText({ buffer: bytes })).value;
+      text = await docxText(bytes);
     } else if (extension === "epub") {
       text = await epubText(bytes);
     } else if (["png", "jpg", "jpeg"].includes(extension)) {
