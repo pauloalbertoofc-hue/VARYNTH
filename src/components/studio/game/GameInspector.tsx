@@ -5,6 +5,7 @@ import { GameEntity, GameComponent, ComponentType } from "@/lib/studio/game/type
 import { gameComponentRegistry } from "@/lib/studio/game/component-registry";
 import { Box, Plus, Trash2, Sliders, Tag } from "lucide-react";
 import { StatePanel } from "@/components/ui/StatePanel";
+import { AssetFile } from "@/lib/artifacts/types";
 
 interface GameInspectorProps {
   selectedEntity?: GameEntity;
@@ -12,6 +13,7 @@ interface GameInspectorProps {
   onUpdateEntity: (entityId: string, updates: Partial<GameEntity>) => void;
   onAddComponent: (entityId: string, component: GameComponent) => void;
   onRemoveComponent: (entityId: string, componentType: ComponentType) => void;
+  visualAssets?: AssetFile[];
 }
 
 export const GameInspector: React.FC<GameInspectorProps> = ({
@@ -20,6 +22,7 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
   onUpdateEntity,
   onAddComponent,
   onRemoveComponent,
+  visualAssets = [],
 }) => {
   if (!selectedEntity) {
     return (
@@ -188,6 +191,16 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-slate-500 block mb-0.5">Asset ID</label>
+              {visualAssets.length > 0 && (
+                <select
+                  value={sprite.assetId || ""}
+                  onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "SPRITE" ? { ...c, assetId: e.target.value } : c) })}
+                  className="mb-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white text-[11px]"
+                >
+                  <option value="">Selecionar imagem anexada…</option>
+                  {visualAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
+                </select>
+              )}
               <input value={sprite.assetId} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "SPRITE" ? { ...c, assetId: e.target.value } : c) })} className="w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white font-mono text-[11px]" placeholder="ID do asset anexado" />
             </div>
             <div className="grid grid-cols-2 gap-2">

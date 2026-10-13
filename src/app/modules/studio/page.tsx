@@ -2061,6 +2061,9 @@ export default function StudioPage() {
                   <GameInspector
                     selectedEntity={selectedEntity}
                     entities={activeGame.documentState.entities}
+                    visualAssets={Array.from(new Set([...(activeGame.artifact.assetFileIds || []), ...assetManager.getUsagesForArtifact(activeGame.artifact.id).map((usage) => usage.assetId)]))
+                      .map((id) => assetManager.getAsset(id))
+                      .filter((asset): asset is import("@/lib/artifacts/types").AssetFile => Boolean(asset && asset.mimeType.startsWith("image/")))}
                     onUpdateEntity={(entId, updates) => {
                       const updated = activeGame.documentState.entities.map((e: GameEntity) =>
                         e.id === entId ? { ...e, ...updates } : e
