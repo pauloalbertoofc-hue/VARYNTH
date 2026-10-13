@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CircleStop, Download, ShieldCheck, Video } from "lucide-react";
+import { Camera, CircleStop, Download, Focus, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
   CameraSession,
@@ -278,12 +278,28 @@ export default function CameraPage() {
               playsInline
               className="h-full w-full object-contain"
             />
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-3 text-[10px] font-semibold tracking-[0.18em] text-white/80">
+                <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${active ? "bg-red-400 shadow-[0_0_12px_#fb7185]" : "bg-white/40"}`} />{active ? "LIVE" : "READY"}</span>
+                <span>{facingMode === "environment" ? "REAR CAMERA" : "FRONT CAMERA"} · {mode}</span>
+              </div>
+              {active && <>
+                <div className="absolute inset-[14%] rounded-[2rem] border border-white/35" />
+                <div className="absolute inset-x-[14%] top-1/2 border-t border-white/15" />
+                <div className="absolute inset-y-[14%] left-1/2 border-l border-white/15" />
+                <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[10px] text-white/75 backdrop-blur"><Focus size={12} /> GUIA DE ENQUADRAMENTO</div>
+              </>}
+            </div>
             {!active && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-[var(--vly-text-secondary)]">
                 <Camera size={34} />
                 <p className="text-sm">A câmera ainda não foi iniciada.</p>
               </div>
             )}
+          </div>
+          <div className="flex items-center justify-between border-t border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">
+            <span>VARYNTH OPTICAL CAPTURE</span>
+            <span>{activeFacingMode ? `Track: ${activeFacingMode}` : "Sem track ativo"}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-[var(--vly-border-subtle)] p-4">
             <select
