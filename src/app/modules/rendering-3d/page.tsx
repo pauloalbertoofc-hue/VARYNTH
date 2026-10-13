@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, ShieldCheck } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { perspectiveMatrix } from "@/lib/visual-core/rendering-3d";
 
 type Scene = { rotationX: number; rotationY: number; zoom: number; color: string };
 const STORAGE_KEY = "varynth_rendering_3d_v1";
@@ -24,14 +25,6 @@ function shader(gl: WebGL2RenderingContext, type: number, source: string) {
   return value;
 }
 
-function matrix(scene: Scene, aspect: number) {
-  const x = scene.rotationX * Math.PI / 180, y = scene.rotationY * Math.PI / 180, cX = Math.cos(x), sX = Math.sin(x), cY = Math.cos(y), sY = Math.sin(y), fov = 1.1 / scene.zoom, near = .1, far = 100, f = 1 / Math.tan(fov / 2);
-  const projection = [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) / (near - far), -1, 0, 0, (2 * far * near) / (near - far), 0];
-  const rotation = [cY, sY*sX, sY*cX, 0, 0, cX, -sX, 0, -sY, cY*sX, cY*cX, 0, 0, 0, -5, 1];
-  const result = new Float32Array(16); for (let column = 0; column < 4; column += 1) for (let row = 0; row < 4; row += 1) result[column * 4 + row] = projection[column * 4] * rotation[row] + projection[column * 4 + 1] * rotation[4 + row] + projection[column * 4 + 2] * rotation[8 + row] + projection[column * 4 + 3] * rotation[12 + row];
-  return result;
-}
-
 export default function Rendering3DPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scene, setScene] = useState<Scene>({ rotationX: 25, rotationY: 35, zoom: 1, color: "#7dd3fc" });
@@ -42,7 +35,7 @@ export default function Rendering3DPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(scene)); const canvas = canvasRef.current; if (!canvas) return; const gl = canvas.getContext("webgl2");
     if (!gl) { setDiagnostic("WebGL2 indisponível neste dispositivo; a cena 3D requer um contexto compatível."); return; }
     try { const program = gl.createProgram(); if (!program) throw new Error("program allocation failed"); gl.attachShader(program, shader(gl, gl.VERTEX_SHADER, vertexSource)); gl.attachShader(program, shader(gl, gl.FRAGMENT_SHADER, fragmentSource)); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? "program link failed");
-      const position = gl.createBuffer(), element = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, position); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, element); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW); gl.useProgram(program); const attribute = gl.getAttribLocation(program, "position"); gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute, 3, gl.FLOAT, false, 0, 0); gl.uniformMatrix4fv(gl.getUniformLocation(program, "matrix"), false, matrix(scene, canvas.width / canvas.height)); const hex = scene.color.replace("#", ""); gl.uniform3f(gl.getUniformLocation(program, "color"), parseInt(hex.slice(0,2), 16)/255, parseInt(hex.slice(2,4), 16)/255, parseInt(hex.slice(4,6), 16)/255); gl.enable(gl.DEPTH_TEST); gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(.02,.03,.06,1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0); setDiagnostic("WebGL2 ativo; malha, câmera perspectiva, material e luz direcional renderizados localmente."); gl.deleteBuffer(position); gl.deleteBuffer(element); gl.deleteProgram(program);
+      const position = gl.createBuffer(), element = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, position); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, element); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW); gl.useProgram(program); const attribute = gl.getAttribLocation(program, "position"); gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute, 3, gl.FLOAT, false, 0, 0); gl.uniformMatrix4fv(gl.getUniformLocation(program, "matrix"), false, perspectiveMatrix(scene, canvas.width / canvas.height)); const hex = scene.color.replace("#", ""); gl.uniform3f(gl.getUniformLocation(program, "color"), parseInt(hex.slice(0,2), 16)/255, parseInt(hex.slice(2,4), 16)/255, parseInt(hex.slice(4,6), 16)/255); gl.enable(gl.DEPTH_TEST); gl.viewport(0, 0, canvas.width, canvas.height); gl.clearColor(.02,.03,.06,1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0); setDiagnostic("WebGL2 ativo; malha, câmera perspectiva, material e luz direcional renderizados localmente."); gl.deleteBuffer(position); gl.deleteBuffer(element); gl.deleteProgram(program);
     } catch (error) { setDiagnostic(`Falha na renderização 3D: ${error instanceof Error ? error.message : "erro desconhecido"}`); }
   }, [scene]);
   const update = <K extends keyof Scene>(key: K, value: Scene[K]) => setScene((current) => ({ ...current, [key]: value }));
