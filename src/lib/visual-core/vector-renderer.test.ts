@@ -27,4 +27,17 @@ const svg = renderVectorSvg([
 assert.match(svg, /linearGradient id="gradient-shape"/);
 assert.match(svg, /url\(#gradient-shape\)/);
 assert.match(svg, /&lt;safe&gt;/);
+const sanitized = renderVectorSvg([
+  {
+    id: 'bad"><script>',
+    type: "rect",
+    x: 0,
+    y: 0,
+    width: 10,
+    height: 10,
+    color: '"><script>alert(1)</script>',
+    gradient: true,
+  },
+]);
+assert.doesNotMatch(sanitized, /<script|alert/);
 console.log("Vector renderer tests passed.");
