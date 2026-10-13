@@ -85,7 +85,7 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 ## Lacunas ainda abertas
 
 - Não há backend nativo Android/Desktop de câmera nem captura RAW/DNG validada.
-- Não há ainda editor dedicado de nós, shaders editáveis ou AI Image Studio; o 3D cobre apenas o primeiro corte WebGL2 explicitamente documentado.
+- O Code Graphics Studio já oferece composição declarativa JSON e exportação SVG; ainda não há editor dedicado de nós, shaders editáveis ou AI Image Studio. O 3D cobre apenas o primeiro corte WebGL2 explicitamente documentado.
 - ICC/HDR, segmentação semântica, depth capture, multiframe HDR e processamento GPU permanecem não implementados.
 - A validação de proveniência atual é estrutural; integridade criptográfica e cadeia assinada ainda exigem decisão de armazenamento.
 - As revisões posteriores ao último deploy confirmado estão no branch GitHub, mas a publicação Vercel está temporariamente impedida pelo limite diário `api-deployments-free-per-day`; produção não deve ser inferida do build local.

@@ -23,6 +23,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Mathematical Art Studio** | ∑ | `/modules/mathematical-art` | Fractais Mandelbrot e Julia com exportação PNG |
 | **Texture & Material Lab** | 🧱 | `/modules/texture-material` | Texturas procedurais e descriptor JSON versionado |
 | **Scientific Imaging** | 📊 | `/modules/scientific-imaging` | Histograma, luminância, clipping e relatório técnico local |
+| **Code Graphics Studio** | 💻 | `/modules/code-graphics` | Composição JSON declarativa, preview SVG e exportação local |
 | **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |
 | **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
 | **Athena AI** | 🦉 | `/modules/athena` | Centro de comando cognitivo e chat soberano |

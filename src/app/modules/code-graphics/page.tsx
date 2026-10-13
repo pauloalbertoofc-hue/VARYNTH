@@ -1,0 +1,17 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Code2, Download } from "lucide-react";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { normalizeCodeGraphic, renderCodeGraphic } from "@/lib/visual-core";
+
+const INITIAL = JSON.stringify({ schema: "varynth.code-graphics", version: 1, width: 800, height: 500, background: "#111827", shapes: [{ type: "circle", x: 220, y: 230, radius: 120, fill: "#7c3aed", stroke: "#c4b5fd", strokeWidth: 4 }, { type: "rect", x: 390, y: 130, width: 260, height: 200, fill: "#0ea5e9", stroke: "#bae6fd", strokeWidth: 4 }, { type: "text", x: 70, y: 440, height: 32, value: "VARYNTH CODE GRAPHICS", fill: "#ffffff", stroke: "#ffffff" }] }, null, 2);
+
+export default function CodeGraphicsPage() {
+  const [source, setSource] = useState(INITIAL);
+  const [error, setError] = useState("");
+  const { svg, documentModel } = useMemo(() => { try { const parsed = normalizeCodeGraphic(JSON.parse(source)); setError(""); return { documentModel: parsed, svg: renderCodeGraphic(parsed) }; } catch { setError("JSON inválido: corrija o documento para atualizar o preview."); const fallback = normalizeCodeGraphic(null); return { documentModel: fallback, svg: renderCodeGraphic(fallback) }; } }, [source]);
+  const download = () => { const link = window.document.createElement("a"); link.href = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })); link.download = "varynth-code-graphic.svg"; link.click(); URL.revokeObjectURL(link.href); };
+  return <PageLayout title="Code Graphics Studio" subtitle="Composição gráfica declarativa, segura e exportável"><div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[.9fr_1.1fr]"><section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><div className="mb-3 flex items-center gap-2"><Code2 size={18} className="text-[var(--vly-accent)]" /><h2 className="font-semibold">Documento gráfico JSON</h2></div><textarea aria-label="Documento gráfico JSON" value={source} onChange={(event) => setSource(event.target.value)} className="min-h-[520px] w-full rounded-xl border border-[var(--vly-border-strong)] bg-black/30 p-3 font-mono text-xs text-[var(--vly-text-primary)] outline-none" spellCheck={false} />{error && <p className="mt-2 text-xs text-red-400">{error}</p>}<button onClick={download} className="vly-interactive mt-3 inline-flex items-center rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Download size={14} className="mr-2" />Exportar SVG</button></section><section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><h2 className="mb-3 font-semibold">Preview SVG</h2><div className="overflow-auto rounded-xl border border-[var(--vly-border-subtle)] bg-black p-2" dangerouslySetInnerHTML={{ __html: svg }} /><p className="mt-3 text-xs text-[var(--vly-text-muted)]">{documentModel.shapes.length} objetos normalizados. O estúdio não executa JavaScript, TypeScript ou GLSL arbitrário; a edição atual usa um contrato declarativo versionado.</p></section></div></PageLayout>;
+}
+
