@@ -673,6 +673,7 @@ export class GameRuntimeEngine {
         assetId: savedAsset.asset.id,
         sizeBytes: packageBlob.size,
         manifest: buildManifest,
+        warnings: validation.warnings,
       };
     } catch (err: any) {
       jobManager.failJob(job.id, err.message);

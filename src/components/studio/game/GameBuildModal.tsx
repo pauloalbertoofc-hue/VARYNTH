@@ -167,6 +167,11 @@ export const GameBuildModal: React.FC<GameBuildModalProps> = ({
               )}
             </div>
           )}
+          {buildResult?.success && buildResult.warnings?.length ? (
+            <div className="rounded-xl border border-[var(--vly-border-warning)] bg-[var(--vly-warning)]/10 p-3 text-[11px] text-[var(--vly-warning)]">
+              <div className="flex items-start gap-2"><AlertTriangle size={14} className="mt-0.5 shrink-0" /><div><p className="font-semibold">Build concluído com avisos</p><ul className="mt-1 list-disc space-y-1 pl-4">{buildResult.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div></div>
+            </div>
+          ) : null}
         </div>
 
         {/* Footer */}
