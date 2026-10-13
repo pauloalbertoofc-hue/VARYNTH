@@ -42,6 +42,8 @@ export default function CameraPage() {
   const [mode, setMode] = useState<CameraMode>("AUTO");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [activeFacingMode, setActiveFacingMode] = useState<string | null>(null);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [torchOn, setTorchOn] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [focusStatus, setFocusStatus] = useState<string | null>(null);
@@ -138,16 +140,21 @@ export default function CameraPage() {
     try {
       const session = new CameraSession();
       const profile = getCameraModeProfile(mode);
+      const profileVideo = typeof profile.constraints.video === "object" ? profile.constraints.video : {};
       const constraints: MediaStreamConstraints = {
         ...profile.constraints,
-        video: typeof profile.constraints.video === "object"
-          ? { ...profile.constraints.video, facingMode: { ideal: facingMode } }
-          : { facingMode: { ideal: facingMode } },
+        video: { ...profileVideo, facingMode: { ideal: facingMode }, ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}) },
       };
       const detected = await session.start(videoRef.current, constraints);
       sessionRef.current = session;
       setCapabilities(detected);
       setActiveFacingMode((videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings().facingMode ?? facingMode);
+      if (navigator.mediaDevices?.enumerateDevices) {
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput");
+        setVideoDevices(devices);
+        const actualDeviceId = (videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings().deviceId;
+        if (actualDeviceId) setSelectedDeviceId(actualDeviceId);
+      }
       const trackCapabilities = session.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { min?: number; max?: number; step?: number }; torch?: boolean } | undefined;
       setZoom(trackCapabilities?.zoom?.min ?? 1);
       setActive(true);
@@ -431,6 +438,7 @@ export default function CameraPage() {
               <option value="VIDEO">VIDEO</option>
               <option value="STUDIO">STUDIO</option>
             </select>
+            {videoDevices.length > 1 && <><label className="sr-only" htmlFor="camera-device">Dispositivo de câmera</label><select id="camera-device" value={selectedDeviceId} onChange={(event) => setSelectedDeviceId(event.target.value)} disabled={active} className="vly-field max-w-48 rounded-lg px-3 py-2 text-xs font-semibold"><option value="">Dispositivo padrão</option>{videoDevices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Câmera ${index + 1}`}</option>)}</select></>}
             <label className="sr-only" htmlFor="camera-timer">Temporizador</label>
             <select id="camera-timer" value={timerSeconds} onChange={(event) => setTimerSeconds(Number(event.target.value) as 0 | 3 | 10)} disabled={active === false || isCountingDown} className="vly-field rounded-lg px-3 py-2 text-xs font-semibold">
               <option value="0">Sem timer</option><option value="3">Timer 3s</option><option value="10">Timer 10s</option>
