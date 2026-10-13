@@ -28,6 +28,7 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   const [isUploading, setIsUploading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [libraryQuery, setLibraryQuery] = useState("");
 
   // Retrieve attached asset files
   const attachedAssetIds = Array.from(
@@ -38,6 +39,8 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
     .map((id) => assetManager.getAsset(id))
     .filter((a): a is AssetFile => Boolean(a));
   const availableLibraryAssets = assetManager.getAllAssets().filter((asset) => !attachedAssetIds.includes(asset.id) && asset.status !== "QUARANTINED" && asset.status !== "CORRUPTED");
+  const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
+  const filteredLibraryAssets = availableLibraryAssets.filter((asset) => !normalizedLibraryQuery || `${asset.name} ${asset.id} ${asset.mimeType}`.toLowerCase().includes(normalizedLibraryQuery));
 
   useEffect(() => {
     let cancelled = false;
@@ -293,7 +296,8 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
 
       {availableLibraryAssets.length > 0 && <div className="space-y-2 border-t border-[var(--vly-border-default)] pt-3">
         <div className="flex items-center justify-between"><span className="font-semibold text-[var(--vly-text-primary)]">Acervo local</span><span className="text-[10px] text-[var(--vly-text-muted)]">{availableLibraryAssets.length} disponíveis</span></div>
-        <div className="max-h-36 space-y-1 overflow-y-auto pr-1">{availableLibraryAssets.map((asset) => <div key={asset.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-world)] px-2 py-1.5"><div className="min-w-0"><p className="truncate text-[11px] text-[var(--vly-text-primary)]" title={asset.name}>{asset.name}</p><p className="text-[9px] text-[var(--vly-text-muted)]">{asset.mimeType} · {formatBytes(asset.sizeBytes)}</p></div><button type="button" onClick={() => void handleAttachExistingAsset(asset)} className="vly-interactive shrink-0 rounded border border-[var(--vly-border-info)] px-2 py-1 text-[10px] text-[var(--vly-info)]">Anexar</button></div>)}</div>
+        <input value={libraryQuery} onChange={(event) => setLibraryQuery(event.target.value)} placeholder="Buscar por nome, MIME ou ID…" aria-label="Buscar asset no acervo local" className="vly-field w-full px-2 py-1.5 text-[11px]" />
+        <div className="max-h-36 space-y-1 overflow-y-auto pr-1">{filteredLibraryAssets.length === 0 ? <p className="rounded border border-[var(--vly-border-subtle)] p-2 text-[10px] text-[var(--vly-text-muted)]">Nenhum asset corresponde à busca.</p> : filteredLibraryAssets.map((asset) => <div key={asset.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-world)] px-2 py-1.5"><div className="min-w-0"><p className="truncate text-[11px] text-[var(--vly-text-primary)]" title={asset.name}>{asset.name}</p><p className="text-[9px] text-[var(--vly-text-muted)]">{asset.mimeType} · {formatBytes(asset.sizeBytes)}</p></div><button type="button" onClick={() => void handleAttachExistingAsset(asset)} className="vly-interactive shrink-0 rounded border border-[var(--vly-border-info)] px-2 py-1 text-[10px] text-[var(--vly-info)]">Anexar</button></div>)}</div>
       </div>}
 
       {/* Footer Info */}
