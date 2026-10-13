@@ -10,13 +10,16 @@ import {
 
 export default function ScientificImagingPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const loadIdRef = useRef(0);
   const [report, setReport] = useState<ScientificImageReport | null>(null);
   const [name, setName] = useState("");
   const load = (file: File) => {
+    const requestId = ++loadIdRef.current;
     const image = new Image();
     const url = URL.createObjectURL(file);
     image.onload = () => {
       URL.revokeObjectURL(url);
+      if (requestId !== loadIdRef.current) return;
       const canvas = canvasRef.current;
       const context = canvas?.getContext("2d", { willReadFrequently: true });
       if (!canvas || !context) return;
@@ -29,7 +32,10 @@ export default function ScientificImagingPage() {
         ),
       );
     };
-    image.onerror = () => URL.revokeObjectURL(url);
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      if (requestId === loadIdRef.current) setReport(null);
+    };
     image.src = url;
     setName(file.name);
   };
