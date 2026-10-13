@@ -3,22 +3,214 @@
 import { useEffect, useMemo, useState } from "react";
 import { Code2, Download } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { codeGraphicToVisualDocument, normalizeCodeGraphic, renderCodeGraphic } from "@/lib/visual-core";
+import {
+  codeGraphicToVisualDocument,
+  normalizeCodeGraphic,
+  renderCodeGraphic,
+} from "@/lib/visual-core";
 import { imageService } from "@/lib/studio/image/image-service";
 
-const INITIAL = JSON.stringify({ schema: "varynth.code-graphics", version: 1, width: 800, height: 500, background: "#111827", shapes: [{ type: "circle", x: 220, y: 230, radius: 120, fill: "#7c3aed", stroke: "#c4b5fd", strokeWidth: 4 }, { type: "rect", x: 390, y: 130, width: 260, height: 200, fill: "#0ea5e9", stroke: "#bae6fd", strokeWidth: 4 }, { type: "text", x: 70, y: 440, height: 32, value: "VARYNTH CODE GRAPHICS", fill: "#ffffff", stroke: "#ffffff" }] }, null, 2);
+const INITIAL = JSON.stringify(
+  {
+    schema: "varynth.code-graphics",
+    version: 1,
+    width: 800,
+    height: 500,
+    background: "#111827",
+    shapes: [
+      {
+        type: "circle",
+        x: 220,
+        y: 230,
+        radius: 120,
+        fill: "#7c3aed",
+        stroke: "#c4b5fd",
+        strokeWidth: 4,
+      },
+      {
+        type: "rect",
+        x: 390,
+        y: 130,
+        width: 260,
+        height: 200,
+        fill: "#0ea5e9",
+        stroke: "#bae6fd",
+        strokeWidth: 4,
+      },
+      {
+        type: "text",
+        x: 70,
+        y: 440,
+        height: 32,
+        value: "VARYNTH CODE GRAPHICS",
+        fill: "#ffffff",
+        stroke: "#ffffff",
+      },
+    ],
+  },
+  null,
+  2,
+);
 const STORAGE_KEY = "varynth_code_graphics_v1";
 
 export default function CodeGraphicsPage() {
   const [source, setSource] = useState(INITIAL);
   const [error, setError] = useState("");
+  const [transferError, setTransferError] = useState("");
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => { try { const saved = window.localStorage.getItem(STORAGE_KEY); if (saved) setSource(saved); } catch { /* armazenamento indisponível não impede o editor */ } finally { setHydrated(true); } }, []);
-  useEffect(() => { if (hydrated) { try { window.localStorage.setItem(STORAGE_KEY, source); } catch { /* quota ou modo privado */ } } }, [hydrated, source]);
-  const { svg, documentModel } = useMemo(() => { try { const parsed = normalizeCodeGraphic(JSON.parse(source)); setError(""); return { documentModel: parsed, svg: renderCodeGraphic(parsed) }; } catch { setError("JSON inválido: corrija o documento para atualizar o preview."); const fallback = normalizeCodeGraphic(null); return { documentModel: fallback, svg: renderCodeGraphic(fallback) }; } }, [source]);
-  const download = () => { const link = window.document.createElement("a"); link.href = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })); link.download = "varynth-code-graphic.svg"; link.click(); URL.revokeObjectURL(link.href); };
-  const openInImageStudio = async () => { const blob = new Blob([svg], { type: "image/svg+xml" }); const result = await imageService.importImage({ name: `code-graphic-${Date.now()}.svg`, mimeType: "image/svg+xml", sizeBytes: blob.size, data: blob, actor: "USER", captureMetadata: { source: "FILE_IMPORT", generated: false } }); if (result.success && result.image) window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`; };
-  const openEditableInImageStudio = async () => { const created = await imageService.createImage({ name: "Code Graphics composition", description: "Editable composition created from Code Graphics", customCanvas: { width: documentModel.width, height: documentModel.height, background: documentModel.background } }); if (!created.success || !created.image) return; const visualDocument = codeGraphicToVisualDocument(documentModel, created.image.artifact.id); const result = imageService.importVisualDocument(visualDocument); if (result.success) window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(visualDocument.id)}`; };
- return <PageLayout title="Code Graphics Studio" subtitle="Composição gráfica declarativa, segura e exportável"><div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[.9fr_1.1fr]"><section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><div className="mb-3 flex items-center gap-2"><Code2 size={18} className="text-[var(--vly-accent)]" /><h2 className="font-semibold">Documento gráfico JSON</h2></div><textarea aria-label="Documento gráfico JSON" value={source} onChange={(event) => setSource(event.target.value)} className="min-h-[520px] w-full rounded-xl border border-[var(--vly-border-strong)] bg-black/30 p-3 font-mono text-xs text-[var(--vly-text-primary)] outline-none" spellCheck={false} />{error && <p className="mt-2 text-xs text-red-400">{error}</p>}<div className="mt-3 flex flex-wrap gap-2"><button onClick={download} className="vly-interactive inline-flex items-center rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Download size={14} className="mr-2" />Exportar SVG</button><button onClick={openEditableInImageStudio} className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold">Abrir editável no Image Studio</button><button onClick={() => void openInImageStudio()} className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold">Abrir como SVG rasterizável</button><button onClick={() => setSource(INITIAL)} className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold">Restaurar exemplo</button></div><p className="mt-2 text-[11px] text-[var(--vly-text-muted)]">Rascunho salvo localmente neste dispositivo.</p></section><section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><h2 className="mb-3 font-semibold">Preview SVG</h2><div className="overflow-auto rounded-xl border border-[var(--vly-border-subtle)] bg-black p-2" dangerouslySetInnerHTML={{ __html: svg }} /><p className="mt-3 text-xs text-[var(--vly-text-muted)]">{documentModel.shapes.length} objetos normalizados. O estúdio não executa JavaScript, TypeScript ou GLSL arbitrário; a edição atual usa um contrato declarativo versionado e pode preservar cada forma como objeto visual.</p></section></div></PageLayout>;
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) setSource(saved);
+    } catch {
+      /* armazenamento indisponível não impede o editor */
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (hydrated) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, source);
+      } catch {
+        /* quota ou modo privado */
+      }
+    }
+  }, [hydrated, source]);
+  const { svg, documentModel } = useMemo(() => {
+    try {
+      const parsed = normalizeCodeGraphic(JSON.parse(source));
+      setError("");
+      return { documentModel: parsed, svg: renderCodeGraphic(parsed) };
+    } catch {
+      setError("JSON inválido: corrija o documento para atualizar o preview.");
+      const fallback = normalizeCodeGraphic(null);
+      return { documentModel: fallback, svg: renderCodeGraphic(fallback) };
+    }
+  }, [source]);
+  const download = () => {
+    const link = window.document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    link.download = "varynth-code-graphic.svg";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+  const openInImageStudio = async () => {
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const result = await imageService.importImage({
+      name: `code-graphic-${Date.now()}.svg`,
+      mimeType: "image/svg+xml",
+      sizeBytes: blob.size,
+      data: blob,
+      actor: "USER",
+      captureMetadata: { source: "FILE_IMPORT", generated: false },
+    });
+    if (result.success && result.image)
+      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+  };
+  const openEditableInImageStudio = async () => {
+    setTransferError("");
+    try {
+      const created = await imageService.createImage({
+        name: "Code Graphics composition",
+        description: "Editable composition created from Code Graphics",
+        customCanvas: {
+          width: documentModel.width,
+          height: documentModel.height,
+          background: documentModel.background,
+        },
+      });
+      if (!created.success || !created.image)
+        throw new Error(
+          created.error ?? "Não foi possível criar o artefato editável.",
+        );
+      const visualDocument = codeGraphicToVisualDocument(
+        documentModel,
+        created.image.artifact.id,
+      );
+      const result = imageService.importVisualDocument(visualDocument);
+      if (!result.success)
+        throw new Error(
+          result.error ?? "Não foi possível importar a composição.",
+        );
+      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(visualDocument.id)}`;
+    } catch (cause) {
+      setTransferError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível abrir a composição editável.",
+      );
+    }
+  };
+  return (
+    <PageLayout
+      title="Code Graphics Studio"
+      subtitle="Composição gráfica declarativa, segura e exportável"
+    >
+      <div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[.9fr_1.1fr]">
+        <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Code2 size={18} className="text-[var(--vly-accent)]" />
+            <h2 className="font-semibold">Documento gráfico JSON</h2>
+          </div>
+          <textarea
+            aria-label="Documento gráfico JSON"
+            value={source}
+            onChange={(event) => setSource(event.target.value)}
+            className="min-h-[520px] w-full rounded-xl border border-[var(--vly-border-strong)] bg-black/30 p-3 font-mono text-xs text-[var(--vly-text-primary)] outline-none"
+            spellCheck={false}
+          />
+          {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+          {transferError && (
+            <p role="alert" className="mt-2 text-xs text-red-400">
+              {transferError}
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={download}
+              className="vly-interactive inline-flex items-center rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"
+            >
+              <Download size={14} className="mr-2" />
+              Exportar SVG
+            </button>
+            <button
+              onClick={openEditableInImageStudio}
+              className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold"
+            >
+              Abrir editável no Image Studio
+            </button>
+            <button
+              onClick={() => void openInImageStudio()}
+              className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold"
+            >
+              Abrir como SVG rasterizável
+            </button>
+            <button
+              onClick={() => setSource(INITIAL)}
+              className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold"
+            >
+              Restaurar exemplo
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--vly-text-muted)]">
+            Rascunho salvo localmente neste dispositivo.
+          </p>
+        </section>
+        <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+          <h2 className="mb-3 font-semibold">Preview SVG</h2>
+          <div
+            className="overflow-auto rounded-xl border border-[var(--vly-border-subtle)] bg-black p-2"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+          <p className="mt-3 text-xs text-[var(--vly-text-muted)]">
+            {documentModel.shapes.length} objetos normalizados. O estúdio não
+            executa JavaScript, TypeScript ou GLSL arbitrário; a edição atual
+            usa um contrato declarativo versionado e pode preservar cada forma
+            como objeto visual.
+          </p>
+        </section>
+      </div>
+    </PageLayout>
+  );
 }
-
