@@ -516,16 +516,23 @@ export class GameRuntimeEngine {
       jobManager.updateProgress(job.id, 60);
 
       const assetFiles: NonNullable<GameBuildManifest["assetFiles"]> = [];
+      const buildWarnings = [...validation.warnings];
       const includedAssetIds = buildManifest.assetIds;
       const zip = new JSZip();
       for (const assetId of includedAssetIds) {
         const asset = assetManager.getAsset(assetId);
         const data = await assetManager.getAssetData(assetId);
-        if (!asset || !data) throw new Error(`[BUILD_ASSET_MISSING] O asset '${assetId}' não possui dados locais utilizáveis.`);
+        if (!asset || !data) {
+          buildWarnings.push(`[BUILD_ASSET_MISSING] O asset '${assetId}' foi omitido do pacote; o runtime usará fallback.`);
+          continue;
+        }
         let raw: ArrayBuffer;
         if (typeof data === "string") {
           const response = await fetch(data);
-          if (!response.ok) throw new Error(`[BUILD_ASSET_READ_FAILED] Não foi possível ler '${assetId}'.`);
+          if (!response.ok) {
+            buildWarnings.push(`[BUILD_ASSET_READ_FAILED] O asset '${assetId}' foi omitido do pacote; o runtime usará fallback.`);
+            continue;
+          }
           raw = await response.arrayBuffer();
         } else if (data instanceof Blob) raw = await data.arrayBuffer();
         else raw = data.slice(0);
@@ -536,6 +543,7 @@ export class GameRuntimeEngine {
         assetFiles.push({ assetId, path, bytes: raw.byteLength, sha256, mimeType: asset.mimeType });
       }
       buildManifest.assetFiles = assetFiles;
+      buildManifest.assetIds = assetFiles.map((asset) => asset.assetId);
       zip.file("manifest.json", JSON.stringify(buildManifest, null, 2));
       zip.file("game-state.json", JSON.stringify(state, null, 2));
 
@@ -673,7 +681,7 @@ export class GameRuntimeEngine {
         assetId: savedAsset.asset.id,
         sizeBytes: packageBlob.size,
         manifest: buildManifest,
-        warnings: validation.warnings,
+        warnings: buildWarnings,
       };
     } catch (err: any) {
       jobManager.failJob(job.id, err.message);
