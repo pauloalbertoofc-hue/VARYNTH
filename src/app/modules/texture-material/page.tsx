@@ -8,10 +8,18 @@ import { renderTextureMaterial } from "@/lib/visual-core/texture-material";
 type Material = { pattern: "checker" | "rings" | "noise"; scale: number; roughness: number; metallic: number; normalStrength: number; color: string };
 const STORAGE_KEY = "varynth_texture_material_v1";
 const defaults: Material = { pattern: "checker", scale: 12, roughness: .45, metallic: .2, normalStrength: .6, color: "#7dd3fc" };
+const normalizeMaterial = (value: Partial<Material> | null): Material => ({
+  pattern: value?.pattern === "rings" || value?.pattern === "noise" ? value.pattern : defaults.pattern,
+  scale: typeof value?.scale === "number" && Number.isFinite(value.scale) ? Math.max(4, Math.min(32, value.scale)) : defaults.scale,
+  roughness: typeof value?.roughness === "number" && Number.isFinite(value.roughness) ? Math.max(0, Math.min(1, value.roughness)) : defaults.roughness,
+  metallic: typeof value?.metallic === "number" && Number.isFinite(value.metallic) ? Math.max(0, Math.min(1, value.metallic)) : defaults.metallic,
+  normalStrength: typeof value?.normalStrength === "number" && Number.isFinite(value.normalStrength) ? Math.max(0, Math.min(1, value.normalStrength)) : defaults.normalStrength,
+  color: typeof value?.color === "string" && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : defaults.color,
+});
 
 export default function TextureMaterialPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null); const [material, setMaterial] = useState<Material>(defaults);
-  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Material> | null; if (saved) setMaterial((current) => ({ ...current, ...saved })); } catch { /* draft inválido é ignorado */ } }, []);
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<Material> | null; if (saved) setMaterial(normalizeMaterial(saved)); } catch { /* draft inválido é ignorado */ } }, []);
   useEffect(() => { const canvas = canvasRef.current; const context = canvas?.getContext("2d"); if (context && canvas) renderTextureMaterial(context, canvas.width, canvas.height, material); localStorage.setItem(STORAGE_KEY, JSON.stringify(material)); }, [material]);
   const update = <K extends keyof Material>(key: K, value: Material[K]) => setMaterial((current) => ({ ...current, [key]: value }));
   const download = () => { const canvas = canvasRef.current; if (!canvas) return; const link = document.createElement("a"); link.download = "varynth-material-preview.png"; link.href = canvas.toDataURL("image/png"); link.click(); };
