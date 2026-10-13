@@ -24,7 +24,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Texture & Material Lab** | 🧱 | `/modules/texture-material` | Texturas procedurais e descriptor JSON versionado |
 | **Scientific Imaging** | 📊 | `/modules/scientific-imaging` | Histograma, luminância, clipping e relatório técnico local |
 | **Code Graphics Studio** | 💻 | `/modules/code-graphics` | Composição JSON declarativa, preview/exportação SVG e formas editáveis no Image Studio |
-| **Retouch Studio** | 🖌️ | `/modules/retouch` | Ajustes locais e Clone Stamp preservando o original |
+| **Retouch Studio** | 🖌️ | `/modules/retouch` | Ajustes locais, Clone Stamp e Healing Brush preservando o original |
 | **Cinematic Lighting Studio** | 🎬 | `/modules/cinematic-lighting` | Looks de iluminação, receita JSON, exposição, temperatura, matiz e vinheta preservando o original |
 | **Procedural Node Studio** | 🔀 | `/modules/procedural-graph` | Grafo JSON tipado com validação, avaliação de cor e preview por nó |
 | **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |

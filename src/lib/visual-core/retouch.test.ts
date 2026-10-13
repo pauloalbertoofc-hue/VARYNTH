@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   applyRetouchBuffer,
   applyCloneStamp,
+  applyHealingBrush,
   normalizeRetouchParameters,
   RETOUCH_LOOKS,
 } from "./retouch";
@@ -54,4 +55,18 @@ const cloned = applyCloneStamp(cloneSource, {
 });
 assert.equal(cloned.data[4], 255);
 assert.equal(cloned.data[6], 0);
+const healingSource = new ImageData(
+  new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]),
+  3,
+  1,
+);
+const healed = applyHealingBrush(healingSource, {
+  sourceX: 0,
+  sourceY: 0,
+  destinationX: 2,
+  destinationY: 0,
+  radius: 1,
+  opacity: 1,
+});
+assert.ok(healed.data[10] > 0);
 console.log("Retouch parameter tests passed.");

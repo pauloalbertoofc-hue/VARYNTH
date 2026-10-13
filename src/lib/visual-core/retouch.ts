@@ -138,3 +138,92 @@ export function applyCloneStamp(
   }
   return new ImageData(result as ImageDataArray, data.width, data.height);
 }
+
+export function applyHealingBrush(
+  data: ImageData,
+  input: Partial<CloneStampParameters>,
+): ImageData {
+  const sourceX = Math.round(finite(input.sourceX, 0));
+  const sourceY = Math.round(finite(input.sourceY, 0));
+  const destinationX = Math.round(finite(input.destinationX, 0));
+  const destinationY = Math.round(finite(input.destinationY, 0));
+  const radius = Math.max(
+    1,
+    Math.min(
+      Math.max(data.width, data.height),
+      Math.round(finite(input.radius, 32)),
+    ),
+  );
+  const opacity = Math.max(0, Math.min(1, finite(input.opacity, 1)));
+  const result = new Uint8ClampedArray(data.data);
+  const sourceMean = [0, 0, 0];
+  const targetMean = [0, 0, 0];
+  let samples = 0;
+  for (let y = -radius; y <= radius; y += 1)
+    for (let x = -radius; x <= radius; x += 1) {
+      if (x * x + y * y > radius * radius) continue;
+      const sx = sourceX + x,
+        sy = sourceY + y,
+        tx = destinationX + x,
+        ty = destinationY + y;
+      if (
+        sx < 0 ||
+        sy < 0 ||
+        tx < 0 ||
+        ty < 0 ||
+        sx >= data.width ||
+        sy >= data.height ||
+        tx >= data.width ||
+        ty >= data.height
+      )
+        continue;
+      const source = (sy * data.width + sx) * 4,
+        target = (ty * data.width + tx) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        sourceMean[channel] += data.data[source + channel];
+        targetMean[channel] += data.data[target + channel];
+      }
+      samples += 1;
+    }
+  if (!samples)
+    return new ImageData(result as ImageDataArray, data.width, data.height);
+  for (let channel = 0; channel < 3; channel += 1) {
+    sourceMean[channel] /= samples;
+    targetMean[channel] /= samples;
+  }
+  for (let y = -radius; y <= radius; y += 1)
+    for (let x = -radius; x <= radius; x += 1) {
+      if (x * x + y * y > radius * radius) continue;
+      const sx = sourceX + x,
+        sy = sourceY + y,
+        tx = destinationX + x,
+        ty = destinationY + y;
+      if (
+        sx < 0 ||
+        sy < 0 ||
+        tx < 0 ||
+        ty < 0 ||
+        sx >= data.width ||
+        sy >= data.height ||
+        tx >= data.width ||
+        ty >= data.height
+      )
+        continue;
+      const source = (sy * data.width + sx) * 4,
+        target = (ty * data.width + tx) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const corrected = Math.max(
+          0,
+          Math.min(
+            255,
+            data.data[source + channel] +
+              targetMean[channel] -
+              sourceMean[channel],
+          ),
+        );
+        result[target + channel] =
+          corrected * opacity + result[target + channel] * (1 - opacity);
+      }
+    }
+  return new ImageData(result as ImageDataArray, data.width, data.height);
+}

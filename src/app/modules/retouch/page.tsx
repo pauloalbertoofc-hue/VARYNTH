@@ -7,6 +7,7 @@ import { imageService } from "@/lib/studio/image/image-service";
 import {
   applyRetouch,
   applyCloneStamp,
+  applyHealingBrush,
   normalizeRetouchParameters,
   RETOUCH_LOOKS,
   type RetouchLook,
@@ -94,6 +95,12 @@ export default function RetouchPage() {
     const original = originalRef.current;
     if (!original) return;
     cloneBaseRef.current = applyCloneStamp(original, clone);
+    render();
+  };
+  const applyHealing = () => {
+    const original = originalRef.current;
+    if (!original) return;
+    cloneBaseRef.current = applyHealingBrush(original, clone);
     render();
   };
   const applyLook = (next: RetouchLook) => {
@@ -274,6 +281,13 @@ export default function RetouchPage() {
               className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
             >
               Aplicar
+            </button>
+            <button
+              onClick={applyHealing}
+              disabled={!originalRef.current}
+              className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
+            >
+              Healing
             </button>
             <button
               onClick={resetClone}
