@@ -303,6 +303,14 @@ export default function VisualStudioPage() {
                     >
                       Gerenciar captura →
                     </Link>
+                    {capture.imageArtifactId && (
+                      <Link
+                        href={`/modules/studio?studio=IMAGE&id=${encodeURIComponent(capture.imageArtifactId)}`}
+                        className="ml-3 inline-block text-[10px] font-bold text-emerald-300"
+                      >
+                        Abrir no Image Studio →
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
