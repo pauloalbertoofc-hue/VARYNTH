@@ -19,6 +19,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Digital Painting** | 🖌️ | `/modules/digital-painting` | Canvas local com pincel, borracha e exportação PNG |
 | **Vector Studio** | ✒️ | `/modules/vector-studio` | Objetos SVG locais e exportação vetorial |
 | **Shader Forge** | ✨ | `/modules/shader-forge` | Preview procedural determinístico e exportação PNG |
+| **3D & Rendering Studio** | 🧊 | `/modules/rendering-3d` | Cena WebGL2 local com câmera, material e exportação PNG |
 | **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |
 | **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
 | **Athena AI** | 🦉 | `/modules/athena` | Centro de comando cognitivo e chat soberano |
