@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, ImagePlus, RotateCcw } from "lucide-react";
+import { Download, FileJson, ImagePlus, RotateCcw } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
 import {
@@ -118,6 +118,25 @@ export default function CinematicLightingPage() {
     link.download = `${name.replace(/\.[^.]+$/, "") || "cinematic-lighting"}.png`;
     link.click();
   };
+  const downloadRecipe = () => {
+    const payload = {
+      schema: "varynth.cinematic-lighting-recipe",
+      version: 1,
+      look,
+      parameters,
+      sourceName: name || null,
+      generatedAt: new Date().toISOString(),
+    };
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(
+      new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      }),
+    );
+    link.download = "varynth-cinematic-lighting-recipe.json";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
   const openInImageStudio = async () => {
     const canvas = canvasRef.current;
     if (!canvas || !originalRef.current) return;
@@ -228,6 +247,14 @@ export default function CinematicLightingPage() {
           >
             <Download size={14} className="mr-2" />
             PNG
+          </button>
+          <button
+            onClick={downloadRecipe}
+            disabled={!originalRef.current}
+            className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
+          >
+            <FileJson size={14} className="mr-2" />
+            Receita JSON
           </button>
           <button
             onClick={() => void openInImageStudio()}
