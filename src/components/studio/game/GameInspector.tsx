@@ -14,6 +14,7 @@ interface GameInspectorProps {
   onAddComponent: (entityId: string, component: GameComponent) => void;
   onRemoveComponent: (entityId: string, componentType: ComponentType) => void;
   visualAssets?: AssetFile[];
+  audioAssets?: AssetFile[];
 }
 
 export const GameInspector: React.FC<GameInspectorProps> = ({
@@ -23,6 +24,7 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
   onAddComponent,
   onRemoveComponent,
   visualAssets = [],
+  audioAssets = [],
 }) => {
   if (!selectedEntity) {
     return (
@@ -213,7 +215,10 @@ export const GameInspector: React.FC<GameInspectorProps> = ({
         {selectedEntity.components.filter((component) => component.type === "AUDIO_SOURCE").map((audio) => audio.type === "AUDIO_SOURCE" && (
           <div key="audio-source" className="p-3 bg-[#111222] border border-[#1f2038] rounded-xl space-y-2">
             <div className="flex justify-between text-white font-bold text-[11px]"><span>Audio Source</span><button onClick={() => onRemoveComponent(selectedEntity.id, "AUDIO_SOURCE")} className="text-rose-400"><Trash2 size={12}/></button></div>
-            <label className="text-[10px] text-slate-500 block">Asset ID<input value={audio.assetId} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, assetId: e.target.value } : c) })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white font-mono text-[11px]" placeholder="ID do áudio anexado" /></label>
+            <label className="text-[10px] text-slate-500 block">Asset ID
+              {audioAssets.length > 0 && <select value={audio.assetId || ""} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, assetId: e.target.value } : c) })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white text-[11px]"><option value="">Selecionar áudio anexado…</option>{audioAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}</select>}
+              <input value={audio.assetId} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, assetId: e.target.value } : c) })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white font-mono text-[11px]" placeholder="ID do áudio anexado" />
+            </label>
             <label className="text-[10px] text-slate-500 block">Volume<input type="number" min="0" max="1" step="0.05" value={audio.volume} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, volume: Math.max(0, Math.min(1, Number(e.target.value) || 0)) } : c) })} className="mt-1 w-full px-2 py-1 bg-[#18192c] border border-[#272844] rounded text-white" /></label>
             <div className="flex gap-4"><label className="flex gap-2 items-center"><input type="checkbox" checked={audio.loop} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, loop: e.target.checked } : c) })} /> Loop</label><label className="flex gap-2 items-center"><input type="checkbox" checked={audio.playOnStart || false} onChange={(e) => onUpdateEntity(selectedEntity.id, { components: selectedEntity.components.map((c) => c.type === "AUDIO_SOURCE" ? { ...c, playOnStart: e.target.checked } : c) })} /> Tocar ao iniciar</label></div>
           </div>

@@ -2064,6 +2064,9 @@ export default function StudioPage() {
                     visualAssets={Array.from(new Set([...(activeGame.artifact.assetFileIds || []), ...assetManager.getUsagesForArtifact(activeGame.artifact.id).map((usage) => usage.assetId)]))
                       .map((id) => assetManager.getAsset(id))
                       .filter((asset): asset is import("@/lib/artifacts/types").AssetFile => Boolean(asset && asset.mimeType.startsWith("image/")))}
+                    audioAssets={Array.from(new Set([...(activeGame.artifact.assetFileIds || []), ...assetManager.getUsagesForArtifact(activeGame.artifact.id).map((usage) => usage.assetId)]))
+                      .map((id) => assetManager.getAsset(id))
+                      .filter((asset): asset is import("@/lib/artifacts/types").AssetFile => Boolean(asset && asset.mimeType.startsWith("audio/")))}
                     onUpdateEntity={(entId, updates) => {
                       const updated = activeGame.documentState.entities.map((e: GameEntity) =>
                         e.id === entId ? { ...e, ...updates } : e
