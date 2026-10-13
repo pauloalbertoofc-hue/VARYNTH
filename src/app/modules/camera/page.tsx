@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Camera, CircleStop, Download, Focus, Flashlight, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
@@ -39,6 +39,7 @@ export default function CameraPage() {
   const [activeFacingMode, setActiveFacingMode] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [focusStatus, setFocusStatus] = useState<string | null>(null);
   const captureRecordIdRef = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
   const [storedMediaUrls, setStoredMediaUrls] = useState<
@@ -157,6 +158,19 @@ export default function CameraPage() {
       setZoom(value);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "CAMERA_ZOOM_UNAVAILABLE");
+    }
+  };
+
+  const focusAtPoint = async (event: MouseEvent<HTMLVideoElement>) => {
+    if (!active || capabilities?.focus.state !== "supported" || !videoRef.current) return;
+    const rect = videoRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    try {
+      await sessionRef.current?.applyVideoConstraints({ advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet] });
+      setFocusStatus(`Foco solicitado · ${Math.round(x * 100)}%, ${Math.round(y * 100)}%`);
+    } catch (cause) {
+      setFocusStatus(cause instanceof Error ? cause.message : "FOCUS_CONTROL_UNAVAILABLE");
     }
   };
 
@@ -301,6 +315,8 @@ export default function CameraPage() {
               ref={videoRef}
               autoPlay
               playsInline
+              onClick={(event) => void focusAtPoint(event)}
+              aria-label={capabilities?.focus.state === "supported" ? "Preview da câmera; toque para focar" : "Preview da câmera"}
               className="h-full w-full object-contain"
             />
             <div className="pointer-events-none absolute inset-0">
@@ -394,6 +410,7 @@ export default function CameraPage() {
               ? " Controles manuais dependem das capacidades reais do track."
               : ""}
             {activeFacingMode ? ` Câmera aplicada: ${activeFacingMode === "environment" ? "traseira" : activeFacingMode === "user" ? "frontal" : activeFacingMode}.` : ""}
+            {focusStatus ? ` ${focusStatus}.` : ""}
           </p>
           {error && (
             <p
