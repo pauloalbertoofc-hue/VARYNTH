@@ -41,7 +41,7 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   useEffect(() => {
     let cancelled = false;
     const urls: Record<string, string> = {};
-    void Promise.all(attachedAssets.filter((asset) => asset.mimeType.startsWith("image/")).map(async (asset) => {
+    void Promise.all(attachedAssets.filter((asset) => asset.mimeType.startsWith("image/") || asset.mimeType.startsWith("audio/")).map(async (asset) => {
       try {
         const data = await assetStorage.getBlob(asset.storageKey);
         if (cancelled || !data) return;
@@ -222,7 +222,7 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded bg-[var(--vly-info)]/10 border border-[var(--vly-border-info)] flex items-center justify-center text-[var(--vly-info)] shrink-0 overflow-hidden">
-                    {previewUrls[asset.id] ? <img src={previewUrls[asset.id]} alt="" className="h-full w-full object-cover" /> : <FileIcon size={14} />}
+                    {previewUrls[asset.id] && asset.mimeType.startsWith("image/") ? <img src={previewUrls[asset.id]} alt="" className="h-full w-full object-cover" /> : <FileIcon size={14} />}
                   </div>
                   <div className="min-w-0">
                     <h5 className="font-semibold text-[var(--vly-text-primary)] text-[12px] truncate" title={asset.name}>
@@ -253,6 +253,8 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
                   </button>
                 </div>
               </div>
+
+              {previewUrls[asset.id] && asset.mimeType.startsWith("audio/") && <audio controls preload="metadata" src={previewUrls[asset.id]} className="h-7 w-full" aria-label={`Pré-escuta de ${asset.name}`} />}
 
               {/* Status footer */}
               <div className="pt-1.5 border-t border-[var(--vly-border-subtle)] flex items-center justify-between text-[10px] text-[var(--vly-text-muted)]">
