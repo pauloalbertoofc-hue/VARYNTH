@@ -9,6 +9,15 @@ export type CinematicLightingParameters = {
 export type CinematicLightingLook =
   "natural" | "cinematic" | "noir" | "golden" | "custom";
 
+export type CinematicLightingRecipe = {
+  schema: "varynth.cinematic-lighting-recipe";
+  version: 1;
+  look: CinematicLightingLook;
+  parameters: CinematicLightingParameters;
+  sourceName: string | null;
+  generatedAt: string;
+};
+
 export const CINEMATIC_LIGHTING_LOOKS: Record<
   CinematicLightingLook,
   { label: string; parameters: CinematicLightingParameters }
@@ -65,6 +74,49 @@ export function normalizeCinematicLightingParameters(
     warmth: Math.max(-1, Math.min(1, finite(input.warmth, 0))),
     tint: Math.max(-1, Math.min(1, finite(input.tint, 0))),
     vignette: Math.max(0, Math.min(1, finite(input.vignette, 0))),
+  };
+}
+
+export function serializeCinematicLightingRecipe(input: {
+  look: CinematicLightingLook;
+  parameters: Partial<CinematicLightingParameters>;
+  sourceName?: string | null;
+  generatedAt?: string;
+}): string {
+  const recipe: CinematicLightingRecipe = {
+    schema: "varynth.cinematic-lighting-recipe",
+    version: 1,
+    look: input.look,
+    parameters: normalizeCinematicLightingParameters(input.parameters),
+    sourceName: input.sourceName || null,
+    generatedAt: input.generatedAt ?? new Date().toISOString(),
+  };
+  return JSON.stringify(recipe, null, 2);
+}
+
+export function parseCinematicLightingRecipe(
+  raw: string,
+): CinematicLightingRecipe {
+  const parsed = JSON.parse(raw) as Partial<CinematicLightingRecipe>;
+  if (
+    parsed.schema !== "varynth.cinematic-lighting-recipe" ||
+    parsed.version !== 1
+  )
+    throw new Error("Receita incompatível com o Cinematic Lighting Studio.");
+  return {
+    schema: "varynth.cinematic-lighting-recipe",
+    version: 1,
+    look:
+      parsed.look && parsed.look in CINEMATIC_LIGHTING_LOOKS
+        ? parsed.look
+        : "custom",
+    parameters: normalizeCinematicLightingParameters(parsed.parameters),
+    sourceName:
+      typeof parsed.sourceName === "string" ? parsed.sourceName : null,
+    generatedAt:
+      typeof parsed.generatedAt === "string"
+        ? parsed.generatedAt
+        : new Date(0).toISOString(),
   };
 }
 

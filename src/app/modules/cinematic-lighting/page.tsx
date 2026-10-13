@@ -8,6 +8,8 @@ import {
   applyCinematicLighting,
   CINEMATIC_LIGHTING_LOOKS,
   normalizeCinematicLightingParameters,
+  parseCinematicLightingRecipe,
+  serializeCinematicLightingRecipe,
   type CinematicLightingLook,
   type CinematicLightingParameters,
 } from "@/lib/visual-core";
@@ -119,19 +121,20 @@ export default function CinematicLightingPage() {
     link.click();
   };
   const downloadRecipe = () => {
-    const payload = {
-      schema: "varynth.cinematic-lighting-recipe",
-      version: 1,
-      look,
-      parameters,
-      sourceName: name || null,
-      generatedAt: new Date().toISOString(),
-    };
     const link = document.createElement("a");
     link.href = URL.createObjectURL(
-      new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      }),
+      new Blob(
+        [
+          serializeCinematicLightingRecipe({
+            look,
+            parameters,
+            sourceName: name,
+          }),
+        ],
+        {
+          type: "application/json",
+        },
+      ),
     );
     link.download = "varynth-cinematic-lighting-recipe.json";
     link.click();
@@ -141,19 +144,9 @@ export default function CinematicLightingPage() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result)) as {
-          schema?: string;
-          parameters?: Partial<CinematicLightingParameters>;
-          look?: CinematicLightingLook;
-        };
-        if (parsed.schema !== "varynth.cinematic-lighting-recipe")
-          throw new Error(
-            "Receita incompatível com o Cinematic Lighting Studio.",
-          );
-        setParameters(normalizeCinematicLightingParameters(parsed.parameters));
-        if (parsed.look && parsed.look in CINEMATIC_LIGHTING_LOOKS)
-          setLook(parsed.look);
-        else setLook("custom");
+        const parsed = parseCinematicLightingRecipe(String(reader.result));
+        setParameters(parsed.parameters);
+        setLook(parsed.look);
         setError("");
       } catch (cause) {
         setError(
