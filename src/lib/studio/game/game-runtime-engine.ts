@@ -107,6 +107,18 @@ export class GameIntegrityValidator {
       if (behavior?.type === "BEHAVIOR" && !behavior.behaviorId.trim()) errors.push(`Entidade '${entity.name}' possui Comportamento sem identificador.`);
     }
 
+    // Visual/audio references are allowed to remain unresolved while editing
+    // (templates intentionally use symbolic IDs), but the build surface must
+    // expose them instead of silently falling back at runtime.
+    const availableAssetIds = new Set(assetManager.getAllAssets().filter((asset) => asset.status !== "QUARANTINED" && asset.status !== "CORRUPTED").map((asset) => asset.id));
+    const referencedAssetIds = new Set(state.entities.flatMap((entity) => entity.components.flatMap((component) => {
+      if (component.type === "SPRITE" || component.type === "AUDIO_SOURCE") return component.assetId ? [component.assetId] : [];
+      if (component.type === "ANIMATOR") return component.clips.flatMap((clip) => clip.frames.map((frame) => frame.assetId)).filter(Boolean);
+      return [];
+    })));
+    const unresolvedAssetIds = [...referencedAssetIds].filter((assetId) => !availableAssetIds.has(assetId));
+    if (unresolvedAssetIds.length > 0) warnings.push(`Assets locais ainda não disponíveis: ${unresolvedAssetIds.join(", ")}. O runtime usará fallback até que sejam anexados.`);
+
     // 5. Static Rule References Validation
     for (const rule of state.rules) {
       if (rule.trigger.variableId && !variableIdSet.has(rule.trigger.variableId)) {
