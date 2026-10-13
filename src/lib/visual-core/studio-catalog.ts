@@ -91,7 +91,7 @@ export const visualCapabilities: VisualStudioCapability[] = [
     name: "Digital Painting Studio",
     workflow: "CREATE",
     description:
-      "Canvas local com pincel, borracha, limpeza, PNG e abertura no Image Studio.",
+      "Canvas local com pincel, opacidade, borracha destrutiva, limpeza, PNG e abertura no Image Studio.",
     status: "READY",
     href: "/modules/digital-painting",
     evidence: "Canvas 2D + PNG export + Image Studio import",
