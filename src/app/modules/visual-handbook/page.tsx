@@ -122,11 +122,11 @@ const tutorials = [
       "Edite nós e conexões no documento JSON.",
       "Observe a validação de nós desconhecidos e ciclos.",
       "Use o preview por nó e a cor final calculada.",
-      "Exporte o grafo versionado para evolução posterior.",
+      "Abra o resultado avaliado no Image Studio ou exporte o grafo versionado.",
     ],
     href: "/modules/procedural-graph",
     limitation:
-      "O corte atual avalia cores determinísticas e mostra previews dos nós alcançados; execução incremental e subgrafos ainda não estão disponíveis.",
+      "O corte atual avalia cores determinísticas, mostra previews dos nós alcançados e encaminha um PNG ao Image Studio; execução incremental e subgrafos ainda não estão disponíveis.",
   },
 ];
 
