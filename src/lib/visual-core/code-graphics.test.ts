@@ -8,5 +8,8 @@ const visualDocument = codeGraphicToVisualDocument(document, "test-code-graphic"
 assert.equal(visualDocument.objects.length, 2);
 assert.equal(visualDocument.objects[1]?.kind, "TEXT");
 assert.equal(visualDocument.metadata.source, "CODE_GRAPHICS");
+assert.equal((visualDocument.objects[0]?.properties as { type: string }).type, "SHAPE");
+assert.equal((visualDocument.objects[1]?.properties as { textContent: string }).textContent, "<safe>");
+assert.ok((visualDocument.objects[0]?.properties as { transform: unknown }).transform);
 console.log("Code graphics contract tests passed.");
 

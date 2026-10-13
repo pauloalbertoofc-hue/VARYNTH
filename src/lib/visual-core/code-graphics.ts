@@ -37,14 +37,25 @@ export function codeGraphicToVisualDocument(document: CodeGraphicDocument, id = 
     id,
     dimensions: { width: document.width, height: document.height, unit: "px" },
     color: { space: "sRGB", bitDepth: 8 },
-    objects: document.shapes.map((shape, index) => ({
-      id: `${id}-shape-${index + 1}`,
-      kind: shape.type === "text" ? "TEXT" : "VECTOR",
-      name: `${shape.type} ${index + 1}`,
-      visible: true,
-      locked: false,
-      properties: { ...shape, source: "CODE_GRAPHICS_DECLARATIVE" },
-    })),
+    objects: document.shapes.map((shape, index) => {
+      const width = shape.type === "circle" ? (shape.radius ?? 0) * 2 : shape.type === "line" ? Math.abs((shape.x2 ?? 0) - (shape.x ?? 0)) : shape.width ?? 0;
+      const height = shape.type === "circle" ? (shape.radius ?? 0) * 2 : shape.type === "line" ? Math.abs((shape.y2 ?? 0) - (shape.y ?? 0)) : shape.height ?? (shape.type === "text" ? 24 : 0);
+      const properties = {
+        id: `${id}-shape-${index + 1}`,
+        type: shape.type === "text" ? "TEXT" : "SHAPE",
+        opacity: 1,
+        transform: { x: shape.x ?? 0, y: shape.y ?? 0, width: Math.max(1, width), height: Math.max(1, height), scaleX: 1, scaleY: 1, rotation: 0 },
+        ...(shape.type === "text" ? {
+          textContent: shape.value ?? "",
+          textStyle: { fontFamily: "sans-serif", fontSize: Math.max(8, shape.height ?? 24), fontWeight: 400, fill: shape.fill, align: "left" as const, lineHeight: 1.2 },
+        } : {
+          shapeType: shape.type === "circle" ? "ellipse" as const : shape.type === "line" ? "line" as const : "rectangle" as const,
+          shapeStyle: { fill: shape.fill, stroke: shape.stroke, strokeWidth: shape.strokeWidth },
+        }),
+        metadata: { source: "CODE_GRAPHICS_DECLARATIVE", sourceShape: shape },
+      };
+      return { id: properties.id, kind: shape.type === "text" ? "TEXT" as const : "VECTOR" as const, name: `${shape.type} ${index + 1}`, visible: true, locked: false, properties };
+    }),
     dependencies: [],
     provenance: [{ id: `${id}-provenance`, operation: "CREATE", description: "Created from declarative Code Graphics document", actor: "USER", createdAt: now, generated: false }],
     metadata: { source: "CODE_GRAPHICS", background: document.background, codeGraphics: document },
