@@ -326,6 +326,7 @@ export default function VisualStudioPage() {
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input
               aria-label="Contexto para o Pictor"
+              maxLength={4000}
               value={pictorPrompt}
               onChange={(event) => setPictorPrompt(event.target.value)}
               className="vly-field min-w-0 flex-1 rounded-lg px-3 py-2 text-xs"
