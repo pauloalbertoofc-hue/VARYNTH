@@ -199,9 +199,11 @@ export default function CameraPage() {
       setCaptureBlob(result.blob);
       const report = await analyzeCameraFrame(result.blob);
       setQuality(report);
+      let correctionAvailable = false;
       try {
         const corrected = await createAutomaticCorrection(result.blob, report);
         if (corrected) {
+          correctionAvailable = true;
           if (correctedUrl) URL.revokeObjectURL(correctedUrl);
           setCorrectedBlob(corrected);
           setCorrectedUrl(URL.createObjectURL(corrected));
@@ -226,7 +228,7 @@ export default function CameraPage() {
         capturedAt: result.capturedAt,
         source: "DEVICE_CAMERA" as const,
         generated: false as const,
-        metadata: { quality: report, capabilities },
+        metadata: { quality: report, capabilities, correctionAvailable, correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST" },
       };
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
@@ -322,7 +324,13 @@ export default function CameraPage() {
       capturedAt: new Date().toISOString(),
       source: "DEVICE_CAMERA",
       generated: false,
-      metadata: { quality, capabilities },
+      metadata: {
+        quality,
+        capabilities,
+        selectedVersion: useCorrection && correctedBlob ? "CORRECTED" : "ORIGINAL",
+        correctionPolicy: useCorrection && correctedBlob ? "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST" : "NONE",
+        userApprovedCorrection: useCorrection && Boolean(correctedBlob),
+      },
     });
     setCaptures(listCameraCaptures());
     window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
