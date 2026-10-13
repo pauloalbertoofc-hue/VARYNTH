@@ -2,13 +2,13 @@ import type { AthenaAgent, AgentManifest } from "../base-agent";
 import type { AthenaContext } from "../../domain/context";
 import type { AgentResult } from "../../domain/result";
 import type { AthenaTask } from "../../domain/task";
+import { sanitizePictorVisualContext, type PictorVisualContext } from "@/lib/visual-core/pictor-context";
 
 type QualityReport = {
   sharpness?: number;
   exposure?: number;
   warnings?: string[];
 };
-type VisualContext = { captureId?: string; mode?: string; capturedAt?: string; source?: string; generated?: boolean; originalAssetId?: string; imageArtifactId?: string };
 
 function suppliedQuality(task: AthenaTask): QualityReport | undefined {
   const value = task.metadata?.visualQuality;
@@ -36,15 +36,8 @@ function suppliedQuality(task: AthenaTask): QualityReport | undefined {
     : undefined;
 }
 
-function suppliedVisualContext(task: AthenaTask): VisualContext | undefined {
-  const value = task.metadata?.visualContext;
-  if (!value || typeof value !== "object") return undefined;
-  const input = value as Record<string, unknown>;
-  const context: VisualContext = {};
-  for (const key of ["captureId", "mode", "capturedAt", "source", "originalAssetId", "imageArtifactId"] as const)
-    if (typeof input[key] === "string") context[key] = input[key].slice(0, 160);
-  if (typeof input.generated === "boolean") context.generated = input.generated;
-  return Object.keys(context).length ? context : undefined;
+function suppliedVisualContext(task: AthenaTask): PictorVisualContext | undefined {
+  return sanitizePictorVisualContext(task.metadata?.visualContext);
 }
 
 export class PictorAgent implements AthenaAgent {
