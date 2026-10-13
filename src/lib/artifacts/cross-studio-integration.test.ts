@@ -6,6 +6,7 @@ import { CreativeIntegrityValidator } from "./creative-integrity-validator";
 import { backupService } from "../backup/backup-service";
 import { ToolManager } from "../athena/tools/tool-manager";
 import { AthenaEngineContext } from "../athena/engine";
+import { assetStorage } from "../persistence/indexeddb-adapter";
 
 async function runCrossStudioIntegrationSuite() {
   console.log("\n===============================================================");
@@ -302,6 +303,10 @@ async function runCrossStudioIntegrationSuite() {
   const strongChk39 = await assetManager.calculateStrongChecksum("sample-test-bytes");
   const strongChk39Changed = await assetManager.calculateStrongChecksum("sample-test-byteS");
   assert(strongChk39.startsWith("sha256:") && strongChk39 !== strongChk39Changed, "CROSS-REG-039B", "Novos checksums SHA-256 distinguem conteúdo com o mesmo formato de asset");
+  const integrityAsset39 = await assetManager.registerAsset({ name: "integrity-39.bin", mimeType: "application/octet-stream", sizeBytes: 8 }, new Blob(["original"], { type: "application/octet-stream" }));
+  await assetStorage.storeBlob(integrityAsset39.storageKey, new Blob(["tampered"], { type: "application/octet-stream" }), { mimeType: integrityAsset39.mimeType });
+  const integrityCheck39 = await assetManager.verifyAssetIntegrity(integrityAsset39.id);
+  assert(integrityCheck39.status === "ASSET_CORRUPTED" && assetManager.getAsset(integrityAsset39.id)?.status === "CORRUPTED", "CROSS-REG-039C", "Blob alterado com o mesmo tamanho é detectado e marcado como CORRUPTED");
 
   // CROSS-REG-040: Source Artifact in Trash with surviving physical Derived Asset is distinguished from ASSET_MISSING
   const srcImg40 = (await artifactService.create({ type: "IMAGE", name: "Src 40" })).artifact!;
