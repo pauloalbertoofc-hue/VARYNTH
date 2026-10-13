@@ -13,6 +13,7 @@ import {
   type CameraCapabilities,
   type CameraCaptureRecord,
   type CameraMode,
+  applyCinematicLightingBuffer,
 } from "@/lib/visual-core";
 import { imageService } from "@/lib/studio/image/image-service";
 import {
@@ -30,6 +31,9 @@ export default function CameraPage() {
   const [active, setActive] = useState(false);
   const [captureUrl, setCaptureUrl] = useState<string | null>(null);
   const [captureBlob, setCaptureBlob] = useState<Blob | null>(null);
+  const [correctedBlob, setCorrectedBlob] = useState<Blob | null>(null);
+  const [correctedUrl, setCorrectedUrl] = useState<string | null>(null);
+  const [useCorrection, setUseCorrection] = useState(false);
   const [isSendingToStudio, setIsSendingToStudio] = useState(false);
   const [quality, setQuality] = useState<CameraQualityReport | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -102,6 +106,10 @@ export default function CameraPage() {
     },
     [captureUrl],
   );
+
+  useEffect(() => () => {
+    if (correctedUrl) URL.revokeObjectURL(correctedUrl);
+  }, [correctedUrl]);
 
   useEffect(
     () => () => {
@@ -190,6 +198,13 @@ export default function CameraPage() {
       setCaptureBlob(result.blob);
       const report = await analyzeCameraFrame(result.blob);
       setQuality(report);
+      const corrected = await createAutomaticCorrection(result.blob, report);
+      if (corrected) {
+        if (correctedUrl) URL.revokeObjectURL(correctedUrl);
+        setCorrectedBlob(corrected);
+        setCorrectedUrl(URL.createObjectURL(corrected));
+        setUseCorrection(false);
+      }
       const recordId = `capture-${Date.now()}`;
       captureRecordIdRef.current = recordId;
       void saveCameraMedia(recordId, result.blob);
@@ -210,6 +225,24 @@ export default function CameraPage() {
     } finally {
       setIsCountingDown(false);
     }
+  };
+
+  const createAutomaticCorrection = async (blob: Blob, report: CameraQualityReport): Promise<Blob | null> => {
+    if (typeof createImageBitmap !== "function") return null;
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) { bitmap.close(); return null; }
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const image = context.getImageData(0, 0, canvas.width, canvas.height);
+    const exposure = Math.max(-0.18, Math.min(0.18, 0.5 - report.exposure.meanLuma));
+    const corrected = applyCinematicLightingBuffer(image.data, { exposure, contrast: 0.04, warmth: 0, tint: 0, vignette: 0 }, canvas.width, canvas.height);
+    image.data.set(corrected);
+    context.putImageData(image, 0, 0);
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
   };
 
   const recordVideo = async () => {
@@ -248,13 +281,14 @@ export default function CameraPage() {
   };
 
   const openInImageStudio = async () => {
-    if (!captureBlob) return;
+    const blobToOpen = useCorrection && correctedBlob ? correctedBlob : captureBlob;
+    if (!blobToOpen) return;
     setIsSendingToStudio(true);
     const result = await imageService.importImage({
       name: `camera-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
       mimeType: "image/jpeg",
-      sizeBytes: captureBlob.size,
-      data: captureBlob,
+      sizeBytes: blobToOpen.size,
+      data: blobToOpen,
       actor: "USER",
       captureMetadata: {
         source: "DEVICE_CAMERA",
@@ -463,11 +497,8 @@ export default function CameraPage() {
           </div>
           {captureUrl && (
             <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
-              <img
-                src={captureUrl}
-                alt="Último frame capturado"
-                className="mb-3 w-full rounded-lg"
-              />
+              <div className="mb-3 grid gap-2 sm:grid-cols-2"><figure><img src={captureUrl} alt="Frame original capturado" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Original preservado</figcaption></figure>{correctedUrl && <figure><img src={correctedUrl} alt="Frame com correção automática" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Correção sugerida</figcaption></figure>}</div>
+              {correctedBlob && <div className="mb-3 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] p-3"><p className="text-xs text-[var(--vly-text-secondary)]">A correção é opcional e não substitui o original. Qual versão deseja enviar ao Visual Studio?</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => setUseCorrection(false)} className={`rounded-lg border px-3 py-2 text-xs ${!useCorrection ? "border-[var(--vly-accent)] text-[var(--vly-accent)]" : "border-white/10 text-slate-300"}`}>Manter original</button><button type="button" onClick={() => setUseCorrection(true)} className={`rounded-lg border px-3 py-2 text-xs ${useCorrection ? "border-[var(--vly-accent)] text-[var(--vly-accent)]" : "border-white/10 text-slate-300"}`}>Usar correção</button></div></div>}
               <div className="flex flex-wrap gap-2">
                 <a
                   href={captureUrl}
