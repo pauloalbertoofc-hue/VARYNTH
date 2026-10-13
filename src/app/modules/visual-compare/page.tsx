@@ -1,32 +1,273 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowLeftRight, FileImage, RotateCcw, ShieldCheck, SquareSplitHorizontal } from "lucide-react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  ArrowLeftRight,
+  FileImage,
+  RotateCcw,
+  ShieldCheck,
+  SquareSplitHorizontal,
+} from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 
 type LocalImage = { name: string; url: string };
-type CompareHistory = { id: string; before: string; after: string; mode: "split" | "side-by-side" | "opacity"; position: number; savedAt: string };
+type CompareHistory = {
+  id: string;
+  before: string;
+  after: string;
+  mode: "split" | "side-by-side" | "opacity";
+  position: number;
+  savedAt: string;
+};
 const HISTORY_KEY = "varynth_visual_compare_history_v1";
 
 export default function VisualComparePage() {
   const [before, setBefore] = useState<LocalImage | null>(null);
   const [after, setAfter] = useState<LocalImage | null>(null);
   const [position, setPosition] = useState(50);
-  const [mode, setMode] = useState<"split" | "side-by-side" | "opacity">("split");
+  const [mode, setMode] = useState<"split" | "side-by-side" | "opacity">(
+    "split",
+  );
   const [history, setHistory] = useState<CompareHistory[]>([]);
-  useEffect(() => { try { setHistory(JSON.parse(window.localStorage.getItem(HISTORY_KEY) ?? "[]") as CompareHistory[]); } catch { setHistory([]); } }, []);
-  const load = (file: File | undefined, setter: (value: LocalImage | null) => void) => {
+  const beforeRef = useRef<LocalImage | null>(null);
+  const afterRef = useRef<LocalImage | null>(null);
+  useEffect(() => {
+    try {
+      setHistory(
+        JSON.parse(
+          window.localStorage.getItem(HISTORY_KEY) ?? "[]",
+        ) as CompareHistory[],
+      );
+    } catch {
+      setHistory([]);
+    }
+  }, []);
+  const load = (
+    file: File | undefined,
+    setter: (value: LocalImage | null) => void,
+    current: MutableRefObject<LocalImage | null>,
+  ) => {
     if (!file || !file.type.startsWith("image/")) return;
-    setter({ name: file.name, url: URL.createObjectURL(file) });
+    if (current.current) URL.revokeObjectURL(current.current.url);
+    const image = { name: file.name, url: URL.createObjectURL(file) };
+    current.current = image;
+    setter(image);
   };
-  useEffect(() => () => { if (before) URL.revokeObjectURL(before.url); if (after) URL.revokeObjectURL(after.url); }, [before, after]);
-  const swap = () => { setBefore(after); setAfter(before); };
+  useEffect(
+    () => () => {
+      if (beforeRef.current) URL.revokeObjectURL(beforeRef.current.url);
+      if (afterRef.current) URL.revokeObjectURL(afterRef.current.url);
+    },
+    [],
+  );
+  const swap = () => {
+    const currentBefore = beforeRef.current;
+    beforeRef.current = afterRef.current;
+    afterRef.current = currentBefore;
+    setBefore(after);
+    setAfter(before);
+  };
   const saveComparison = () => {
     if (!before || !after) return;
-    const entry: CompareHistory = { id: `compare-${Date.now()}`, before: before.name, after: after.name, mode, position, savedAt: new Date().toISOString() };
+    const entry: CompareHistory = {
+      id: `compare-${Date.now()}`,
+      before: before.name,
+      after: after.name,
+      mode,
+      position,
+      savedAt: new Date().toISOString(),
+    };
     const next = [entry, ...history].slice(0, 20);
     setHistory(next);
     window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
   };
-  return <PageLayout title="Visual Compare" subtitle="Comparação local, reversível e sem upload externo"><div className="mx-auto max-w-6xl space-y-6"><div className="grid gap-4 md:grid-cols-2"><label className="vly-interactive rounded-xl border border-dashed border-[var(--vly-border-strong)] bg-[var(--vly-surface-panel)] p-4"><span className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]"><FileImage size={16} />Imagem original</span><input type="file" accept="image/*" onChange={(event) => load(event.target.files?.[0], setBefore)} className="mt-3 block w-full text-xs text-[var(--vly-text-muted)]" />{before && <p className="mt-2 truncate text-[10px] text-[var(--vly-text-secondary)]">{before.name}</p>}</label><label className="vly-interactive rounded-xl border border-dashed border-[var(--vly-border-strong)] bg-[var(--vly-surface-panel)] p-4"><span className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]"><FileImage size={16} />Imagem comparada</span><input type="file" accept="image/*" onChange={(event) => load(event.target.files?.[0], setAfter)} className="mt-3 block w-full text-xs text-[var(--vly-text-muted)]" />{after && <p className="mt-2 truncate text-[10px] text-[var(--vly-text-secondary)]">{after.name}</p>}</label></div><section className="overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)]"><div className="flex flex-wrap items-center gap-2 border-b border-[var(--vly-border-subtle)] p-3"><SquareSplitHorizontal size={16} className="text-[var(--vly-accent)]" /><select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)} className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"><option value="split">Split</option><option value="side-by-side">Side-by-side</option><option value="opacity">Opacity</option></select><button onClick={swap} disabled={!before || !after} className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-40"><ArrowLeftRight size={14} className="mr-2" />Trocar</button><button onClick={() => setPosition(50)} className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold"><RotateCcw size={14} className="mr-2" />Reset</button><button onClick={saveComparison} disabled={!before || !after} className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)] disabled:opacity-40">Salvar comparação</button></div><div className={`relative aspect-video bg-black ${mode === "side-by-side" ? "grid grid-cols-2 gap-px" : ""}`}>{mode === "side-by-side" ? <>{before && <img src={before.url} alt="Imagem original" className="h-full w-full object-contain" />}{after && <img src={after.url} alt="Imagem comparada" className="h-full w-full object-contain" />}</> : <>{before && <img src={before.url} alt="Imagem original" className="absolute inset-0 h-full w-full object-contain" />}{after && (mode === "opacity" ? <img src={after.url} alt="Imagem comparada" className="absolute inset-0 h-full w-full object-contain" style={{ opacity: position / 100 }} /> : <div className="absolute inset-0 overflow-hidden" style={{ width: `${position}%` }}><img src={after.url} alt="Imagem comparada" className="absolute inset-0 h-full w-full max-w-none object-contain" style={{ width: `${100 / Math.max(position, 1) * 100}%` }} /></div>)}</>}{!before && !after && <div className="flex h-full items-center justify-center text-sm text-[var(--vly-text-muted)]">Selecione duas imagens locais para começar.</div>}</div><div className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] p-4"><ArrowLeftRight size={16} className="text-[var(--vly-accent)]" /><input aria-label="Posição da comparação" type="range" min="1" max="99" value={position} onChange={(event) => setPosition(Number(event.target.value))} className="w-full" /><span className="w-12 text-right text-xs font-mono text-[var(--vly-text-secondary)]">{position}%</span></div></section>{history.length > 0 && <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><h2 className="text-sm font-bold text-[var(--vly-text-primary)]">Histórico local ({history.length})</h2><div className="mt-3 space-y-2">{history.slice(0, 5).map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] p-2 text-[11px]"><span className="truncate text-[var(--vly-text-secondary)]">{entry.before} ↔ {entry.after}</span><span className="text-[var(--vly-text-muted)]">{entry.mode} · {new Date(entry.savedAt).toLocaleString()}</span></div>)}</div></section>}<div className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-xs text-emerald-200"><ShieldCheck size={16} /> Processamento local: os arquivos permanecem no navegador e os object URLs são revogados ao sair.</div></div></PageLayout>;
+  return (
+    <PageLayout
+      title="Visual Compare"
+      subtitle="Comparação local, reversível e sem upload externo"
+    >
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="vly-interactive rounded-xl border border-dashed border-[var(--vly-border-strong)] bg-[var(--vly-surface-panel)] p-4">
+            <span className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
+              <FileImage size={16} />
+              Imagem original
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) =>
+                load(event.target.files?.[0], setBefore, beforeRef)
+              }
+              className="mt-3 block w-full text-xs text-[var(--vly-text-muted)]"
+            />
+            {before && (
+              <p className="mt-2 truncate text-[10px] text-[var(--vly-text-secondary)]">
+                {before.name}
+              </p>
+            )}
+          </label>
+          <label className="vly-interactive rounded-xl border border-dashed border-[var(--vly-border-strong)] bg-[var(--vly-surface-panel)] p-4">
+            <span className="flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
+              <FileImage size={16} />
+              Imagem comparada
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) =>
+                load(event.target.files?.[0], setAfter, afterRef)
+              }
+              className="mt-3 block w-full text-xs text-[var(--vly-text-muted)]"
+            />
+            {after && (
+              <p className="mt-2 truncate text-[10px] text-[var(--vly-text-secondary)]">
+                {after.name}
+              </p>
+            )}
+          </label>
+        </div>
+        <section className="overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)]">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--vly-border-subtle)] p-3">
+            <SquareSplitHorizontal
+              size={16}
+              className="text-[var(--vly-accent)]"
+            />
+            <select
+              value={mode}
+              onChange={(event) => setMode(event.target.value as typeof mode)}
+              className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"
+            >
+              <option value="split">Split</option>
+              <option value="side-by-side">Side-by-side</option>
+              <option value="opacity">Opacity</option>
+            </select>
+            <button
+              onClick={swap}
+              disabled={!before || !after}
+              className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-40"
+            >
+              <ArrowLeftRight size={14} className="mr-2" />
+              Trocar
+            </button>
+            <button
+              onClick={() => setPosition(50)}
+              className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold"
+            >
+              <RotateCcw size={14} className="mr-2" />
+              Reset
+            </button>
+            <button
+              onClick={saveComparison}
+              disabled={!before || !after}
+              className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)] disabled:opacity-40"
+            >
+              Salvar comparação
+            </button>
+          </div>
+          <div
+            className={`relative aspect-video bg-black ${mode === "side-by-side" ? "grid grid-cols-2 gap-px" : ""}`}
+          >
+            {mode === "side-by-side" ? (
+              <>
+                {before && (
+                  <img
+                    src={before.url}
+                    alt="Imagem original"
+                    className="h-full w-full object-contain"
+                  />
+                )}
+                {after && (
+                  <img
+                    src={after.url}
+                    alt="Imagem comparada"
+                    className="h-full w-full object-contain"
+                  />
+                )}
+              </>
+            ) : (
+              <>
+                {before && (
+                  <img
+                    src={before.url}
+                    alt="Imagem original"
+                    className="absolute inset-0 h-full w-full object-contain"
+                  />
+                )}
+                {after &&
+                  (mode === "opacity" ? (
+                    <img
+                      src={after.url}
+                      alt="Imagem comparada"
+                      className="absolute inset-0 h-full w-full object-contain"
+                      style={{ opacity: position / 100 }}
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0 overflow-hidden"
+                      style={{ width: `${position}%` }}
+                    >
+                      <img
+                        src={after.url}
+                        alt="Imagem comparada"
+                        className="absolute inset-0 h-full w-full max-w-none object-contain"
+                        style={{
+                          width: `${(100 / Math.max(position, 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  ))}
+              </>
+            )}
+            {!before && !after && (
+              <div className="flex h-full items-center justify-center text-sm text-[var(--vly-text-muted)]">
+                Selecione duas imagens locais para começar.
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] p-4">
+            <ArrowLeftRight size={16} className="text-[var(--vly-accent)]" />
+            <input
+              aria-label="Posição da comparação"
+              type="range"
+              min="1"
+              max="99"
+              value={position}
+              onChange={(event) => setPosition(Number(event.target.value))}
+              className="w-full"
+            />
+            <span className="w-12 text-right text-xs font-mono text-[var(--vly-text-secondary)]">
+              {position}%
+            </span>
+          </div>
+        </section>
+        {history.length > 0 && (
+          <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+            <h2 className="text-sm font-bold text-[var(--vly-text-primary)]">
+              Histórico local ({history.length})
+            </h2>
+            <div className="mt-3 space-y-2">
+              {history.slice(0, 5).map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] p-2 text-[11px]"
+                >
+                  <span className="truncate text-[var(--vly-text-secondary)]">
+                    {entry.before} ↔ {entry.after}
+                  </span>
+                  <span className="text-[var(--vly-text-muted)]">
+                    {entry.mode} · {new Date(entry.savedAt).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-xs text-emerald-200">
+          <ShieldCheck size={16} /> Processamento local: os arquivos permanecem
+          no navegador e os object URLs são revogados ao sair.
+        </div>
+      </div>
+    </PageLayout>
+  );
 }
