@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CircleStop, Download, Focus, ShieldCheck, Video } from "lucide-react";
+import { Camera, CircleStop, Download, Focus, Flashlight, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
   CameraSession,
@@ -37,6 +37,8 @@ export default function CameraPage() {
   const [mode, setMode] = useState<CameraMode>("AUTO");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [activeFacingMode, setActiveFacingMode] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const captureRecordIdRef = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
   const [storedMediaUrls, setStoredMediaUrls] = useState<
@@ -121,6 +123,8 @@ export default function CameraPage() {
       sessionRef.current = session;
       setCapabilities(detected);
       setActiveFacingMode((videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings().facingMode ?? facingMode);
+      const trackCapabilities = session.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { min?: number; max?: number; step?: number }; torch?: boolean } | undefined;
+      setZoom(trackCapabilities?.zoom?.min ?? 1);
       setActive(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "CAMERA_START_FAILED");
@@ -132,7 +136,28 @@ export default function CameraPage() {
     sessionRef.current?.stop();
     sessionRef.current = null;
     setActiveFacingMode(null);
+    setTorchOn(false);
+    setZoom(1);
     setActive(false);
+  };
+
+  const applyTorch = async () => {
+    const next = !torchOn;
+    try {
+      await sessionRef.current?.applyVideoConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setTorchOn(next);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "CAMERA_TORCH_UNAVAILABLE");
+    }
+  };
+
+  const applyZoom = async (value: number) => {
+    try {
+      await sessionRef.current?.applyVideoConstraints({ advanced: [{ zoom: value } as MediaTrackConstraintSet] });
+      setZoom(value);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "CAMERA_ZOOM_UNAVAILABLE");
+    }
   };
 
   const capture = async () => {
@@ -360,7 +385,9 @@ export default function CameraPage() {
                 {isRecording ? "Gravando 5s..." : "Gravar vídeo 5s"}
               </button>
             )}
+            {active && capabilities?.torch.state === "supported" && <button type="button" onClick={() => void applyTorch()} className={`vly-interactive rounded-lg border px-3 py-2 text-xs font-bold ${torchOn ? "border-amber-300/60 text-amber-200" : "border-[var(--vly-border-strong)] text-[var(--vly-text-primary)]"}`}><Flashlight size={14} className="mr-2 inline" />{torchOn ? "Torch ligada" : "Torch"}</button>}
           </div>
+          {active && capabilities?.zoom.state === "supported" && <label className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">Zoom <input aria-label="Zoom da câmera" type="range" min={String((sessionRef.current?.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { min?: number } })?.zoom?.min ?? 1)} max={String((sessionRef.current?.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { max?: number } })?.zoom?.max ?? 1)} step="0.1" value={zoom} onChange={(event) => void applyZoom(Number(event.target.value))} className="flex-1 accent-[var(--vly-accent)]" /><span className="w-10 text-right">{zoom.toFixed(1)}×</span></label>}
           <p className="border-t border-[var(--vly-border-subtle)] px-4 py-2 text-[11px] text-[var(--vly-text-muted)]">
             {getCameraModeProfile(mode).description}
             {getCameraModeProfile(mode).requiresHardwareControls

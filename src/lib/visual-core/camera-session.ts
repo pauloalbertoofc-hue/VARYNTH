@@ -42,6 +42,18 @@ export class CameraSession {
     return this.capabilities;
   }
 
+  getVideoTrack(): MediaStreamTrack | null {
+    return this.stream?.getVideoTracks()[0] ?? null;
+  }
+
+  async applyVideoConstraints(constraints: MediaTrackConstraints): Promise<CameraCapabilities> {
+    const track = this.getVideoTrack();
+    if (!track?.applyConstraints) throw new Error("CAMERA_TRACK_CONTROLS_UNAVAILABLE");
+    await track.applyConstraints(constraints);
+    this.capabilities = capabilitiesFromTrack(track);
+    return this.capabilities;
+  }
+
   async capture(): Promise<CameraCapture> {
     if (!this.video || !this.stream) throw new Error("CAMERA_SESSION_NOT_STARTED");
     const width = this.video.videoWidth;
