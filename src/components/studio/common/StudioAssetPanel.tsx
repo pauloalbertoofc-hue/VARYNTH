@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Paperclip,
   Upload,
@@ -27,6 +27,7 @@ interface StudioAssetPanelProps {
 export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPanelProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
   // Retrieve attached asset files
   const attachedAssetIds = Array.from(
@@ -36,6 +37,19 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   const attachedAssets: AssetFile[] = attachedAssetIds
     .map((id) => assetManager.getAsset(id))
     .filter((a): a is AssetFile => Boolean(a));
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls: Record<string, string> = {};
+    void Promise.all(attachedAssets.filter((asset) => asset.mimeType.startsWith("image/")).map(async (asset) => {
+      const data = await assetStorage.getBlob(asset.storageKey);
+      if (cancelled || !data) return;
+      urls[asset.id] = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: asset.mimeType }));
+    })).then(() => { if (!cancelled) setPreviewUrls(urls); else Object.values(urls).forEach((url) => URL.revokeObjectURL(url)); });
+    return () => { cancelled = true; Object.values(urls).forEach((url) => URL.revokeObjectURL(url)); };
+  // The IDs are the stable source for this asynchronous preview lifecycle.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachedAssetIds.join("|")]);
 
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return "0 B";
@@ -203,8 +217,8 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded bg-[var(--vly-info)]/10 border border-[var(--vly-border-info)] flex items-center justify-center text-[var(--vly-info)] shrink-0">
-                    <FileIcon size={14} />
+                  <div className="w-7 h-7 rounded bg-[var(--vly-info)]/10 border border-[var(--vly-border-info)] flex items-center justify-center text-[var(--vly-info)] shrink-0 overflow-hidden">
+                    {previewUrls[asset.id] ? <img src={previewUrls[asset.id]} alt="" className="h-full w-full object-cover" /> : <FileIcon size={14} />}
                   </div>
                   <div className="min-w-0">
                     <h5 className="font-semibold text-[var(--vly-text-primary)] text-[12px] truncate" title={asset.name}>
