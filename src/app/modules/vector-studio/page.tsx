@@ -64,6 +64,14 @@ export default function VectorStudioPage() {
   const [, setHistoryVersion] = useState(0);
   const undoStack = useRef<VectorObject[][]>([]);
   const redoStack = useRef<VectorObject[][]>([]);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    objectX: number;
+    objectY: number;
+  } | null>(null);
   const previousObjects = useRef<VectorObject[]>(initial);
   const historyAction = useRef(false);
   const selected = objects.find((item) => item.id === selectedId) ?? objects[0];
@@ -168,6 +176,50 @@ export default function VectorStudioPage() {
         item.id === selectedId ? { ...item, [field]: value } : item,
       ),
     );
+  const pointInSvg = (event: React.PointerEvent<SVGElement>) => {
+    const svgElement = svgRef.current;
+    if (!svgElement) return { x: 0, y: 0 };
+    const bounds = svgElement.getBoundingClientRect();
+    return {
+      x: ((event.clientX - bounds.left) / Math.max(1, bounds.width)) * 1200,
+      y: ((event.clientY - bounds.top) / Math.max(1, bounds.height)) * 700,
+    };
+  };
+  const startDrag = (
+    event: React.PointerEvent<SVGElement>,
+    item: VectorObject,
+  ) => {
+    event.stopPropagation();
+    const point = pointInSvg(event);
+    dragRef.current = {
+      id: item.id,
+      startX: point.x,
+      startY: point.y,
+      objectX: item.x,
+      objectY: item.y,
+    };
+    event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId);
+    setSelectedId(item.id);
+  };
+  const moveDrag = (event: React.PointerEvent<SVGSVGElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const point = pointInSvg(event);
+    setObjects((items) =>
+      items.map((item) =>
+        item.id === drag.id
+          ? {
+              ...item,
+              x: drag.objectX + point.x - drag.startX,
+              y: drag.objectY + point.y - drag.startY,
+            }
+          : item,
+      ),
+    );
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+  };
   const add = () => {
     const id = `vector-${Date.now()}`;
     const index = objects.length;
@@ -358,10 +410,13 @@ export default function VectorStudioPage() {
         <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
           <div className="overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-black">
             <svg
+              ref={svgRef}
               viewBox="0 0 1200 700"
               className="block h-auto w-full"
               role="img"
               aria-label="Canvas vetorial"
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
             >
               {objects.map((item) => {
                 const selectedStyle =
@@ -371,7 +426,7 @@ export default function VectorStudioPage() {
                 return item.type === "rect" ? (
                   <rect
                     key={item.id}
-                    onClick={() => setSelectedId(item.id)}
+                    onPointerDown={(event) => startDrag(event, item)}
                     x={item.x}
                     y={item.y}
                     width={item.width}
@@ -382,7 +437,7 @@ export default function VectorStudioPage() {
                 ) : item.type === "circle" ? (
                   <circle
                     key={item.id}
-                    onClick={() => setSelectedId(item.id)}
+                    onPointerDown={(event) => startDrag(event, item)}
                     cx={item.x + item.width / 2}
                     cy={item.y + item.height / 2}
                     r={Math.min(item.width, item.height) / 2}
@@ -392,7 +447,7 @@ export default function VectorStudioPage() {
                 ) : item.type === "bezier" ? (
                   <path
                     key={item.id}
-                    onClick={() => setSelectedId(item.id)}
+                    onPointerDown={(event) => startDrag(event, item)}
                     d={bezierPath(item)}
                     fill="none"
                     stroke={item.color}
@@ -403,7 +458,7 @@ export default function VectorStudioPage() {
                 ) : (
                   <text
                     key={item.id}
-                    onClick={() => setSelectedId(item.id)}
+                    onPointerDown={(event) => startDrag(event, item)}
                     x={item.x}
                     y={item.y + item.height / 2}
                     fill={item.color}
@@ -490,9 +545,9 @@ export default function VectorStudioPage() {
           </aside>
         </div>
         <p className="text-xs text-[var(--vly-text-muted)]">
-          Editor local-first com formas, texto e curvas Bézier parametrizadas;
-          edição individual de nós e booleanos avançados ainda não estão
-          disponíveis.
+          Editor local-first com formas, texto, arraste direto no canvas e
+          curvas Bézier parametrizadas; edição individual de nós e booleanos
+          avançados ainda não estão disponíveis.
         </p>
       </div>
     </PageLayout>
