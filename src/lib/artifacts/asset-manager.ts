@@ -302,6 +302,17 @@ export class AssetManager {
       return { valid: false, status: "ASSET_MISSING" };
     }
 
+    if (asset.checksum) {
+      const currentChecksum = this.calculateChecksum(data as Blob | ArrayBuffer | string);
+      if (currentChecksum !== asset.checksum) {
+        asset.status = "CORRUPTED";
+        this.saveRegistry();
+        athenaEventBus.emit("CORRUPTED_ASSET" as any, { assetId: id, expected: asset.checksum, actual: currentChecksum });
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("varynth:asset-changed", { detail: { assetId: id, status: "CORRUPTED" } }));
+        return { valid: false, status: "ASSET_CORRUPTED", sizeBytes: asset.sizeBytes };
+      }
+    }
+
     return { valid: true, status: "VALID", sizeBytes: asset.sizeBytes };
   }
 
