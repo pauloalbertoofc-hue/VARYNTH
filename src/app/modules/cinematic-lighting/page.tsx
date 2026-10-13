@@ -137,6 +137,36 @@ export default function CinematicLightingPage() {
     link.click();
     URL.revokeObjectURL(link.href);
   };
+  const loadRecipe = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as {
+          schema?: string;
+          parameters?: Partial<CinematicLightingParameters>;
+          look?: CinematicLightingLook;
+        };
+        if (parsed.schema !== "varynth.cinematic-lighting-recipe")
+          throw new Error(
+            "Receita incompatível com o Cinematic Lighting Studio.",
+          );
+        setParameters(normalizeCinematicLightingParameters(parsed.parameters));
+        if (parsed.look && parsed.look in CINEMATIC_LIGHTING_LOOKS)
+          setLook(parsed.look);
+        else setLook("custom");
+        setError("");
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível ler a receita de iluminação.",
+        );
+      }
+    };
+    reader.onerror = () =>
+      setError("Não foi possível ler o arquivo de receita.");
+    reader.readAsText(file);
+  };
   const openInImageStudio = async () => {
     const canvas = canvasRef.current;
     if (!canvas || !originalRef.current) return;
@@ -186,6 +216,19 @@ export default function CinematicLightingPage() {
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) load(file);
+              }}
+            />
+          </label>
+          <label className="vly-interactive inline-flex cursor-pointer items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold">
+            <FileJson size={14} className="mr-2" />
+            Abrir receita
+            <input
+              className="sr-only"
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) loadRecipe(file);
               }}
             />
           </label>
