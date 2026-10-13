@@ -15,8 +15,10 @@ session.stop();
 assert.equal(stopped, false);
 console.log("Camera session tests passed: lifecycle is safe before start.");
 assert.equal(typeof session.recordVideo, "function");
-await session.start({ play: async () => undefined } as unknown as HTMLVideoElement);
-await session.applyVideoConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] });
-assert.deepEqual(applied, { advanced: [{ torch: true }] });
-console.log("Camera session tests passed: hardware constraints reach the active video track.");
+void (async () => {
+  await session.start({ play: async () => undefined } as unknown as HTMLVideoElement);
+  await session.applyVideoConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] });
+  assert.deepEqual(applied, { advanced: [{ torch: true }] });
+  console.log("Camera session tests passed: hardware constraints reach the active video track.");
+})();
 
