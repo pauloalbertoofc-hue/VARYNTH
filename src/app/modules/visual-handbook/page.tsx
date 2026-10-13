@@ -107,7 +107,7 @@ const tutorials = [
     steps: [
       "Abra Retouch Studio.",
       "Carregue uma imagem local.",
-      "Ajuste brilho, contraste e saturação observando o preview.",
+      "Escolha Natural, Editorial, Noir ou Clean e refine brilho, contraste e saturação observando o preview.",
       "Exporte PNG ou abra a cópia no Image Studio.",
     ],
     href: "/modules/retouch",
