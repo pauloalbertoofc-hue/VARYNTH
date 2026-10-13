@@ -152,6 +152,7 @@ export class AssetManager {
     this.saveRegistry();
 
     athenaEventBus.emit("ASSET_CREATED", { assetId: id, name: asset.name, sizeBytes: asset.sizeBytes });
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("varynth:asset-created", { detail: { assetId: id } }));
 
     return JSON.parse(JSON.stringify(asset));
   }

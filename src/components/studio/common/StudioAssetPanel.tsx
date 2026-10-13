@@ -29,6 +29,7 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   const [feedback, setFeedback] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [libraryQuery, setLibraryQuery] = useState("");
+  const [, refreshLibrary] = useState(0);
 
   // Retrieve attached asset files
   const attachedAssetIds = Array.from(
@@ -41,6 +42,13 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   const availableLibraryAssets = assetManager.getAllAssets().filter((asset) => !attachedAssetIds.includes(asset.id) && asset.status !== "QUARANTINED" && asset.status !== "CORRUPTED");
   const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
   const filteredLibraryAssets = availableLibraryAssets.filter((asset) => !normalizedLibraryQuery || `${asset.name} ${asset.id} ${asset.mimeType}`.toLowerCase().includes(normalizedLibraryQuery));
+
+  useEffect(() => {
+    const refresh = () => refreshLibrary((value) => value + 1);
+    window.addEventListener("varynth:asset-created", refresh);
+    window.addEventListener("varynth:asset-metadata-updated", refresh);
+    return () => { window.removeEventListener("varynth:asset-created", refresh); window.removeEventListener("varynth:asset-metadata-updated", refresh); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
