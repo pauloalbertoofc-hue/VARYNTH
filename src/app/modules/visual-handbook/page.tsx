@@ -34,7 +34,7 @@ const tutorials = [
     ],
     href: "/modules/vector-studio",
     limitation:
-      "A curva é parametrizada pelo enquadramento; edição individual de nós e booleanos ainda não está disponível.",
+      "A curva é parametrizada pelo enquadramento; edição individual de nós e booleanos ainda não está disponível. Formas e círculos também aceitam gradientes lineares e arraste direto no canvas.",
   },
   {
     id: "rendering-3d",
@@ -102,17 +102,31 @@ const tutorials = [
       "As métricas são técnicas e locais; segmentação, calibração e diagnóstico científico especializado ainda não estão disponíveis.",
   },
   {
+    id: "cinematic-lighting",
+    title: "Aplicando iluminação cinematográfica",
+    steps: [
+      "Abra Cinematic Lighting Studio e carregue uma imagem local.",
+      "Escolha Natural, Cinematic, Noir ou Golden Glow.",
+      "Refine exposição, contraste, temperatura, matiz e vinheta.",
+      "Exporte PNG ou a receita JSON para reabrir os mesmos parâmetros; também é possível enviar o resultado ao Image Studio.",
+    ],
+    href: "/modules/cinematic-lighting",
+    limitation:
+      "O processamento é local e determinístico; LUTs ICC, profundidade e iluminação 3D ainda não estão disponíveis.",
+  },
+  {
     id: "retouch",
     title: "Ajustando uma imagem com segurança",
     steps: [
       "Abra Retouch Studio.",
       "Carregue uma imagem local.",
       "Escolha Natural, Editorial, Noir ou Clean e refine brilho, contraste e saturação observando o preview; qualquer ajuste manual passa a Personalizado.",
+      "Use Clone Stamp ou Healing Brush: clique no canvas para o destino e Shift+clique para a origem; ajuste raio e opacidade.",
       "Exporte PNG ou abra a cópia no Image Studio.",
     ],
     href: "/modules/retouch",
     limitation:
-      "O módulo preserva o buffer original; healing, clone, remoção de objetos e reconstrução generativa ainda não estão disponíveis.",
+      "O módulo preserva o buffer original; remoção de objetos e reconstrução generativa ainda não estão disponíveis.",
   },
   {
     id: "procedural-graph",
@@ -196,8 +210,8 @@ export default function VisualHandbookPage() {
             </h2>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--vly-text-muted)]">
               O Pictor recebe texto, métricas locais e um resumo filtrado da
-              captura. Ele não acessa blobs, arquivos ou ferramentas e mantém
-              as consultas sob seu controle.
+              captura. Ele não acessa blobs, arquivos ou ferramentas e mantém as
+              consultas sob seu controle.
             </p>
           </div>
           <Link
