@@ -46,8 +46,9 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   useEffect(() => {
     const refresh = () => refreshLibrary((value) => value + 1);
     window.addEventListener("varynth:asset-created", refresh);
+    window.addEventListener("varynth:asset-changed", refresh);
     window.addEventListener("varynth:asset-metadata-updated", refresh);
-    return () => { window.removeEventListener("varynth:asset-created", refresh); window.removeEventListener("varynth:asset-metadata-updated", refresh); };
+    return () => { window.removeEventListener("varynth:asset-created", refresh); window.removeEventListener("varynth:asset-changed", refresh); window.removeEventListener("varynth:asset-metadata-updated", refresh); };
   }, []);
 
   useEffect(() => {

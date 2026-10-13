@@ -166,6 +166,7 @@ export class AssetManager {
     this.saveRegistry();
 
     athenaEventBus.emit("ASSET_QUARANTINED" as any, { assetId, reason });
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("varynth:asset-changed", { detail: { assetId, status: "QUARANTINED" } }));
     return JSON.parse(JSON.stringify(asset));
   }
 
@@ -261,6 +262,7 @@ export class AssetManager {
     this.saveRegistry();
 
     athenaEventBus.emit("ASSET_DELETED", { assetId: id });
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("varynth:asset-changed", { detail: { assetId: id, status: "DELETED" } }));
     return true;
   }
 
