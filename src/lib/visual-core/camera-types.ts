@@ -22,7 +22,7 @@ export function getCameraModeProfile(mode: CameraMode): CameraModeProfile {
       return { mode, label: "STUDIO", description: "Captura com intenção de continuidade para o Visual Studio.", constraints: { video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false }, requiresHardwareControls: false };
     case "AUTO":
     default:
-      return { mode: "AUTO", label: "AUTO", description: "Captura simples e confiável.", constraints: { video: true, audio: false }, requiresHardwareControls: false };
+      return { mode: "AUTO", label: "AUTO", description: "Captura simples e confiável; em celulares solicita a câmera traseira e aceita fallback do dispositivo.", constraints: { video: { facingMode: { ideal: "environment" } }, audio: false }, requiresHardwareControls: false };
   }
 }
 

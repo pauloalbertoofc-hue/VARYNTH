@@ -6,6 +6,7 @@ for (const mode of modes) {
   const profile = getCameraModeProfile(mode);
   assert.equal(profile.mode, mode);
   assert.ok(profile.constraints.video);
+  assert.deepEqual((profile.constraints.video as MediaTrackConstraints).facingMode, { ideal: "environment" });
 }
 assert.equal(getCameraModeProfile("VIDEO").constraints.audio, true);
 assert.equal(getCameraModeProfile("PRO").requiresHardwareControls, true);
