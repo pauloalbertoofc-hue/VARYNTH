@@ -6,5 +6,6 @@ assert.deepEqual(validateProceduralGraph({ ...graph, connections: [{ from: "inpu
 assert.deepEqual(validateProceduralGraph({ ...graph, connections: [{ from: "input", to: "output" }, { from: "output", to: "input" }] }), ["CYCLE_DETECTED"]);
 assert.deepEqual(evaluateProceduralGraph(graph), { color: "#000000", errors: [] });
 assert.deepEqual(evaluateProceduralGraph(normalizeProceduralGraph({ nodes: [{ id: "color", type: "color", parameters: { value: "#ABCDEF" } }, { id: "output", type: "output" }], connections: [{ from: "color", to: "output" }] })), { color: "#abcdef", errors: [] });
+assert.deepEqual(evaluateProceduralGraph(normalizeProceduralGraph({ nodes: [{ id: "a", type: "color", parameters: { value: "#000000" } }, { id: "b", type: "color", parameters: { value: "#ffffff" } }, { id: "mix", type: "blend", parameters: {} }, { id: "output", type: "output", parameters: {} }], connections: [{ from: "a", to: "mix" }, { from: "b", to: "mix" }, { from: "mix", to: "output" }] })), { color: "#808080", errors: [] });
 console.log("Procedural graph contract tests passed.");
 
