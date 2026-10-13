@@ -5,7 +5,8 @@ export const modules: VarynthModule[] = [
   {
     id: "technical-archive",
     name: "Technical Archive",
-    description: "Documentação técnica oficial, ADRs, manuais de arquitetura e histórico de engenharia do VARYNTH OS.",
+    description:
+      "Documentação técnica oficial, ADRs, manuais de arquitetura e histórico de engenharia do VARYNTH OS.",
     icon: "🏛️",
     layer: "system",
     category: "conhecimento",
@@ -19,7 +20,8 @@ export const modules: VarynthModule[] = [
   {
     id: "projects",
     name: "Projects",
-    description: "Hub principal de projetos. Workspaces com tarefas, notas, arquivos, timeline e Athena integrada.",
+    description:
+      "Hub principal de projetos. Workspaces com tarefas, notas, arquivos, timeline e Athena integrada.",
     icon: "📁",
     layer: "system",
     category: "gestao",
@@ -33,21 +35,32 @@ export const modules: VarynthModule[] = [
   {
     id: "studio",
     name: "Studio Hub",
-    description: "Hub unificado de criação dos 6 Creative Studios: Document, Web, Image, Audio, Video e Game.",
+    description:
+      "Hub unificado de criação dos 6 Creative Studios: Document, Web, Image, Audio, Video e Game.",
     icon: "🎨",
     layer: "system",
     category: "conhecimento",
     color: "violet",
     href: "/modules/studio",
     status: "active",
-    tags: ["studio", "document", "web", "image", "audio", "video", "game", "criacao"],
+    tags: [
+      "studio",
+      "document",
+      "web",
+      "image",
+      "audio",
+      "video",
+      "game",
+      "criacao",
+    ],
     version: "1.0.0",
     badge: "6 Studios",
   },
   {
     id: "camera",
     name: "Varynth Camera",
-    description: "Captura real de câmera com preview, capacidades do dispositivo e proveniência preservada.",
+    description:
+      "Captura real de câmera com preview, capacidades do dispositivo e proveniência preservada.",
     icon: "📷",
     layer: "system",
     category: "conhecimento",
@@ -61,7 +74,8 @@ export const modules: VarynthModule[] = [
   {
     id: "visual-studio",
     name: "Visual Studio",
-    description: "Orquestração visual por Capture, Enhance, Edit, Create, Analyze e Produce, com estados de implementação honestos.",
+    description:
+      "Orquestração visual por Capture, Enhance, Edit, Create, Analyze e Produce, com estados de implementação honestos.",
     icon: "🖼️",
     layer: "system",
     category: "conhecimento",
@@ -75,7 +89,8 @@ export const modules: VarynthModule[] = [
   {
     id: "visual-handbook",
     name: "Visual Handbook",
-    description: "Documentação contextual das capacidades visuais, contratos, evidências e limites operacionais.",
+    description:
+      "Documentação contextual das capacidades visuais, contratos, evidências e limites operacionais.",
     icon: "📖",
     layer: "system",
     category: "conhecimento",
@@ -89,7 +104,8 @@ export const modules: VarynthModule[] = [
   {
     id: "visual-compare",
     name: "Visual Compare",
-    description: "Comparação local entre imagens com divisão deslizante, sem upload externo.",
+    description:
+      "Comparação local entre imagens com divisão deslizante, sem upload externo.",
     icon: "↔️",
     layer: "system",
     category: "conhecimento",
@@ -103,7 +119,8 @@ export const modules: VarynthModule[] = [
   {
     id: "digital-painting",
     name: "Digital Painting",
-    description: "Canvas local com pincel, cor, tamanho, borracha e exportação PNG.",
+    description:
+      "Canvas local com pincel, cor, tamanho, borracha e exportação PNG.",
     icon: "🖌️",
     layer: "system",
     category: "conhecimento",
@@ -117,7 +134,8 @@ export const modules: VarynthModule[] = [
   {
     id: "vector-studio",
     name: "Vector Studio",
-    description: "Objetos SVG locais com formas, texto, cor, remoção e exportação vetorial.",
+    description:
+      "Objetos SVG locais com formas, texto, cor, remoção e exportação vetorial.",
     icon: "✒️",
     layer: "system",
     category: "conhecimento",
@@ -131,7 +149,8 @@ export const modules: VarynthModule[] = [
   {
     id: "music",
     name: "Music",
-      description: "Biblioteca privada, player visual, Music DNA e Euterpe subordinada à Athena.",
+    description:
+      "Biblioteca privada, player visual, Music DNA e Euterpe subordinada à Athena.",
     icon: "🎧",
     layer: "personal",
     category: "conhecimento",
@@ -139,13 +158,14 @@ export const modules: VarynthModule[] = [
     href: "/modules/music",
     status: "active",
     tags: ["musica", "player", "biblioteca", "audio"],
-      version: "1.2.0",
-      badge: "1.2",
+    version: "1.2.0",
+    badge: "1.2",
   },
   {
     id: "graph",
     name: "Graph Epistêmico",
-    description: "Visualizador espacial de conexões entre projetos, vault, teses, evidências e código.",
+    description:
+      "Visualizador espacial de conexões entre projetos, vault, teses, evidências e código.",
     icon: "🕸️",
     layer: "system",
     category: "conhecimento",
@@ -159,7 +179,8 @@ export const modules: VarynthModule[] = [
   {
     id: "vault",
     name: "Vault",
-    description: "Biblioteca pessoal e segundo cérebro relacional para artigos, livros, leis, links e anotações.",
+    description:
+      "Biblioteca pessoal e segundo cérebro relacional para artigos, livros, leis, links e anotações.",
     icon: "📚",
     layer: "system",
     category: "conhecimento",
@@ -172,7 +193,8 @@ export const modules: VarynthModule[] = [
   {
     id: "knowledge",
     name: "Knowledge",
-    description: "Mapa transversal de domínios, ownership, provenance e conhecimento público entre agentes.",
+    description:
+      "Mapa transversal de domínios, ownership, provenance e conhecimento público entre agentes.",
     icon: "🧭",
     layer: "system",
     category: "conhecimento",
@@ -186,7 +208,8 @@ export const modules: VarynthModule[] = [
   {
     id: "chronos",
     name: "Chronos",
-    description: "Gestão temporal avançada com calendário, rotinas, foco e linha do tempo histórica.",
+    description:
+      "Gestão temporal avançada com calendário, rotinas, foco e linha do tempo histórica.",
     icon: "⏳",
     layer: "system",
     category: "produtividade",
@@ -199,7 +222,8 @@ export const modules: VarynthModule[] = [
   {
     id: "people",
     name: "People",
-    description: "Gestão de colaboradores e permissões granulares de acesso isolado por projeto.",
+    description:
+      "Gestão de colaboradores e permissões granulares de acesso isolado por projeto.",
     icon: "👥",
     layer: "system",
     category: "gestao",
@@ -212,7 +236,8 @@ export const modules: VarynthModule[] = [
   {
     id: "labs",
     name: "Labs & Graveyard",
-    description: "Incubadora de ideias com 'Promote to Project' e memorial de aprendizados de projetos descontinuados.",
+    description:
+      "Incubadora de ideias com 'Promote to Project' e memorial de aprendizados de projetos descontinuados.",
     icon: "🧪",
     layer: "system",
     category: "produtividade",
@@ -225,7 +250,8 @@ export const modules: VarynthModule[] = [
   {
     id: "activity",
     name: "Histórico & Auditoria",
-    description: "Linha do tempo centralizada e Audit Trail de todas as mutações realizadas por Usuário, Athena AI e Sistema.",
+    description:
+      "Linha do tempo centralizada e Audit Trail de todas as mutações realizadas por Usuário, Athena AI e Sistema.",
     icon: "📜",
     layer: "system",
     category: "gestao",
@@ -238,7 +264,8 @@ export const modules: VarynthModule[] = [
   {
     id: "trash",
     name: "Lixeira Central",
-    description: "Gerenciamento de itens excluídos com retenção de segurança de 10 dias e auto-destruição.",
+    description:
+      "Gerenciamento de itens excluídos com retenção de segurança de 10 dias e auto-destruição.",
     icon: "🗑️",
     layer: "system",
     category: "gestao",
@@ -254,7 +281,8 @@ export const modules: VarynthModule[] = [
   {
     id: "athena",
     name: "Athena AI",
-    description: "Inteligência Artificial transversal e Command Center NLP com visibilidade total do VARYNTH OS.",
+    description:
+      "Inteligência Artificial transversal e Command Center NLP com visibilidade total do VARYNTH OS.",
     icon: "🦉",
     layer: "personal",
     category: "inteligencia",
@@ -268,7 +296,8 @@ export const modules: VarynthModule[] = [
   {
     id: "codex",
     name: "Codex & Arena",
-    description: "Ambiente jurídico dialético com a Argument Arena, jurisprudência, doutrina e fichamentos.",
+    description:
+      "Ambiente jurídico dialético com a Argument Arena, jurisprudência, doutrina e fichamentos.",
     icon: "⚖️",
     layer: "personal",
     category: "juridico",
@@ -281,7 +310,8 @@ export const modules: VarynthModule[] = [
   {
     id: "research",
     name: "Research & Board",
-    description: "Pesquisa acadêmica estruturada com Evidence Board probatório para artigos e publicações Qualis.",
+    description:
+      "Pesquisa acadêmica estruturada com Evidence Board probatório para artigos e publicações Qualis.",
     icon: "🔬",
     layer: "personal",
     category: "pesquisa",
@@ -294,7 +324,8 @@ export const modules: VarynthModule[] = [
   {
     id: "opportunities",
     name: "Opportunities",
-    description: "Radar de editais, bolsas PIBIC, concursos e premiações com Pipeline Kanban de submissão.",
+    description:
+      "Radar de editais, bolsas PIBIC, concursos e premiações com Pipeline Kanban de submissão.",
     icon: "🏆",
     layer: "personal",
     category: "gestao",
@@ -307,7 +338,8 @@ export const modules: VarynthModule[] = [
   {
     id: "forge",
     name: "Forge Studio",
-    description: "Web IDE com editor multi-linguagem, terminal interativo JS/Python/SQL e templates.",
+    description:
+      "Web IDE com editor multi-linguagem, terminal interativo JS/Python/SQL e templates.",
     icon: "🛠️",
     layer: "personal",
     category: "desenvolvimento",
@@ -320,7 +352,8 @@ export const modules: VarynthModule[] = [
   {
     id: "shader-forge",
     name: "Shader Forge",
-    description: "Gerador procedural visual local com preview determinístico e exportação PNG.",
+    description:
+      "Gerador procedural visual local com preview determinístico e exportação PNG.",
     icon: "✨",
     layer: "personal",
     category: "desenvolvimento",
@@ -333,7 +366,8 @@ export const modules: VarynthModule[] = [
   {
     id: "rendering-3d",
     name: "3D & Rendering Studio",
-    description: "Cena 3D local em WebGL2 com câmera, material parametrizado e exportação PNG.",
+    description:
+      "Cena 3D local em WebGL2 com câmera, material parametrizado e exportação PNG.",
     icon: "🧊",
     layer: "personal",
     category: "desenvolvimento",
@@ -346,7 +380,8 @@ export const modules: VarynthModule[] = [
   {
     id: "mathematical-art",
     name: "Mathematical Art Studio",
-    description: "Fractais Mandelbrot e Julia renderizados localmente com parâmetros persistentes e exportação PNG.",
+    description:
+      "Fractais Mandelbrot e Julia renderizados localmente com parâmetros persistentes e exportação PNG.",
     icon: "∑",
     layer: "personal",
     category: "desenvolvimento",
@@ -359,7 +394,8 @@ export const modules: VarynthModule[] = [
   {
     id: "texture-material",
     name: "Texture & Material Lab",
-    description: "Texturas procedurais locais, parâmetros de material e descriptor JSON versionado.",
+    description:
+      "Texturas procedurais locais, parâmetros de material e descriptor JSON versionado.",
     icon: "🧱",
     layer: "personal",
     category: "desenvolvimento",
@@ -372,7 +408,8 @@ export const modules: VarynthModule[] = [
   {
     id: "scientific-imaging",
     name: "Scientific Imaging",
-    description: "Análise local de imagens com histograma, luminância, clipping e relatório técnico versionado.",
+    description:
+      "Análise local de imagens com histograma, luminância, clipping e relatório técnico versionado.",
     icon: "📊",
     layer: "personal",
     category: "desenvolvimento",
@@ -385,7 +422,8 @@ export const modules: VarynthModule[] = [
   {
     id: "code-graphics",
     name: "Code Graphics Studio",
-    description: "Composição gráfica declarativa com documento JSON versionado, preview SVG e exportação local.",
+    description:
+      "Composição gráfica declarativa com documento JSON versionado, preview SVG e exportação local.",
     icon: "💻",
     layer: "personal",
     category: "desenvolvimento",
@@ -398,7 +436,8 @@ export const modules: VarynthModule[] = [
   {
     id: "retouch",
     name: "Retouch Studio",
-    description: "Ajustes técnicos locais de brilho, contraste e saturação com exportação PNG.",
+    description:
+      "Ajustes técnicos locais de brilho, contraste e saturação com exportação PNG.",
     icon: "🖌️",
     layer: "personal",
     category: "desenvolvimento",
@@ -409,9 +448,24 @@ export const modules: VarynthModule[] = [
     version: "0.1.0",
   },
   {
+    id: "cinematic-lighting",
+    name: "Cinematic Lighting Studio",
+    description:
+      "Looks e ajustes locais de exposição, contraste, temperatura, matiz e vinheta com receitas reproduzíveis.",
+    icon: "🎬",
+    layer: "personal",
+    category: "desenvolvimento",
+    color: "amber",
+    href: "/modules/cinematic-lighting",
+    status: "active",
+    tags: ["visual", "lighting", "cinematic", "enhance"],
+    version: "0.1.0",
+  },
+  {
     id: "procedural-graph",
     name: "Procedural Node Studio",
-    description: "Grafo procedural tipado com validação, serialização e exportação JSON.",
+    description:
+      "Grafo procedural tipado com validação, serialização e exportação JSON.",
     icon: "🔀",
     layer: "personal",
     category: "desenvolvimento",
@@ -424,7 +478,8 @@ export const modules: VarynthModule[] = [
   {
     id: "ligahub",
     name: "LigaHub",
-    description: "Sistema operacional completo para gestão da Liga Acadêmica (membros, presença, financeiro).",
+    description:
+      "Sistema operacional completo para gestão da Liga Acadêmica (membros, presença, financeiro).",
     icon: "🏛️",
     layer: "personal",
     category: "gestao",
