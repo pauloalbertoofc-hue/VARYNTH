@@ -1,4 +1,5 @@
-export type VisualWorkflow = "CAPTURE" | "ENHANCE" | "EDIT" | "CREATE" | "ANALYZE" | "PRODUCE";
+export type VisualWorkflow =
+  "CAPTURE" | "ENHANCE" | "EDIT" | "CREATE" | "ANALYZE" | "PRODUCE";
 export type VisualCapabilityStatus = "READY" | "PARTIAL" | "PLANNED";
 
 export type VisualStudioCapability = {
@@ -12,32 +13,246 @@ export type VisualStudioCapability = {
 };
 
 export const visualCapabilities: VisualStudioCapability[] = [
-  { id: "camera", name: "Varynth Camera", workflow: "CAPTURE", description: "Captura real do dispositivo, capacidades detectadas e proveniência preservada.", status: "READY", href: "/modules/camera", evidence: "CameraSession + MediaStream + Camera Library" },
-  { id: "image-editing", name: "Image Studio", workflow: "EDIT", description: "Camadas, canvas, histórico, importação/exportação e documento visual universal.", status: "READY", href: "/modules/studio?studio=IMAGE", evidence: "imageService + ImageCanvas + VisualDocument" },
-  { id: "visual-document", name: "Visual Document", workflow: "PRODUCE", description: "Contrato versionado para transportar imagens, objetos, metadados e proveniência.", status: "READY", href: "/modules/studio?studio=IMAGE", evidence: "varynth.visual-document v1" },
-  { id: "processing-graph", name: "Processing Graph", workflow: "ENHANCE", description: "Grafo tipado com validação, ordem topológica, cache e cancelamento.", status: "READY", evidence: "Visual Core processing runtime" },
-  { id: "color", name: "Color Engine", workflow: "ENHANCE", description: "Operações de cor determinísticas para composição e análise local.", status: "READY", evidence: "Visual Core color engine" },
-  { id: "geometry", name: "Geometry Engine", workflow: "CREATE", description: "Transformações, bounding boxes e snapping para objetos visuais.", status: "READY", evidence: "Visual Core geometry engine" },
-  { id: "masks", name: "Mask Engine", workflow: "EDIT", description: "Máscaras raster combináveis para operações não destrutivas.", status: "READY", evidence: "Visual Core mask engine" },
-  { id: "quality", name: "Capture Quality Gate", workflow: "ANALYZE", description: "Métricas locais de nitidez, exposição e alertas técnicos.", status: "READY", evidence: "camera-quality + persisted report" },
-  { id: "painting", name: "Digital Painting Studio", workflow: "CREATE", description: "Canvas local com pincel, borracha, limpeza, PNG e abertura no Image Studio.", status: "READY", href: "/modules/digital-painting", evidence: "Canvas 2D + PNG export + Image Studio import" },
-  { id: "vector", name: "Vector Studio", workflow: "CREATE", description: "Formas, texto e curvas Bézier SVG parametrizadas, inspector, rascunho local, exportação e abertura no Image Studio.", status: "PARTIAL", href: "/modules/vector-studio", evidence: "SVG editor + Bézier frame + localStorage draft + Image Studio import; nós/booleanos ainda ausentes" },
-  { id: "shader", name: "Shader Forge", workflow: "CREATE", description: "Preview WebGL2 procedural determinístico com uniforms locais, diagnóstico de compilação, fallback 2D e exportação PNG, sem execução arbitrária.", status: "PARTIAL", href: "/modules/shader-forge", evidence: "Vertex/fragment shader fixos + uniforms + fallback 2D + parâmetros locais + PNG export" },
-  { id: "rendering-3d", name: "3D & Rendering Studio", workflow: "CREATE", description: "Cena WebGL2 local com malha parametrizada, câmera, materiais procedurais, luz ajustável, wireframe, persistência e exportação PNG.", status: "PARTIAL", href: "/modules/rendering-3d", evidence: "Cubo indexado + matriz de câmera + materiais sólido/xadrez/bandas + intensidade de luz + wireframe + localStorage + PNG export; iluminação física e importação de malhas ainda ausentes" },
-  { id: "mathematical-art", name: "Mathematical Art Studio", workflow: "CREATE", description: "Fractais Mandelbrot e Julia determinísticos com parâmetros persistentes, exportação PNG e abertura no Image Studio.", status: "PARTIAL", href: "/modules/mathematical-art", evidence: "Renderização CPU local + iterações/zoom/C parametrizados + PNG export + Image Studio import; aceleração GPU ainda ausente" },
-  { id: "texture-material", name: "Texture & Material Lab", workflow: "CREATE", description: "Texturas procedurais locais com parâmetros de material, preview, PNG, descriptor JSON e abertura no Image Studio.", status: "PARTIAL", href: "/modules/texture-material", evidence: "Preview CPU + padrões xadrez/anéis/ruído + roughness/metallic/normal descriptor + persistência + Image Studio import; PBR físico e exportação Game Studio ainda ausentes" },
-  { id: "scientific-imaging", name: "Scientific Imaging", workflow: "ANALYZE", description: "Medição local de imagens com histograma de luminância, clipping, contraste, alfa e relatório versionado.", status: "PARTIAL", href: "/modules/scientific-imaging", evidence: "ImageData analyzer + canvas preview + JSON report export; segmentação, calibração e análise especializada ainda ausentes" },
-  { id: "code-graphics", name: "Code Graphics Studio", workflow: "CREATE", description: "Composição gráfica declarativa com contrato JSON versionado, preview/exportação SVG e formas editáveis no Image Studio.", status: "PARTIAL", href: "/modules/code-graphics", evidence: "Parser + SVG renderer + VisualDocument round-trip; execução de código arbitrário, shaders editáveis e nós ainda ausentes" },
-  { id: "retouch", name: "Retouch Studio", workflow: "ENHANCE", description: "Looks Natural, Editorial, Noir e Clean, além de ajustes locais não destrutivos de brilho, contraste e saturação.", status: "PARTIAL", href: "/modules/retouch", evidence: "Pixel adjustment engine + looks determinísticos + original buffer + PNG export + Image Studio import; healing, clone e remoção de objetos ainda ausentes" },
-  { id: "procedural-graph", name: "Procedural Node Studio", workflow: "CREATE", description: "Grafo procedural tipado com serialização, validação de conexões, detecção de ciclos, preview determinístico por nó e exportação para o Image Studio.", status: "PARTIAL", href: "/modules/procedural-graph", evidence: "Contrato JSON + normalização + validação + avaliação/preview por nó + PNG local encaminhado ao Image Studio; subgrafos e execução incremental ainda ausentes" },
-  { id: "pictor", name: "Pictor", workflow: "ANALYZE", description: "Agente consultivo que analisa texto, métricas e resumo filtrado de captura, sem acesso direto à mídia.", status: "PARTIAL", href: "/modules/visual-studio", evidence: "PictorAgent + contexto sanitizado + Quality Gate + histórico local + fronteira advisory-only" },
+  {
+    id: "camera",
+    name: "Varynth Camera",
+    workflow: "CAPTURE",
+    description:
+      "Captura real do dispositivo, capacidades detectadas e proveniência preservada.",
+    status: "READY",
+    href: "/modules/camera",
+    evidence: "CameraSession + MediaStream + Camera Library",
+  },
+  {
+    id: "image-editing",
+    name: "Image Studio",
+    workflow: "EDIT",
+    description:
+      "Camadas, canvas, histórico, importação/exportação e documento visual universal.",
+    status: "READY",
+    href: "/modules/studio?studio=IMAGE",
+    evidence: "imageService + ImageCanvas + VisualDocument",
+  },
+  {
+    id: "visual-document",
+    name: "Visual Document",
+    workflow: "PRODUCE",
+    description:
+      "Contrato versionado para transportar imagens, objetos, metadados e proveniência.",
+    status: "READY",
+    href: "/modules/studio?studio=IMAGE",
+    evidence: "varynth.visual-document v1",
+  },
+  {
+    id: "processing-graph",
+    name: "Processing Graph",
+    workflow: "ENHANCE",
+    description:
+      "Grafo tipado com validação, ordem topológica, cache e cancelamento.",
+    status: "READY",
+    evidence: "Visual Core processing runtime",
+  },
+  {
+    id: "color",
+    name: "Color Engine",
+    workflow: "ENHANCE",
+    description:
+      "Operações de cor determinísticas para composição e análise local.",
+    status: "READY",
+    evidence: "Visual Core color engine",
+  },
+  {
+    id: "geometry",
+    name: "Geometry Engine",
+    workflow: "CREATE",
+    description:
+      "Transformações, bounding boxes e snapping para objetos visuais.",
+    status: "READY",
+    evidence: "Visual Core geometry engine",
+  },
+  {
+    id: "masks",
+    name: "Mask Engine",
+    workflow: "EDIT",
+    description: "Máscaras raster combináveis para operações não destrutivas.",
+    status: "READY",
+    evidence: "Visual Core mask engine",
+  },
+  {
+    id: "quality",
+    name: "Capture Quality Gate",
+    workflow: "ANALYZE",
+    description: "Métricas locais de nitidez, exposição e alertas técnicos.",
+    status: "READY",
+    evidence: "camera-quality + persisted report",
+  },
+  {
+    id: "painting",
+    name: "Digital Painting Studio",
+    workflow: "CREATE",
+    description:
+      "Canvas local com pincel, borracha, limpeza, PNG e abertura no Image Studio.",
+    status: "READY",
+    href: "/modules/digital-painting",
+    evidence: "Canvas 2D + PNG export + Image Studio import",
+  },
+  {
+    id: "vector",
+    name: "Vector Studio",
+    workflow: "CREATE",
+    description:
+      "Formas, texto e curvas Bézier SVG parametrizadas, inspector, rascunho local, exportação e abertura no Image Studio.",
+    status: "PARTIAL",
+    href: "/modules/vector-studio",
+    evidence:
+      "SVG editor + Bézier frame + localStorage draft + Image Studio import; nós/booleanos ainda ausentes",
+  },
+  {
+    id: "shader",
+    name: "Shader Forge",
+    workflow: "CREATE",
+    description:
+      "Preview WebGL2 procedural determinístico com uniforms locais, diagnóstico de compilação, fallback 2D e exportação PNG, sem execução arbitrária.",
+    status: "PARTIAL",
+    href: "/modules/shader-forge",
+    evidence:
+      "Vertex/fragment shader fixos + uniforms + fallback 2D + parâmetros locais + PNG export",
+  },
+  {
+    id: "rendering-3d",
+    name: "3D & Rendering Studio",
+    workflow: "CREATE",
+    description:
+      "Cena WebGL2 local com malha parametrizada, câmera, materiais procedurais, luz ajustável, wireframe, persistência e exportação PNG.",
+    status: "PARTIAL",
+    href: "/modules/rendering-3d",
+    evidence:
+      "Cubo indexado + matriz de câmera + materiais sólido/xadrez/bandas + intensidade de luz + wireframe + localStorage + PNG export; iluminação física e importação de malhas ainda ausentes",
+  },
+  {
+    id: "mathematical-art",
+    name: "Mathematical Art Studio",
+    workflow: "CREATE",
+    description:
+      "Fractais Mandelbrot e Julia determinísticos com parâmetros persistentes, exportação PNG e abertura no Image Studio.",
+    status: "PARTIAL",
+    href: "/modules/mathematical-art",
+    evidence:
+      "Renderização CPU local + iterações/zoom/C parametrizados + PNG export + Image Studio import; aceleração GPU ainda ausente",
+  },
+  {
+    id: "texture-material",
+    name: "Texture & Material Lab",
+    workflow: "CREATE",
+    description:
+      "Texturas procedurais locais com parâmetros de material, preview, PNG, descriptor JSON e abertura no Image Studio.",
+    status: "PARTIAL",
+    href: "/modules/texture-material",
+    evidence:
+      "Preview CPU + padrões xadrez/anéis/ruído + roughness/metallic/normal descriptor + persistência + Image Studio import; PBR físico e exportação Game Studio ainda ausentes",
+  },
+  {
+    id: "scientific-imaging",
+    name: "Scientific Imaging",
+    workflow: "ANALYZE",
+    description:
+      "Medição local de imagens com histograma de luminância, clipping, contraste, alfa e relatório versionado.",
+    status: "PARTIAL",
+    href: "/modules/scientific-imaging",
+    evidence:
+      "ImageData analyzer + canvas preview + JSON report export; segmentação, calibração e análise especializada ainda ausentes",
+  },
+  {
+    id: "code-graphics",
+    name: "Code Graphics Studio",
+    workflow: "CREATE",
+    description:
+      "Composição gráfica declarativa com contrato JSON versionado, preview/exportação SVG e formas editáveis no Image Studio.",
+    status: "PARTIAL",
+    href: "/modules/code-graphics",
+    evidence:
+      "Parser + SVG renderer + VisualDocument round-trip; execução de código arbitrário, shaders editáveis e nós ainda ausentes",
+  },
+  {
+    id: "retouch",
+    name: "Retouch Studio",
+    workflow: "ENHANCE",
+    description:
+      "Looks Natural, Editorial, Noir e Clean, além de ajustes locais não destrutivos de brilho, contraste e saturação.",
+    status: "PARTIAL",
+    href: "/modules/retouch",
+    evidence:
+      "Pixel adjustment engine + looks determinísticos + original buffer + PNG export + Image Studio import; healing, clone e remoção de objetos ainda ausentes",
+  },
+  {
+    id: "cinematic-lighting",
+    name: "Cinematic Lighting Studio",
+    workflow: "ENHANCE",
+    description:
+      "Looks de iluminação e ajustes locais de exposição, contraste, temperatura, matiz e vinheta.",
+    status: "PARTIAL",
+    href: "/modules/cinematic-lighting",
+    evidence:
+      "Pixel lighting engine + looks determinísticos + buffer original + PNG export + Image Studio import; LUTs ICC, profundidade e iluminação 3D ainda ausentes",
+  },
+  {
+    id: "procedural-graph",
+    name: "Procedural Node Studio",
+    workflow: "CREATE",
+    description:
+      "Grafo procedural tipado com serialização, validação de conexões, detecção de ciclos, preview determinístico por nó e exportação para o Image Studio.",
+    status: "PARTIAL",
+    href: "/modules/procedural-graph",
+    evidence:
+      "Contrato JSON + normalização + validação + avaliação/preview por nó + PNG local encaminhado ao Image Studio; subgrafos e execução incremental ainda ausentes",
+  },
+  {
+    id: "pictor",
+    name: "Pictor",
+    workflow: "ANALYZE",
+    description:
+      "Agente consultivo que analisa texto, métricas e resumo filtrado de captura, sem acesso direto à mídia.",
+    status: "PARTIAL",
+    href: "/modules/visual-studio",
+    evidence:
+      "PictorAgent + contexto sanitizado + Quality Gate + histórico local + fronteira advisory-only",
+  },
 ];
 
-export const visualWorkflows: Array<{ id: VisualWorkflow; name: string; description: string }> = [
-  { id: "CAPTURE", name: "Capture", description: "Aquisição de informação visual sem confundir origem com geração." },
-  { id: "ENHANCE", name: "Enhance", description: "Melhoria técnica e reversível da apresentação." },
-  { id: "EDIT", name: "Edit", description: "Alteração criativa ou estrutural de documentos existentes." },
-  { id: "CREATE", name: "Create", description: "Construção de novos objetos, cenas e artefatos." },
-  { id: "ANALYZE", name: "Analyze", description: "Leitura técnica, científica e contextual dos dados visuais." },
-  { id: "PRODUCE", name: "Produce", description: "Exportação e integração com os demais módulos do Varynth." },
+export const visualWorkflows: Array<{
+  id: VisualWorkflow;
+  name: string;
+  description: string;
+}> = [
+  {
+    id: "CAPTURE",
+    name: "Capture",
+    description:
+      "Aquisição de informação visual sem confundir origem com geração.",
+  },
+  {
+    id: "ENHANCE",
+    name: "Enhance",
+    description: "Melhoria técnica e reversível da apresentação.",
+  },
+  {
+    id: "EDIT",
+    name: "Edit",
+    description: "Alteração criativa ou estrutural de documentos existentes.",
+  },
+  {
+    id: "CREATE",
+    name: "Create",
+    description: "Construção de novos objetos, cenas e artefatos.",
+  },
+  {
+    id: "ANALYZE",
+    name: "Analyze",
+    description: "Leitura técnica, científica e contextual dos dados visuais.",
+  },
+  {
+    id: "PRODUCE",
+    name: "Produce",
+    description: "Exportação e integração com os demais módulos do Varynth.",
+  },
 ];

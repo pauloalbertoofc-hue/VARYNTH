@@ -25,6 +25,7 @@ O **Hub de Módulos** (`/modules`) atua como o catálogo dinâmico de todas as f
 | **Scientific Imaging** | 📊 | `/modules/scientific-imaging` | Histograma, luminância, clipping e relatório técnico local |
 | **Code Graphics Studio** | 💻 | `/modules/code-graphics` | Composição JSON declarativa, preview/exportação SVG e formas editáveis no Image Studio |
 | **Retouch Studio** | 🖌️ | `/modules/retouch` | Ajustes locais de brilho, contraste e saturação preservando o original |
+| **Cinematic Lighting Studio** | 🎬 | `/modules/cinematic-lighting` | Looks de iluminação, exposição, temperatura, matiz e vinheta preservando o original |
 | **Procedural Node Studio** | 🔀 | `/modules/procedural-graph` | Grafo JSON tipado com validação, avaliação de cor e preview por nó |
 | **Music** | 🎧 | `/modules/music` | Player, playlists, Music DNA e visualização local (v1.0) |
 | **Graph Epistêmico** | 🕸️ | `/modules/graph` | Visualização de relações entre dados do ecossistema |
