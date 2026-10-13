@@ -68,5 +68,6 @@ void pictorAgent
     assert.match(result.content, /modo DOCUMENT/);
     assert.match(result.content, /apenas metadados e identificadores/);
     assert.equal(result.metadata?.mediaAccess, "none");
+    assert.match(result.recommendations?.[0] ?? "", /legibilidade/);
     console.log("Pictor metadata context test passed: media remains inaccessible.");
   });

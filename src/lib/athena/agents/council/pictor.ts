@@ -72,6 +72,8 @@ export class PictorAgent implements AthenaAgent {
     const visualContext = suppliedVisualContext(task);
     const recommendations = quality?.warnings?.length
       ? quality.warnings.map((warning) => `Revisar: ${warning}`)
+      : visualContext?.mode === "DOCUMENT"
+        ? ["Verificar legibilidade do texto e alinhamento da perspectiva antes de editar; o Pictor não recebeu os pixels para confirmar esses critérios."]
       : [
           "Forneça um relatório de qualidade ou proveniência para uma análise mais específica.",
         ];
