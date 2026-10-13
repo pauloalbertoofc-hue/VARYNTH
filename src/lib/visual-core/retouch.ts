@@ -11,6 +11,34 @@ export type CloneStampParameters = {
   radius: number;
   opacity: number;
 };
+
+export function canvasPointToImagePoint(
+  clientX: number,
+  clientY: number,
+  bounds: { left: number; top: number; width: number; height: number },
+  image: { width: number; height: number },
+): { x: number; y: number } {
+  return {
+    x: Math.max(
+      0,
+      Math.min(
+        image.width - 1,
+        Math.round(
+          ((clientX - bounds.left) / Math.max(1, bounds.width)) * image.width,
+        ),
+      ),
+    ),
+    y: Math.max(
+      0,
+      Math.min(
+        image.height - 1,
+        Math.round(
+          ((clientY - bounds.top) / Math.max(1, bounds.height)) * image.height,
+        ),
+      ),
+    ),
+  };
+}
 export type RetouchLook = "natural" | "editorial" | "noir" | "clean" | "custom";
 export const RETOUCH_LOOKS: Record<
   RetouchLook,

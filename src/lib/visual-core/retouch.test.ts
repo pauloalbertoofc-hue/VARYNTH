@@ -3,6 +3,7 @@ import {
   applyRetouchBuffer,
   applyCloneStamp,
   applyHealingBrush,
+  canvasPointToImagePoint,
   normalizeRetouchParameters,
   RETOUCH_LOOKS,
 } from "./retouch";
@@ -69,4 +70,22 @@ const healed = applyHealingBrush(healingSource, {
   opacity: 1,
 });
 assert.ok(healed.data[10] > 0);
+assert.deepEqual(
+  canvasPointToImagePoint(
+    50,
+    25,
+    { left: 0, top: 0, width: 100, height: 50 },
+    { width: 800, height: 400 },
+  ),
+  { x: 400, y: 200 },
+);
+assert.deepEqual(
+  canvasPointToImagePoint(
+    -10,
+    80,
+    { left: 0, top: 0, width: 100, height: 50 },
+    { width: 800, height: 400 },
+  ),
+  { x: 0, y: 399 },
+);
 console.log("Retouch parameter tests passed.");

@@ -8,6 +8,7 @@ import {
   applyRetouch,
   applyCloneStamp,
   applyHealingBrush,
+  canvasPointToImagePoint,
   normalizeRetouchParameters,
   RETOUCH_LOOKS,
   type RetouchLook,
@@ -107,23 +108,11 @@ export default function RetouchPage() {
     const canvas = canvasRef.current;
     if (!canvas || !originalRef.current) return;
     const bounds = canvas.getBoundingClientRect();
-    const x = Math.max(
-      0,
-      Math.min(
-        canvas.width - 1,
-        Math.round(
-          ((event.clientX - bounds.left) / bounds.width) * canvas.width,
-        ),
-      ),
-    );
-    const y = Math.max(
-      0,
-      Math.min(
-        canvas.height - 1,
-        Math.round(
-          ((event.clientY - bounds.top) / bounds.height) * canvas.height,
-        ),
-      ),
+    const { x, y } = canvasPointToImagePoint(
+      event.clientX,
+      event.clientY,
+      bounds,
+      canvas,
     );
     setClone((current) =>
       event.shiftKey
