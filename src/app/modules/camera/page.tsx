@@ -40,6 +40,8 @@ export default function CameraPage() {
   const [torchOn, setTorchOn] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [focusStatus, setFocusStatus] = useState<string | null>(null);
+  const [timerSeconds, setTimerSeconds] = useState<0 | 3 | 10>(0);
+  const [isCountingDown, setIsCountingDown] = useState(false);
   const captureRecordIdRef = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
   const [storedMediaUrls, setStoredMediaUrls] = useState<
@@ -175,7 +177,12 @@ export default function CameraPage() {
   };
 
   const capture = async () => {
+    if (isCountingDown || !sessionRef.current) return;
     try {
+      if (timerSeconds > 0) {
+        setIsCountingDown(true);
+        await new Promise((resolve) => window.setTimeout(resolve, timerSeconds * 1000));
+      }
       const result = await sessionRef.current?.capture();
       if (!result) return;
       if (captureUrl) URL.revokeObjectURL(captureUrl);
@@ -200,6 +207,8 @@ export default function CameraPage() {
       setError(
         cause instanceof Error ? cause.message : "CAMERA_CAPTURE_FAILED",
       );
+    } finally {
+      setIsCountingDown(false);
     }
   };
 
@@ -356,6 +365,10 @@ export default function CameraPage() {
               <option value="VIDEO">VIDEO</option>
               <option value="STUDIO">STUDIO</option>
             </select>
+            <label className="sr-only" htmlFor="camera-timer">Temporizador</label>
+            <select id="camera-timer" value={timerSeconds} onChange={(event) => setTimerSeconds(Number(event.target.value) as 0 | 3 | 10)} disabled={active === false || isCountingDown} className="vly-field rounded-lg px-3 py-2 text-xs font-semibold">
+              <option value="0">Sem timer</option><option value="3">Timer 3s</option><option value="10">Timer 10s</option>
+            </select>
             <label className="sr-only" htmlFor="camera-facing">Câmera</label>
             <select
               id="camera-facing"
@@ -386,11 +399,11 @@ export default function CameraPage() {
             )}
             <button
               onClick={() => void capture()}
-              disabled={!active}
+              disabled={!active || isCountingDown}
               className="vly-interactive rounded-lg bg-[var(--vly-info)] px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
             >
               <Camera size={14} className="mr-2 inline" />
-              Capturar frame
+              {isCountingDown ? "Temporizador ativo…" : "Capturar frame"}
             </button>
             {mode === "VIDEO" && (
               <button
