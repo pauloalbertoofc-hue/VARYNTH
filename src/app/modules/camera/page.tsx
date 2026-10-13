@@ -14,6 +14,7 @@ import {
   type CameraCaptureRecord,
   type CameraMode,
   applyCinematicLightingBuffer,
+  suggestCameraCorrection,
 } from "@/lib/visual-core";
 import { imageService } from "@/lib/studio/image/image-service";
 import {
@@ -238,8 +239,7 @@ export default function CameraPage() {
     context.drawImage(bitmap, 0, 0);
     bitmap.close();
     const image = context.getImageData(0, 0, canvas.width, canvas.height);
-    const exposure = Math.max(-0.18, Math.min(0.18, 0.5 - report.exposure.meanLuma));
-    const corrected = applyCinematicLightingBuffer(image.data, { exposure, contrast: 0.04, warmth: 0, tint: 0, vignette: 0 }, canvas.width, canvas.height);
+    const corrected = applyCinematicLightingBuffer(image.data, suggestCameraCorrection(report), canvas.width, canvas.height);
     image.data.set(corrected);
     context.putImageData(image, 0, 0);
     return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));

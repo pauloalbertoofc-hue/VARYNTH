@@ -4,6 +4,7 @@ export * from "./camera-session";
 export * from "./camera-quality";
 export * from "./camera-types";
 export * from "./camera-library";
+export * from "./camera-correction";
 export * from "./processing-graph";
 export * from "./processing-runtime";
 export * from "./color-engine";
