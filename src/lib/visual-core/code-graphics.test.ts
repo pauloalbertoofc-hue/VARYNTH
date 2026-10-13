@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { codeGraphicToVisualDocument, normalizeCodeGraphic, renderCodeGraphic } from "./code-graphics";
+import { imageFromVisualDocument } from "./contracts";
 const document = normalizeCodeGraphic({ width: 400, shapes: [{ type: "rect", x: 10, width: 100, height: 40, fill: "#abc" }, { type: "unknown" }, { type: "text", x: 20, y: 60, value: "<safe>" }] });
 assert.equal(document.shapes.length, 2);
 assert.match(renderCodeGraphic(document), /<rect/);
@@ -11,5 +12,9 @@ assert.equal(visualDocument.metadata.source, "CODE_GRAPHICS");
 assert.equal((visualDocument.objects[0]?.properties as { type: string }).type, "SHAPE");
 assert.equal((visualDocument.objects[1]?.properties as { textContent: string }).textContent, "<safe>");
 assert.ok((visualDocument.objects[0]?.properties as { transform: unknown }).transform);
+const imageState = imageFromVisualDocument(visualDocument);
+assert.equal(imageState.canvas.background, "#111827");
+assert.equal(imageState.layers[0]?.type, "SHAPE");
+assert.equal(imageState.layers[1]?.textContent, "<safe>");
 console.log("Code graphics contract tests passed.");
 

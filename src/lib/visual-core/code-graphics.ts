@@ -58,7 +58,7 @@ export function codeGraphicToVisualDocument(document: CodeGraphicDocument, id = 
     }),
     dependencies: [],
     provenance: [{ id: `${id}-provenance`, operation: "CREATE", description: "Created from declarative Code Graphics document", actor: "USER", createdAt: now, generated: false }],
-    metadata: { source: "CODE_GRAPHICS", background: document.background, codeGraphics: document },
+    metadata: { source: "CODE_GRAPHICS", background: document.background, canvasBackground: document.background, codeGraphics: document },
     updatedAt: now,
   };
 }
