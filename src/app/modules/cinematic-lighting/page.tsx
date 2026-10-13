@@ -12,6 +12,8 @@ import {
   type CinematicLightingParameters,
 } from "@/lib/visual-core";
 
+const STORAGE_KEY = "varynth_cinematic_lighting_v1";
+
 export default function CinematicLightingPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalRef = useRef<ImageData | null>(null);
@@ -22,6 +24,36 @@ export default function CinematicLightingPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          parameters?: Partial<CinematicLightingParameters>;
+          look?: CinematicLightingLook;
+        };
+        setParameters(normalizeCinematicLightingParameters(parsed.parameters));
+        if (parsed.look && parsed.look in CINEMATIC_LIGHTING_LOOKS)
+          setLook(parsed.look);
+      }
+    } catch {
+      // armazenamento local indisponível não impede o processamento atual
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ parameters, look }),
+      );
+    } catch {
+      // quota ou modo privado não impede a edição atual
+    }
+  }, [hydrated, look, parameters]);
   useEffect(() => {
     const canvas = canvasRef.current;
     const original = originalRef.current;
