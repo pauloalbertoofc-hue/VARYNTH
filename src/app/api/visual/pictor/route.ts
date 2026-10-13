@@ -3,6 +3,17 @@ import { pictorAgent } from "@/lib/athena/agents/council/pictor";
 import type { AthenaContext } from "@/lib/athena/domain/context";
 
 const MAX_PICTOR_PROMPT_LENGTH = 4000;
+const VISUAL_CONTEXT_KEYS = ["captureId", "mode", "capturedAt", "source", "originalAssetId", "imageArtifactId"] as const;
+
+function sanitizeVisualContext(value: unknown): Record<string, string | boolean> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const input = value as Record<string, unknown>;
+  const result: Record<string, string | boolean> = {};
+  for (const key of VISUAL_CONTEXT_KEYS)
+    if (typeof input[key] === "string" && input[key].trim()) result[key] = input[key].trim().slice(0, 160);
+  if (typeof input.generated === "boolean") result.generated = input.generated;
+  return Object.keys(result).length ? result : undefined;
+}
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
@@ -33,10 +44,7 @@ export async function POST(request: Request) {
     body.visualQuality && typeof body.visualQuality === "object"
       ? body.visualQuality
       : undefined;
-  const visualContext =
-    body.visualContext && typeof body.visualContext === "object"
-      ? body.visualContext
-      : undefined;
+  const visualContext = sanitizeVisualContext(body.visualContext);
   const result = await pictorAgent.execute(
     {
       id: `visual-${Date.now()}`,
