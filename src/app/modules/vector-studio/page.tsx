@@ -158,6 +158,15 @@ export default function VectorStudioPage() {
           : item,
       ),
     );
+  const updatePaint = (
+    field: "color" | "color2" | "gradient",
+    value: string | boolean,
+  ) =>
+    setObjects((items) =>
+      items.map((item) =>
+        item.id === selectedId ? { ...item, [field]: value } : item,
+      ),
+    );
   const add = () => {
     const id = `vector-${Date.now()}`;
     const index = objects.length;
@@ -442,6 +451,43 @@ export default function VectorStudioPage() {
                 </label>
               ))}
             </div>
+            {(selected.type === "rect" || selected.type === "circle") && (
+              <div className="mt-3 space-y-2 border-t border-[var(--vly-border-subtle)] pt-3">
+                <label className="flex items-center justify-between text-[10px] text-[var(--vly-text-muted)]">
+                  Cor 1
+                  <input
+                    aria-label="Cor 1 do objeto selecionado"
+                    type="color"
+                    value={selected.color}
+                    onChange={(event) =>
+                      updatePaint("color", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="flex items-center justify-between text-[10px] text-[var(--vly-text-muted)]">
+                  Cor 2
+                  <input
+                    aria-label="Cor 2 do objeto selecionado"
+                    type="color"
+                    value={selected.color2 ?? selected.color}
+                    onChange={(event) =>
+                      updatePaint("color2", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-[10px] text-[var(--vly-text-muted)]">
+                  <input
+                    aria-label="Gradiente do objeto selecionado"
+                    type="checkbox"
+                    checked={Boolean(selected.gradient)}
+                    onChange={(event) =>
+                      updatePaint("gradient", event.target.checked)
+                    }
+                  />
+                  Usar gradiente
+                </label>
+              </div>
+            )}
             <button
               onClick={remove}
               disabled={selectedId === "background"}
