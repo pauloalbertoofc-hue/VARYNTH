@@ -78,11 +78,12 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 - Pictor foi integrado ao registro Athena como agente consultivo parcial: recebe somente texto e métricas locais do Quality Gate, pode interpretar relatórios de qualidade/proveniência e permanece sem acesso a blobs, arquivos ou ferramentas. O Visual Studio preserva até 20 consultas localmente, com recuperação após reload e limpeza explícita pelo usuário. Isso não equivale ainda à autonomia espacial, personalidade durável ou edição autorizada descritas na especificação.
 - Vector Studio agora suporta formas, texto e curvas Bézier parametrizadas com persistência local, exportação SVG e encaminhamento ao Image Studio. Edição individual de nós, gradientes, clipping paths e operações booleanas permanecem explicitamente fora do escopo implementado.
 - Vector Studio também oferece histórico de edição local limitado a 50 estados por `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y` e `Ctrl/Cmd+Shift+Z`; o histórico não substitui ainda um versionamento persistente de documentos.
+- O `3D & Rendering Studio` agora oferece uma cena WebGL2 real com cubo indexado, câmera parametrizada, material de cor, persistência local e exportação PNG. Iluminação física, importação de malhas e materiais avançados continuam explicitamente ausentes.
 
 ## Lacunas ainda abertas
 
 - Não há backend nativo Android/Desktop de câmera nem captura RAW/DNG validada.
-- Não há ainda editor dedicado de nós, shaders, 3D ou AI Image Studio; Vector Studio e Digital Painting cobrem somente os fluxos locais explicitamente implementados.
+- Não há ainda editor dedicado de nós, shaders editáveis ou AI Image Studio; o 3D cobre apenas o primeiro corte WebGL2 explicitamente documentado.
 - ICC/HDR, segmentação semântica, depth capture, multiframe HDR e processamento GPU permanecem não implementados.
 - A validação de proveniência atual é estrutural; integridade criptográfica e cadeia assinada ainda exigem decisão de armazenamento.
 - As revisões posteriores ao último deploy confirmado estão no branch GitHub, mas a publicação Vercel está temporariamente impedida pelo limite diário `api-deployments-free-per-day`; produção não deve ser inferida do build local.

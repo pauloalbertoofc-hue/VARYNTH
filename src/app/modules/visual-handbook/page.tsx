@@ -9,6 +9,7 @@ import { visualCapabilities, visualWorkflows } from "@/lib/visual-core/studio-ca
 const tutorials = [
   { id: "shader", title: "Criando um padrão procedural", steps: ["Abra Shader Forge.", "Escolha Ondas, Anéis ou Plasma.", "Ajuste escala, matiz e contraste.", "Exporte PNG ou o GLSL fixo compilado."], href: "/modules/shader-forge", limitation: "Os shaders são internos e seguros; edição de código arbitrário ainda não está disponível." },
   { id: "bezier", title: "Criando uma curva Bézier", steps: ["Abra Vector Studio.", "Escolha Curva Bézier e adicione o objeto.", "Ajuste x, y, largura e altura no inspector.", "Exporte SVG ou abra no Image Studio."], href: "/modules/vector-studio", limitation: "A curva é parametrizada pelo enquadramento; edição individual de nós e booleanos ainda não está disponível." },
+  { id: "rendering-3d", title: "Renderizando uma cena 3D", steps: ["Abra 3D & Rendering Studio.", "Ajuste as rotações X/Y e o zoom.", "Escolha a cor do material e confirme o diagnóstico WebGL2.", "Exporte a cena renderizada em PNG."], href: "/modules/rendering-3d", limitation: "O primeiro corte usa um cubo indexado e material de cor; iluminação física, importação de malhas e materiais avançados ainda não estão disponíveis." },
 ];
 
 export default function VisualHandbookPage() {
