@@ -25,10 +25,10 @@ async function epubText(bytes: Buffer) {
 
 async function docxText(bytes: Buffer) {
   const zip = await JSZip.loadAsync(bytes);
-  const documentEntry = zip.file("word/document.xml");
-  if (!documentEntry) return "";
-  const xml = await documentEntry.async("string");
-  return xml
+  const entries = Object.values(zip.files).filter((entry) => /^word\/(?:document|header\d+|footer\d+)\.xml$/i.test(entry.name));
+  if (!entries.length) return "";
+  const sections = await Promise.all(entries.map(async (entry) => entry.async("string")));
+  return sections.join("\n")
     .replace(/<w:tab\s*\/>/g, "\t")
     .replace(/<w:br\s*\/>/g, "\n")
     .replace(/<\/w:p>/g, "\n")
