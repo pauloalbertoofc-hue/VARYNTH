@@ -33,6 +33,7 @@ export default function ProceduralGraphPage() {
   const [source, setSource] = useState(INITIAL);
   const [hydrated, setHydrated] = useState(false);
   const [sending, setSending] = useState(false);
+  const [exportError, setExportError] = useState("");
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -77,6 +78,7 @@ export default function ProceduralGraphPage() {
   const openInImageStudio = async () => {
     if (parsed.evaluation.errors.length) return;
     setSending(true);
+    setExportError("");
     try {
       const canvas = document.createElement("canvas");
       canvas.width = 256;
@@ -98,8 +100,16 @@ export default function ProceduralGraphPage() {
         actor: "USER",
         captureMetadata: { source: "FILE_IMPORT", generated: false },
       });
-      if (result.success && result.image)
-        window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+      if (!result.success || !result.image) {
+        throw new Error("O Image Studio não aceitou o PNG exportado.");
+      }
+      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+    } catch (error) {
+      setExportError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o resultado no Image Studio.",
+      );
     } finally {
       setSending(false);
     }
@@ -149,6 +159,11 @@ export default function ProceduralGraphPage() {
             Rascunho salvo localmente neste dispositivo. O resultado avaliado
             pode ser encaminhado como PNG ao Image Studio.
           </p>
+          {exportError && (
+            <p role="alert" className="mt-2 text-xs text-red-300">
+              {exportError}
+            </p>
+          )}
         </section>
         <section className="space-y-4 rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
           <div>
