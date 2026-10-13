@@ -67,6 +67,8 @@ async function runGameStudioRegressionTests() {
   const unresolvedAssetProject: GameDocumentState = { ...adventureProject, entities: adventureProject.entities.map((entity) => entity.id === "entity-player" ? { ...entity, components: [...entity.components, { type: "SPRITE", assetId: "asset-not-attached-yet", width: 48, height: 48 }] } : entity) };
   const unresolvedAssetValidation = GameIntegrityValidator.validate(unresolvedAssetProject);
   assert(unresolvedAssetValidation.valid && unresolvedAssetValidation.warnings.some((warning) => warning.includes("asset-not-attached-yet")), "GAMEST-REG-078", "Referência visual ausente permanece editável, mas aparece como warning explícito de asset local pendente.");
+  const unresolvedAssetBuild = await gameRuntimeEngine.buildWebGame(unresolvedAssetProject, "USER");
+  assert(Boolean(unresolvedAssetBuild.success && unresolvedAssetBuild.assetId && unresolvedAssetBuild.warnings?.some((warning) => warning.includes("asset-not-attached-yet"))), "GAMEST-REG-079", "Build Web continua gerando pacote válido com asset visual ausente e propaga o warning para a interface.");
   const adventureSession = gameRuntimeEngine.startPlaySession(adventureProject, "v1.0", 2026);
   let adventureFlowWorks = Boolean(adventureSession.session && gameRuntimeEngine.stepSimulation(adventureSession.session.id, adventureProject, [{ tickId: 1, timeMs: 16.666, type: "CLICK", entityId: "entity-start" }]).session?.runtimeState.activeSceneId === "scene-game");
   if (adventureSession.session) {
