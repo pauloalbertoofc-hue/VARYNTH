@@ -37,6 +37,7 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
   const attachedAssets: AssetFile[] = attachedAssetIds
     .map((id) => assetManager.getAsset(id))
     .filter((a): a is AssetFile => Boolean(a));
+  const availableLibraryAssets = assetManager.getAllAssets().filter((asset) => !attachedAssetIds.includes(asset.id) && asset.status !== "QUARANTINED" && asset.status !== "CORRUPTED");
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +118,19 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
     reader.readAsArrayBuffer(file);
     // Reset file input value
     e.target.value = "";
+  };
+
+  const handleAttachExistingAsset = async (asset: AssetFile) => {
+    const linked = await assetManager.linkAssetToArtifact(asset.id, artifact.id);
+    if (!linked) {
+      setFeedback(`Falha ao anexar "${asset.name}": o Asset Manager recusou o vínculo.`);
+      return;
+    }
+    const updatedArtifact: Artifact = { ...artifact, assetFileIds: Array.from(new Set([...(artifact.assetFileIds || []), asset.id])), updatedAt: new Date().toISOString() };
+    artifactStore.save(updatedArtifact, artifact.revision);
+    onUpdateArtifact?.(updatedArtifact);
+    setFeedback(`Asset "${asset.name}" anexado do acervo local.`);
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   const handleDownloadAsset = async (asset: AssetFile) => {
@@ -276,6 +290,11 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
           ))}
         </div>
       )}
+
+      {availableLibraryAssets.length > 0 && <div className="space-y-2 border-t border-[var(--vly-border-default)] pt-3">
+        <div className="flex items-center justify-between"><span className="font-semibold text-[var(--vly-text-primary)]">Acervo local</span><span className="text-[10px] text-[var(--vly-text-muted)]">{availableLibraryAssets.length} disponíveis</span></div>
+        <div className="max-h-36 space-y-1 overflow-y-auto pr-1">{availableLibraryAssets.map((asset) => <div key={asset.id} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--vly-border-subtle)] bg-[var(--vly-world)] px-2 py-1.5"><div className="min-w-0"><p className="truncate text-[11px] text-[var(--vly-text-primary)]" title={asset.name}>{asset.name}</p><p className="text-[9px] text-[var(--vly-text-muted)]">{asset.mimeType} · {formatBytes(asset.sizeBytes)}</p></div><button type="button" onClick={() => void handleAttachExistingAsset(asset)} className="vly-interactive shrink-0 rounded border border-[var(--vly-border-info)] px-2 py-1 text-[10px] text-[var(--vly-info)]">Anexar</button></div>)}</div>
+      </div>}
 
       {/* Footer Info */}
       <div className="flex items-center justify-between border-t border-[var(--vly-border-default)] pt-2 text-[10px] text-[var(--vly-text-muted)]">
