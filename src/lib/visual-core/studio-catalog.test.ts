@@ -11,6 +11,7 @@ for (const expected of [
   ["shader", "/modules/shader-forge"],
   ["rendering-3d", "/modules/rendering-3d"],
   ["mathematical-art", "/modules/mathematical-art"],
+  ["texture-material", "/modules/texture-material"],
 ] as const) {
   const capability = visualCapabilities.find((item) => item.id === expected[0]);
   assert.equal(capability?.href, expected[1]);

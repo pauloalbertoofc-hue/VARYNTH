@@ -80,6 +80,7 @@ O primeiro incremento de código deve ser o contrato universal e seu adaptador p
 - Vector Studio também oferece histórico de edição local limitado a 50 estados por `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y` e `Ctrl/Cmd+Shift+Z`; o histórico não substitui ainda um versionamento persistente de documentos.
 - O `3D & Rendering Studio` agora oferece uma cena WebGL2 real com cubo indexado, câmera perspectiva, luz direcional, materiais procedurais Sólido/Xadrez/Bandas, persistência local e exportação PNG. Iluminação física, importação de malhas e materiais PBR continuam explicitamente ausentes.
 - O `Mathematical Art Studio` agora oferece Mandelbrot e Julia determinísticos em Canvas 2D, com iterações, zoom, parâmetro complexo local, persistência e exportação PNG. Aceleração GPU e composição matemática avançada continuam ausentes.
+- O `Texture & Material Lab` agora oferece preview CPU de texturas Xadrez/Anéis/Ruído, parâmetros locais de roughness/metallic/normal, persistência e exportação PNG/descriptor JSON versionado. PBR físico, mapas reais e exportação direta para Game Studio continuam ausentes.
 
 ## Lacunas ainda abertas
 
