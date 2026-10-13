@@ -15,6 +15,7 @@ for (const expected of [
   ["scientific-imaging", "/modules/scientific-imaging"],
   ["code-graphics", "/modules/code-graphics"],
   ["retouch", "/modules/retouch"],
+  ["procedural-graph", "/modules/procedural-graph"],
 ] as const) {
   const capability = visualCapabilities.find((item) => item.id === expected[0]);
   assert.equal(capability?.href, expected[1]);
