@@ -1,5 +1,6 @@
 export type CodeGraphicShape = { type: "rect" | "circle" | "line" | "text"; x?: number; y?: number; width?: number; height?: number; radius?: number; x2?: number; y2?: number; value?: string; fill?: string; stroke?: string; strokeWidth?: number };
 export type CodeGraphicDocument = { schema: "varynth.code-graphics"; version: 1; width: number; height: number; background: string; shapes: CodeGraphicShape[] };
+import type { VisualDocument } from "./contracts";
 
 const number = (value: unknown, fallback = 0) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
 const color = (value: unknown, fallback: string) => typeof value === "string" && /^#[0-9a-f]{3,8}$/i.test(value) ? value : fallback;
@@ -25,5 +26,29 @@ export function renderCodeGraphic(document: CodeGraphicDocument): string {
     return `<text x="${shape.x}" y="${shape.y}" ${common} font-family="sans-serif" font-size="${Math.max(8, shape.height || 24)}">${esc(shape.value || "")}</text>`;
   }).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${document.width} ${document.height}" width="${document.width}" height="${document.height}"><rect width="100%" height="100%" fill="${document.background}"/>${shapes}</svg>`;
+}
+
+/** Keeps declarative code-graphics editable when they enter Image Studio. */
+export function codeGraphicToVisualDocument(document: CodeGraphicDocument, id = `code-graphic-${Date.now()}`): VisualDocument {
+  const now = new Date().toISOString();
+  return {
+    schema: "varynth.visual-document",
+    schemaVersion: 1,
+    id,
+    dimensions: { width: document.width, height: document.height, unit: "px" },
+    color: { space: "sRGB", bitDepth: 8 },
+    objects: document.shapes.map((shape, index) => ({
+      id: `${id}-shape-${index + 1}`,
+      kind: shape.type === "text" ? "TEXT" : "VECTOR",
+      name: `${shape.type} ${index + 1}`,
+      visible: true,
+      locked: false,
+      properties: { ...shape, source: "CODE_GRAPHICS_DECLARATIVE" },
+    })),
+    dependencies: [],
+    provenance: [{ id: `${id}-provenance`, operation: "CREATE", description: "Created from declarative Code Graphics document", actor: "USER", createdAt: now, generated: false }],
+    metadata: { source: "CODE_GRAPHICS", background: document.background, codeGraphics: document },
+    updatedAt: now,
+  };
 }
 
