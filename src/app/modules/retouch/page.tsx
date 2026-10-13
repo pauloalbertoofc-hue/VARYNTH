@@ -103,6 +103,34 @@ export default function RetouchPage() {
     cloneBaseRef.current = applyHealingBrush(original, clone);
     render();
   };
+  const pickClonePoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !originalRef.current) return;
+    const bounds = canvas.getBoundingClientRect();
+    const x = Math.max(
+      0,
+      Math.min(
+        canvas.width - 1,
+        Math.round(
+          ((event.clientX - bounds.left) / bounds.width) * canvas.width,
+        ),
+      ),
+    );
+    const y = Math.max(
+      0,
+      Math.min(
+        canvas.height - 1,
+        Math.round(
+          ((event.clientY - bounds.top) / bounds.height) * canvas.height,
+        ),
+      ),
+    );
+    setClone((current) =>
+      event.shiftKey
+        ? { ...current, sourceX: x, sourceY: y }
+        : { ...current, destinationX: x, destinationY: y },
+    );
+  };
   const applyLook = (next: RetouchLook) => {
     setLook(next);
     setParameters(normalizeRetouchParameters(RETOUCH_LOOKS[next].parameters));
@@ -324,12 +352,14 @@ export default function RetouchPage() {
         <div className="overflow-auto rounded-2xl border border-[var(--vly-border-subtle)] bg-black p-2">
           <canvas
             ref={canvasRef}
+            onPointerDown={pickClonePoint}
             className="mx-auto block max-h-[70vh] max-w-full object-contain"
             aria-label="Preview de retoque"
           />
         </div>
         <p className="text-xs text-[var(--vly-text-muted)]">
-          {name || "Nenhuma imagem selecionada"} · Ajustes e Clone Stamp
+          {name || "Nenhuma imagem selecionada"} · Clique no canvas para definir
+          o destino; Shift+clique define a origem. Ajustes e Clone Stamp
           aplicados localmente sobre uma cópia do buffer original. Healing,
           clone, remoção de objetos e reconstrução generativa não estão
           disponíveis.
