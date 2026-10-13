@@ -48,3 +48,25 @@ void pictorAgent
       "Pictor malformed quality test passed: metrics are finite and warnings are bounded.",
     );
   });
+void pictorAgent
+  .execute(
+    {
+      ...task,
+      metadata: {
+        visualContext: {
+          captureId: "capture-1",
+          mode: "DOCUMENT",
+          source: "DEVICE_CAMERA",
+          generated: false,
+          blob: "must-not-be-forwarded",
+        },
+      },
+    },
+    {} as never,
+  )
+  .then((result) => {
+    assert.match(result.content, /modo DOCUMENT/);
+    assert.match(result.content, /apenas metadados e identificadores/);
+    assert.equal(result.metadata?.mediaAccess, "none");
+    console.log("Pictor metadata context test passed: media remains inaccessible.");
+  });

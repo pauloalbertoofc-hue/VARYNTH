@@ -73,6 +73,17 @@ export default function VisualStudioPage() {
                 warnings: quality.warnings,
               }
             : undefined,
+          visualContext: selected
+            ? {
+                captureId: selected.id,
+                mode: selected.mode,
+                capturedAt: selected.capturedAt,
+                source: selected.source,
+                generated: selected.generated,
+                originalAssetId: selected.originalAssetId,
+                imageArtifactId: selected.imageArtifactId,
+              }
+            : undefined,
         }),
       });
       const result = (await response.json()) as {
