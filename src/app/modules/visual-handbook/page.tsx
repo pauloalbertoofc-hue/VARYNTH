@@ -82,7 +82,7 @@ const tutorials = [
       "Abra Code Graphics Studio.",
       "Edite o documento JSON usando rect, circle, line ou text.",
       "Observe o preview SVG e corrija o JSON se o diagnóstico aparecer.",
-      "Exporte o SVG ou abra o asset no Image Studio.",
+      "Exporte o SVG, abra uma cópia rasterizável ou abra as formas e textos como camadas editáveis no Image Studio.",
     ],
     href: "/modules/code-graphics",
     limitation:
@@ -195,9 +195,9 @@ export default function VisualHandbookPage() {
               Leve uma dúvida contextual para o agente visual
             </h2>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--vly-text-muted)]">
-              O Pictor recebe texto e métricas locais do Quality Gate. Ele não
-              acessa blobs, arquivos ou ferramentas e mantém as consultas sob
-              seu controle.
+              O Pictor recebe texto, métricas locais e um resumo filtrado da
+              captura. Ele não acessa blobs, arquivos ou ferramentas e mantém
+              as consultas sob seu controle.
             </p>
           </div>
           <Link
