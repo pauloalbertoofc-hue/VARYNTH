@@ -14,6 +14,7 @@ assert.deepEqual(normalizeRetouchParameters(), {
   saturation: 1,
 });
 assert.equal(RETOUCH_LOOKS.noir.parameters.saturation, 0);
+assert.equal(RETOUCH_LOOKS.custom.label, "Personalizado");
 const original = new Uint8ClampedArray([64, 96, 128, 255]);
 const brighter = applyRetouchBuffer(original, { brightness: 0.25 });
 assert.ok(

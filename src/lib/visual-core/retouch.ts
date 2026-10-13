@@ -3,7 +3,7 @@ export type RetouchParameters = {
   contrast: number;
   saturation: number;
 };
-export type RetouchLook = "natural" | "editorial" | "noir" | "clean";
+export type RetouchLook = "natural" | "editorial" | "noir" | "clean" | "custom";
 export const RETOUCH_LOOKS: Record<
   RetouchLook,
   { label: string; parameters: RetouchParameters }
@@ -23,6 +23,10 @@ export const RETOUCH_LOOKS: Record<
   clean: {
     label: "Clean",
     parameters: { brightness: 0.03, contrast: 0.05, saturation: 1.08 },
+  },
+  custom: {
+    label: "Personalizado",
+    parameters: { brightness: 0, contrast: 0, saturation: 1 },
   },
 };
 const finite = (value: number | undefined, fallback: number) =>

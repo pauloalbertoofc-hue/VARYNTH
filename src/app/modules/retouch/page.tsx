@@ -68,10 +68,12 @@ export default function RetouchPage() {
     };
     image.src = url;
   };
-  const update = <K extends keyof RetouchParameters>(key: K, value: number) =>
+  const update = <K extends keyof RetouchParameters>(key: K, value: number) => {
+    setLook("custom");
     setParameters((current) =>
       normalizeRetouchParameters({ ...current, [key]: value }),
     );
+  };
   const reset = () => setParameters(normalizeRetouchParameters());
   const applyLook = (next: RetouchLook) => {
     setLook(next);
