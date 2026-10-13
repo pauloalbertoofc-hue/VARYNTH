@@ -9,9 +9,9 @@ type Scene = { rotationX: number; rotationY: number; zoom: number; color: string
 const STORAGE_KEY = "varynth_rendering_3d_v1";
 
 const vertexSource = `#version 300 es
-in vec3 position; uniform mat4 matrix; out vec3 normal; void main(){ normal=normalize(position); gl_Position=matrix*vec4(position,1.0); }`;
+in vec3 position; uniform mat4 matrix; out vec3 surfacePosition; void main(){ surfacePosition=position; gl_Position=matrix*vec4(position,1.0); }`;
 const fragmentSource = `#version 300 es
-precision highp float; uniform vec3 color; uniform int materialMode; in vec3 normal; out vec4 outColor; void main(){ vec3 light=normalize(vec3(-.45,.75,1.)); float diffuse=.28+.72*max(dot(normal,light),0.); float pattern=materialMode==1 ? mod(floor(gl_FragCoord.x/24.)+floor(gl_FragCoord.y/24.),2.) : materialMode==2 ? step(.5,fract(gl_FragCoord.y/36.)) : 0.; vec3 material=color*(pattern>.5 ? .45 : 1.); outColor=vec4(material*diffuse,1.0); }`;
+precision highp float; uniform vec3 color; uniform int materialMode; in vec3 surfacePosition; out vec4 outColor; void main(){ vec3 normal=normalize(cross(dFdx(surfacePosition),dFdy(surfacePosition))); vec3 light=normalize(vec3(-.45,.75,1.)); float diffuse=.28+.72*max(dot(normal,light),0.); float pattern=materialMode==1 ? mod(floor(gl_FragCoord.x/24.)+floor(gl_FragCoord.y/24.),2.) : materialMode==2 ? step(.5,fract(gl_FragCoord.y/36.)) : 0.; vec3 material=color*(pattern>.5 ? .45 : 1.); outColor=vec4(material*diffuse,1.0); }`;
 
 const vertices = new Float32Array([
   -1,-1,-1, 1,-1,-1, 1,1,-1, -1,1,-1, -1,-1,1, 1,-1,1, 1,1,1, -1,1,1,
