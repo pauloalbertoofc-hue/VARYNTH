@@ -42,9 +42,13 @@ export function StudioAssetPanel({ artifact, onUpdateArtifact }: StudioAssetPane
     let cancelled = false;
     const urls: Record<string, string> = {};
     void Promise.all(attachedAssets.filter((asset) => asset.mimeType.startsWith("image/")).map(async (asset) => {
-      const data = await assetStorage.getBlob(asset.storageKey);
-      if (cancelled || !data) return;
-      urls[asset.id] = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: asset.mimeType }));
+      try {
+        const data = await assetStorage.getBlob(asset.storageKey);
+        if (cancelled || !data) return;
+        urls[asset.id] = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: asset.mimeType }));
+      } catch {
+        // A missing/corrupt preview must not prevent the asset row from rendering.
+      }
     })).then(() => { if (!cancelled) setPreviewUrls(urls); else Object.values(urls).forEach((url) => URL.revokeObjectURL(url)); });
     return () => { cancelled = true; Object.values(urls).forEach((url) => URL.revokeObjectURL(url)); };
   // The IDs are the stable source for this asynchronous preview lifecycle.
