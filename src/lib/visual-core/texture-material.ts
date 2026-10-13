@@ -1,0 +1,7 @@
+export type TextureMaterial = { pattern: "checker" | "rings" | "noise"; scale: number; roughness: number; metallic: number; normalStrength: number; color: string };
+
+export function renderTextureMaterial(context: CanvasRenderingContext2D, width: number, height: number, material: TextureMaterial) {
+  const image = context.createImageData(width, height); const color = material.color.replace("#", ""); const base = [parseInt(color.slice(0, 2), 16), parseInt(color.slice(2, 4), 16), parseInt(color.slice(4, 6), 16)];
+  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) { const u = x / width, v = y / height; const checker = (Math.floor(u * material.scale) + Math.floor(v * material.scale)) % 2; const rings = Math.sin(Math.hypot(u - .5, v - .5) * material.scale * 5) * .5 + .5; const noise = (Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1 * .5 + .5; const pattern = material.pattern === "checker" ? checker : material.pattern === "rings" ? rings : noise; const normal = 1 - material.normalStrength * (pattern - .5); const shine = 1 - material.roughness * .45 + material.metallic * .2; const index = (y * width + x) * 4; image.data[index] = Math.max(0, Math.min(255, base[0] * (pattern ? .55 : 1) * normal * shine)); image.data[index + 1] = Math.max(0, Math.min(255, base[1] * (pattern ? .55 : 1) * normal * shine)); image.data[index + 2] = Math.max(0, Math.min(255, base[2] * (pattern ? .55 : 1) * normal * shine)); image.data[index + 3] = 255; }
+  context.putImageData(image, 0, 0);
+}
