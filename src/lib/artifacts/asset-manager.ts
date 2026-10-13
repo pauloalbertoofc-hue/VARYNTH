@@ -142,6 +142,7 @@ export class AssetManager {
       storageType,
       storageKey,
       status: "VALID",
+      checksum: data ? this.calculateChecksum(data) : undefined,
       createdAt: new Date().toISOString(),
       createdBy: params.createdBy || "USER",
       artifactIds: params.artifactIds || [],
