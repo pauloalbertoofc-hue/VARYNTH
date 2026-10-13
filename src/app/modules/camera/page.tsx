@@ -199,12 +199,23 @@ export default function CameraPage() {
       setCaptureBlob(result.blob);
       const report = await analyzeCameraFrame(result.blob);
       setQuality(report);
-      const corrected = await createAutomaticCorrection(result.blob, report);
-      if (corrected) {
-        if (correctedUrl) URL.revokeObjectURL(correctedUrl);
-        setCorrectedBlob(corrected);
-        setCorrectedUrl(URL.createObjectURL(corrected));
+      try {
+        const corrected = await createAutomaticCorrection(result.blob, report);
+        if (corrected) {
+          if (correctedUrl) URL.revokeObjectURL(correctedUrl);
+          setCorrectedBlob(corrected);
+          setCorrectedUrl(URL.createObjectURL(corrected));
+          setUseCorrection(false);
+        } else {
+          setCorrectedBlob(null);
+          setCorrectedUrl(null);
+          setUseCorrection(false);
+        }
+      } catch {
+        setCorrectedBlob(null);
+        setCorrectedUrl(null);
         setUseCorrection(false);
+        setError("A correção automática não está disponível; o original foi preservado.");
       }
       const recordId = `capture-${Date.now()}`;
       captureRecordIdRef.current = recordId;
