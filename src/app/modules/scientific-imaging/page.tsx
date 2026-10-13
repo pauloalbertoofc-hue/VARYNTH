@@ -3,16 +3,204 @@
 import { useRef, useState } from "react";
 import { Activity, Download, Upload } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { analyzeImageData, type ScientificImageReport } from "@/lib/visual-core";
+import {
+  analyzeImageData,
+  type ScientificImageReport,
+} from "@/lib/visual-core";
 
 export default function ScientificImagingPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [report, setReport] = useState<ScientificImageReport | null>(null);
   const [name, setName] = useState("");
-  const load = (file: File) => { const image = new Image(); image.onload = () => { const canvas = canvasRef.current; const context = canvas?.getContext("2d", { willReadFrequently: true }); if (!canvas || !context) return; canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; context.drawImage(image, 0, 0); setReport(analyzeImageData(context.getImageData(0, 0, canvas.width, canvas.height))); }; image.src = URL.createObjectURL(file); setName(file.name); };
-  const exportReport = () => { if (!report) return; const blob = new Blob([JSON.stringify({ schema: "varynth.scientific-image-report", version: 1, source: name, generatedAt: new Date().toISOString(), report }, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${name.replace(/\.[^.]+$/, "") || "image"}-analysis.json`; link.click(); URL.revokeObjectURL(link.href); };
-  const histogram = report ? report.histogram.filter((_, index) => index % 4 === 0) : [];
+  const load = (file: File) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = canvasRef.current;
+      const context = canvas?.getContext("2d", { willReadFrequently: true });
+      if (!canvas || !context) return;
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      context.drawImage(image, 0, 0);
+      setReport(
+        analyzeImageData(
+          context.getImageData(0, 0, canvas.width, canvas.height),
+        ),
+      );
+    };
+    image.onerror = () => URL.revokeObjectURL(url);
+    image.src = url;
+    setName(file.name);
+  };
+  const exportReport = () => {
+    if (!report) return;
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          {
+            schema: "varynth.scientific-image-report",
+            version: 1,
+            source: name,
+            generatedAt: new Date().toISOString(),
+            report,
+          },
+          null,
+          2,
+        ),
+      ],
+      { type: "application/json" },
+    );
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${name.replace(/\.[^.]+$/, "") || "image"}-analysis.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+  const histogram = report
+    ? report.histogram.filter((_, index) => index % 4 === 0)
+    : [];
   const histogramMax = Math.max(1, ...histogram);
-  return <PageLayout title="Scientific Imaging" subtitle="Medição local de imagens sem alterar o original"><div className="mx-auto max-w-6xl space-y-4"><div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><label className="vly-interactive inline-flex cursor-pointer items-center rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"><Upload size={14} className="mr-2" />Abrir imagem<input className="sr-only" type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) load(file); }} /></label><button onClick={exportReport} disabled={!report} className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"><Download size={14} className="mr-2" />Exportar relatório</button><span className="text-xs text-[var(--vly-text-muted)]">{name || "Nenhuma imagem selecionada"}</span></div><div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]"><div className="space-y-4"><div className="overflow-auto rounded-2xl border border-[var(--vly-border-subtle)] bg-black p-2"><canvas ref={canvasRef} className="mx-auto block max-h-[70vh] max-w-full object-contain" aria-label="Imagem para análise científica" /></div>{report && <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4"><h2 className="mb-2 text-sm font-semibold">Histograma de luminância</h2><svg viewBox="0 0 256 100" role="img" aria-label="Histograma de luminância" className="h-28 w-full"><line x1="0" y1="99" x2="256" y2="99" stroke="currentColor" opacity=".3" />{histogram.map((value, index) => <rect key={index} x={index * 4} y={99 - value / histogramMax * 94} width="3.5" height={value / histogramMax * 94} fill="currentColor" className="text-[var(--vly-accent)]" />)}</svg><div className="flex justify-between text-[10px] text-[var(--vly-text-muted)]"><span>0 — sombras</span><span>128</span><span>255 — altas luzes</span></div></section>}</div><section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-5"><div className="mb-4 flex items-center gap-2"><Activity size={18} className="text-[var(--vly-accent)]" /><h2 className="font-semibold">Relatório técnico</h2></div>{report ? <div className="grid grid-cols-2 gap-3 text-sm">{[["Resolução", `${report.width} × ${report.height}`], ["Pixels", report.pixels.toLocaleString("pt-BR")], ["Luminância média", `${(report.meanLuminance * 100).toFixed(2)}%`], ["Desvio padrão", `${(report.standardDeviation * 100).toFixed(2)}%`], ["Sombras clipadas", `${report.clippedShadowPercent.toFixed(2)}%`], ["Altas luzes clipadas", `${report.clippedHighlightPercent.toFixed(2)}%`], ["Cobertura alfa", `${report.alphaCoveragePercent.toFixed(2)}%`], ["Faixa luminosa", `${(report.minLuminance * 100).toFixed(1)}–${(report.maxLuminance * 100).toFixed(1)}%`]].map(([label, value]) => <div key={label} className="rounded-lg border border-[var(--vly-border-subtle)] p-3"><div className="text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">{label}</div><div className="mt-1 font-semibold">{value}</div></div>)}</div> : <p className="text-sm text-[var(--vly-text-secondary)]">Abra uma imagem para calcular métricas localmente. O arquivo não é enviado para um serviço externo.</p>}</section></div><p className="text-xs text-[var(--vly-text-muted)]">Escopo atual: histograma de luminância, estatísticas, clipping e alfa. Não afirma segmentação, reconhecimento ou diagnóstico científico especializado.</p></div></PageLayout>;
+  return (
+    <PageLayout
+      title="Scientific Imaging"
+      subtitle="Medição local de imagens sem alterar o original"
+    >
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+          <label className="vly-interactive inline-flex cursor-pointer items-center rounded-lg bg-[var(--vly-accent)] px-3 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]">
+            <Upload size={14} className="mr-2" />
+            Abrir imagem
+            <input
+              className="sr-only"
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) load(file);
+              }}
+            />
+          </label>
+          <button
+            onClick={exportReport}
+            disabled={!report}
+            className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
+          >
+            <Download size={14} className="mr-2" />
+            Exportar relatório
+          </button>
+          <span className="text-xs text-[var(--vly-text-muted)]">
+            {name || "Nenhuma imagem selecionada"}
+          </span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="space-y-4">
+            <div className="overflow-auto rounded-2xl border border-[var(--vly-border-subtle)] bg-black p-2">
+              <canvas
+                ref={canvasRef}
+                className="mx-auto block max-h-[70vh] max-w-full object-contain"
+                aria-label="Imagem para análise científica"
+              />
+            </div>
+            {report && (
+              <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+                <h2 className="mb-2 text-sm font-semibold">
+                  Histograma de luminância
+                </h2>
+                <svg
+                  viewBox="0 0 256 100"
+                  role="img"
+                  aria-label="Histograma de luminância"
+                  className="h-28 w-full"
+                >
+                  <line
+                    x1="0"
+                    y1="99"
+                    x2="256"
+                    y2="99"
+                    stroke="currentColor"
+                    opacity=".3"
+                  />
+                  {histogram.map((value, index) => (
+                    <rect
+                      key={index}
+                      x={index * 4}
+                      y={99 - (value / histogramMax) * 94}
+                      width="3.5"
+                      height={(value / histogramMax) * 94}
+                      fill="currentColor"
+                      className="text-[var(--vly-accent)]"
+                    />
+                  ))}
+                </svg>
+                <div className="flex justify-between text-[10px] text-[var(--vly-text-muted)]">
+                  <span>0 — sombras</span>
+                  <span>128</span>
+                  <span>255 — altas luzes</span>
+                </div>
+              </section>
+            )}
+          </div>
+          <section className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Activity size={18} className="text-[var(--vly-accent)]" />
+              <h2 className="font-semibold">Relatório técnico</h2>
+            </div>
+            {report ? (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {[
+                  ["Resolução", `${report.width} × ${report.height}`],
+                  ["Pixels", report.pixels.toLocaleString("pt-BR")],
+                  [
+                    "Luminância média",
+                    `${(report.meanLuminance * 100).toFixed(2)}%`,
+                  ],
+                  [
+                    "Desvio padrão",
+                    `${(report.standardDeviation * 100).toFixed(2)}%`,
+                  ],
+                  [
+                    "Sombras clipadas",
+                    `${report.clippedShadowPercent.toFixed(2)}%`,
+                  ],
+                  [
+                    "Altas luzes clipadas",
+                    `${report.clippedHighlightPercent.toFixed(2)}%`,
+                  ],
+                  [
+                    "Cobertura alfa",
+                    `${report.alphaCoveragePercent.toFixed(2)}%`,
+                  ],
+                  [
+                    "Faixa luminosa",
+                    `${(report.minLuminance * 100).toFixed(1)}–${(report.maxLuminance * 100).toFixed(1)}%`,
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-lg border border-[var(--vly-border-subtle)] p-3"
+                  >
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">
+                      {label}
+                    </div>
+                    <div className="mt-1 font-semibold">{value}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--vly-text-secondary)]">
+                Abra uma imagem para calcular métricas localmente. O arquivo não
+                é enviado para um serviço externo.
+              </p>
+            )}
+          </section>
+        </div>
+        <p className="text-xs text-[var(--vly-text-muted)]">
+          Escopo atual: histograma de luminância, estatísticas, clipping e alfa.
+          Não afirma segmentação, reconhecimento ou diagnóstico científico
+          especializado.
+        </p>
+      </div>
+    </PageLayout>
+  );
 }
-
