@@ -56,6 +56,19 @@ export default function CameraPage() {
   const [openingCaptureId, setOpeningCaptureId] = useState<string | null>(null);
 
   useEffect(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem("varynth_camera_preferences_v1") || "null") as { mode?: CameraMode; facingMode?: "environment" | "user"; timerSeconds?: 0 | 3 | 10 } | null;
+      if (stored?.mode) setMode(stored.mode);
+      if (stored?.facingMode) setFacingMode(stored.facingMode);
+      if (stored?.timerSeconds !== undefined) setTimerSeconds(stored.timerSeconds);
+    } catch { /* preferences are optional and fail closed */ }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("varynth_camera_preferences_v1", JSON.stringify({ mode, facingMode, timerSeconds }));
+  }, [facingMode, mode, timerSeconds]);
+
+  useEffect(() => {
     setCaptures(listCameraCaptures());
   }, []);
 
