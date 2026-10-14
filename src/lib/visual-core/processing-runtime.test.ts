@@ -18,7 +18,15 @@ void (async () => {
   const changedGraph = { ...graph, nodes: graph.nodes.map((node) => node.id === "source" ? { ...node, parameters: { value: 3 } } : node) };
   const changed = await executeProcessingGraph(changedGraph, { SOURCE: (node) => node.parameters.value, DOUBLE: (_node, inputs) => Number(inputs.source) * 2 }, { cache });
   assert.equal(changed.get("double"), 6);
+  let nondeterministicRuns = 0;
+  const nondeterministicGraph = { ...graph, nodes: [{ ...graph.nodes[0], deterministic: false, parameters: { value: 7 } }], edges: [] };
+  const nondeterministicCache = new Map<string, unknown>();
+  await executeProcessingGraph(nondeterministicGraph, { SOURCE: () => ++nondeterministicRuns }, { cache: nondeterministicCache });
+  await executeProcessingGraph(nondeterministicGraph, { SOURCE: () => ++nondeterministicRuns }, { cache: nondeterministicCache });
+  assert.equal(nondeterministicRuns, 2);
+  const delayedAbort = new AbortController();
+  await assert.rejects(() => executeProcessingGraph(graph, { SOURCE: async () => { await new Promise((resolve) => setTimeout(resolve, 1)); delayedAbort.abort(); return 2; } }, { signal: delayedAbort.signal }), /PROCESSING_CANCELLED/);
   await assert.rejects(() => executeProcessingGraph(graph, {}, { signal: AbortSignal.abort() }), /PROCESSING_CANCELLED/);
-  console.log("Processing runtime tests passed: execution, inputs, cache invalidation and cancellation.");
+  console.log("Processing runtime tests passed: execution, inputs, cache invalidation, deterministic policy and cancellation.");
 })();
 

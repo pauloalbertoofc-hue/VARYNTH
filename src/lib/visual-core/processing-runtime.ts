@@ -30,15 +30,17 @@ export async function executeProcessingGraph(graph: VisualProcessingGraph, handl
     const inputs: Record<string, unknown> = {};
     for (const edge of graph.edges.filter((candidate) => candidate.to === nodeId)) inputs[edge.from] = values.get(edge.from);
     const cacheKey = `${graph.id}@${graph.version}:${node.id}:${node.type}@${node.version}:${fingerprint(node.parameters)}:${fingerprint(inputs)}`;
-    if (node.cachePolicy !== "none" && cache.has(cacheKey)) {
+    const cacheable = node.deterministic && node.cachePolicy !== "none";
+    if (cacheable && cache.has(cacheKey)) {
       values.set(nodeId, cache.get(cacheKey));
       continue;
     }
     const handler = handlers[node.type];
     if (!handler) throw new Error(`PROCESSING_HANDLER_NOT_FOUND:${node.type}`);
     const value = await handler(node, inputs, context);
+    if (context.signal?.aborted) throw new Error("PROCESSING_CANCELLED");
     values.set(nodeId, value);
-    if (node.cachePolicy !== "none") cache.set(cacheKey, value);
+    if (cacheable) cache.set(cacheKey, value);
   }
   return values;
 }
