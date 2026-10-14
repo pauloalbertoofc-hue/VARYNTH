@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Code2, Download } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
@@ -54,8 +55,8 @@ const INITIAL = JSON.stringify(
 const STORAGE_KEY = "varynth_code_graphics_v1";
 
 export default function CodeGraphicsPage() {
+  const router = useRouter();
   const [source, setSource] = useState(INITIAL);
-  const [error, setError] = useState("");
   const [transferError, setTransferError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
@@ -77,15 +78,17 @@ export default function CodeGraphicsPage() {
       }
     }
   }, [hydrated, source]);
-  const { svg, documentModel } = useMemo(() => {
+  const { svg, documentModel, error } = useMemo(() => {
     try {
       const parsed = normalizeCodeGraphic(JSON.parse(source));
-      setError("");
-      return { documentModel: parsed, svg: renderCodeGraphic(parsed) };
+      return { documentModel: parsed, svg: renderCodeGraphic(parsed), error: "" };
     } catch {
-      setError("JSON inválido: corrija o documento para atualizar o preview.");
       const fallback = normalizeCodeGraphic(null);
-      return { documentModel: fallback, svg: renderCodeGraphic(fallback) };
+      return {
+        documentModel: fallback,
+        svg: renderCodeGraphic(fallback),
+        error: "JSON inválido: corrija o documento para atualizar o preview.",
+      };
     }
   }, [source]);
   const download = () => {
@@ -106,7 +109,7 @@ export default function CodeGraphicsPage() {
       captureMetadata: { source: "FILE_IMPORT", generated: false },
     });
     if (result.success && result.image)
-      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+      router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
   };
   const openEditableInImageStudio = async () => {
     setTransferError("");
@@ -133,7 +136,7 @@ export default function CodeGraphicsPage() {
         throw new Error(
           result.error ?? "Não foi possível importar a composição.",
         );
-      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(visualDocument.id)}`;
+      router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(visualDocument.id)}`);
     } catch (cause) {
       setTransferError(
         cause instanceof Error
