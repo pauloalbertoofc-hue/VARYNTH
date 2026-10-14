@@ -42,6 +42,7 @@ export default function CameraPage() {
   const [mode, setMode] = useState<CameraMode>("AUTO");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [activeFacingMode, setActiveFacingMode] = useState<string | null>(null);
+  const [activeSettings, setActiveSettings] = useState<MediaTrackSettings | null>(null);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [torchOn, setTorchOn] = useState(false);
@@ -161,7 +162,9 @@ export default function CameraPage() {
       }
       sessionRef.current = session;
       setCapabilities(detected);
-      setActiveFacingMode((videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings().facingMode ?? facingMode);
+      const activeTrackSettings = (videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings() ?? null;
+      setActiveSettings(activeTrackSettings);
+      setActiveFacingMode(activeTrackSettings?.facingMode ?? facingMode);
       if (navigator.mediaDevices?.enumerateDevices) {
         const devices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput");
         setVideoDevices(devices);
@@ -181,6 +184,7 @@ export default function CameraPage() {
     sessionRef.current?.stop();
     sessionRef.current = null;
     setActiveFacingMode(null);
+    setActiveSettings(null);
     setTorchOn(false);
     setZoom(1);
     setActive(false);
@@ -436,7 +440,7 @@ export default function CameraPage() {
           </div>
           <div className="flex items-center justify-between border-t border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">
             <span>VARYNTH OPTICAL CAPTURE</span>
-            <span>{activeFacingMode ? `Track: ${activeFacingMode}` : "Sem track ativo"}</span>
+            <span>{activeSettings ? `${activeSettings.width ?? "—"}×${activeSettings.height ?? "—"} · ${activeSettings.frameRate ? Math.round(activeSettings.frameRate) : "—"} fps` : "Sem track ativo"}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-[var(--vly-border-subtle)] p-4">
             <select
