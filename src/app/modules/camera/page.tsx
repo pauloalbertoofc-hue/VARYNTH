@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, CircleStop, Download, Focus, Flashlight, ShieldCheck, Video } from "lucide-react";
+import { Camera, CircleStop, Download, Focus, Flashlight, RefreshCw, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
   CameraSession,
@@ -149,7 +149,7 @@ export default function CameraPage() {
     }
   }, [persistedComparison]);
 
-  const start = async () => {
+  const start = async (requestedFacingMode: "environment" | "user" = facingMode) => {
     if (!videoRef.current || active || isStarting) return;
     setIsStarting(true);
     setError(null);
@@ -172,7 +172,7 @@ export default function CameraPage() {
       const profileVideo = typeof profile.constraints.video === "object" ? profile.constraints.video : {};
       const constraints: MediaStreamConstraints = {
         ...profile.constraints,
-        video: { ...profileVideo, facingMode: { ideal: facingMode }, ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}) },
+        video: { ...profileVideo, facingMode: { ideal: requestedFacingMode }, ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}) },
       };
       let detected: CameraCapabilities;
       try {
@@ -182,7 +182,7 @@ export default function CameraPage() {
         if (!staleDevice) throw cause;
         const fallbackConstraints: MediaStreamConstraints = {
           ...profile.constraints,
-          video: { ...profileVideo, facingMode: { ideal: facingMode } },
+          video: { ...profileVideo, facingMode: { ideal: requestedFacingMode } },
         };
         setSelectedDeviceId("");
         detected = await startWithTimeout(fallbackConstraints);
@@ -230,6 +230,14 @@ export default function CameraPage() {
     setZoom(1);
     setZoomRange({ min: 1, max: 1, step: 0.1 });
     setActive(false);
+  };
+
+  const switchCamera = async () => {
+    const nextFacingMode = facingMode === "environment" ? "user" : "environment";
+    setError(null);
+    if (active || isStarting) stop();
+    setFacingMode(nextFacingMode);
+    await start(nextFacingMode);
   };
 
   const applyTorch = async () => {
@@ -548,6 +556,7 @@ export default function CameraPage() {
               <option value="environment">Traseira</option>
               <option value="user">Frontal</option>
             </select>
+            {active && <button type="button" onClick={() => void switchCamera()} disabled={isStarting} aria-label={`Alternar para câmera ${facingMode === "environment" ? "frontal" : "traseira"}`} className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold text-[var(--vly-text-primary)] disabled:opacity-50"><RefreshCw size={14} className="mr-2" />Alternar câmera</button>}
             {!active ? (
               <button
                 onClick={() => void start()}
