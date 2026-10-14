@@ -695,7 +695,9 @@ export default function CameraPage() {
                     <p className="mt-1 text-[var(--vly-text-muted)]">
                       {capture.imageArtifactId
                         ? "Vinculada ao Image Studio"
-                        : "Original local"}
+                        : capture.metadata.storedLocally === false
+                          ? "Somente sessão atual · armazenamento local indisponível"
+                          : "Original local"}
                     </p>
                     {storedMediaUrls[capture.id] ? (
                       <div className="mt-2 flex flex-wrap gap-3">
