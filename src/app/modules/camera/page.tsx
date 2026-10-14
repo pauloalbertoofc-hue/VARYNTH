@@ -528,12 +528,13 @@ export default function CameraPage() {
             {focusStatus ? ` ${focusStatus}.` : ""}
           </p>
           {error && (
-            <p
+            <div
               role="alert"
-              className="border-t border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300"
+              className="flex flex-wrap items-center justify-between gap-3 border-t border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300"
             >
-              {error}
-            </p>
+              <span>{error}</span>
+              {!active && <button type="button" onClick={() => void start()} className="rounded-md border border-red-300/40 px-3 py-1.5 font-semibold text-red-100 hover:bg-red-300/10">Tentar novamente</button>}
+            </div>
           )}
         </section>
         <aside className="space-y-4">
