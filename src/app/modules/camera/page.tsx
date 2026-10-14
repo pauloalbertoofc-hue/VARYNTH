@@ -202,6 +202,7 @@ export default function CameraPage() {
   const stop = () => {
     sessionRef.current?.stop();
     sessionRef.current = null;
+    setError(null);
     setActiveFacingMode(null);
     setActiveSettings(null);
     setTorchOn(false);
