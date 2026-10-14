@@ -3,7 +3,7 @@
  * Validates responsive shell, touch operability, pointer events, PWA readiness,
  * dynamic viewports, and capability honesty.
  *
- * Test Codes: MOBILE-REG-001 .. MOBILE-REG-039
+ * Test Codes: MOBILE-REG-001 .. MOBILE-REG-040
  */
 
 import fs from "fs";
@@ -470,6 +470,16 @@ assert(
   cameraContent.includes("grid grid-cols-2 gap-2") &&
     cameraContent.includes("grid grid-cols-2 gap-3"),
   "Both live and persisted comparisons use two responsive columns",
+);
+
+// MOBILE-REG-040: Camera announces runtime state and failures accessibly
+assert(
+  "MOBILE-REG-040",
+  "Camera announces runtime state and failures accessibly",
+  "COMPONENT_DOM",
+  cameraContent.includes('role="status" aria-live="polite"') &&
+    cameraContent.includes('aria-live="assertive"'),
+  "READY/LIVE telemetry is polite while actionable camera failures are assertive",
 );
 
 // -------------------------------------------------------------
