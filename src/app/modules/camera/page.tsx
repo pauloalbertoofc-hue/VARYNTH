@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, CircleStop, Download, Focus, Flashlight, RefreshCw, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -54,6 +54,8 @@ export default function CameraPage() {
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1, step: 0.1 });
   const [focusStatus, setFocusStatus] = useState<string | null>(null);
   const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+  const pinchDistanceRef = useRef<number | null>(null);
+  const pinchZoomRef = useRef(1);
   const [timerSeconds, setTimerSeconds] = useState<0 | 3 | 10>(0);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const captureRecordIdRef = useRef<string | null>(null);
@@ -260,6 +262,34 @@ export default function CameraPage() {
     } catch (cause) {
       setError(describeCameraError(cause));
     }
+  };
+
+  const touchDistance = (touches: { item: (index: number) => { clientX: number; clientY: number } | null }) => {
+    const first = touches.item(0);
+    const second = touches.item(1);
+    if (!first || !second) return null;
+    return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+  };
+
+  const handleTouchStart = (event: TouchEvent<HTMLVideoElement>) => {
+    if (!active || capabilities?.zoom.state !== "supported" || event.touches.length !== 2) return;
+    pinchDistanceRef.current = touchDistance(event.touches);
+    pinchZoomRef.current = zoom;
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLVideoElement>) => {
+    if (!pinchDistanceRef.current || event.touches.length !== 2) return;
+    const nextDistance = touchDistance(event.touches);
+    if (!nextDistance) return;
+    event.preventDefault();
+    const ratio = nextDistance / pinchDistanceRef.current;
+    const rawZoom = pinchZoomRef.current * ratio;
+    const value = Math.max(zoomRange.min, Math.min(zoomRange.max, Math.round(rawZoom / zoomRange.step) * zoomRange.step));
+    if (Math.abs(value - zoom) >= zoomRange.step) void applyZoom(value);
+  };
+
+  const handleTouchEnd = () => {
+    pinchDistanceRef.current = null;
   };
 
   const focusAtPoint = async (event: MouseEvent<HTMLVideoElement>) => {
@@ -503,8 +533,11 @@ export default function CameraPage() {
               autoPlay
               playsInline
               onClick={(event) => void focusAtPoint(event)}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               aria-label={capabilities?.focus.state === "supported" ? "Preview da câmera; toque para focar" : "Preview da câmera"}
-              className="h-full w-full object-contain"
+              className="h-full w-full touch-none object-contain"
             />
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-3 text-[10px] font-semibold tracking-[0.18em] text-white/80">
