@@ -403,15 +403,17 @@ export default function CameraPage() {
 
   const openStoredCaptureInImageStudio = async (
     capture: CameraCaptureRecord,
+    mediaId = capture.id,
+    selectedVersion: "ORIGINAL" | "CORRECTED" = "ORIGINAL",
   ) => {
-    const blob = await getCameraMedia(capture.id);
+    const blob = await getCameraMedia(mediaId);
     if (!blob) {
       setError("CAMERA_ORIGINAL_NOT_AVAILABLE");
       return;
     }
     setOpeningCaptureId(capture.id);
     const result = await imageService.importImage({
-      name: `${capture.id}.${capture.metadata.media === "VIDEO" ? "webm" : "jpg"}`,
+      name: `${capture.id}-${selectedVersion.toLowerCase()}.${capture.metadata.media === "VIDEO" ? "webm" : "jpg"}`,
       mimeType: blob.type || "image/jpeg",
       sizeBytes: blob.size,
       data: blob,
@@ -421,7 +423,7 @@ export default function CameraPage() {
         generated: false,
         capturedAt: capture.capturedAt,
         cameraSettings: (capture.metadata.cameraSettings as MediaTrackSettings | null | undefined) ?? null,
-        selectedVersion: capture.metadata.selectedVersion === "CORRECTED" ? "CORRECTED" : "ORIGINAL",
+        selectedVersion,
         correctionPolicy: typeof capture.metadata.correctionPolicy === "string" ? capture.metadata.correctionPolicy : "NONE",
         userApprovedCorrection: capture.metadata.userApprovedCorrection === true,
       },
@@ -447,6 +449,8 @@ export default function CameraPage() {
     }
     setPersistedComparison({ id: capture.id, originalUrl: URL.createObjectURL(original), correctedUrl: URL.createObjectURL(corrected) });
   };
+
+  const comparisonCapture = persistedComparison ? captures.find((capture) => capture.id === persistedComparison.id) : null;
 
   return (
     <PageLayout
@@ -738,7 +742,7 @@ export default function CameraPage() {
           {persistedComparison && (
             <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
               <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-sm font-bold text-[var(--vly-text-primary)]">Comparação persistida</h2><button type="button" onClick={() => setPersistedComparison(null)} className="text-xs text-[var(--vly-text-muted)]">Fechar</button></div>
-              <div className="grid gap-3 sm:grid-cols-2"><figure><img src={persistedComparison.originalUrl} alt="Original persistido" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Original preservado</figcaption></figure><figure><img src={persistedComparison.correctedUrl} alt="Correção automática persistida" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Correção automática</figcaption><a href={persistedComparison.correctedUrl} download={`varynth-${persistedComparison.id}-corrected.jpg`} className="mt-2 inline-block text-[10px] font-bold text-[var(--vly-info)]">Baixar correção persistida →</a></figure></div>
+              <div className="grid gap-3 sm:grid-cols-2"><figure><img src={persistedComparison.originalUrl} alt="Original persistido" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Original preservado</figcaption></figure><figure><img src={persistedComparison.correctedUrl} alt="Correção automática persistida" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Correção automática</figcaption><div className="mt-2 flex flex-wrap gap-3"><a href={persistedComparison.correctedUrl} download={`varynth-${persistedComparison.id}-corrected.jpg`} className="text-[10px] font-bold text-[var(--vly-info)]">Baixar correção persistida →</a>{comparisonCapture?.correctedMediaId && <button type="button" onClick={() => void openStoredCaptureInImageStudio(comparisonCapture, comparisonCapture.correctedMediaId, "CORRECTED")} className="text-[10px] font-bold text-emerald-300">Abrir correção no Image Studio →</button>}</div></figure></div>
               <p className="mt-3 text-[11px] text-[var(--vly-text-muted)]">A comparação é somente para revisão. A versão original permanece intacta.</p>
             </div>
           )}
