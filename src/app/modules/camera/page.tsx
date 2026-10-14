@@ -58,6 +58,7 @@ export default function CameraPage() {
   >({});
   const storedMediaUrlsRef = useRef<Record<string, string>>({});
   const [openingCaptureId, setOpeningCaptureId] = useState<string | null>(null);
+  const [persistedComparison, setPersistedComparison] = useState<{ id: string; originalUrl: string; correctedUrl: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -136,6 +137,13 @@ export default function CameraPage() {
     },
     [videoUrl],
   );
+
+  useEffect(() => () => {
+    if (persistedComparison) {
+      URL.revokeObjectURL(persistedComparison.originalUrl);
+      URL.revokeObjectURL(persistedComparison.correctedUrl);
+    }
+  }, [persistedComparison]);
 
   const start = async () => {
     if (!videoRef.current) return;
@@ -424,6 +432,20 @@ export default function CameraPage() {
     window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
   };
 
+  const compareStoredCapture = async (capture: CameraCaptureRecord) => {
+    if (!capture.correctedMediaId) return;
+    const [original, corrected] = await Promise.all([getCameraMedia(capture.id), getCameraMedia(capture.correctedMediaId)]);
+    if (!original || !corrected) {
+      setError("A variante original ou corrigida não está disponível neste dispositivo.");
+      return;
+    }
+    if (persistedComparison) {
+      URL.revokeObjectURL(persistedComparison.originalUrl);
+      URL.revokeObjectURL(persistedComparison.correctedUrl);
+    }
+    setPersistedComparison({ id: capture.id, originalUrl: URL.createObjectURL(original), correctedUrl: URL.createObjectURL(corrected) });
+  };
+
   return (
     <PageLayout
       title="Varynth Camera"
@@ -687,17 +709,16 @@ export default function CameraPage() {
                           Baixar original persistido →
                         </a>
                         {capture.metadata.media !== "VIDEO" && (
-                          <button
-                            onClick={() =>
-                              void openStoredCaptureInImageStudio(capture)
-                            }
-                            disabled={openingCaptureId === capture.id}
-                            className="font-bold text-[var(--vly-accent)] disabled:opacity-50"
-                          >
-                            {openingCaptureId === capture.id
-                              ? "Abrindo..."
-                              : "Abrir no Image Studio →"}
-                          </button>
+                          <>
+                            <button
+                              onClick={() => void openStoredCaptureInImageStudio(capture)}
+                              disabled={openingCaptureId === capture.id}
+                              className="font-bold text-[var(--vly-accent)] disabled:opacity-50"
+                            >
+                              {openingCaptureId === capture.id ? "Abrindo..." : "Abrir no Image Studio →"}
+                            </button>
+                            {capture.correctedMediaId && <button type="button" onClick={() => void compareStoredCapture(capture)} className="font-bold text-[var(--vly-info)]">Comparar original/correção →</button>}
+                          </>
                         )}
                       </div>
                     ) : (
@@ -710,6 +731,13 @@ export default function CameraPage() {
               </div>
             )}
           </div>
+          {persistedComparison && (
+            <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-sm font-bold text-[var(--vly-text-primary)]">Comparação persistida</h2><button type="button" onClick={() => setPersistedComparison(null)} className="text-xs text-[var(--vly-text-muted)]">Fechar</button></div>
+              <div className="grid gap-3 sm:grid-cols-2"><figure><img src={persistedComparison.originalUrl} alt="Original persistido" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Original preservado</figcaption></figure><figure><img src={persistedComparison.correctedUrl} alt="Correção automática persistida" className="w-full rounded-lg" /><figcaption className="mt-1 text-[10px] uppercase tracking-wider text-[var(--vly-text-muted)]">Correção automática</figcaption></figure></div>
+              <p className="mt-3 text-[11px] text-[var(--vly-text-muted)]">A comparação é somente para revisão. A versão original permanece intacta.</p>
+            </div>
+          )}
         </aside>
       </div>
     </PageLayout>
