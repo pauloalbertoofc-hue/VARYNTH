@@ -501,7 +501,7 @@ export default function CameraPage() {
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">
+          <div role="status" aria-live="polite" className="flex items-center justify-between border-t border-[var(--vly-border-subtle)] bg-[var(--vly-surface-raised)] px-4 py-2 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">
             <span>VARYNTH OPTICAL CAPTURE</span>
             <span>{activeSettings ? `${activeSettings.width ?? "—"}×${activeSettings.height ?? "—"} · ${activeSettings.frameRate ? Math.round(activeSettings.frameRate) : "—"} fps` : "Sem track ativo"}</span>
           </div>
@@ -573,7 +573,7 @@ export default function CameraPage() {
             {active && capabilities?.torch.state === "supported" && <button type="button" onClick={() => void applyTorch()} className={`vly-interactive rounded-lg border px-3 py-2 text-xs font-bold ${torchOn ? "border-amber-300/60 text-amber-200" : "border-[var(--vly-border-strong)] text-[var(--vly-text-primary)]"}`}><Flashlight size={14} className="mr-2 inline" />{torchOn ? "Torch ligada" : "Torch"}</button>}
           </div>
           {active && capabilities?.zoom.state === "supported" && <label className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">Zoom <input aria-label="Zoom da câmera" type="range" min={String(zoomRange.min)} max={String(zoomRange.max)} step={String(zoomRange.step)} value={zoom} onChange={(event) => void applyZoom(Number(event.target.value))} className="flex-1 accent-[var(--vly-accent)]" /><span className="w-10 text-right">{zoom.toFixed(1)}×</span></label>}
-          <p className="border-t border-[var(--vly-border-subtle)] px-4 py-2 text-[11px] text-[var(--vly-text-muted)]">
+          <p role="status" aria-live="polite" className="border-t border-[var(--vly-border-subtle)] px-4 py-2 text-[11px] text-[var(--vly-text-muted)]">
             {getCameraModeProfile(mode).description}
             {getCameraModeProfile(mode).requiresHardwareControls
               ? " Controles manuais dependem das capacidades reais do track."
@@ -584,6 +584,7 @@ export default function CameraPage() {
           {error && (
             <div
               role="alert"
+              aria-live="assertive"
               className="flex flex-wrap items-center justify-between gap-3 border-t border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300"
             >
               <span>{error}</span>
