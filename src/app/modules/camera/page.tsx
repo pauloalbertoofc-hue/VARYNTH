@@ -53,6 +53,7 @@ export default function CameraPage() {
   const [zoom, setZoom] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1, step: 0.1 });
   const [focusStatus, setFocusStatus] = useState<string | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
   const [timerSeconds, setTimerSeconds] = useState<0 | 3 | 10>(0);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const captureRecordIdRef = useRef<string | null>(null);
@@ -266,6 +267,8 @@ export default function CameraPage() {
     const rect = videoRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    setFocusPoint({ x, y });
+    window.setTimeout(() => setFocusPoint(null), 1400);
     try {
       await sessionRef.current?.applyVideoConstraints({ advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet] });
       refreshActiveTrackSettings();
@@ -513,6 +516,7 @@ export default function CameraPage() {
                 <div className="absolute inset-x-[14%] top-1/2 border-t border-white/15" />
                 <div className="absolute inset-y-[14%] left-1/2 border-l border-white/15" />
                 <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[10px] text-white/75 backdrop-blur"><Focus size={12} /> GUIA DE ENQUADRAMENTO</div>
+                {focusPoint && <div aria-hidden="true" className="absolute h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-yellow-300 shadow-[0_0_18px_rgba(253,224,71,0.65)]" style={{ left: `${focusPoint.x * 100}%`, top: `${focusPoint.y * 100}%` }} />}
               </>}
             </div>
             {!active && (
