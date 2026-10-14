@@ -41,6 +41,7 @@ export function describeCameraError(error: unknown): string {
     CAMERA_NOT_FOUND: "Nenhuma câmera compatível foi encontrada neste dispositivo.",
     CAMERA_TEMPORARILY_UNAVAILABLE: "A câmera está ocupada ou indisponível temporariamente. Feche outros aplicativos que a estejam usando e tente novamente.",
     CAMERA_CONSTRAINT_UNAVAILABLE: "A câmera não aceitou essa combinação de resolução, lente ou controle. O Varynth tentará uma configuração compatível.",
+    CAMERA_START_TIMEOUT: "A câmera não respondeu a tempo. Verifique a permissão do navegador e tente novamente.",
     CAMERA_UNSUPPORTED: "Este navegador não oferece captura de câmera.",
   };
   return messages[code] ?? "Não foi possível iniciar a câmera. Verifique o dispositivo e tente novamente.";

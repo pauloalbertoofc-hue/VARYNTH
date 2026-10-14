@@ -154,6 +154,19 @@ export default function CameraPage() {
     setIsStarting(true);
     setError(null);
     const session = new CameraSession();
+    const startWithTimeout = async (constraints: MediaStreamConstraints) => {
+      let timeoutId: number | undefined;
+      try {
+        return await Promise.race([
+          session.start(videoRef.current!, constraints),
+          new Promise<never>((_, reject) => {
+            timeoutId = window.setTimeout(() => reject(new Error("CAMERA_START_TIMEOUT")), 15000);
+          }),
+        ]);
+      } finally {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      }
+    };
     try {
       const profile = getCameraModeProfile(mode);
       const profileVideo = typeof profile.constraints.video === "object" ? profile.constraints.video : {};
@@ -163,7 +176,7 @@ export default function CameraPage() {
       };
       let detected: CameraCapabilities;
       try {
-        detected = await session.start(videoRef.current, constraints);
+        detected = await startWithTimeout(constraints);
       } catch (cause) {
         const staleDevice = Boolean(selectedDeviceId) && (cause instanceof DOMException ? cause.name === "OverconstrainedError" : String(cause).includes("OverconstrainedError"));
         if (!staleDevice) throw cause;
@@ -172,7 +185,7 @@ export default function CameraPage() {
           video: { ...profileVideo, facingMode: { ideal: facingMode } },
         };
         setSelectedDeviceId("");
-        detected = await session.start(videoRef.current, fallbackConstraints);
+        detected = await startWithTimeout(fallbackConstraints);
       }
       sessionRef.current = session;
       setCapabilities(detected);

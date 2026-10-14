@@ -23,12 +23,19 @@ export class CameraSession {
   private stream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
   private capabilities: CameraCapabilities | null = null;
+  private startGeneration = 0;
 
   constructor(private readonly adapter: CameraAdapter = webCameraAdapter) {}
 
   async start(video: HTMLVideoElement, constraints: MediaStreamConstraints = { video: true, audio: false }): Promise<CameraCapabilities> {
     this.stop();
-    this.stream = await this.adapter.requestStream(constraints);
+    const generation = ++this.startGeneration;
+    const stream = await this.adapter.requestStream(constraints);
+    if (generation !== this.startGeneration) {
+      this.adapter.stopStream(stream);
+      throw new Error("CAMERA_START_CANCELLED");
+    }
+    this.stream = stream;
     this.video = video;
     video.srcObject = this.stream;
     video.muted = true;
@@ -92,6 +99,7 @@ export class CameraSession {
   }
 
   stop(): void {
+    this.startGeneration += 1;
     if (this.stream) this.adapter.stopStream(this.stream);
     if (this.video) this.video.srcObject = null;
     this.stream = null;
