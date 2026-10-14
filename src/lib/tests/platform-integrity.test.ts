@@ -12,7 +12,7 @@ import { backupService } from "../backup/backup-service";
 import { jobManager } from "../runtime/job-manager";
 import { CreativeOrchestrator } from "../orchestration/creative-orchestrator";
 import { EXTERNAL_APP_REGISTRY } from "../external/external-app-registry";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 interface TestResult {
   code: string;
@@ -23,6 +23,10 @@ interface TestResult {
 }
 
 const results: TestResult[] = [];
+
+const appModuleRoutes = readdirSync("src/app/modules", { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => `/modules/${entry.name}`);
 
 function record(code: string, name: string, passed: boolean, details?: string, error?: string) {
   results.push({ code, name, passed, details, error });
@@ -46,22 +50,7 @@ export async function runPlatformIntegritySuite(): Promise<boolean> {
     const validRoutes = [
       "/dashboard",
       "/projects",
-      "/modules/technical-archive",
-      "/modules/graph",
-      "/modules/activity",
-      "/modules/vault",
-      "/modules/chronos",
-      "/modules/people",
-      "/modules/labs",
-      "/modules/trash",
-      "/modules/athena",
-      "/modules/codex",
-      "/modules/research",
-      "/modules/opportunities",
-      "/modules/forge",
-      "/modules/studio",
-      "/modules/music",
-      "/modules/knowledge",
+      ...appModuleRoutes,
     ];
 
     const internalModules = modules.filter((m) => !m.href.startsWith("http"));
@@ -97,22 +86,7 @@ export async function runPlatformIntegritySuite(): Promise<boolean> {
     const knownAppRoutes = [
       "/dashboard",
       "/projects",
-      "/modules/technical-archive",
-      "/modules/graph",
-      "/modules/activity",
-      "/modules/vault",
-      "/modules/chronos",
-      "/modules/people",
-      "/modules/labs",
-      "/modules/trash",
-      "/modules/athena",
-      "/modules/codex",
-      "/modules/research",
-      "/modules/opportunities",
-      "/modules/forge",
-      "/modules/studio",
-      "/modules/music",
-      "/modules/knowledge",
+      ...appModuleRoutes,
       "http://localhost:8000",
     ];
 
