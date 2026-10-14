@@ -301,6 +301,10 @@ export default function VisualStudioPage() {
                       {capture.metadata.selectedVersion === "CORRECTED" ? "Correção aprovada" : "Original"}
                       {(() => { const settings = capture.metadata.cameraSettings as MediaTrackSettings | null | undefined; return settings?.width && settings?.height ? ` · ${settings.width}×${settings.height}${settings.frameRate ? ` · ${Math.round(settings.frameRate)} fps` : ""}` : ""; })()}
                     </p>
+                    <p className="mt-1 text-[10px] text-[var(--vly-text-secondary)]">
+                      {capture.metadata.storedLocally === false ? "Somente sessão" : "Persistida localmente"}
+                      {capture.correctedMediaId ? " · correção recuperável" : ""}
+                    </p>
                     <Link
                       href="/modules/camera"
                       className="mt-2 inline-block text-[10px] font-bold text-[var(--vly-accent)]"
