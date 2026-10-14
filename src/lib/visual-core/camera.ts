@@ -20,6 +20,20 @@ function capability(id: string, label: string, state: VisualCapabilityState, rea
   return { id, label, state, ...(reason ? { reason } : {}) };
 }
 
+export function normalizeCameraError(error: unknown): Error {
+  const name = error instanceof DOMException ? error.name : error && typeof error === "object" && "name" in error ? String((error as { name?: unknown }).name) : "";
+  const code = name === "NotAllowedError" || name === "SecurityError"
+    ? "CAMERA_PERMISSION_REQUIRED"
+    : name === "NotFoundError"
+      ? "CAMERA_NOT_FOUND"
+      : name === "NotReadableError" || name === "AbortError"
+        ? "CAMERA_TEMPORARILY_UNAVAILABLE"
+        : name === "OverconstrainedError"
+          ? "CAMERA_CONSTRAINT_UNAVAILABLE"
+          : null;
+  return code ? new Error(code) : error instanceof Error ? error : new Error("CAMERA_START_FAILED");
+}
+
 export function detectCameraCapabilities(scope: typeof globalThis = globalThis): CameraCapabilities {
   const navigatorLike = scope.navigator;
   const mediaDevices = navigatorLike?.mediaDevices as (MediaDevices & { getUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream> }) | undefined;
@@ -62,10 +76,7 @@ export const webCameraAdapter: CameraAdapter = {
     try {
       return await globalThis.navigator.mediaDevices.getUserMedia(options);
     } catch (error) {
-      if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
-        throw new Error("CAMERA_PERMISSION_REQUIRED");
-      }
-      throw error;
+      throw normalizeCameraError(error);
     }
   },
   stopStream(stream) {

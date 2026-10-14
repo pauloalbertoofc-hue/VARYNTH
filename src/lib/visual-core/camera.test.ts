@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { capabilitiesFromTrack, detectCameraCapabilities } from "./camera";
+import { capabilitiesFromTrack, detectCameraCapabilities, normalizeCameraError } from "./camera";
 
 const unsupported = detectCameraCapabilities({} as typeof globalThis);
 assert.equal(unsupported.camera.state, "unsupported");
@@ -13,5 +13,9 @@ assert.equal(supported.torch.state, "supported");
 assert.equal(supported.zoom.state, "supported");
 assert.equal(supported.focus.state, "supported");
 assert.equal(supported.raw.state, "unsupported");
+assert.equal(normalizeCameraError({ name: "OverconstrainedError" }).message, "CAMERA_CONSTRAINT_UNAVAILABLE");
+assert.equal(normalizeCameraError({ name: "NotFoundError" }).message, "CAMERA_NOT_FOUND");
+assert.equal(normalizeCameraError({ name: "NotReadableError" }).message, "CAMERA_TEMPORARILY_UNAVAILABLE");
+assert.equal(normalizeCameraError(new Error("custom")).message, "custom");
 console.log("Camera adapter tests passed: capability detection is fail-closed.");
 
