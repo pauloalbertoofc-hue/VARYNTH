@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Camera, CircleStop, Download, Focus, Flashlight, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/lib/visual-core";
 
 export default function CameraPage() {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const sessionRef = useRef<CameraSession | null>(null);
   const [capabilities, setCapabilities] = useState<CameraCapabilities | null>(
@@ -48,6 +50,7 @@ export default function CameraPage() {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [torchOn, setTorchOn] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [zoomRange, setZoomRange] = useState({ min: 1, max: 1, step: 0.1 });
   const [focusStatus, setFocusStatus] = useState<string | null>(null);
   const [timerSeconds, setTimerSeconds] = useState<0 | 3 | 10>(0);
   const [isCountingDown, setIsCountingDown] = useState(false);
@@ -182,6 +185,7 @@ export default function CameraPage() {
       }
       const trackCapabilities = session.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { min?: number; max?: number; step?: number }; torch?: boolean } | undefined;
       setZoom(trackCapabilities?.zoom?.min ?? 1);
+      setZoomRange({ min: trackCapabilities?.zoom?.min ?? 1, max: trackCapabilities?.zoom?.max ?? 1, step: trackCapabilities?.zoom?.step ?? 0.1 });
       setActive(true);
     } catch (cause) {
       setError(describeCameraError(cause));
@@ -202,6 +206,7 @@ export default function CameraPage() {
     setActiveSettings(null);
     setTorchOn(false);
     setZoom(1);
+    setZoomRange({ min: 1, max: 1, step: 0.1 });
     setActive(false);
   };
 
@@ -398,7 +403,7 @@ export default function CameraPage() {
       },
     });
     setCaptures(listCameraCaptures());
-    window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+    router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
   };
 
   const openStoredCaptureInImageStudio = async (
@@ -433,7 +438,7 @@ export default function CameraPage() {
       setError(result.error ?? "CAMERA_IMPORT_TO_STUDIO_FAILED");
       return;
     }
-    window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+    router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
   };
 
   const compareStoredCapture = async (capture: CameraCaptureRecord) => {
@@ -557,7 +562,7 @@ export default function CameraPage() {
             )}
             {active && capabilities?.torch.state === "supported" && <button type="button" onClick={() => void applyTorch()} className={`vly-interactive rounded-lg border px-3 py-2 text-xs font-bold ${torchOn ? "border-amber-300/60 text-amber-200" : "border-[var(--vly-border-strong)] text-[var(--vly-text-primary)]"}`}><Flashlight size={14} className="mr-2 inline" />{torchOn ? "Torch ligada" : "Torch"}</button>}
           </div>
-          {active && capabilities?.zoom.state === "supported" && <label className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">Zoom <input aria-label="Zoom da câmera" type="range" min={String((sessionRef.current?.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { min?: number } })?.zoom?.min ?? 1)} max={String((sessionRef.current?.getVideoTrack()?.getCapabilities() as MediaTrackCapabilities & { zoom?: { max?: number } })?.zoom?.max ?? 1)} step="0.1" value={zoom} onChange={(event) => void applyZoom(Number(event.target.value))} className="flex-1 accent-[var(--vly-accent)]" /><span className="w-10 text-right">{zoom.toFixed(1)}×</span></label>}
+          {active && capabilities?.zoom.state === "supported" && <label className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">Zoom <input aria-label="Zoom da câmera" type="range" min={String(zoomRange.min)} max={String(zoomRange.max)} step={String(zoomRange.step)} value={zoom} onChange={(event) => void applyZoom(Number(event.target.value))} className="flex-1 accent-[var(--vly-accent)]" /><span className="w-10 text-right">{zoom.toFixed(1)}×</span></label>}
           <p className="border-t border-[var(--vly-border-subtle)] px-4 py-2 text-[11px] text-[var(--vly-text-muted)]">
             {getCameraModeProfile(mode).description}
             {getCameraModeProfile(mode).requiresHardwareControls
