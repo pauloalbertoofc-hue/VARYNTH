@@ -3,6 +3,7 @@ import type { CameraMode } from "./camera-types";
 export interface CameraCaptureRecord {
   id: string;
   originalAssetId?: string;
+  correctedMediaId?: string;
   imageArtifactId?: string;
   mode: CameraMode;
   capturedAt: string;

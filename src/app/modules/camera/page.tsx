@@ -247,10 +247,12 @@ export default function CameraPage() {
       const report = await analyzeCameraFrame(result.blob);
       setQuality(report);
       let correctionAvailable = false;
+      let correctedResultBlob: Blob | null = null;
       try {
         const corrected = await createAutomaticCorrection(result.blob, report);
         if (corrected) {
           correctionAvailable = true;
+          correctedResultBlob = corrected;
           if (correctedUrl) URL.revokeObjectURL(correctedUrl);
           setCorrectedBlob(corrected);
           setCorrectedUrl(URL.createObjectURL(corrected));
@@ -269,8 +271,11 @@ export default function CameraPage() {
       const recordId = `capture-${Date.now()}`;
       captureRecordIdRef.current = recordId;
       void saveCameraMedia(recordId, result.blob);
+      const correctedMediaId = correctedResultBlob ? `${recordId}-corrected` : undefined;
+      if (correctedResultBlob && correctedMediaId) void saveCameraMedia(correctedMediaId, correctedResultBlob);
       const record = {
         id: recordId,
+        ...(correctedMediaId ? { correctedMediaId } : {}),
         mode,
         capturedAt: result.capturedAt,
         source: "DEVICE_CAMERA" as const,
