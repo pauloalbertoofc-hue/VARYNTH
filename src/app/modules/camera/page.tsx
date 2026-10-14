@@ -261,7 +261,7 @@ export default function CameraPage() {
         capturedAt: result.capturedAt,
         source: "DEVICE_CAMERA" as const,
         generated: false as const,
-        metadata: { quality: report, capabilities, correctionAvailable, correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST" },
+        metadata: { quality: report, capabilities, cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null, correctionAvailable, correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST" },
       };
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
@@ -311,6 +311,7 @@ export default function CameraPage() {
           mimeType: result.mimeType,
           durationMs: result.durationMs,
           media: "VIDEO",
+          cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null,
           storedLocally: typeof indexedDB !== "undefined",
         },
       });
