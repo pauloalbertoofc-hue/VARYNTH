@@ -33,6 +33,7 @@ export default function CameraPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [captureUrl, setCaptureUrl] = useState<string | null>(null);
   const [captureBlob, setCaptureBlob] = useState<Blob | null>(null);
   const [correctedBlob, setCorrectedBlob] = useState<Blob | null>(null);
@@ -149,7 +150,8 @@ export default function CameraPage() {
   }, [persistedComparison]);
 
   const start = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || active || isStarting) return;
+    setIsStarting(true);
     setError(null);
     const session = new CameraSession();
     try {
@@ -194,6 +196,8 @@ export default function CameraPage() {
       setActiveSettings(null);
       setError(describeCameraError(cause));
       setActive(false);
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -534,10 +538,11 @@ export default function CameraPage() {
             {!active ? (
               <button
                 onClick={() => void start()}
-                className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-4 py-2 text-xs font-bold text-[var(--vly-accent-contrast)]"
+                disabled={isStarting}
+                className="vly-interactive rounded-lg bg-[var(--vly-accent)] px-4 py-2 text-xs font-bold text-[var(--vly-accent-contrast)] disabled:cursor-wait disabled:opacity-60"
               >
                 <Video size={14} className="mr-2 inline" />
-                Iniciar câmera
+                {isStarting ? "Iniciando..." : "Iniciar câmera"}
               </button>
             ) : (
               <button
@@ -582,7 +587,7 @@ export default function CameraPage() {
               className="flex flex-wrap items-center justify-between gap-3 border-t border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300"
             >
               <span>{error}</span>
-              {!active && <button type="button" onClick={() => void start()} className="rounded-md border border-red-300/40 px-3 py-1.5 font-semibold text-red-100 hover:bg-red-300/10">Tentar novamente</button>}
+              {!active && <button type="button" onClick={() => void start()} disabled={isStarting} className="rounded-md border border-red-300/40 px-3 py-1.5 font-semibold text-red-100 hover:bg-red-300/10 disabled:cursor-wait disabled:opacity-60">{isStarting ? "Iniciando..." : "Tentar novamente"}</button>}
             </div>
           )}
         </section>
