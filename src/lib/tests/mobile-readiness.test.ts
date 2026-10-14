@@ -3,7 +3,7 @@
  * Validates responsive shell, touch operability, pointer events, PWA readiness,
  * dynamic viewports, and capability honesty.
  *
- * Test Codes: MOBILE-REG-001 .. MOBILE-REG-040
+ * Test Codes: MOBILE-REG-001 .. MOBILE-REG-041
  */
 
 import fs from "fs";
@@ -480,6 +480,15 @@ assert(
   cameraContent.includes('role="status" aria-live="polite"') &&
     cameraContent.includes('aria-live="assertive"'),
   "READY/LIVE telemetry is polite while actionable camera failures are assertive",
+);
+
+// MOBILE-REG-041: Camera comparisons preserve the complete frame
+assert(
+  "MOBILE-REG-041",
+  "Camera comparisons preserve the complete frame",
+  "COMPONENT_DOM",
+  cameraContent.includes("object-contain") && !cameraContent.includes("aspect-video w-full rounded-lg object-cover"),
+  "Original and corrected previews use contain-fit so no image content is cropped",
 );
 
 // -------------------------------------------------------------
