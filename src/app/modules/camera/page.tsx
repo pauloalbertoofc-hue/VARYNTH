@@ -654,6 +654,16 @@ export default function CameraPage() {
           )}
         </section>
         <aside className="space-y-4">
+          <details className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
+            <summary className="cursor-pointer text-sm font-bold text-[var(--vly-text-primary)]">Testar no celular</summary>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-[var(--vly-text-secondary)]">
+              <li>Abra este endereço em HTTPS e permita o acesso à câmera.</li>
+              <li>Confirme <strong>Traseira</strong> e toque em <strong>Iniciar câmera</strong>.</li>
+              <li>Toque para focar; use dois dedos para zoom e o botão circular para capturar.</li>
+              <li>Revise <strong>Original preservado</strong> e <strong>Correção sugerida</strong> lado a lado.</li>
+              <li>Escolha a versão antes de abrir no Image Studio e teste <strong>Alternar câmera</strong>.</li>
+            </ol>
+          </details>
           <div className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--vly-text-primary)]">
               <ShieldCheck size={16} className="text-[var(--vly-success)]" />
