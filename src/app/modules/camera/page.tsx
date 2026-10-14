@@ -146,7 +146,19 @@ export default function CameraPage() {
         ...profile.constraints,
         video: { ...profileVideo, facingMode: { ideal: facingMode }, ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}) },
       };
-      const detected = await session.start(videoRef.current, constraints);
+      let detected: CameraCapabilities;
+      try {
+        detected = await session.start(videoRef.current, constraints);
+      } catch (cause) {
+        const staleDevice = Boolean(selectedDeviceId) && (cause instanceof DOMException ? cause.name === "OverconstrainedError" : String(cause).includes("OverconstrainedError"));
+        if (!staleDevice) throw cause;
+        const fallbackConstraints: MediaStreamConstraints = {
+          ...profile.constraints,
+          video: { ...profileVideo, facingMode: { ideal: facingMode } },
+        };
+        setSelectedDeviceId("");
+        detected = await session.start(videoRef.current, fallbackConstraints);
+      }
       sessionRef.current = session;
       setCapabilities(detected);
       setActiveFacingMode((videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings().facingMode ?? facingMode);
