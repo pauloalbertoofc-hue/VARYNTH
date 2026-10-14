@@ -180,6 +180,12 @@ export default function CameraPage() {
     }
   };
 
+  const refreshActiveTrackSettings = () => {
+    const settings = sessionRef.current?.getVideoTrack()?.getSettings() ?? null;
+    setActiveSettings(settings);
+    if (settings?.facingMode) setActiveFacingMode(settings.facingMode);
+  };
+
   const stop = () => {
     sessionRef.current?.stop();
     sessionRef.current = null;
@@ -195,6 +201,7 @@ export default function CameraPage() {
     try {
       await sessionRef.current?.applyVideoConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
       setTorchOn(next);
+      refreshActiveTrackSettings();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "CAMERA_TORCH_UNAVAILABLE");
     }
@@ -204,6 +211,7 @@ export default function CameraPage() {
     try {
       await sessionRef.current?.applyVideoConstraints({ advanced: [{ zoom: value } as MediaTrackConstraintSet] });
       setZoom(value);
+      refreshActiveTrackSettings();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "CAMERA_ZOOM_UNAVAILABLE");
     }
@@ -216,6 +224,7 @@ export default function CameraPage() {
     const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
     try {
       await sessionRef.current?.applyVideoConstraints({ advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet] });
+      refreshActiveTrackSettings();
       setFocusStatus(`Foco solicitado · ${Math.round(x * 100)}%, ${Math.round(y * 100)}%`);
     } catch (cause) {
       setFocusStatus(cause instanceof Error ? cause.message : "FOCUS_CONTROL_UNAVAILABLE");
