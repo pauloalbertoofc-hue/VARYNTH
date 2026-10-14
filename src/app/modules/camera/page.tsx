@@ -349,6 +349,10 @@ export default function CameraPage() {
         source: "DEVICE_CAMERA",
         generated: false,
         capturedAt: new Date().toISOString(),
+        cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null,
+        selectedVersion: useCorrection && correctedBlob ? "CORRECTED" : "ORIGINAL",
+        correctionPolicy: useCorrection && correctedBlob ? "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST" : "NONE",
+        userApprovedCorrection: useCorrection && Boolean(correctedBlob),
       },
     });
     setIsSendingToStudio(false);
@@ -401,6 +405,10 @@ export default function CameraPage() {
         source: "DEVICE_CAMERA",
         generated: false,
         capturedAt: capture.capturedAt,
+        cameraSettings: (capture.metadata.cameraSettings as MediaTrackSettings | null | undefined) ?? null,
+        selectedVersion: capture.metadata.selectedVersion === "CORRECTED" ? "CORRECTED" : "ORIGINAL",
+        correctionPolicy: typeof capture.metadata.correctionPolicy === "string" ? capture.metadata.correctionPolicy : "NONE",
+        userApprovedCorrection: capture.metadata.userApprovedCorrection === true,
       },
     });
     setOpeningCaptureId(null);

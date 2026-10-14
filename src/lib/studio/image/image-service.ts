@@ -259,7 +259,15 @@ export class ImageService {
     sizeBytes: number;
     data: string | Blob | ArrayBuffer;
     actor?: ArtifactActor;
-    captureMetadata?: { source: "DEVICE_CAMERA" | "FILE_IMPORT"; generated: false; capturedAt?: string };
+    captureMetadata?: {
+      source: "DEVICE_CAMERA" | "FILE_IMPORT";
+      generated: false;
+      capturedAt?: string;
+      cameraSettings?: MediaTrackSettings | null;
+      selectedVersion?: "ORIGINAL" | "CORRECTED";
+      correctionPolicy?: string;
+      userApprovedCorrection?: boolean;
+    };
   }): Promise<{ success: boolean; image?: ImageItem; error?: string }> {
     const actor = params.actor || "USER";
 
