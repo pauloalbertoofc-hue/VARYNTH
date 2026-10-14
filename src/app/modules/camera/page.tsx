@@ -280,9 +280,7 @@ export default function CameraPage() {
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "CAMERA_CAPTURE_FAILED",
-      );
+      setError(describeCameraError(cause));
     } finally {
       setIsCountingDown(false);
     }
@@ -331,11 +329,7 @@ export default function CameraPage() {
       });
       setCaptures(listCameraCaptures());
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "CAMERA_VIDEO_RECORDING_FAILED",
-      );
+      setError(describeCameraError(cause));
     } finally {
       setIsRecording(false);
     }
@@ -362,8 +356,11 @@ export default function CameraPage() {
       setError(result.error ?? "CAMERA_IMPORT_TO_STUDIO_FAILED");
       return;
     }
+    const captureId = captureRecordIdRef.current ?? `capture-${Date.now()}`;
+    const previousCapture = listCameraCaptures().find((capture) => capture.id === captureId);
     saveCameraCapture({
-      id: captureRecordIdRef.current ?? `capture-${Date.now()}`,
+      ...(previousCapture ?? {}),
+      id: captureId,
       originalAssetId: String(
         result.image.artifact.metadata.sourceAssetId ?? "",
       ),
@@ -373,6 +370,7 @@ export default function CameraPage() {
       source: "DEVICE_CAMERA",
       generated: false,
       metadata: {
+        ...(previousCapture?.metadata ?? {}),
         quality,
         capabilities,
         selectedVersion: useCorrection && correctedBlob ? "CORRECTED" : "ORIGINAL",
