@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Download, GitBranch, ImagePlus } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
@@ -30,6 +31,7 @@ const INITIAL = JSON.stringify(
 const STORAGE_KEY = "varynth_procedural_graph_v1";
 
 export default function ProceduralGraphPage() {
+  const router = useRouter();
   const [source, setSource] = useState(INITIAL);
   const [hydrated, setHydrated] = useState(false);
   const [sending, setSending] = useState(false);
@@ -103,7 +105,7 @@ export default function ProceduralGraphPage() {
       if (!result.success || !result.image) {
         throw new Error("O Image Studio não aceitou o PNG exportado.");
       }
-      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+      router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
     } catch (error) {
       setExportError(
         error instanceof Error

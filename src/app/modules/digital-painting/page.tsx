@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Download,
   Eraser,
@@ -15,6 +16,7 @@ const PAINTING_STORAGE_KEY = "varynth_digital_painting_v1";
 const PAINTING_SETTINGS_KEY = "varynth_digital_painting_settings_v1";
 
 export default function DigitalPaintingPage() {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const [color, setColor] = useState("#f2c14e");
@@ -157,7 +159,7 @@ export default function DigitalPaintingPage() {
     });
     setIsSending(false);
     if (result.success && result.image)
-      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+      router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
   };
   return (
     <PageLayout
