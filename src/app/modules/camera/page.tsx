@@ -508,7 +508,7 @@ export default function CameraPage() {
           <div className="flex flex-wrap items-center gap-2 border-t border-[var(--vly-border-subtle)] p-4">
             <select
               value={mode}
-              onChange={(event) => setMode(event.target.value as CameraMode)}
+              onChange={(event) => { setError(null); setMode(event.target.value as CameraMode); }}
               disabled={active}
               className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"
             >
@@ -519,7 +519,7 @@ export default function CameraPage() {
               <option value="VIDEO">VIDEO</option>
               <option value="STUDIO">STUDIO</option>
             </select>
-            {videoDevices.length > 1 && <><label className="sr-only" htmlFor="camera-device">Dispositivo de câmera</label><select id="camera-device" value={selectedDeviceId} onChange={(event) => setSelectedDeviceId(event.target.value)} disabled={active} className="vly-field max-w-48 rounded-lg px-3 py-2 text-xs font-semibold"><option value="">Dispositivo padrão</option>{videoDevices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Câmera ${index + 1}`}</option>)}</select></>}
+            {videoDevices.length > 1 && <><label className="sr-only" htmlFor="camera-device">Dispositivo de câmera</label><select id="camera-device" value={selectedDeviceId} onChange={(event) => { setError(null); setSelectedDeviceId(event.target.value); }} disabled={active} className="vly-field max-w-48 rounded-lg px-3 py-2 text-xs font-semibold"><option value="">Dispositivo padrão</option>{videoDevices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Câmera ${index + 1}`}</option>)}</select></>}
             <label className="sr-only" htmlFor="camera-timer">Temporizador</label>
             <select id="camera-timer" value={timerSeconds} onChange={(event) => setTimerSeconds(Number(event.target.value) as 0 | 3 | 10)} disabled={active === false || isCountingDown} className="vly-field rounded-lg px-3 py-2 text-xs font-semibold">
               <option value="0">Sem timer</option><option value="3">Timer 3s</option><option value="10">Timer 10s</option>
@@ -528,7 +528,7 @@ export default function CameraPage() {
             <select
               id="camera-facing"
               value={facingMode}
-              onChange={(event) => setFacingMode(event.target.value as "environment" | "user")}
+              onChange={(event) => { setError(null); setFacingMode(event.target.value as "environment" | "user"); }}
               disabled={active}
               className="vly-field rounded-lg px-3 py-2 text-xs font-semibold"
             >
