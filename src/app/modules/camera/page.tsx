@@ -580,12 +580,14 @@ export default function CameraPage() {
               </button>
             )}
             <button
+              type="button"
               onClick={() => void capture()}
+              aria-label={isCountingDown ? "Temporizador ativo" : "Capturar foto"}
               disabled={!active || isCountingDown}
-              className="vly-interactive rounded-lg bg-[var(--vly-info)] px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
+              className="vly-interactive inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--vly-info)] px-0 py-0 text-xs font-bold text-white shadow-[0_0_0_4px_rgba(255,255,255,0.18),0_8px_24px_rgba(0,0,0,0.28)] disabled:opacity-40 sm:h-auto sm:w-auto sm:rounded-lg sm:px-4 sm:py-2 sm:shadow-none"
             >
               <Camera size={14} className="mr-2 inline" />
-              {isCountingDown ? "Temporizador ativo…" : "Capturar frame"}
+              <span className="hidden sm:inline">{isCountingDown ? "Temporizador ativo…" : "Capturar frame"}</span>
             </button>
             {mode === "VIDEO" && (
               <button
