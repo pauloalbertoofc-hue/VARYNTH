@@ -491,6 +491,18 @@ assert(
   "Original and corrected previews use contain-fit so no image content is cropped",
 );
 
+// MOBILE-REG-042: Mobile camera supports native-style pinch zoom and switching
+assert(
+  "MOBILE-REG-042",
+  "Mobile camera supports native-style pinch zoom and switching",
+  "COMPONENT_DOM",
+  cameraContent.includes("onTouchStart={handleTouchStart}") &&
+    cameraContent.includes("onTouchMove={handleTouchMove}") &&
+    cameraContent.includes("touch-none") &&
+    cameraContent.includes("Alternar câmera"),
+  "Preview exposes safe pinch gesture handling and an in-session camera switch",
+);
+
 // -------------------------------------------------------------
 // Report Runner
 // -------------------------------------------------------------
