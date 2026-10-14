@@ -7,6 +7,19 @@ export interface ProcessingExecutionContext {
 
 export type ProcessingHandler = (node: VisualProcessingGraph["nodes"][number], inputs: Record<string, unknown>, context: ProcessingExecutionContext) => Promise<unknown> | unknown;
 
+function fingerprint(value: unknown): string {
+  try {
+    return JSON.stringify(value, (_key, nested) => {
+      if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+        return Object.fromEntries(Object.entries(nested as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)));
+      }
+      return nested;
+    }) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export async function executeProcessingGraph(graph: VisualProcessingGraph, handlers: Record<string, ProcessingHandler>, context: ProcessingExecutionContext = {}): Promise<Map<string, unknown>> {
   const order = topologicalOrder(graph);
   const values = new Map<string, unknown>();
@@ -14,15 +27,15 @@ export async function executeProcessingGraph(graph: VisualProcessingGraph, handl
   for (const nodeId of order) {
     if (context.signal?.aborted) throw new Error("PROCESSING_CANCELLED");
     const node = graph.nodes.find((candidate) => candidate.id === nodeId)!;
-    const cacheKey = `${node.type}@${node.version}:${JSON.stringify(node.parameters)}`;
+    const inputs: Record<string, unknown> = {};
+    for (const edge of graph.edges.filter((candidate) => candidate.to === nodeId)) inputs[edge.from] = values.get(edge.from);
+    const cacheKey = `${graph.id}@${graph.version}:${node.id}:${node.type}@${node.version}:${fingerprint(node.parameters)}:${fingerprint(inputs)}`;
     if (node.cachePolicy !== "none" && cache.has(cacheKey)) {
       values.set(nodeId, cache.get(cacheKey));
       continue;
     }
     const handler = handlers[node.type];
     if (!handler) throw new Error(`PROCESSING_HANDLER_NOT_FOUND:${node.type}`);
-    const inputs: Record<string, unknown> = {};
-    for (const edge of graph.edges.filter((candidate) => candidate.to === nodeId)) inputs[edge.from] = values.get(edge.from);
     const value = await handler(node, inputs, context);
     values.set(nodeId, value);
     if (node.cachePolicy !== "none") cache.set(cacheKey, value);
