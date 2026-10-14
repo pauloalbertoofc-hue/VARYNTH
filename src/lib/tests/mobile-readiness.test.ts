@@ -3,7 +3,7 @@
  * Validates responsive shell, touch operability, pointer events, PWA readiness,
  * dynamic viewports, and capability honesty.
  *
- * Test Codes: MOBILE-REG-001 .. MOBILE-REG-032
+ * Test Codes: MOBILE-REG-001 .. MOBILE-REG-039
  */
 
 import fs from "fs";
@@ -37,6 +37,7 @@ function assert(code: string, name: string, level: VerificationLevel, condition:
 
 const SRC_DIR = path.resolve(process.cwd(), "src");
 const PUBLIC_DIR = path.resolve(process.cwd(), "public");
+const cameraContent = fs.readFileSync(path.join(SRC_DIR, "app/modules/camera/page.tsx"), "utf-8");
 
 // -------------------------------------------------------------
 // MOBILE-REG-001 .. 032
@@ -438,6 +439,37 @@ assert(
   "STATIC_CONTRACT",
   levelsUsed.has("STATIC_CONTRACT") && levelsUsed.has("COMPONENT_DOM"),
   `Suite distinguishes proof levels: ${Array.from(levelsUsed).join(", ")}`
+);
+
+// MOBILE-REG-037: Camera defaults to the rear-facing mobile camera
+assert(
+  "MOBILE-REG-037",
+  "Camera defaults to the rear-facing mobile camera",
+  "STATIC_CONTRACT",
+  cameraContent.includes('useState<"environment" | "user">("environment")') &&
+    cameraContent.includes("facingMode: { ideal: facingMode }"),
+  "Camera requests the environment-facing device while retaining explicit front-camera selection",
+);
+
+// MOBILE-REG-038: Camera correction remains user-approved and preserves the original
+assert(
+  "MOBILE-REG-038",
+  "Camera correction remains user-approved and preserves the original",
+  "COMPONENT_DOM",
+  cameraContent.includes("Manter original") &&
+    cameraContent.includes("Usar correção") &&
+    cameraContent.includes("Original preservado"),
+  "Correction is opt-in and the original capture remains available",
+);
+
+// MOBILE-REG-039: Camera comparison remains side by side on narrow screens
+assert(
+  "MOBILE-REG-039",
+  "Camera comparison remains side by side on narrow screens",
+  "COMPONENT_DOM",
+  cameraContent.includes("grid grid-cols-2 gap-2") &&
+    cameraContent.includes("grid grid-cols-2 gap-3"),
+  "Both live and persisted comparisons use two responsive columns",
 );
 
 // -------------------------------------------------------------
