@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, Download, ImagePlus, RotateCcw } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
@@ -16,6 +17,7 @@ import {
 } from "@/lib/visual-core";
 
 export default function RetouchPage() {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalRef = useRef<ImageData | null>(null);
   const cloneBaseRef = useRef<ImageData | null>(null);
@@ -27,6 +29,8 @@ export default function RetouchPage() {
   const [look, setLook] = useState<RetouchLook>("natural");
   const [name, setName] = useState("");
   const [sending, setSending] = useState(false);
+  const [hasOriginal, setHasOriginal] = useState(false);
+  const [hasClone, setHasClone] = useState(false);
   const [error, setError] = useState("");
   const [clone, setClone] = useState({
     sourceX: 0,
@@ -52,6 +56,7 @@ export default function RetouchPage() {
       URL.revokeObjectURL(url);
       if (image.naturalWidth > 4096 || image.naturalHeight > 4096) {
         originalRef.current = null;
+        setHasOriginal(false);
         setError(
           "Imagem recusada: o limite local é 4096 × 4096 pixels para proteger a memória do navegador.",
         );
@@ -70,6 +75,8 @@ export default function RetouchPage() {
         canvas.height,
       );
       cloneBaseRef.current = null;
+      setHasOriginal(true);
+      setHasClone(false);
       setParameters(normalizeRetouchParameters());
       setLook("natural");
       setName(file.name);
@@ -77,6 +84,7 @@ export default function RetouchPage() {
     image.onerror = () => {
       URL.revokeObjectURL(url);
       originalRef.current = null;
+      setHasOriginal(false);
       setError("Não foi possível decodificar este arquivo como imagem.");
     };
     image.src = url;
@@ -90,18 +98,21 @@ export default function RetouchPage() {
   const reset = () => setParameters(normalizeRetouchParameters());
   const resetClone = () => {
     cloneBaseRef.current = null;
+    setHasClone(false);
     render();
   };
   const applyClone = () => {
     const original = originalRef.current;
     if (!original) return;
     cloneBaseRef.current = applyCloneStamp(original, clone);
+    setHasClone(true);
     render();
   };
   const applyHealing = () => {
     const original = originalRef.current;
     if (!original) return;
     cloneBaseRef.current = applyHealingBrush(original, clone);
+    setHasClone(true);
     render();
   };
   const pickClonePoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -150,7 +161,7 @@ export default function RetouchPage() {
         captureMetadata: { source: "FILE_IMPORT", generated: false },
       });
       if (result.success && result.image)
-        window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+        router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
     } catch (error) {
       setError(
         error instanceof Error
@@ -222,7 +233,7 @@ export default function RetouchPage() {
           </label>
           <button
             onClick={reset}
-            disabled={!originalRef.current}
+            disabled={!hasOriginal}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             <RotateCcw size={14} className="mr-2" />
@@ -294,21 +305,21 @@ export default function RetouchPage() {
             </label>
             <button
               onClick={applyClone}
-              disabled={!originalRef.current}
+              disabled={!hasOriginal}
               className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
             >
               Aplicar
             </button>
             <button
               onClick={applyHealing}
-              disabled={!originalRef.current}
+              disabled={!hasOriginal}
               className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
             >
               Healing
             </button>
             <button
               onClick={resetClone}
-              disabled={!cloneBaseRef.current}
+              disabled={!hasClone}
               className="vly-interactive rounded border border-[var(--vly-border-strong)] px-2 py-1 font-bold disabled:opacity-50"
             >
               Desfazer clone
@@ -316,7 +327,7 @@ export default function RetouchPage() {
           </div>
           <button
             onClick={download}
-            disabled={!originalRef.current}
+            disabled={!hasOriginal}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             <Download size={14} className="mr-2" />
@@ -324,7 +335,7 @@ export default function RetouchPage() {
           </button>
           <button
             onClick={() => void openInImageStudio()}
-            disabled={!originalRef.current || sending}
+            disabled={!hasOriginal || sending}
             className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             {sending ? "Abrindo..." : "Abrir no Image Studio"}

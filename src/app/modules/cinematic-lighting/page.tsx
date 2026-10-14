@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Download, FileJson, ImagePlus, RotateCcw } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
@@ -17,6 +18,7 @@ import {
 const STORAGE_KEY = "varynth_cinematic_lighting_v1";
 
 export default function CinematicLightingPage() {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const originalRef = useRef<ImageData | null>(null);
   const [parameters, setParameters] = useState<CinematicLightingParameters>(
@@ -26,6 +28,7 @@ export default function CinematicLightingPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [hasOriginal, setHasOriginal] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     try {
@@ -86,6 +89,7 @@ export default function CinematicLightingPage() {
         canvas.height,
       );
       setParameters(normalizeCinematicLightingParameters());
+      setHasOriginal(true);
       setLook("natural");
       setName(file.name);
     };
@@ -181,7 +185,7 @@ export default function CinematicLightingPage() {
         throw new Error(
           result.error ?? "Não foi possível abrir o resultado no Image Studio.",
         );
-      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+      router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -270,7 +274,7 @@ export default function CinematicLightingPage() {
           </label>
           <button
             onClick={() => applyLook("natural")}
-            disabled={!originalRef.current}
+            disabled={!hasOriginal}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             <RotateCcw size={14} className="mr-2" />
@@ -278,7 +282,7 @@ export default function CinematicLightingPage() {
           </button>
           <button
             onClick={download}
-            disabled={!originalRef.current}
+            disabled={!hasOriginal}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             <Download size={14} className="mr-2" />
@@ -286,7 +290,7 @@ export default function CinematicLightingPage() {
           </button>
           <button
             onClick={downloadRecipe}
-            disabled={!originalRef.current}
+            disabled={!hasOriginal}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             <FileJson size={14} className="mr-2" />
@@ -294,7 +298,7 @@ export default function CinematicLightingPage() {
           </button>
           <button
             onClick={() => void openInImageStudio()}
-            disabled={!originalRef.current || sending}
+            disabled={!hasOriginal || sending}
             className="vly-interactive rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold disabled:opacity-50"
           >
             {sending ? "Abrindo..." : "Abrir no Image Studio"}

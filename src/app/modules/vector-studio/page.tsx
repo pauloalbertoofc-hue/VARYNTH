@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Download, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { imageService } from "@/lib/studio/image/image-service";
@@ -51,6 +52,7 @@ const paint = (item: VectorObject) =>
     : item.color;
 
 export default function VectorStudioPage() {
+  const router = useRouter();
   const [objects, setObjects] = useState<VectorObject[]>(initial);
   const [selectedId, setSelectedId] = useState("background");
   const [type, setType] = useState<VectorType>("rect");
@@ -62,6 +64,8 @@ export default function VectorStudioPage() {
   const [hydrated, setHydrated] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [, setHistoryVersion] = useState(0);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const undoStack = useRef<VectorObject[][]>([]);
   const redoStack = useRef<VectorObject[][]>([]);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -122,6 +126,8 @@ export default function VectorStudioPage() {
         previousObjects.current,
       ];
       redoStack.current = [];
+      setCanUndo(true);
+      setCanRedo(false);
       previousObjects.current = objects;
       setHistoryVersion((version) => version + 1);
     }
@@ -136,6 +142,8 @@ export default function VectorStudioPage() {
       if (!target) return;
       const current = objects;
       (event.shiftKey ? undoStack.current : redoStack.current).push(current);
+      setCanUndo(undoStack.current.length > 0);
+      setCanRedo(redoStack.current.length > 0);
       historyAction.current = true;
       setObjects(target);
       setHistoryVersion((version) => version + 1);
@@ -151,6 +159,8 @@ export default function VectorStudioPage() {
       const target = redoStack.current.pop();
       if (!target) return;
       undoStack.current.push(objects);
+      setCanUndo(undoStack.current.length > 0);
+      setCanRedo(redoStack.current.length > 0);
       historyAction.current = true;
       setObjects(target);
       setHistoryVersion((version) => version + 1);
@@ -281,12 +291,14 @@ export default function VectorStudioPage() {
     });
     setIsSending(false);
     if (result.success && result.image)
-      window.location.href = `/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`;
+      router.push(`/modules/studio?studio=IMAGE&id=${encodeURIComponent(result.image.artifact.id)}`);
   };
   const undo = () => {
     const target = undoStack.current.pop();
     if (!target) return;
     redoStack.current.push(objects);
+    setCanUndo(undoStack.current.length > 0);
+    setCanRedo(true);
     historyAction.current = true;
     setObjects(target);
     setHistoryVersion((version) => version + 1);
@@ -295,6 +307,8 @@ export default function VectorStudioPage() {
     const target = redoStack.current.pop();
     if (!target) return;
     undoStack.current.push(objects);
+    setCanUndo(true);
+    setCanRedo(redoStack.current.length > 0);
     historyAction.current = true;
     setObjects(target);
     setHistoryVersion((version) => version + 1);
@@ -359,7 +373,7 @@ export default function VectorStudioPage() {
             aria-label="Desfazer"
             title="Desfazer (Ctrl/Cmd+Z)"
             onClick={undo}
-            disabled={!undoStack.current.length}
+            disabled={!canUndo}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold text-[var(--vly-text-primary)] disabled:opacity-40"
           >
             <Undo2 size={14} className="mr-2" />
@@ -369,7 +383,7 @@ export default function VectorStudioPage() {
             aria-label="Refazer"
             title="Refazer (Ctrl/Cmd+Y)"
             onClick={redo}
-            disabled={!redoStack.current.length}
+            disabled={!canRedo}
             className="vly-interactive inline-flex items-center rounded-lg border border-[var(--vly-border-strong)] px-3 py-2 text-xs font-bold text-[var(--vly-text-primary)] disabled:opacity-40"
           >
             <Redo2 size={14} className="mr-2" />
