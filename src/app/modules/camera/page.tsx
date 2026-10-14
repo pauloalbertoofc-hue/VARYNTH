@@ -278,17 +278,19 @@ export default function CameraPage() {
       }
       const recordId = `capture-${Date.now()}`;
       captureRecordIdRef.current = recordId;
-      void saveCameraMedia(recordId, result.blob);
+      const originalStored = await saveCameraMedia(recordId, result.blob);
       const correctedMediaId = correctedResultBlob ? `${recordId}-corrected` : undefined;
-      if (correctedResultBlob && correctedMediaId) void saveCameraMedia(correctedMediaId, correctedResultBlob);
+      const correctedStored = correctedResultBlob && correctedMediaId
+        ? await saveCameraMedia(correctedMediaId, correctedResultBlob)
+        : false;
       const record = {
         id: recordId,
-        ...(correctedMediaId ? { correctedMediaId } : {}),
+        ...(correctedStored && correctedMediaId ? { correctedMediaId } : {}),
         mode,
         capturedAt: result.capturedAt,
         source: "DEVICE_CAMERA" as const,
         generated: false as const,
-        metadata: { quality: report, capabilities, cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null, correctionAvailable, correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST" },
+        metadata: { quality: report, capabilities, cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null, correctionAvailable, correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST", storedLocally: originalStored && (!correctedResultBlob || correctedStored) },
       };
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
