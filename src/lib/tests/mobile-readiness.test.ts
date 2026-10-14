@@ -447,7 +447,7 @@ assert(
   "Camera defaults to the rear-facing mobile camera",
   "STATIC_CONTRACT",
   cameraContent.includes('useState<"environment" | "user">("environment")') &&
-    cameraContent.includes("facingMode: { ideal: facingMode }"),
+    (cameraContent.includes("facingMode: { ideal: facingMode }") || cameraContent.includes("facingMode: { ideal: requestedFacingMode }")),
   "Camera requests the environment-facing device while retaining explicit front-camera selection",
 );
 
