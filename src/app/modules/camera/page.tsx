@@ -15,6 +15,7 @@ import {
   type CameraMode,
   applyCinematicLightingBuffer,
   suggestCameraCorrection,
+  describeCameraError,
 } from "@/lib/visual-core";
 import { imageService } from "@/lib/studio/image/image-service";
 import {
@@ -175,7 +176,7 @@ export default function CameraPage() {
       setZoom(trackCapabilities?.zoom?.min ?? 1);
       setActive(true);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "CAMERA_START_FAILED");
+      setError(describeCameraError(cause));
       setActive(false);
     }
   };
@@ -203,7 +204,7 @@ export default function CameraPage() {
       setTorchOn(next);
       refreshActiveTrackSettings();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "CAMERA_TORCH_UNAVAILABLE");
+      setError(describeCameraError(cause));
     }
   };
 
@@ -213,7 +214,7 @@ export default function CameraPage() {
       setZoom(value);
       refreshActiveTrackSettings();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "CAMERA_ZOOM_UNAVAILABLE");
+      setError(describeCameraError(cause));
     }
   };
 
@@ -227,7 +228,7 @@ export default function CameraPage() {
       refreshActiveTrackSettings();
       setFocusStatus(`Foco solicitado · ${Math.round(x * 100)}%, ${Math.round(y * 100)}%`);
     } catch (cause) {
-      setFocusStatus(cause instanceof Error ? cause.message : "FOCUS_CONTROL_UNAVAILABLE");
+      setFocusStatus(cause instanceof Error && cause.message === "CAMERA_CONSTRAINT_UNAVAILABLE" ? "O hardware não aceitou o foco solicitado" : "Não foi possível aplicar o foco neste momento");
     }
   };
 

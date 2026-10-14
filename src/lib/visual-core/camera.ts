@@ -34,6 +34,18 @@ export function normalizeCameraError(error: unknown): Error {
   return code ? new Error(code) : error instanceof Error ? error : new Error("CAMERA_START_FAILED");
 }
 
+export function describeCameraError(error: unknown): string {
+  const code = normalizeCameraError(error).message;
+  const messages: Record<string, string> = {
+    CAMERA_PERMISSION_REQUIRED: "Permita o acesso à câmera nas configurações do navegador e tente novamente.",
+    CAMERA_NOT_FOUND: "Nenhuma câmera compatível foi encontrada neste dispositivo.",
+    CAMERA_TEMPORARILY_UNAVAILABLE: "A câmera está ocupada ou indisponível temporariamente. Feche outros aplicativos que a estejam usando e tente novamente.",
+    CAMERA_CONSTRAINT_UNAVAILABLE: "A câmera não aceitou essa combinação de resolução, lente ou controle. O Varynth tentará uma configuração compatível.",
+    CAMERA_UNSUPPORTED: "Este navegador não oferece captura de câmera.",
+  };
+  return messages[code] ?? "Não foi possível iniciar a câmera. Verifique o dispositivo e tente novamente.";
+}
+
 export function detectCameraCapabilities(scope: typeof globalThis = globalThis): CameraCapabilities {
   const navigatorLike = scope.navigator;
   const mediaDevices = navigatorLike?.mediaDevices as (MediaDevices & { getUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream> }) | undefined;
