@@ -151,8 +151,8 @@ export default function CameraPage() {
   const start = async () => {
     if (!videoRef.current) return;
     setError(null);
+    const session = new CameraSession();
     try {
-      const session = new CameraSession();
       const profile = getCameraModeProfile(mode);
       const profileVideo = typeof profile.constraints.video === "object" ? profile.constraints.video : {};
       const constraints: MediaStreamConstraints = {
@@ -188,6 +188,10 @@ export default function CameraPage() {
       setZoomRange({ min: trackCapabilities?.zoom?.min ?? 1, max: trackCapabilities?.zoom?.max ?? 1, step: trackCapabilities?.zoom?.step ?? 0.1 });
       setActive(true);
     } catch (cause) {
+      session.stop();
+      sessionRef.current = null;
+      setActiveFacingMode(null);
+      setActiveSettings(null);
       setError(describeCameraError(cause));
       setActive(false);
     }
