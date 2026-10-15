@@ -527,7 +527,7 @@ export default function CameraPage() {
     >
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_320px]">
         <section className="overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)]">
-          <div className="relative aspect-video bg-black">
+          <div className="relative aspect-[3/4] bg-black sm:aspect-video">
             <video
               ref={videoRef}
               autoPlay
