@@ -503,6 +503,20 @@ assert(
   "Preview exposes safe pinch gesture handling and an in-session camera switch",
 );
 
+// MOBILE-REG-043: Immersive camera keeps settings and zoom over the live preview
+assert(
+  "MOBILE-REG-043",
+  "Immersive camera keeps settings and zoom over the live preview",
+  "COMPONENT_DOM",
+  cameraContent.includes("immersiveMode") &&
+    cameraContent.includes("settingsOpen") &&
+    cameraContent.includes("Maximize2") &&
+    cameraContent.includes("Settings2") &&
+    cameraContent.includes("absolute bottom-28") &&
+    cameraContent.includes("fixed inset-0 z-50"),
+  "Camera exposes full-screen preview, transparent settings, and overlaid zoom controls",
+);
+
 // -------------------------------------------------------------
 // Report Runner
 // -------------------------------------------------------------
