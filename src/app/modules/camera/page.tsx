@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, CircleStop, Download, Focus, Flashlight, RefreshCw, ShieldCheck, Video } from "lucide-react";
+import { Camera, CircleStop, Download, Focus, Flashlight, Maximize2, Minimize2, RefreshCw, Settings2, ShieldCheck, Video } from "lucide-react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import {
   CameraSession,
@@ -58,6 +58,8 @@ export default function CameraPage() {
   const pinchZoomRef = useRef(1);
   const [timerSeconds, setTimerSeconds] = useState<0 | 3 | 10>(0);
   const [isCountingDown, setIsCountingDown] = useState(false);
+  const [immersiveMode, setImmersiveMode] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(true);
   const captureRecordIdRef = useRef<string | null>(null);
   const [captures, setCaptures] = useState<CameraCaptureRecord[]>([]);
   const [storedMediaUrls, setStoredMediaUrls] = useState<
@@ -527,8 +529,8 @@ export default function CameraPage() {
       subtitle="Captura real, proveniência preservada e capacidades honestas do dispositivo"
     >
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_320px]">
-        <section className="overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)]">
-          <div className="relative aspect-[3/4] bg-black sm:aspect-video">
+        <section className={`${immersiveMode ? "fixed inset-0 z-50 flex flex-col rounded-none border-0" : "overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)]"} bg-[var(--vly-surface-panel)]`}>
+          <div className={`${immersiveMode ? "min-h-0 flex-1" : "aspect-[3/4] sm:aspect-video"} relative bg-black`}>
             <video
               ref={videoRef}
               autoPlay
@@ -553,6 +555,11 @@ export default function CameraPage() {
                 {focusPoint && <div aria-hidden="true" className="absolute h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-yellow-300 shadow-[0_0_18px_rgba(253,224,71,0.65)]" style={{ left: `${focusPoint.x * 100}%`, top: `${focusPoint.y * 100}%` }} />}
               </>}
             </div>
+            <div className="absolute right-3 top-12 z-10 flex gap-2">
+              <button type="button" onClick={() => setSettingsOpen((value) => !value)} aria-label={settingsOpen ? "Ocultar configurações da câmera" : "Abrir configurações da câmera"} className="pointer-events-auto rounded-full border border-white/20 bg-black/50 p-3 text-white backdrop-blur"><Settings2 size={18} /></button>
+              <button type="button" onClick={() => { setImmersiveMode((value) => !value); setSettingsOpen(true); }} aria-label={immersiveMode ? "Sair do modo imersivo" : "Abrir modo imersivo"} className="pointer-events-auto rounded-full border border-white/20 bg-black/50 p-3 text-white backdrop-blur">{immersiveMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
+            </div>
+            {immersiveMode && !settingsOpen && <button type="button" onClick={() => void capture()} disabled={!active || isCountingDown} aria-label="Capturar foto" className="absolute bottom-8 left-1/2 z-20 flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white/70 bg-[var(--vly-info)] text-white shadow-2xl disabled:opacity-40"><Camera size={28} /></button>}
             {!active && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-[var(--vly-text-secondary)]">
                 <Camera size={34} />
@@ -564,7 +571,7 @@ export default function CameraPage() {
             <span>VARYNTH OPTICAL CAPTURE</span>
             <span>{activeSettings ? `${activeSettings.width ?? "—"}×${activeSettings.height ?? "—"} · ${activeSettings.frameRate ? Math.round(activeSettings.frameRate) : "—"} fps` : "Sem track ativo"}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--vly-border-subtle)] p-4">
+          <div className={`${immersiveMode && !settingsOpen ? "hidden" : ""} ${immersiveMode ? "absolute bottom-4 inset-x-4 z-20 rounded-2xl border border-white/20 bg-black/65 p-4 backdrop-blur-xl" : "border-t border-[var(--vly-border-subtle)] p-4"} flex flex-wrap items-center gap-2`}>
             <select
               value={mode}
               onChange={(event) => { setError(null); setMode(event.target.value as CameraMode); }}
@@ -634,7 +641,7 @@ export default function CameraPage() {
             )}
             {active && capabilities?.torch.state === "supported" && <button type="button" onClick={() => void applyTorch()} className={`vly-interactive rounded-lg border px-3 py-2 text-xs font-bold ${torchOn ? "border-amber-300/60 text-amber-200" : "border-[var(--vly-border-strong)] text-[var(--vly-text-primary)]"}`}><Flashlight size={14} className="mr-2 inline" />{torchOn ? "Torch ligada" : "Torch"}</button>}
           </div>
-          {active && capabilities?.zoom.state === "supported" && <label className="flex items-center gap-3 border-t border-[var(--vly-border-subtle)] px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]">Zoom <input aria-label="Zoom da câmera" type="range" min={String(zoomRange.min)} max={String(zoomRange.max)} step={String(zoomRange.step)} value={zoom} onChange={(event) => void applyZoom(Number(event.target.value))} className="flex-1 accent-[var(--vly-accent)]" /><span className="w-10 text-right">{zoom.toFixed(1)}×</span></label>}
+          {active && capabilities?.zoom.state === "supported" && <label className={`${immersiveMode ? "absolute bottom-28 inset-x-4 z-20 rounded-full bg-black/60 px-4 py-3 backdrop-blur" : "border-t border-[var(--vly-border-subtle)] px-4 py-3"} flex items-center gap-3 text-[10px] uppercase tracking-[0.12em] text-[var(--vly-text-muted)]`}>Zoom <input aria-label="Zoom da câmera" type="range" min={String(zoomRange.min)} max={String(zoomRange.max)} step={String(zoomRange.step)} value={zoom} onChange={(event) => void applyZoom(Number(event.target.value))} className="flex-1 accent-[var(--vly-accent)]" /><span className="w-10 text-right">{zoom.toFixed(1)}×</span></label>}
           <p role="status" aria-live="polite" className="border-t border-[var(--vly-border-subtle)] px-4 py-2 text-[11px] text-[var(--vly-text-muted)]">
             {getCameraModeProfile(mode).description}
             {getCameraModeProfile(mode).requiresHardwareControls
@@ -654,7 +661,7 @@ export default function CameraPage() {
             </div>
           )}
         </section>
-        <aside className="space-y-4">
+        <aside className={`${immersiveMode ? "hidden" : ""} space-y-4`}>
           <details className="rounded-2xl border border-[var(--vly-border-subtle)] bg-[var(--vly-surface-panel)] p-4">
             <summary className="cursor-pointer text-sm font-bold text-[var(--vly-text-primary)]">Testar no celular</summary>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-[var(--vly-text-secondary)]">
