@@ -44,7 +44,13 @@ export function ImageCanvas({
     const imageLayers = documentState.layers.filter((layer) => layer.type === "IMAGE" && layer.assetId);
     void Promise.all(imageLayers.map(async (layer) => {
       const assetId = layer.assetId!;
-      const data = await assetManager.getAssetData(assetId);
+      let data = await assetManager.getAssetData(assetId);
+      // The asset registry can hydrate one tick after the studio route mounts.
+      // Retry the same local asset instead of rendering a misleading empty layer.
+      for (let attempt = 0; !data && attempt < 2; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+        data = await assetManager.getAssetData(assetId);
+      }
       if (!data) return [assetId, null] as const;
       const asset = assetManager.getAsset(assetId);
       const blob = data instanceof Blob ? data : new Blob([data], { type: asset?.mimeType || "image/jpeg" });

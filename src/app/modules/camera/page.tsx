@@ -177,7 +177,7 @@ export default function CameraPage() {
       const profileVideo = typeof profile.constraints.video === "object" ? profile.constraints.video : {};
       const constraints: MediaStreamConstraints = {
         ...profile.constraints,
-        video: { ...profileVideo, facingMode: { ideal: requestedFacingMode }, ...(requestedDeviceId ? { deviceId: { exact: requestedDeviceId } } : {}) },
+        video: { ...profileVideo, ...(requestedDeviceId ? { deviceId: { exact: requestedDeviceId } } : { facingMode: { exact: requestedFacingMode } }) },
       };
       let detected: CameraCapabilities;
       try {
