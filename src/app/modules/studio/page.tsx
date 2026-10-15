@@ -388,6 +388,7 @@ export default function StudioPage() {
         setActiveStudio("IMAGE");
         const img = imageService.getImage(art.id);
         setActiveImage(img || null);
+        setSelectedLayerId(img?.documentState.layers[0]?.id);
         setActiveDoc(null);
         setActiveWebsite(null);
         setActiveAudio(null);

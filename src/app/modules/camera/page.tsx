@@ -152,7 +152,7 @@ export default function CameraPage() {
     }
   }, [persistedComparison]);
 
-  const start = async (requestedFacingMode: "environment" | "user" = facingMode) => {
+  const start = async (requestedFacingMode: "environment" | "user" = facingMode, requestedDeviceId = selectedDeviceId) => {
     if (!videoRef.current || active || isStarting) return;
     setIsStarting(true);
     setError(null);
@@ -175,13 +175,13 @@ export default function CameraPage() {
       const profileVideo = typeof profile.constraints.video === "object" ? profile.constraints.video : {};
       const constraints: MediaStreamConstraints = {
         ...profile.constraints,
-        video: { ...profileVideo, facingMode: { ideal: requestedFacingMode }, ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {}) },
+        video: { ...profileVideo, facingMode: { ideal: requestedFacingMode }, ...(requestedDeviceId ? { deviceId: { exact: requestedDeviceId } } : {}) },
       };
       let detected: CameraCapabilities;
       try {
         detected = await startWithTimeout(constraints);
       } catch (cause) {
-        const staleDevice = Boolean(selectedDeviceId) && (cause instanceof DOMException ? cause.name === "OverconstrainedError" : String(cause).includes("OverconstrainedError"));
+        const staleDevice = Boolean(requestedDeviceId) && (cause instanceof DOMException ? cause.name === "OverconstrainedError" : String(cause).includes("OverconstrainedError"));
         if (!staleDevice) throw cause;
         const fallbackConstraints: MediaStreamConstraints = {
           ...profile.constraints,
@@ -239,8 +239,9 @@ export default function CameraPage() {
     const nextFacingMode = facingMode === "environment" ? "user" : "environment";
     setError(null);
     if (active || isStarting) stop();
+    setSelectedDeviceId("");
     setFacingMode(nextFacingMode);
-    await start(nextFacingMode);
+    await start(nextFacingMode, "");
   };
 
   const applyTorch = async () => {

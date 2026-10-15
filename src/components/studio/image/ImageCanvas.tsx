@@ -23,6 +23,7 @@ export function ImageCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [missingAssetIds, setMissingAssetIds] = useState<Set<string>>(new Set());
+  const [assetUrls, setAssetUrls] = useState<Record<string, string>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +38,35 @@ export function ImageCanvas({
     }
     setMissingAssetIds(missing);
   }, [documentState.layers]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const imageLayers = documentState.layers.filter((layer) => layer.type === "IMAGE" && layer.assetId);
+    void Promise.all(imageLayers.map(async (layer) => {
+      const assetId = layer.assetId!;
+      const data = await assetManager.getAssetData(assetId);
+      if (!data) return [assetId, null] as const;
+      const asset = assetManager.getAsset(assetId);
+      const blob = data instanceof Blob ? data : new Blob([data], { type: asset?.mimeType || "image/jpeg" });
+      return [assetId, URL.createObjectURL(blob)] as const;
+    })).then((entries) => {
+      const next: Record<string, string> = {};
+      entries.forEach(([id, url]) => { if (url) next[id] = url; });
+      if (cancelled) {
+        Object.values(next).forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+      setAssetUrls((previous) => {
+        Object.values(previous).forEach((url) => URL.revokeObjectURL(url));
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [documentState.layers]);
+
+  useEffect(() => () => {
+    Object.values(assetUrls).forEach((url) => URL.revokeObjectURL(url));
+  }, [assetUrls]);
 
   const handleZoomIn = () => setZoom((prev) => Math.min(3, prev + 0.15));
   const handleZoomOut = () => setZoom((prev) => Math.max(0.2, prev - 0.15));
@@ -225,9 +255,13 @@ export function ImageCanvas({
                     {layer.textContent}
                   </div>
                 ) : layer.type === "IMAGE" ? (
-                  <div className="flex h-full w-full items-center justify-center rounded border border-[var(--vly-border-info)] bg-[var(--vly-info)]/10">
-                    <ImageIcon size={32} className="text-[var(--vly-info)] opacity-60" />
-                  </div>
+                  assetUrls[layer.assetId || ""] ? (
+                    <img src={assetUrls[layer.assetId || ""]} alt={layer.name} draggable={false} className="h-full w-full select-none object-contain" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center rounded border border-[var(--vly-border-info)] bg-[var(--vly-info)]/10">
+                      <ImageIcon size={32} className="text-[var(--vly-info)] opacity-60" />
+                    </div>
+                  )
                 ) : (
                   <div className="h-full w-full rounded border border-dashed border-[var(--vly-border-strong)]" />
                 )}
