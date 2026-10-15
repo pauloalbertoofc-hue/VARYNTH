@@ -88,6 +88,20 @@ export default function CameraPage() {
   }, []);
 
   useEffect(() => {
+    if (!immersiveMode) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (settingsOpen) {
+        setSettingsOpen(false);
+        return;
+      }
+      setImmersiveMode(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [immersiveMode, settingsOpen]);
+
+  useEffect(() => {
     let cancelled = false;
     const records = listCameraCaptures().slice(0, 20);
     void Promise.all(
@@ -556,8 +570,8 @@ export default function CameraPage() {
               </>}
             </div>
             <div className="absolute right-3 top-12 z-10 flex gap-2">
-              <button type="button" onClick={() => setSettingsOpen((value) => !value)} aria-label={settingsOpen ? "Ocultar configurações da câmera" : "Abrir configurações da câmera"} className="pointer-events-auto rounded-full border border-white/20 bg-black/50 p-3 text-white backdrop-blur"><Settings2 size={18} /></button>
-              <button type="button" onClick={() => { setImmersiveMode((value) => !value); setSettingsOpen(true); }} aria-label={immersiveMode ? "Sair do modo imersivo" : "Abrir modo imersivo"} className="pointer-events-auto rounded-full border border-white/20 bg-black/50 p-3 text-white backdrop-blur">{immersiveMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
+              <button type="button" onClick={() => setSettingsOpen((value) => !value)} aria-label={settingsOpen ? "Ocultar configurações da câmera" : "Abrir configurações da câmera"} aria-pressed={settingsOpen} className="pointer-events-auto rounded-full border border-white/20 bg-black/50 p-3 text-white backdrop-blur"><Settings2 size={18} /></button>
+              <button type="button" onClick={() => { setImmersiveMode((value) => !value); setSettingsOpen(true); }} aria-label={immersiveMode ? "Sair do modo imersivo" : "Abrir modo imersivo"} aria-pressed={immersiveMode} className="pointer-events-auto rounded-full border border-white/20 bg-black/50 p-3 text-white backdrop-blur">{immersiveMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
             </div>
             {immersiveMode && !settingsOpen && <button type="button" onClick={() => void capture()} disabled={!active || isCountingDown} aria-label="Capturar foto" className="absolute bottom-8 left-1/2 z-20 flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white/70 bg-[var(--vly-info)] text-white shadow-2xl disabled:opacity-40"><Camera size={28} /></button>}
             {!active && (
