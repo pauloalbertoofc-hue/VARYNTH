@@ -515,7 +515,8 @@ assert(
     cameraContent.includes("absolute bottom-28") &&
     cameraContent.includes("fixed inset-0 z-50") &&
     cameraContent.includes("event.key !== \"Escape\"") &&
-    cameraContent.includes("aria-pressed={immersiveMode}"),
+    cameraContent.includes("aria-pressed={immersiveMode}") &&
+    cameraContent.includes("wakeLock.request(\"screen\")"),
   "Camera exposes full-screen preview, transparent settings, and overlaid zoom controls",
 );
 

@@ -28,6 +28,7 @@ export default function CameraPage() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const sessionRef = useRef<CameraSession | null>(null);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
   const [capabilities, setCapabilities] = useState<CameraCapabilities | null>(
     null,
   );
@@ -68,6 +69,22 @@ export default function CameraPage() {
   const storedMediaUrlsRef = useRef<Record<string, string>>({});
   const [openingCaptureId, setOpeningCaptureId] = useState<string | null>(null);
   const [persistedComparison, setPersistedComparison] = useState<{ id: string; originalUrl: string; correctedUrl: string } | null>(null);
+
+  const releaseScreenWakeLock = () => {
+    const wakeLock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (wakeLock) void wakeLock.release().catch(() => undefined);
+  };
+
+  const requestScreenWakeLock = async () => {
+    if (!("wakeLock" in navigator)) return;
+    try {
+      const wakeLock = await navigator.wakeLock.request("screen");
+      wakeLockRef.current = wakeLock;
+    } catch {
+      // Wake Lock is optional and may be denied by the browser or power policy.
+    }
+  };
 
   useEffect(() => {
     try {
@@ -139,9 +156,20 @@ export default function CameraPage() {
   useEffect(
     () => () => {
       sessionRef.current?.stop();
+      releaseScreenWakeLock();
     },
     [],
   );
+
+  useEffect(() => {
+    if (!active) return;
+    const reacquire = () => {
+      if (document.visibilityState === "visible") void requestScreenWakeLock();
+    };
+    document.addEventListener("visibilitychange", reacquire);
+    void requestScreenWakeLock();
+    return () => document.removeEventListener("visibilitychange", reacquire);
+  }, [active]);
 
   useEffect(
     () => () => {
@@ -242,6 +270,7 @@ export default function CameraPage() {
   const stop = () => {
     sessionRef.current?.stop();
     sessionRef.current = null;
+    releaseScreenWakeLock();
     setError(null);
     setActiveFacingMode(null);
     setActiveSettings(null);
