@@ -49,6 +49,30 @@ async function runImageStudioRegressionTests() {
   const sourceAsset = assetManager.getAsset(sourceAssetId);
   assert(sourceAsset !== undefined && sourceAsset.metadata?.isSource === true, "IMGST-REG-002: Asset original marcado como isSource: true");
 
+  // IMGST-REG-031: Camera handoff preserves provenance and explicit correction choice
+  const cameraImported = await imageService.importImage({
+    name: "camera-capture.jpg",
+    mimeType: "image/png",
+    sizeBytes: 1024,
+    data: rawPngSample,
+    actor: "USER",
+    captureMetadata: {
+      source: "DEVICE_CAMERA",
+      generated: false,
+      selectedVersion: "ORIGINAL",
+      correctionPolicy: "NONE",
+      userApprovedCorrection: false,
+    },
+  });
+  assert(
+    cameraImported.success === true &&
+      cameraImported.image?.artifact.metadata.source === "DEVICE_CAMERA" &&
+      cameraImported.image.artifact.metadata.generated === false &&
+      cameraImported.image.artifact.metadata.selectedVersion === "ORIGINAL" &&
+      cameraImported.image.artifact.metadata.userApprovedCorrection === false,
+    "IMGST-REG-031: Camera handoff preserves origin and user-selected original",
+  );
+
   // IMGST-REG-003: Layer state persists after reload
   const loaded = imageService.getImage(imageId);
   assert(loaded !== null && loaded.documentState.layers.length >= 2, "IMGST-REG-003: Estado das camadas persiste e é reidratado");
