@@ -5,6 +5,7 @@ export interface CameraCapture {
   mimeType: string;
   width: number;
   height: number;
+  captureMethod: "NATIVE_PHOTO" | "VIDEO_FRAME";
   capturedAt: string;
   source: "DEVICE_CAMERA";
   generated: false;
@@ -63,6 +64,62 @@ export class CameraSession {
 
   async capture(): Promise<CameraCapture> {
     if (!this.video || !this.stream) throw new Error("CAMERA_SESSION_NOT_STARTED");
+    const track = this.getVideoTrack();
+    const ImageCaptureConstructor = (globalThis as typeof globalThis & {
+      ImageCapture?: new (videoTrack: MediaStreamTrack) => {
+        getPhotoCapabilities?(): Promise<{ imageWidth?: { max?: number }; imageHeight?: { max?: number } }>;
+        takePhoto(settings?: { imageWidth?: number; imageHeight?: number }): Promise<Blob>;
+      };
+    }).ImageCapture;
+    if (track && ImageCaptureConstructor) {
+      try {
+        const imageCapture = new ImageCaptureConstructor(track);
+        let blob: Blob;
+        try {
+          const photoCapabilities = await imageCapture.getPhotoCapabilities?.();
+          const imageWidth = photoCapabilities?.imageWidth?.max;
+          const imageHeight = photoCapabilities?.imageHeight?.max;
+          blob = imageWidth || imageHeight
+            ? await imageCapture.takePhoto({
+                ...(imageWidth ? { imageWidth } : {}),
+                ...(imageHeight ? { imageHeight } : {}),
+              })
+            : await imageCapture.takePhoto();
+        } catch {
+          blob = await imageCapture.takePhoto();
+        }
+        if (blob.size > 0) {
+          const settings = typeof track.getSettings === "function" ? track.getSettings() : {};
+          let width = settings.width ?? this.video.videoWidth;
+          let height = settings.height ?? this.video.videoHeight;
+          if (typeof createImageBitmap === "function") {
+            try {
+              const bitmap = await createImageBitmap(blob);
+              width = bitmap.width;
+              height = bitmap.height;
+              bitmap.close();
+            } catch {
+              // The native photo remains usable when metadata decoding is unavailable.
+            }
+          }
+          if (width && height) {
+            return {
+              blob,
+              mimeType: blob.type || "image/jpeg",
+              width,
+              height,
+              captureMethod: "NATIVE_PHOTO",
+              capturedAt: new Date().toISOString(),
+              source: "DEVICE_CAMERA",
+              generated: false,
+            };
+          }
+        }
+      } catch {
+        // Some browsers expose ImageCapture but reject takePhoto for a given track.
+        // Keep the live video-frame path as a reliable fallback.
+      }
+    }
     const width = this.video.videoWidth;
     const height = this.video.videoHeight;
     if (!width || !height) throw new Error("CAMERA_FRAME_NOT_READY");
@@ -73,7 +130,7 @@ export class CameraSession {
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((value) => value ? resolve(value) : reject(new Error("CAMERA_CAPTURE_FAILED")), "image/jpeg", 0.95);
     });
-    return { blob, mimeType: "image/jpeg", width, height, capturedAt: new Date().toISOString(), source: "DEVICE_CAMERA", generated: false };
+    return { blob, mimeType: "image/jpeg", width, height, captureMethod: "VIDEO_FRAME", capturedAt: new Date().toISOString(), source: "DEVICE_CAMERA", generated: false };
   }
 
   async recordVideo(durationMs = 5000): Promise<CameraVideoCapture> {

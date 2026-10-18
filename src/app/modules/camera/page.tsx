@@ -416,7 +416,18 @@ export default function CameraPage() {
         capturedAt: result.capturedAt,
         source: "DEVICE_CAMERA" as const,
         generated: false as const,
-        metadata: { quality: report, capabilities, cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null, correctionAvailable, correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST", storedLocally: originalStored && (!correctedResultBlob || correctedStored) },
+        metadata: {
+          quality: report,
+          capabilities,
+          cameraSettings: sessionRef.current?.getVideoTrack()?.getSettings() ?? null,
+          captureMethod: result.captureMethod,
+          captureWidth: result.width,
+          captureHeight: result.height,
+          mimeType: result.mimeType,
+          correctionAvailable,
+          correctionPolicy: "LOCAL_CONSERVATIVE_EXPOSURE_CONTRAST",
+          storedLocally: originalStored && (!correctedResultBlob || correctedStored),
+        },
       };
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
@@ -577,6 +588,7 @@ export default function CameraPage() {
   };
 
   const comparisonCapture = persistedComparison ? captures.find((capture) => capture.id === persistedComparison.id) : null;
+  const currentCapture = captureRecordIdRef.current ? captures.find((capture) => capture.id === captureRecordIdRef.current) : null;
 
   return (
     <PageLayout
@@ -776,6 +788,10 @@ export default function CameraPage() {
               </div>
               <p className="mt-2 text-[10px] text-[var(--vly-text-muted)]">
                 Origem: DEVICE_CAMERA · generated: false
+                {currentCapture?.metadata.captureWidth && currentCapture?.metadata.captureHeight
+                  ? ` · ${currentCapture.metadata.captureWidth}×${currentCapture.metadata.captureHeight}`
+                  : ""}
+                {currentCapture?.metadata.captureMethod === "NATIVE_PHOTO" ? " · foto nativa do sensor" : currentCapture?.metadata.captureMethod === "VIDEO_FRAME" ? " · frame de compatibilidade" : ""}
               </p>
             </div>
           )}
@@ -853,6 +869,11 @@ export default function CameraPage() {
                           ? "Somente sessão atual · armazenamento local indisponível"
                           : "Original local"}
                     </p>
+                    {Boolean(capture.metadata.captureWidth && capture.metadata.captureHeight) && (
+                      <p className="mt-1 text-[10px] text-[var(--vly-text-muted)]">
+                        {String(capture.metadata.captureWidth)}×{String(capture.metadata.captureHeight)} · {capture.metadata.captureMethod === "NATIVE_PHOTO" ? "foto nativa do sensor" : "frame de compatibilidade"}
+                      </p>
+                    )}
                     {storedMediaUrls[capture.id] ? (
                       <div className="mt-2 flex flex-wrap gap-3">
                         <a
