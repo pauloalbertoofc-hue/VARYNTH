@@ -525,6 +525,21 @@ assert(
   "Camera exposes full-screen preview, transparent settings, and overlaid zoom controls",
 );
 
+// MOBILE-REG-044: Every photo opens an explicit side-by-side review
+assert(
+  "MOBILE-REG-044",
+  "Camera asks before applying correction in an immediate mobile review",
+  "COMPONENT_DOM",
+  cameraContent.includes("setReviewOpen(true)") &&
+    cameraContent.includes('role="dialog" aria-modal="true"') &&
+    cameraContent.includes("Original ou correção sugerida?") &&
+    cameraContent.includes("Original preservado") &&
+    cameraContent.includes("Correção sugerida") &&
+    cameraContent.includes("Continuar fotografando") &&
+    cameraContent.includes('`Usar ${useCorrection && correctedBlob ? "correção" : "original"} no Image Studio`'),
+  "Capture opens a modal comparison and requires an explicit version choice before Studio handoff",
+);
+
 // -------------------------------------------------------------
 // Report Runner
 // -------------------------------------------------------------

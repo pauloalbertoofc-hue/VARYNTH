@@ -41,6 +41,7 @@ export default function CameraPage() {
   const [correctedBlob, setCorrectedBlob] = useState<Blob | null>(null);
   const [correctedUrl, setCorrectedUrl] = useState<string | null>(null);
   const [useCorrection, setUseCorrection] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [isSendingToStudio, setIsSendingToStudio] = useState(false);
   const [quality, setQuality] = useState<CameraQualityReport | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function CameraPage() {
   useEffect(() => {
     if (!immersiveMode) return;
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (reviewOpen) return;
       if (event.key !== "Escape") return;
       if (settingsOpen) {
         setSettingsOpen(false);
@@ -128,7 +130,16 @@ export default function CameraPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [immersiveMode, settingsOpen]);
+  }, [immersiveMode, reviewOpen, settingsOpen]);
+
+  useEffect(() => {
+    if (!reviewOpen) return;
+    const handleReviewKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setReviewOpen(false);
+    };
+    window.addEventListener("keydown", handleReviewKeyDown);
+    return () => window.removeEventListener("keydown", handleReviewKeyDown);
+  }, [reviewOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -431,6 +442,7 @@ export default function CameraPage() {
       };
       saveCameraCapture(record);
       setCaptures(listCameraCaptures());
+      setReviewOpen(true);
     } catch (cause) {
       setError(describeCameraError(cause));
     } finally {
@@ -595,6 +607,44 @@ export default function CameraPage() {
       title="Varynth Camera"
       subtitle="Captura real, proveniência preservada e capacidades honestas do dispositivo"
     >
+      {reviewOpen && captureUrl && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/90 p-3 backdrop-blur-xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="camera-review-title">
+          <div className="mx-auto flex min-h-full max-w-5xl items-center justify-center">
+            <section className="w-full overflow-hidden rounded-3xl border border-white/15 bg-[#0b0f16] shadow-2xl">
+              <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300">Revisão da captura</p>
+                  <h2 id="camera-review-title" className="mt-1 text-lg font-bold text-white">Original ou correção sugerida?</h2>
+                  <p className="mt-1 text-xs text-slate-400">O original permanece preservado. A correção só será usada após sua escolha.</p>
+                </div>
+                <button type="button" onClick={() => setReviewOpen(false)} aria-label="Fechar revisão e voltar à câmera" className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white">Voltar</button>
+              </header>
+              <div className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6">
+                <button type="button" onClick={() => setUseCorrection(false)} aria-pressed={!useCorrection} className={`min-w-0 overflow-hidden rounded-2xl border text-left transition ${!useCorrection ? "border-cyan-300 ring-2 ring-cyan-300/30" : "border-white/10"}`}>
+                  <img src={captureUrl} alt="Foto original preservada" className="h-[42dvh] min-h-52 w-full bg-black object-contain" />
+                  <span className="flex items-center justify-between gap-2 bg-white/[0.04] px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-white sm:text-xs"><span>Original preservado</span>{!useCorrection && <span className="rounded-full bg-cyan-300 px-2 py-1 text-[9px] text-slate-950">Selecionado</span>}</span>
+                </button>
+                {correctedUrl ? (
+                  <button type="button" onClick={() => setUseCorrection(true)} aria-pressed={useCorrection} className={`min-w-0 overflow-hidden rounded-2xl border text-left transition ${useCorrection ? "border-cyan-300 ring-2 ring-cyan-300/30" : "border-white/10"}`}>
+                    <img src={correctedUrl} alt="Foto com correção automática sugerida" className="h-[42dvh] min-h-52 w-full bg-black object-contain" />
+                    <span className="flex items-center justify-between gap-2 bg-white/[0.04] px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-white sm:text-xs"><span>Correção sugerida</span>{useCorrection && <span className="rounded-full bg-cyan-300 px-2 py-1 text-[9px] text-slate-950">Selecionada</span>}</span>
+                  </button>
+                ) : (
+                  <div className="flex min-h-52 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-5 text-center text-xs text-slate-400">A correção automática não está disponível neste navegador. O original continua pronto para uso.</div>
+                )}
+              </div>
+              <div className="border-t border-white/10 px-4 py-4 sm:px-6">
+                {Boolean(currentCapture?.metadata.captureWidth && currentCapture?.metadata.captureHeight) && <p className="mb-3 text-center text-[10px] uppercase tracking-wider text-slate-500">{String(currentCapture?.metadata.captureWidth)}×{String(currentCapture?.metadata.captureHeight)} · {currentCapture?.metadata.captureMethod === "NATIVE_PHOTO" ? "foto nativa do sensor" : "frame de compatibilidade"}</p>}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={() => setReviewOpen(false)} className="rounded-xl border border-white/15 px-4 py-3 text-xs font-bold text-white">Continuar fotografando</button>
+                  <a href={captureUrl} download="varynth-camera-original.jpg" className="rounded-xl border border-white/15 px-4 py-3 text-xs font-bold text-white">Baixar original</a>
+                  <button type="button" onClick={() => void openInImageStudio()} disabled={isSendingToStudio} className="rounded-xl bg-cyan-300 px-5 py-3 text-xs font-bold text-slate-950 disabled:opacity-50">{isSendingToStudio ? "Abrindo..." : `Usar ${useCorrection && correctedBlob ? "correção" : "original"} no Image Studio`}</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_320px]">
         <section className={`${immersiveMode ? "fixed inset-0 z-50 flex flex-col rounded-none border-0" : "overflow-hidden rounded-2xl border border-[var(--vly-border-subtle)]"} bg-[var(--vly-surface-panel)]`}>
           <div className={`${immersiveMode ? "min-h-0 flex-1" : "aspect-[3/4] sm:aspect-video"} relative bg-black`}>
