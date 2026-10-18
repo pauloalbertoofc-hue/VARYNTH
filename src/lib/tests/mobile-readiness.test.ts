@@ -502,8 +502,10 @@ assert(
     cameraContent.includes("Alternar câmera") &&
     cameraContent.includes('await start(nextFacingMode, "", true)') &&
     cameraContent.includes("(!restarting && active)") &&
-    cameraContent.includes("activeTrackSettings?.facingMode ?? requestedFacingMode"),
-  "Preview exposes safe pinch gesture handling and an in-session camera switch",
+    cameraContent.includes("activeTrackSettings?.facingMode ?? requestedFacingMode") &&
+    cameraContent.includes('frontPreviewMirrored ? "scale-x-[-1]"') &&
+    cameraContent.includes("frontCamera ? 1 - previewX : previewX"),
+  "Preview exposes pinch zoom, camera switching, and sensor-correct mirrored front-camera focus",
 );
 
 // MOBILE-REG-043: Immersive camera keeps settings and zoom over the live preview

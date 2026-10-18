@@ -364,14 +364,16 @@ export default function CameraPage() {
   const focusAtPoint = async (event: MouseEvent<HTMLVideoElement>) => {
     if (!active || capabilities?.focus.state !== "supported" || !videoRef.current) return;
     const rect = videoRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const previewX = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
-    setFocusPoint({ x, y });
+    const frontCamera = (activeFacingMode ?? facingMode) === "user";
+    const sensorX = frontCamera ? 1 - previewX : previewX;
+    setFocusPoint({ x: previewX, y });
     window.setTimeout(() => setFocusPoint(null), 1400);
     try {
-      await sessionRef.current?.applyVideoConstraints({ advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x, y }] } as MediaTrackConstraintSet] });
+      await sessionRef.current?.applyVideoConstraints({ advanced: [{ focusMode: "single-shot", pointsOfInterest: [{ x: sensorX, y }] } as MediaTrackConstraintSet] });
       refreshActiveTrackSettings();
-      setFocusStatus(`Foco solicitado · ${Math.round(x * 100)}%, ${Math.round(y * 100)}%`);
+      setFocusStatus(`Foco solicitado · ${Math.round(previewX * 100)}%, ${Math.round(y * 100)}%`);
     } catch (cause) {
       setFocusStatus(cause instanceof Error && cause.message === "CAMERA_CONSTRAINT_UNAVAILABLE" ? "O hardware não aceitou o foco solicitado" : "Não foi possível aplicar o foco neste momento");
     }
@@ -601,6 +603,7 @@ export default function CameraPage() {
 
   const comparisonCapture = persistedComparison ? captures.find((capture) => capture.id === persistedComparison.id) : null;
   const currentCapture = captureRecordIdRef.current ? captures.find((capture) => capture.id === captureRecordIdRef.current) : null;
+  const frontPreviewMirrored = (activeFacingMode ?? facingMode) === "user";
 
   return (
     <PageLayout
@@ -657,7 +660,7 @@ export default function CameraPage() {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               aria-label={capabilities?.focus.state === "supported" ? "Preview da câmera; toque para focar" : "Preview da câmera"}
-              className="h-full w-full touch-none object-contain"
+              className={`h-full w-full touch-none object-contain ${frontPreviewMirrored ? "scale-x-[-1]" : ""}`}
             />
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-3 text-[10px] font-semibold tracking-[0.18em] text-white/80">
