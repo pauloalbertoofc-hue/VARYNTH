@@ -501,7 +501,8 @@ assert(
     cameraContent.includes("touch-none") &&
     cameraContent.includes("Alternar câmera") &&
     cameraContent.includes('await start(nextFacingMode, "", true)') &&
-    cameraContent.includes("(!restarting && active)"),
+    cameraContent.includes("(!restarting && active)") &&
+    cameraContent.includes("activeTrackSettings?.facingMode ?? requestedFacingMode"),
   "Preview exposes safe pinch gesture handling and an in-session camera switch",
 );
 

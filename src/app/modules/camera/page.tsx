@@ -250,7 +250,7 @@ export default function CameraPage() {
       setCapabilities(detected);
       const activeTrackSettings = (videoRef.current.srcObject as MediaStream | null)?.getVideoTracks()[0]?.getSettings() ?? null;
       setActiveSettings(activeTrackSettings);
-      setActiveFacingMode(activeTrackSettings?.facingMode ?? facingMode);
+      setActiveFacingMode(activeTrackSettings?.facingMode ?? requestedFacingMode);
       if (navigator.mediaDevices?.enumerateDevices) {
         const devices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === "videoinput");
         setVideoDevices(devices);
