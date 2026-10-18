@@ -499,7 +499,9 @@ assert(
   cameraContent.includes("onTouchStart={handleTouchStart}") &&
     cameraContent.includes("onTouchMove={handleTouchMove}") &&
     cameraContent.includes("touch-none") &&
-    cameraContent.includes("Alternar câmera"),
+    cameraContent.includes("Alternar câmera") &&
+    cameraContent.includes('await start(nextFacingMode, "", true)') &&
+    cameraContent.includes("(!restarting && active)"),
   "Preview exposes safe pinch gesture handling and an in-session camera switch",
 );
 

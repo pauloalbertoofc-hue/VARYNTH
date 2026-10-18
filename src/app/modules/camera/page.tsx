@@ -208,8 +208,8 @@ export default function CameraPage() {
     }
   }, [persistedComparison]);
 
-  const start = async (requestedFacingMode: "environment" | "user" = facingMode, requestedDeviceId = selectedDeviceId) => {
-    if (!videoRef.current || active || isStarting) return;
+  const start = async (requestedFacingMode: "environment" | "user" = facingMode, requestedDeviceId = selectedDeviceId, restarting = false) => {
+    if (!videoRef.current || (!restarting && active) || isStarting) return;
     setIsStarting(true);
     setError(null);
     const session = new CameraSession();
@@ -298,7 +298,7 @@ export default function CameraPage() {
     if (active || isStarting) stop();
     setSelectedDeviceId("");
     setFacingMode(nextFacingMode);
-    await start(nextFacingMode, "");
+    await start(nextFacingMode, "", true);
   };
 
   const applyTorch = async () => {
