@@ -516,7 +516,9 @@ assert(
     cameraContent.includes("fixed inset-0 z-50") &&
     cameraContent.includes("event.key !== \"Escape\"") &&
     cameraContent.includes("aria-pressed={immersiveMode}") &&
-    cameraContent.includes("wakeLock.request(\"screen\")"),
+    cameraContent.includes("wakeLock.request(\"screen\")") &&
+    cameraContent.includes("wakeLockRequestRef.current") &&
+    cameraContent.includes('addEventListener("release"'),
   "Camera exposes full-screen preview, transparent settings, and overlaid zoom controls",
 );
 

@@ -28,7 +28,8 @@ export default function CameraPage() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const sessionRef = useRef<CameraSession | null>(null);
-  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  const wakeLockRequestRef = useRef<Promise<void> | null>(null);
   const [capabilities, setCapabilities] = useState<CameraCapabilities | null>(
     null,
   );
@@ -77,12 +78,23 @@ export default function CameraPage() {
   };
 
   const requestScreenWakeLock = async () => {
-    if (!("wakeLock" in navigator)) return;
+    if (!("wakeLock" in navigator) || wakeLockRef.current || wakeLockRequestRef.current) return;
+    const pendingRequest = (async () => {
+      try {
+        const wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => {
+          if (wakeLockRef.current === wakeLock) wakeLockRef.current = null;
+        }, { once: true });
+        wakeLockRef.current = wakeLock;
+      } catch {
+        // Wake Lock is optional and may be denied by the browser or power policy.
+      }
+    })();
+    wakeLockRequestRef.current = pendingRequest;
     try {
-      const wakeLock = await navigator.wakeLock.request("screen");
-      wakeLockRef.current = wakeLock;
-    } catch {
-      // Wake Lock is optional and may be denied by the browser or power policy.
+      await pendingRequest;
+    } finally {
+      if (wakeLockRequestRef.current === pendingRequest) wakeLockRequestRef.current = null;
     }
   };
 
